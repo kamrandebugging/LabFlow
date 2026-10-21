@@ -5,7 +5,7 @@
  * Translation resources are placeholder stubs; real strings are added in LAB-38.
  *
  * IMPORTANT: Do NOT store access tokens in translation resources or anywhere
- * accessible to client-side storage (localStorage / sessionStorage / cookies).
+ * accessible to persistent client storage (browser local or session storage or cookies).
  */
 import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
