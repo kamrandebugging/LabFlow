@@ -1,0 +1,715 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="dark" />
+    <link rel="icon" href="data:," />
+    <title>LabFlow Doc 05: Revenue-Share Module</title>
+    <style>
+:root{--bg:#0d1117;--fg:#e6edf3;--mut:#9aa7b4;--line:#30363d;--card:#161b22;--card2:#21262d;--acc:#e8a33d;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:dark}
+*,*::before,*::after{box-sizing:border-box}
+html{height:100%;scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--fg);font:15.5px/1.65 system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+.wrap{max-width:740px;margin:0 auto;padding:40px 24px 88px}
+nav.toc{margin:0 0 10px;padding:0 0 20px;border-bottom:1px solid var(--line)}
+nav.toc .th{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--mut);margin:0 0 10px}
+nav.toc a{display:block;color:#f0c476;text-decoration:none;font-size:13.5px;line-height:1.5;padding:2.5px 0}
+nav.toc a.sub{padding-left:16px;font-size:13px}
+main{min-width:0}
+h1{font-size:27px;line-height:1.25;margin:0 0 10px;font-weight:700;letter-spacing:-.01em}
+h2{font-size:19px;line-height:1.35;margin:42px 0 12px;padding-top:28px;border-top:1px solid var(--line);font-weight:700}
+h2:first-of-type{margin-top:32px}
+h3{font-size:15.5px;margin:24px 0 6px;font-weight:700}
+h4{font-size:14.5px;margin:18px 0 4px;font-weight:700}
+p{margin:8px 0}
+.meta{color:var(--mut);font-size:13.5px;line-height:1.6}
+.tag{display:inline-block;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:1px 9px;font-size:12px;margin:0 6px 4px 0;color:var(--fg);white-space:nowrap}
+.box{margin:14px 0;overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:13.6px;line-height:1.5}
+th,td{border:1px solid var(--line);padding:7px 10px;text-align:left;vertical-align:top;overflow-wrap:break-word}
+th{background:var(--card2);font-weight:600;color:var(--fg)}
+tbody tr:nth-child(even) td,tr:nth-child(even) td{background:#12161c}
+code{font:12.8px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:var(--card2);border-radius:5px;padding:1.5px 5px;overflow-wrap:anywhere;color:#f0c476}
+pre{font:12.6px/1.55 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:14px 16px;margin:14px 0;white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word;color:#dbe4ee}
+.diagram{background:#11161d;border:1px solid var(--line);border-radius:8px;padding:16px 12px;margin:14px 0;overflow-x:auto}
+.diagram svg{display:block;width:100%;height:auto;min-width:520px}
+pre.mermaid{background:transparent;border:none;margin:0;padding:4px;text-align:center;color:#dbe4ee}
+.dcap{color:var(--mut);font-size:12.5px;text-align:center;margin-top:8px}
+.note{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:12px 14px;margin:14px 0;font-size:14.5px;line-height:1.6}
+.spec{border:1px solid var(--line);border-radius:8px;padding:4px 14px 10px;margin:16px 0;background:#10141a}
+.spec h4{color:#f0c476}
+ul,ol{padding-left:24px;margin:8px 0}li{margin:4px 0}
+a{color:#f0c476;overflow-wrap:anywhere}
+.kv{font-size:13.8px}
+.pass{font-weight:700}
+@media(max-width:600px){.wrap{padding:28px 18px 64px}h1{font-size:24px}h2{font-size:17.5px;margin-top:36px;padding-top:22px}table{font-size:12.8px}th,td{padding:6px 7px}pre{padding:12px;font-size:12px}.diagram svg{min-width:480px}}
+    </style>
+  </head>
+  <body>
+<div class="wrap">
+<nav class="toc" aria-label="Table of contents">
+<p class="th">Doc 05 · Revenue-Share Module</p>
+<a href="#s1">1. Purpose, scope, inputs, consistency check</a>
+<a href="#s2">2. Research findings</a>
+<a href="#s3">3. Design principles</a>
+<a href="#s4">4. Roles and permission matrix</a>
+<a href="#s5">5. Referral partners and rules</a>
+<a href="#s6">6. Share ledger</a>
+<a href="#s7">7. Monthly settlement</a>
+<a href="#s8">8. Statement PDF specification</a>
+<a href="#s9">9. Delivery</a>
+<a href="#s10">10. API reference</a>
+<a href="#s11">11. Workflows</a>
+<a href="#s12">12. Concurrency, failure handling, observability, test plan</a>
+<a href="#s13">13. Resolved and open questions</a>
+<a href="#s14">14. Proposed amendments</a>
+<a href="#s15">15. What is NOT built in v1</a>
+<a href="#s16">16. Interview talking points</a>
+<a href="#s17">17. Glossary</a>
+</nav>
+<main>
+<h1>LabFlow — Doc 05: Revenue-Share Module</h1>
+<p class="meta"><span class="tag">Doc 05 of 10</span><span class="tag">v1.0</span><span class="tag">2026-10-20</span><span class="tag">Depends on Doc 01 v2.2, Doc 02 v1.3, Doc 03 v1.3, Doc 04 v1.1</span></p>
+<p class="meta">Referral partners, revenue-share rules, the share ledger, monthly settlements, the statement PDF and its delivery.<br>Audience: the developer building LabFlow v1. Stack comes from Doc 01, the schema from Doc 02, billing behaviour from Doc 03, tenancy behaviour from Doc 04 — none is re-decided here.</p>
+
+<h2 id="s1">1. Purpose, scope, inputs, consistency check</h2>
+<h3>1.1 Purpose</h3>
+<p>Doc 01 fixed the architecture. Doc 02 fixed the data model. Doc 03 fixed billing behaviour. Doc 04 fixed tenancy. This document fixes the revenue-share module: how a partner earns a share of what patients actually pay, how that share is recorded, how it is settled each month, and how the partner is told.</p>
+<p>After reading it, a developer should be able to build this module without inventing rules. Every money rule here is decided. Anything this document needs that Doc 01 or Doc 02 does not have is marked <b>Proposed</b> and listed in §14.</p>
+<div class="note"><p><b>Reports and settlements are different things.</b> One report per sample (Doc 02 §11, OQ-15 resolved) is about <code>report_version</code>: a corrected report is a new version row. Settlement versioning does not exist. A settlement is drafted once. If it is wrong, it is cancelled and re-drafted as a <b>new</b> <code>settlement</code> row. Do not confuse the two.</p></div>
+<h3>1.2 Scope</h3>
+<div class="box"><table><thead><tr><th>In scope here</th><th>Owned elsewhere</th></tr></thead><tbody>
+<tr><td>Referral partner records and revenue-share rules (§5)</td><td>Invoice and payment creation, refund recording (Doc 03 §5.3)</td></tr>
+<tr><td>The share ledger: creation, reversal, rounding (§6)</td><td>Tables, columns, constraints (Doc 02 §5.8, §12)</td></tr>
+<tr><td>Monthly settlement lifecycle (§7)</td><td>n8n workflow internals (Doc 06)</td></tr>
+<tr><td>Statement PDF content and layout (§8)</td><td>Tenant settings store and registry (Doc 04 §10)</td></tr>
+<tr><td>Statement delivery behaviour (§9)</td><td>Subscription states and read-only mode (Doc 04 §11)</td></tr>
+<tr><td>Refund ceiling answer, OQ-31 (§13)</td><td>Retention of statements and ledger exports (Doc 08)</td></tr>
+<tr><td>Past-due settlement behaviour, OQ-36 (§13)</td><td>Capacity and launch decisions (Doc 10)</td></tr>
+</tbody></table></div>
+<h3>1.3 Inputs</h3>
+<p><b>Doc 01 — Architecture Overview v2.2.</b> §12 Flow C (the money path), §13 (queues, Beat schedule, signed n8n webhook protocol, retry policy), §14 (security and audit). ADR-013: neutral naming — the module is called <i>referral partners / revenue share</i>, never “commission”.</p>
+<p><b>Doc 02 — Database Schema v1.3.</b> The only source of truth for tables, columns and status values. §5.8 (the five revenue-share tables), §5.4 (<code>payment</code>, <code>invoice</code>), §5.9 (<code>notification</code>, <code>webhook_delivery</code>), §5.12 (<code>tenant_setting</code>), §6 (append-only REVOKE list), §9 (object keys), §12 (revenue-share model, OQ-16 resolved), §13 (audit log).</p>
+<p><b>Doc 03 — Core Lab Modules v1.3.</b> §4.1 (roles), §5.3 BL-7 (refund caps and the revenue-share reversal event), §6.1 (API conventions), §7 workflow 8 (refund), §9 (report PDF and WeasyPrint rules).</p>
+<p><b>Doc 04 — Multi-Branch and Tenancy v1.1.</b> §10 (tenant settings), §11.2 (subscription states and read-only mode), §13.2 (Celery tenant context and per-tenant fan-out, TP-5).</p>
+<h3>1.4 Consistency check against Docs 01, 02, 03 and 04</h3>
+<p class="pass">Result: PASS. No conflict with Docs 01–04.</p>
+<p>Every column named in this document was checked against Doc 02 v1.3. The tables below are the ground truth this document builds on.</p>
+<div class="box"><table><thead><tr><th>Table (Doc 02)</th><th>Columns used here</th><th>Key constraint</th></tr></thead><tbody>
+<tr><td><code>referral_partner</code> (§5.8)</td><td><code>id</code>, <code>name</code>, <code>organisation</code> NULL, <code>phone</code> NULL, <code>email</code> NULL (statement recipient), <code>is_active</code> default <code>true</code>, <code>created_at</code>/<code>updated_at</code>, <code>deleted_at</code> (soft delete)</td><td>Record only — no login in v1</td></tr>
+<tr><td><code>revenue_share_rule</code> (§5.8)</td><td><code>id</code>, <code>referral_partner_id</code> NOT NULL FK RESTRICT, <code>test_category</code> NULL (= all categories), <code>branch_id</code> NULL FK (= all branches), <code>percent</code> numeric(5,2) CHECK 0–100, <code>effective_from</code> date NOT NULL, <code>effective_to</code> date NULL, <code>created_at</code>/<code>updated_at</code></td><td>Supersede via <code>effective_to</code>; never rewrite</td></tr>
+<tr><td><code>share_ledger_entry</code> (§5.8)</td><td><code>id</code>, <code>payment_id</code> NOT NULL, <code>referral_partner_id</code> NOT NULL, <code>rule_id</code> NULL, <code>amount</code> numeric(12,2), <code>percent_applied</code> numeric(5,2), <code>basis_amount</code> numeric(12,2), <code>period</code> text <code>YYYY-MM</code>, <code>created_at</code> only</td><td>UNIQUE <code>payment_id</code> (<code>uq_share_ledger_entry_payment_id</code>). <b>No</b> status column. <b>No</b> <code>settlement_id</code> column. UPDATE and DELETE revoked (§6)</td></tr>
+<tr><td><code>settlement</code> (§5.8)</td><td><code>id</code>, <code>referral_partner_id</code> NOT NULL, <code>period</code> text CHECK <code>^\d{4}-\d{2}$</code>, <code>status</code>, <code>total</code> numeric(12,2) default 0, <code>statement_pdf_key</code> NULL, <code>approved_by</code> NULL FK → <code>staff_user</code>, <code>approved_at</code> NULL, <code>created_at</code>/<code>updated_at</code></td><td><code>status</code> CHECK: <code>DRAFT | APPROVED | SENT | PAID | CANCELLED</code>. Partial UNIQUE (<code>referral_partner_id</code>, <code>period</code>) WHERE <code>status &lt;&gt; 'CANCELLED'</code> (<code>uq_settlement_partner_id_period</code>)</td></tr>
+<tr><td><code>settlement_line</code> (§5.8)</td><td><code>id</code>, <code>settlement_id</code> NOT NULL, <code>share_ledger_entry_id</code> NOT NULL, <code>amount</code> numeric(12,2) (snapshot), <code>created_at</code> only</td><td>UNIQUE <code>share_ledger_entry_id</code> — an entry appears in exactly one settlement</td></tr>
+<tr><td><code>payment</code> (§5.4)</td><td><code>kind</code>, <code>method</code>, <code>amount</code>, <code>invoice_id</code>, <code>idempotency_key</code></td><td><code>kind</code>: <code>payment | refund</code>. <code>method</code>: <code>cash | card | bank_transfer | easypaisa | jazzcash | other</code>. <code>amount</code> always &gt; 0 — <code>kind</code> supplies the sign. Append-only</td></tr>
+<tr><td><code>invoice</code> (§5.4)</td><td><code>referral_partner_id</code> NULL, <code>branch_id</code></td><td><code>referral_partner_id</code> NULL = walk-in</td></tr>
+<tr><td><code>tenant_setting</code> (§5.12)</td><td><code>key</code> UNIQUE, <code>value</code> text, <code>updated_by</code> FK → <code>staff_user</code> RESTRICT</td><td>Table exists (A-7, accepted). New <i>keys</i> are registry additions, not schema changes</td></tr>
+<tr><td><code>notification</code> (§5.9)</td><td><code>template_key</code>, <code>recipient_type</code>, <code>recipient_id</code>, <code>channel</code>, <code>status</code>, <code>attempts</code>, <code>next_attempt_at</code>, <code>last_error</code>, <code>idempotency_key</code></td><td><code>status</code>: <code>PENDING | SENT | FAILED</code>. Template key <code>settlement_ready</code> already exists</td></tr>
+</tbody></table></div>
+<p><b>Two gaps found.</b> Both are small. Both are listed as Proposed amendments in §14. Neither blocks the design.</p>
+<div class="box"><table><thead><tr><th>#</th><th>Gap</th><th>Amendment</th><th>Interim behaviour</th></tr></thead><tbody>
+<tr><td>1</td><td>The refund ceiling (OQ-31) needs a per-tenant threshold. The <code>tenant_setting</code> table exists, but no key for it exists in Doc 04 §10.2's registry.</td><td>A-17 (Proposed): new key <code>refund_owner_approval_threshold_pkr</code></td><td>Platform constant <code>5000</code> in code, read through the same settings accessor (§13, OQ-31)</td></tr>
+<tr><td>2</td><td><code>settlement</code> has no column that records which statement template rendered its PDF.</td><td>A-18 (Proposed): <code>settlement.template_version</code> text NULL</td><td>Template version is written into the PDF metadata and into the approval <code>audit_log</code> row. A re-render always uses the current template (§8)</td></tr>
+</tbody></table></div>
+<p><b>Nothing else is missing.</b> Rule-overlap rejection is application behaviour (<code>422 rule_overlap</code>); it needs no column. The partner dashboard (§10) is computed from existing tables; it needs no column. Derived entry status needs no column — that is the point of the design (§6.7).</p>
+<h3>1.5 Assumptions</h3>
+<ul>
+<li><b>AS-1.</b> A referral partner is a doctor or a facility. The partner never logs in. The partner receives one statement PDF by email each month (Doc 01 OQ-07).</li>
+<li><b>AS-2.</b> The lab and the partner have their own arrangement outside LabFlow. LabFlow records the percent the Owner enters. LabFlow does not judge the arrangement and gives no legal advice (§2, F-1).</li>
+<li><b>AS-3.</b> All money is PKR. There is one currency and no tax engine in v1 (§15).</li>
+<li><b>AS-4.</b> The Owner pays the partner outside LabFlow (cash or bank transfer). LabFlow records that payment happened. It does not move money (§7.5, §15).</li>
+<li><b>AS-5.</b> Dates and periods use Asia/Karachi. A payment's period is the <code>YYYY-MM</code> of its date in Asia/Karachi (Doc 02 §9).</li>
+</ul>
+
+<h2 id="s2">2. Research findings</h2>
+<p>Each finding states what was found, the source, and what it changes here. Percentages reported in press coverage could not be verified and are marked Unverified. Three topics are covered by earlier documents and are referenced, not re-researched: multi-tenant billing races (Doc 04 §2, §13), WeasyPrint determinism (Doc 03 §9), and audit requirements for financial records (Doc 02 §13, Doc 01 §14).</p>
+<div class="box"><table><thead><tr><th>#</th><th>Finding</th><th>Effect here</th></tr></thead><tbody>
+<tr><td>F-1</td><td><b>Referral commissions are prohibited by the medical code of ethics.</b> §40 of the PMDC Code of Ethics, “Rebates and Commission”, prohibits giving, soliciting or receiving a commission for referring a patient. Source: <a href="https://www.scribd.com/document/362266996/PMDC-Code-of-Ethics">PMDC Code of Ethics (reproduction), §40</a>.</td><td>LabFlow keeps the neutral naming from Doc 01 ADR-013: <i>referral partner</i> and <i>revenue share</i>, never “commission”. Every arrangement is recorded in the open, with a full audit trail (§5, §6). Whether a given arrangement is lawful is the lab's own responsibility, with its own advisers. LabFlow gives no legal advice.</td></tr>
+<tr><td>F-2</td><td><b>Referral payments are widely reported in Pakistan's private lab sector.</b> Reporting describes private clinics and labs growing on referral payments from doctors. Any percentage figure in that reporting is <b>Unverified</b> — it is not used anywhere in this document. Source: <a href="https://www.thefreelibrary.com/Private+clinics%2c+labs+thrive+on+ailing+public+health+sector.-a0361122930">Private clinics, labs thrive on ailing public health sector — The Free Library</a>.</td><td>The feature exists because labs ask for it. The design answer is transparency, not concealment: named partners, written rules, an immutable ledger, and a monthly statement the partner can check (§5–§8).</td></tr>
+<tr><td>F-3</td><td><b>Closed periods are corrected with reversing entries, never by editing them.</b> Standard accounting practice corrects a closed period with a new entry that reverses the old one, so both entries stay visible and the closed period stays intact. Source: <a href="https://www.myaccountingcourse.com/accounting-dictionary/reversing-entries">Reversing entries — My Accounting Course</a>.</td><td>Confirms Doc 02 §12: a refund writes a new negative <code>share_ledger_entry</code>. The original row is never edited. If the original period is closed, the new row lands in the current open period (§6.5).</td></tr>
+<tr><td>F-4</td><td><b>A bank statement has a fixed shape: statement identity, period, one line per entry with references, and totals.</b> ISO 20022 <code>camt.053</code> is the standard electronic bank statement format. LabFlow does not implement ISO 20022; it borrows the shape. Sources: <a href="https://docs.adyen.com/business-accounts/business-account-statement">Business account statements — Adyen Docs</a>; <a href="https://ordwaylabs.com/blog/electronic-bank-statement-formats/">Electronic bank statement formats — Ordway</a>.</td><td>The statement PDF (§8) follows that shape: statement ID, partner, period, one line per ledger entry with its payment and invoice references, then the total.</td></tr>
+<tr><td>F-5</td><td><b>Money rounding must use Decimal, not float.</b> Python <code>Decimal.quantize</code> with <code>ROUND_HALF_UP</code> rounds half away from zero, exactly and repeatably. Float <code>round()</code> uses banker's rounding on a binary approximation and is unsafe for money. Source: <a href="https://runebook.dev/en/docs/python/library/decimal">Python decimal module — Runebook</a>.</td><td>All share arithmetic is <code>Decimal</code>, quantized to <code>0.01</code> with <code>ROUND_HALF_UP</code> (P-2, §3). The same rule is in Doc 02 §12.</td></tr>
+<tr><td>F-6</td><td><b>A partial unique index enforces uniqueness on a subset of rows only.</b> PostgreSQL partial indexes cover only the rows that match their <code>WHERE</code> clause. Source: <a href="https://www.postgresql.org/docs/9.4/indexes-partial.html">Partial indexes — PostgreSQL documentation</a>.</td><td>This is the mechanism behind <code>uq_settlement_partner_id_period</code> (WHERE <code>status &lt;&gt; 'CANCELLED'</code>): one live settlement per partner per month, and a cancelled one never blocks its replacement (§7.6).</td></tr>
+<tr><td>F-7</td><td><b>Celery Beat is a single scheduler that sends due tasks to the queues.</b> Periodic work is declared with crontab schedules, and only one Beat process may run. Source: <a href="https://docs.celeryq.dev/en/v5.2.5/userguide/periodic-tasks.html">Periodic tasks — Celery documentation</a>.</td><td>Monthly generation is one Beat schedule (1st, 01:00 Asia/Karachi) that fans out to per-tenant, per-partner tasks (§7.2, §12). Beat never loops over schemas itself (Doc 04 TP-5).</td></tr>
+</tbody></table></div>
+
+<h2 id="s3">3. Design principles</h2>
+<p>Doc 03's principles P-1 to P-10 govern the lab modules. These govern revenue share. Where they meet, Doc 03's P-1 (patient safety first) still outranks everything.</p>
+<div class="box"><table><thead><tr><th>#</th><th>Principle</th><th>What it means here</th></tr></thead><tbody>
+<tr><td>RS-1</td><td><b>The ledger is the truth.</b></td><td><code>share_ledger_entry</code> rows are facts. They are never updated and never deleted (Doc 02 §6). Everything else — status, totals, statements — is derived from them or snapshotted from them.</td></tr>
+<tr><td>RS-2</td><td><b>Share follows cash, not paper.</b></td><td>Share is computed per payment, on the amount paid — never on the invoice total (Doc 02 §12). A discount, a part payment and a refund all follow from that one choice. No special cases.</td></tr>
+<tr><td>RS-3</td><td><b>Corrections are new rows.</b></td><td>A refund never edits a ledger row. It writes a new negative row. Both rows stay visible. An auditor can replay the whole history.</td></tr>
+<tr><td>RS-4</td><td><b>One entry per payment.</b></td><td>UNIQUE (<code>payment_id</code>) is the idempotency guarantee. A retried task, a double event or a replayed sweep cannot pay a partner twice for the same payment.</td></tr>
+<tr><td>RS-5</td><td><b>State is derived, not stored, where it can be.</b></td><td>A ledger entry has no status column. Its status is read from <code>settlement_line</code> → <code>settlement.status</code>. One fact, one place. Nothing to keep in sync.</td></tr>
+<tr><td>RS-6</td><td><b>Rules are history.</b></td><td>A rule change closes the old row (<code>effective_to</code>) and opens a new one. Past payments keep the percent that was applied to them, stored on the ledger row as <code>percent_applied</code>.</td></tr>
+<tr><td>RS-7</td><td><b>Money is Decimal, always.</b></td><td>Every computation uses Python <code>Decimal</code>. Every stored or printed amount is quantized with <code>Decimal.quantize(Decimal('0.01'), ROUND_HALF_UP)</code>. Money crosses the API as a string (Doc 03 §6.1). No float touches money, ever.</td></tr>
+<tr><td>RS-8</td><td><b>Money is the Owner's surface.</b></td><td>Only the Owner manages partners, rules and settlements. Staff who handle patients and samples never see money owed to partners (§4).</td></tr>
+</tbody></table></div>
+
+<h2 id="s4">4. Roles and permission matrix</h2>
+<p>Roles are the <code>staff_user.role</code> values from Doc 02, with the short codes from Doc 03 §4.1: O = Owner (<code>owner</code>), M = Branch Manager (<code>manager</code>), R = Receptionist (<code>reception</code>), T = Technician (<code>technician</code>), P = Pathologist (<code>pathologist</code>).</p>
+<p>This module is money owed to third parties. Access is narrow on purpose. Only the Owner runs it. The Branch Manager can look at settlements, because a manager answers a partner's phone call. Nobody else sees any of it.</p>
+<div class="box"><table><thead><tr><th>Surface</th><th>O</th><th>M</th><th>R</th><th>T</th><th>P</th></tr></thead><tbody>
+<tr><td>Referral partners — create, read, update, soft delete</td><td>CRUD</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td>Revenue-share rules — create, read, close and replace</td><td>CRUD</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td>Share ledger — read (<code>GET /share-ledger</code>)</td><td>R</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td>Settlements — list and detail</td><td>R</td><td>R</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td>Statement PDF — view and staff download</td><td>R</td><td>R</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td>Settlement — approve, cancel, re-send, mark paid</td><td>Action</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td>Partner dashboard (YTD totals, last 6 settlements)</td><td>R</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td>Record a payment (<code>kind = payment</code>) — Doc 03 §4.3, unchanged</td><td>CR</td><td>CR</td><td>CR</td><td>—</td><td>—</td></tr>
+<tr><td>Record a refund (<code>kind = refund</code>) — Doc 03 §4.3, plus the OQ-31 ceiling in §13</td><td>CR</td><td>CR, up to the ceiling</td><td>—</td><td>—</td><td>—</td></tr>
+</tbody></table></div>
+<p><b>Key:</b> C create, R read, U update/action, — no access. A “—” cell returns <code>403 forbidden</code> from the API, and the module does not appear in that role's navigation at all. Hiding the menu is not the control. The API check is the control.</p>
+<ul>
+<li><b>RM-1.</b> Only the Owner manages <code>referral_partner</code> records and <code>revenue_share_rule</code> rows. A percent is a commercial agreement. It is not branch business.</li>
+<li><b>RM-2.</b> Only the Owner approves, cancels, re-sends or marks a settlement paid. Approval is the moment the lab commits to a number it will pay.</li>
+<li><b>RM-3.</b> Only the Owner reads the ledger and the partner dashboard. The ledger shows every partner's earnings. That is the most sensitive money view in the product.</li>
+<li><b>RM-4.</b> The Branch Manager's read access is settlements only: list, detail, statement download. No partner records, no rules, no ledger, no dashboard, no actions. A manager can answer “your March statement total is PKR 42,500.00”. A manager cannot change it, and cannot browse what other partners earn.</li>
+<li><b>RM-5.</b> Receptionist, Technician and Pathologist have no access to this module. They handle patients, samples and results. Money owed to partners is not part of their work, so they never see it.</li>
+<li><b>RM-6.</b> Branch scope (Doc 03 BS-1 to BS-6) does not widen this matrix. Settlements and partners are tenant-wide objects. The Owner is tenant-wide. The Manager's settlement read is tenant-wide too, because a partner's patients may attend any branch. No other branch rule applies here.</li>
+<li><b>RM-7.</b> The Super Admin has no access to this module. Partners, rules, ledger rows and statements are tenant data (Doc 04 §12.2). Platform staff never see them.</li>
+</ul>
+
+<h2 id="s5">5. Referral partners and rules</h2>
+<h3>5.1 Referral partners</h3>
+<p><b>Responsibility.</b> One durable record per referring doctor or facility, per tenant. The record holds who the partner is and where the monthly statement goes. Nothing else in the system stores partner identity.</p>
+<p><b>Tables used.</b> <code>referral_partner</code> (Doc 02 §5.8). The table name is fixed. The UI label for the module is tenant-renamable (Doc 01 §7); the table name is not.</p>
+<div class="spec"><h4>referral_partner — fields as used here</h4>
+<p class="kv"><code>name</code> text NOT NULL — the doctor's or facility's name, printed on the statement. · <code>organisation</code> text NULL — clinic or hospital name, printed under the name when present. · <code>phone</code> text NULL — contact number for the lab's own use; never used for statement delivery in v1. · <code>email</code> text NULL — the statement recipient. A partner with no email still gets settlements; delivery fails visibly (§7.7). · <code>is_active</code> boolean NOT NULL DEFAULT <code>true</code> — an inactive partner receives no new patients' attribution in the SPA pickers, but history is untouched. · <code>deleted_at</code> — soft delete (RP-5). · <code>created_at</code> / <code>updated_at</code>.</p></div>
+<ul>
+<li><b>RP-1.</b> Create, read and update are Owner only (§4). <code>name</code> is required. <code>email</code>, when present, must be a valid email address (<code>422 validation_error</code>).</li>
+<li><b>RP-2.</b> Setting <code>is_active = false</code> is the normal way to end a relationship. The record stays. The ledger stays. Past settlements stay. The partner simply stops appearing where staff attribute new invoices.</li>
+<li><b>RP-3.</b> Attribution happens on the invoice: <code>invoice.referral_partner_id</code> (Doc 02 §5.4). This module does not decide attribution. It consumes it.</li>
+<li><b>RP-4.</b> A partner's identity fields may be edited at any time. An edit changes future statements. It never rewrites a stored statement PDF or a ledger row.</li>
+<li><b>RP-5.</b> Soft delete sets <code>deleted_at</code>. It is refused while any <code>share_ledger_entry</code> row points at the partner: <code>409 partner_has_ledger_entries</code>. Ledger rows hold a RESTRICT foreign key to the partner (Doc 02 §5.8), and they are immutable — they can never be re-pointed. So a partner with ledger history can never be deleted, only deactivated (RP-2). Soft delete exists for the case Doc 02 §5.8 names: a duplicate record created in error, before it earned anything, which must be recoverable. The API offers no “reassign ledger entries” action, because the immutable ledger makes reassigning impossible. A duplicate with history is merged by deactivating one record and keeping both histories.</li>
+<li><b>RP-6.</b> Every create, update, deactivation and soft delete writes one <code>audit_log</code> row (Doc 02 §13).</li>
+</ul>
+<h3>5.2 Revenue-share rules</h3>
+<p><b>Responsibility.</b> The percent a partner earns, effective-dated, resolvable by partner, branch and test category. Rules are the commercial history of the relationship. They are never rewritten.</p>
+<div class="spec"><h4>revenue_share_rule — fields as used here (Doc 02 §5.8)</h4>
+<p class="kv"><code>referral_partner_id</code> uuid NOT NULL FK → <code>referral_partner(id)</code> RESTRICT. · <code>test_category</code> text NULL — NULL means all categories. · <code>branch_id</code> uuid NULL FK → <code>branch(id)</code> RESTRICT — NULL means all branches. · <code>percent</code> numeric(5,2) NOT NULL, CHECK <code>percent BETWEEN 0 AND 100</code>. · <code>effective_from</code> date NOT NULL. · <code>effective_to</code> date NULL — NULL means still in force. · <code>created_at</code> / <code>updated_at</code>.</p></div>
+<ul>
+<li><b>RR-1.</b> Rules are Owner only (§4). <code>percent</code> outside 0–100 is refused by the database CHECK and by the API (<code>422 validation_error</code>).</li>
+<li><b>RR-2.</b> A rule applies on a date <code>d</code> when <code>effective_from &lt;= d</code> and (<code>effective_to</code> IS NULL or <code>d &lt;= effective_to</code>). Both bounds are inclusive. Dates are Asia/Karachi dates.</li>
+<li><b>RR-3.</b> Editing a rule never updates <code>percent</code> or <code>effective_from</code> on an existing row. An edit is one transaction: set <code>effective_to</code> on the old row to the day before the new rule starts, then insert a new row. The only update this module ever makes to a rule row is setting <code>effective_to</code> — the supersede Doc 02 §5.8 allows. History stays readable: anyone can answer “what was the percent on 14 March?” from the rows alone.</li>
+<li><b>RR-4.</b> There are no retroactive rule edits. A new rule's <code>effective_from</code> may not be earlier than the latest <code>effective_from</code> already in its bucket (RR-6) unless the Owner first closes the later rule. Payments already recorded keep the <code>percent_applied</code> stored on their ledger rows (§6). Nothing recomputes the past.</li>
+<li><b>RR-5.</b> The Owner creates the first real rule for each partner. No rule is seeded at tenant provisioning. See §5.4.</li>
+</ul>
+<h3>5.3 Specificity order and overlap</h3>
+<p>Several rules can match one payment: one for the branch, one for the category, one general. Resolution must pick exactly one, the same way every time. The order is fixed here. Branch beats category.</p>
+<div class="box"><table><thead><tr><th>Rank</th><th>Bucket</th><th>Matches when</th></tr></thead><tbody>
+<tr><td>1 — most specific</td><td>(partner, branch, category)</td><td><code>branch_id</code> = the invoice's branch, and <code>test_category</code> = the invoice's category</td></tr>
+<tr><td>2</td><td>(partner, branch, NULL)</td><td><code>branch_id</code> = the invoice's branch, <code>test_category</code> IS NULL</td></tr>
+<tr><td>3</td><td>(partner, NULL, category)</td><td><code>branch_id</code> IS NULL, <code>test_category</code> = the invoice's category</td></tr>
+<tr><td>4 — least specific</td><td>(partner, NULL, NULL)</td><td>Both NULL — the partner's general rate</td></tr>
+</tbody></table></div>
+<p><b>Why branch beats category.</b> A branch deal is made with the people at that branch, for patients served at that branch. It is the more deliberate agreement. A category is a property of a test; it varies line by line. When both exist, the branch agreement is the one the Owner negotiated for that place, so it wins.</p>
+<ul>
+<li><b>RR-6.</b> A <i>specificity bucket</i> is one exact triple: same <code>referral_partner_id</code>, same <code>branch_id</code> (NULL counts as a value), same <code>test_category</code> (NULL counts as a value).</li>
+<li><b>RR-7.</b> Overlap inside one bucket is rejected at save time. If a new or closing rule would make two rules in the same bucket apply on the same date, the API returns <code>422 rule_overlap</code> and writes nothing. Resolution is then deterministic by construction: inside a bucket, at most one rule applies on any date.</li>
+<li><b>RR-8.</b> Overlap across different buckets is allowed and expected. Precedence (§5.3 table) resolves it. That is what the buckets are for.</li>
+<li><b>RR-9.</b> The branch used in resolution is <code>invoice.branch_id</code> — the branch that billed the patient. Not the branch that processed the sample. Money follows billing.</li>
+<li><b>RR-10.</b> Category matching is all-or-nothing per invoice. One ledger entry is written per payment, so one percent must apply to the whole payment (Doc 02 §12). A category-specific rule matches only when <i>every</i> <code>invoice_item</code> on the invoice is in that one category. A mixed-category invoice matches only NULL-category rules (buckets 2 and 4). Splitting one payment across categories would need one entry per item. v1 does not do that (§15).</li>
+</ul>
+<h3>5.4 When no rule matches: the 0% fallback</h3>
+<p>This is stated plainly because an earlier design got it wrong. <b>No 0% rule row is seeded at tenant provisioning.</b> The seed was impossible: <code>revenue_share_rule.referral_partner_id</code> is NOT NULL, and no partner exists at provisioning time (A-10, accepted in Doc 02 v1.3; Doc 02 §5.8, §16).</p>
+<p>Instead, the fallback lives in resolution:</p>
+<ul>
+<li><b>RR-11.</b> If no rule in any bucket applies on the payment date — including the case where the partner has no rules at all — resolution returns <code>percent = 0</code>. Resolution never errors. It never blocks a payment. A patient can always pay.</li>
+<li><b>RR-12.</b> A 0% resolution writes no ledger row. The zero-amount rule in §6.6 covers it: the computed amount is <code>0.00</code>, and <code>0.00</code> rows are skipped. The payment row itself is the complete record — the patient paid, the partner earned nothing, and no rule said otherwise.</li>
+<li><b>RR-13.</b> This is safe to rely on. A partner created today, with a rule starting next month, earns nothing this month and the correct percent next month. No back-filling is needed or allowed (RR-4).</li>
+</ul>
+
+<h2 id="s6">6. Share ledger</h2>
+<h3>6.1 What the ledger is</h3>
+<p>The ledger is the list of money facts: this partner earned this much from this payment. One row per payment. Rows are written once and never change. Doc 02 §5.8 defines the table. Doc 02 §6 enforces it: UPDATE and DELETE on <code>share_ledger_entry</code> are revoked from the application role. Application code that tries either one gets a database error. That error is the safety net, not the design.</p>
+<div class="spec"><h4>share_ledger_entry — fields as written here (Doc 02 §5.8)</h4>
+<p class="kv"><code>payment_id</code> uuid NOT NULL FK → <code>payment(id)</code> RESTRICT, UNIQUE (<code>uq_share_ledger_entry_payment_id</code>). · <code>referral_partner_id</code> uuid NOT NULL FK → <code>referral_partner(id)</code> RESTRICT — copied from the invoice. · <code>rule_id</code> uuid NULL FK → <code>revenue_share_rule(id)</code> RESTRICT — the rule that was applied; NULL when no rule matched (0% fallback, §5.4) or, for a reversal, when the original predates rules. · <code>amount</code> numeric(12,2) NOT NULL — negative means a compensating (reversal) entry. · <code>percent_applied</code> numeric(5,2) NOT NULL — the percent used, copied onto the row so history survives later rule changes. · <code>basis_amount</code> numeric(12,2) NOT NULL — the payment amount the share was computed on. · <code>period</code> text NOT NULL — <code>YYYY-MM</code>, Asia/Karachi (§6.5). · <code>created_at</code> only — there is no <code>updated_at</code>, because nothing ever updates.</p></div>
+<ul>
+<li><b>SL-1.</b> The formula is Doc 02 §12, fixed: <code>amount = payment.amount × rule.percent / 100</code>, in Python <code>Decimal</code>, then <code>.quantize(Decimal('0.01'), ROUND_HALF_UP)</code>. <code>percent_applied</code> stores the percent used. <code>basis_amount</code> stores <code>payment.amount</code>.</li>
+<li><b>SL-2.</b> Walk-in: if <code>invoice.referral_partner_id</code> IS NULL, no ledger row is created. There is no partner to pay. The payment stands alone.</li>
+<li><b>SL-3.</b> Discounts need no ledger row and no special handling. The basis is the paid amount (RS-2). A discount reduces what the patient pays. The share follows the smaller amount on its own.</li>
+<li><b>SL-4.</b> Partial payments need no special handling. Each payment writes its own row. Two part payments write two rows.</li>
+</ul>
+<h3>6.2 Creation: synchronous, in the payment transaction</h3>
+<p><b>Decision: the ledger row is written synchronously, in the same database transaction as the payment insert.</b> Doc 01 §12 Flow C shows the same shape: the payment request inserts the payment, resolves the rule, and inserts the ledger entry.</p>
+<p><b>Why not async.</b> A payment without its ledger row is silent money loss. Nobody sees an error. The partner is simply underpaid, and the lab finds out weeks later, if ever. An async design creates exactly that risk: if the queue message is lost, the payment stands and the share does not. The write is one extra insert in a transaction that already exists. It costs almost nothing. Synchronous removes the whole failure class. The UNIQUE constraint on <code>payment_id</code> is still kept — as the backstop for retries and replays (§6.4), not as the mechanism.</p>
+<h3>6.3 The event Doc 03 fires, and who consumes it</h3>
+<p>Doc 03 §5.3 BL-7 says a refund “fires the revenue share reversal hook” as an event, and that the ledger write itself is this document's job. The consumer side is defined here. The same event covers normal payments, so billing has one hook, not two.</p>
+<div class="box"><table><thead><tr><th>Part</th><th>Value</th></tr></thead><tbody>
+<tr><td>Event name</td><td><code>billing.payment_recorded</code> — one event for every <code>payment</code> insert. <code>kind = payment</code> takes the accrual path (§6.2). <code>kind = refund</code> takes the reversal path (§6.5).</td></tr>
+<tr><td>Kind</td><td>A synchronous, in-process domain event. It is not a webhook and not a Celery task. Doc 01 §13's signed webhook protocol is for n8n, and n8n never touches the ledger.</td></tr>
+<tr><td>Payload</td><td><code>{ payment_id, invoice_id, referral_partner_id, kind, amount (string), method, branch_id, occurred_at, tenant_slug }</code>. <code>amount</code> is a Decimal-as-string, per Doc 03 §6.1. <code>tenant_slug</code> follows Doc 04 §13.2's payload rule, so the same function can run inside a task later.</td></tr>
+<tr><td>Idempotency key</td><td><code>share-ledger:{payment_id}</code>. One payment, one key, one possible row. The database expression of the same key is UNIQUE (<code>payment_id</code>).</td></tr>
+<tr><td>Consumer</td><td><code>partners.services.record_share_entry()</code>, called by the billing service after the <code>payment</code> insert and before commit, inside the same transaction.</td></tr>
+<tr><td>What it writes</td><td>At most one <code>share_ledger_entry</code> row (§6.1), plus nothing else. It writes no <code>audit_log</code> row of its own: the payment's audit row (Doc 02 §13 — one row per money write) already records the money event, and the ledger row is part of that same write.</td></tr>
+<tr><td>On failure</td><td>If the consumer raises, the whole payment transaction rolls back. The patient is not charged in the system for a payment the lab cannot account for. Staff retry the payment. No half-state exists.</td></tr>
+</tbody></table></div>
+<h3>6.4 Idempotency and the reconciliation sweep</h3>
+<ul>
+<li><b>SL-5.</b> UNIQUE (<code>payment_id</code>) means a retried call cannot double-pay. The consumer inserts with conflict handling on <code>payment_id</code>: a second call for the same payment finds the row and does nothing. It returns the existing row. It never raises for a duplicate.</li>
+<li><b>SL-6.</b> Defence in depth: an hourly Beat sweep, <code>partners.reconcile_missing_ledger_entries</code>, scans for partner-attributed payments with no ledger row and replays <code>record_share_entry()</code> for each. In a correct system it finds none. It exists for the day a deploy, a restore or a bug breaks that. Because the consumer is idempotent and uses the same zero-amount rule (§6.6), a replay is a no-op for payments that were correctly skipped — the sweep does not retry them forever.</li>
+<li><b>SL-7.</b> The sweep runs per tenant, through the normal per-tenant fan-out (Doc 04 §13.2). Its count of repaired rows is a metric and an alert (§12.7). A non-zero count is a bug report, not a routine event.</li>
+</ul>
+<h3>6.5 Refund reversal: the compensating entry</h3>
+<p>A refund is a new <code>payment</code> row with <code>kind = refund</code> and a positive <code>amount</code>; <code>kind</code> supplies the sign in every sum (Doc 02 §5.4, §12). Its ledger entry is a new negative row. The original row is never edited. There is no REVERSED status — an entry's status is derived (§6.7), and a reversal is just another entry with a negative amount.</p>
+<ul>
+<li><b>SL-8.</b> The reversal copies <code>percent_applied</code> and <code>rule_id</code> from the <b>original payment's</b> ledger entry. It never re-resolves the rules. Rules may have changed since the original payment. The refund must reverse the share that was actually given, at the percent that was actually applied — not today's percent.</li>
+<li><b>SL-9.</b> Reversal amount: <code>amount = −(refund.amount × percent_applied / 100)</code>, Decimal, quantized to <code>0.01</code>, <code>ROUND_HALF_UP</code>. <code>basis_amount</code> = <code>refund.amount</code>. <code>referral_partner_id</code> = the original entry's partner.</li>
+<li><b>SL-10.</b> If the original payment produced no ledger row — walk-in, 0% resolution, or a zero-amount skip — the refund produces no row. There is nothing to reverse.</li>
+<li><b>SL-11.</b> The reversal's <code>period</code> is decided by the original entry's state, exactly:
+<br>— If the original entry's period is <b>closed</b> — the entry sits on a settlement with <code>status IN ('APPROVED','SENT','PAID')</code> — the reversal's <code>period</code> is the refund payment's own <code>YYYY-MM</code>: the <b>current open period</b>. The historical period is never reopened.
+<br>— If the original entry's period already has a <b>live settlement</b> in any other state (a <code>DRAFT</code> exists for it), the reversal also takes the refund payment's <code>YYYY-MM</code>. A drafted settlement is a snapshot (§7); the reversal joins the next cycle, not the snapshot.
+<br>— Otherwise — the original entry is still pending and no live settlement exists for its period — the reversal's <code>period</code> is the <b>original</b> period. Reversal and original then settle together and net to the right figure in one statement.</li>
+<li><b>SL-12.</b> A partial refund reverses partially, by the same formula. Two partial refunds write two negative rows. The sum of reversals can never exceed the original entry, because Doc 03 BL-7 already caps cumulative refunds at cumulative payments (<code>422 refund_exceeds_payments</code>) before this module runs.</li>
+</ul>
+<h3>6.6 Rounding and the zero-amount rule</h3>
+<p>All arithmetic is Decimal, quantized to <code>0.01</code> with <code>ROUND_HALF_UP</code> (RS-7). Worked cases:</p>
+<div class="box"><table><thead><tr><th>Paid</th><th>Percent</th><th>Raw</th><th>Quantized</th><th>Row written?</th></tr></thead><tbody>
+<tr><td>1.00</td><td>1%</td><td>0.01</td><td><code>0.01</code></td><td>Yes — <code>amount = 0.01</code></td></tr>
+<tr><td>0.01</td><td>1%</td><td>0.0001</td><td><code>0.00</code></td><td><b>No</b> — skipped (SL-13)</td></tr>
+<tr><td>999.99</td><td>15%</td><td>149.9985</td><td><code>150.00</code></td><td>Yes — <code>amount = 150.00</code></td></tr>
+<tr><td>5,000.00</td><td>0% (no rule matched)</td><td>0.00</td><td><code>0.00</code></td><td><b>No</b> — skipped (RR-12)</td></tr>
+</tbody></table></div>
+<ul>
+<li><b>SL-13. Zero-amount entries are skipped.</b> If the quantized amount is <code>0.00</code>, no row is written. This rule applies with equal weight to payments and to refunds. Reason: a <code>0.00</code> row carries no money and no information the <code>payment</code> row does not already carry. Writing it would add a <code>settlement_line</code> and a printed line to a partner's statement that says the partner earned nothing from a payment — noise on a financial document. The payment row remains the audit record. The reconciliation sweep (SL-6) uses the same computation, so a skipped payment is recognised as correctly skipped, not missing.</li>
+<li><b>SL-14.</b> Skipping is not losing. Any reader who needs to prove a payment earned nothing resolves the rule for that payment date and gets 0% or a sub-paisa amount. The inputs — the payment row and the rule rows — are all still stored.</li>
+</ul>
+<h3>6.7 Derived status</h3>
+<p>An entry's status is never stored. It is read from <code>settlement_line</code> and the settlement that line belongs to (Doc 02 §5.8):</p>
+<div class="box"><table><thead><tr><th>Derived status</th><th>Condition</th></tr></thead><tbody>
+<tr><td><code>pending</code></td><td>No <code>settlement_line</code> on a live settlement points at the entry. Includes: no line at all, and a line only on a <code>CANCELLED</code> settlement.</td></tr>
+<tr><td><code>in-draft</code></td><td>A line on a settlement with <code>status = 'DRAFT'</code>.</td></tr>
+<tr><td><code>settled</code></td><td>A line on a settlement with <code>status IN ('APPROVED','SENT','PAID')</code>.</td></tr>
+</tbody></table></div>
+<p>A line on a <code>CANCELLED</code> settlement does not count. The entry is <code>pending</code> again and can be picked up by a re-draft (§7.6). Note the database fact behind the middle row set: <code>settlement_line.share_ledger_entry_id</code> is UNIQUE, so an entry has at most one line in total. “Live” is a read-time judgement on that line's settlement, not a second line.</p>
+<h3>6.8 Worked example (Doc 02 §12, reproduced exactly)</h3>
+<p>Invoice total 10,000.00 PKR, after a 500.00 discount already applied at billing. Partner rule: 20.00%.</p>
+<div class="box"><table><thead><tr><th>#</th><th>Event</th><th>Payment amount</th><th>Ledger entry</th><th>Computation</th><th>Derived status</th></tr></thead><tbody>
+<tr><td>1</td><td>Full payment on a second invoice (no discount)</td><td>10,000.00</td><td>+2,000.00</td><td>10,000.00 × 20.00 / 100 = 2,000.00</td><td>pending</td></tr>
+<tr><td>2</td><td>Partial payment on the discounted invoice</td><td>4,000.00</td><td>+800.00</td><td>4,000.00 × 20.00 / 100 = 800.00 — on what was actually paid, not the 9,500.00 total</td><td>pending</td></tr>
+<tr><td>3</td><td>Refund of payment 2 (patient withdrew one test)</td><td>4,000.00 (<code>kind = refund</code>, <code>method = cash</code>)</td><td>−800.00</td><td>−4,000.00 × 20.00 / 100 = −800.00 — a new compensating row; row 2 is untouched</td><td>pending (current open period, if row 2's period is closed — SL-11)</td></tr>
+</tbody></table></div>
+<p>Net partner share for these three events: 2,000.00 + 800.00 − 800.00 = <b>2,000.00 PKR</b>. All arithmetic in Decimal. Every stored amount is numeric(12,2). Every percent is numeric(5,2).</p>
+
+<h2 id="s7">7. Monthly settlement</h2>
+<h3>7.1 What a settlement is</h3>
+<p>One partner, one calendar month, one document. A <code>settlement</code> row gathers the partner's pending ledger entries for a period into <code>settlement_line</code> rows, states their total, and carries the statement the partner receives. A settlement is all-or-nothing per partner per period: it includes every pending entry for that period, or it does not exist. There is no partial settlement in v1 (§15).</p>
+<div class="spec"><h4>settlement — fields as used here (Doc 02 §5.8)</h4>
+<p class="kv"><code>referral_partner_id</code> uuid NOT NULL FK RESTRICT. · <code>period</code> text NOT NULL, CHECK <code>period ~ '^\d{4}-\d{2}$'</code> — <code>YYYY-MM</code>, Asia/Karachi. · <code>status</code> text NOT NULL DEFAULT <code>'DRAFT'</code>, CHECK <code>DRAFT | APPROVED | SENT | PAID | CANCELLED</code>. · <code>total</code> numeric(12,2) NOT NULL DEFAULT 0 — the Decimal sum of its lines' <code>amount</code> values, set at draft time and never recomputed after (§7.4). · <code>statement_pdf_key</code> text NULL — <code>settlements/{partner_id}/{period}.pdf</code> (Doc 02 §9), set by the finalize task. · <code>approved_by</code> uuid NULL FK → <code>staff_user(id)</code> RESTRICT. · <code>approved_at</code> timestamptz NULL. · <code>created_at</code> / <code>updated_at</code>.</p></div>
+<div class="spec"><h4>settlement_line — fields as used here (Doc 02 §5.8)</h4>
+<p class="kv"><code>settlement_id</code> uuid NOT NULL FK RESTRICT. · <code>share_ledger_entry_id</code> uuid NOT NULL FK RESTRICT, UNIQUE — an entry appears in exactly one settlement. · <code>amount</code> numeric(12,2) NOT NULL — a snapshot of the entry's <code>amount</code> at draft time. · <code>created_at</code> only. Lines are never updated by the application. A re-draft cancels the old settlement and creates a new one (§7.6).</p></div>
+<h3>7.2 Generation: the monthly draft</h3>
+<ul>
+<li><b>ST-1.</b> On the 1st of each month at 01:00 Asia/Karachi, Celery Beat enqueues <code>referral_partners.generate_monthly_settlements</code> (Doc 01 §13 schedule; Doc 02 §12). Beat is a single scheduler (F-7). It never loops over tenant schemas.</li>
+<li><b>ST-2.</b> Fan-out follows Doc 04 §13.2 (TP-5): the parent task enqueues one child task per tenant. Inside a tenant, generation enqueues one draft task per partner with pending entries. One tenant's failure cannot abort the rest. One partner's failure cannot abort the tenant's other partners (§12).</li>
+<li><b>ST-3.</b> The draft task for one partner selects that partner's ledger entries for the <b>previous calendar month</b> whose derived status is <code>pending</code> (§6.7) — entries with no line on a live settlement. Late entries and reversals that carry an older entry's <code>period</code> are selected by that stored <code>period</code> value (§12.5).</li>
+<li><b>ST-4.</b> It inserts one <code>settlement</code> row with <code>status = 'DRAFT'</code>, one <code>settlement_line</code> per selected entry with <code>amount</code> copied from the entry, and sets <code>settlement.total</code> to the Decimal sum of the line amounts. The insert runs in one transaction per partner.</li>
+<li><b>ST-5.</b> A partner with no pending entries for the period gets <b>no</b> settlement. No empty DRAFT. No empty statement. Silence means nothing was earned, and that is correct.</li>
+<li><b>ST-6.</b> A settlement whose total is negative is still drafted. It happens when a month holds more reversals than earnings. The total is shown as a negative figure on the statement (§8). The Owner decides what to do; the system does not hide it or clamp it to zero.</li>
+<li><b>ST-7.</b> Generation is idempotent. Re-running it for the same period is a no-op for a partner who already has a live settlement for that period — the partial unique index <code>uq_settlement_partner_id_period</code> refuses a second live row, and the task treats that refusal as “already drafted”. Where no live settlement exists, a re-run picks up only the entries that are still <code>pending</code>.</li>
+<li><b>ST-8.</b> When drafting completes for a tenant, the Owner is notified that drafts are ready for review. The notification uses the existing <code>notification</code> pattern (Doc 02 §5.9). The exact n8n workflow is Doc 06's (OQ-42).</li>
+</ul>
+<h3>7.3 The lifecycle</h3>
+<div class="diagram"><pre class="mermaid">stateDiagram-v2
+  [*] --> DRAFT: monthly generation (ST-1)
+  DRAFT --> APPROVED: Owner approves, finalize renders PDF
+  DRAFT --> CANCELLED: Owner cancels
+  APPROVED --> SENT: n8n callback confirms email delivery
+  SENT --> PAID: Owner confirms payment (mark-paid)
+  CANCELLED --> [*]: entries are pending again, re-draft creates a new row</pre>
+<p class="dcap">Settlement states — the exact values of settlement.status (Doc 02 §5.8). No other transitions exist. A settlement is never edited back to DRAFT.</p></div>
+<div class="box"><table><thead><tr><th>Transition</th><th>Who or what</th><th>Effect</th></tr></thead><tbody>
+<tr><td>→ <code>DRAFT</code></td><td>Generation task (ST-1)</td><td>Lines written. Entries become <code>in-draft</code>. <code>total</code> set.</td></tr>
+<tr><td><code>DRAFT</code> → <code>APPROVED</code></td><td>Owner, <code>POST /settlements/{id}/approve</code> (§7.4)</td><td><code>approved_by</code> and <code>approved_at</code> set. Finalize task renders the PDF and fires the delivery webhook. Entries become <code>settled</code>.</td></tr>
+<tr><td><code>APPROVED</code> → <code>SENT</code></td><td>System, on the n8n delivery callback (§9)</td><td>Set only after the email delivery is confirmed. Never set by hand.</td></tr>
+<tr><td><code>SENT</code> → <code>PAID</code></td><td>Owner, <code>POST /settlements/{id}/mark-paid</code> (§7.5)</td><td>Records that the lab has paid the partner outside LabFlow.</td></tr>
+<tr><td><code>DRAFT</code> → <code>CANCELLED</code></td><td>Owner, <code>POST /settlements/{id}/cancel</code> (§7.6)</td><td>Entries become <code>pending</code> again. Ledger rows never change.</td></tr>
+</tbody></table></div>
+<h3>7.4 Approval and the finalize task</h3>
+<ul>
+<li><b>ST-9.</b> The Owner reviews a DRAFT in the SPA: the lines, the total, the partner. Approval is <code>POST /api/v1/settlements/{id}/approve</code> with an <code>If-Match</code> header (§12.2). Only a <code>DRAFT</code> can be approved; anything else returns <code>409 invalid_state_transition</code>.</li>
+<li><b>ST-10.</b> Approval sets <code>status = 'APPROVED'</code>, <code>approved_by</code> and <code>approved_at</code>, writes one <code>audit_log</code> row, and enqueues the finalize task, <code>referral_partners.finalize_settlement</code>, on the <code>referral_partners</code> queue (Doc 01 §13). The API call does not render the PDF itself.</li>
+<li><b>ST-11.</b> The finalize task renders the statement PDF (§8), stores it at <code>settlements/{partner_id}/{period}.pdf</code> under the tenant's storage prefix (Doc 04 §13.4), sets <code>statement_pdf_key</code>, records the template version (A-18 interim, §8.4), and only then fires the “settlement approved” webhook that delivers the statement (§9). The order matters and matches Doc 02 §12: PDF first, webhook second. A webhook never points at a PDF that does not exist.</li>
+<li><b>ST-12.</b> <code>settlement.total</code> is not recomputed at approval. The number the Owner approved is the number on the PDF is the number in <code>total</code>. If a line is wrong, the Owner cancels and re-drafts (§7.6). Approval never silently adjusts a figure.</li>
+</ul>
+<h3>7.5 PAID: confirming the partner was paid</h3>
+<ul>
+<li><b>ST-13.</b> LabFlow does not pay partners. The Owner pays outside the system, then confirms it: <code>POST /api/v1/settlements/{id}/mark-paid</code>, Owner only, allowed only from <code>SENT</code> (<code>409 invalid_state_transition</code> otherwise).</li>
+<li><b>ST-14.</b> The request body carries one field, <code>{ "reference": "..." }</code> — the bank reference, or “cash” with a note. Doc 02 v1.3 has no column for who confirmed payment or when, and this document does not invent one. The reference, the actor and the time are recorded in the <code>audit_log</code> row the action writes (Doc 02 §13). <code>updated_at</code> on the settlement row also moves, as it does for every status change. If a stored paid-by/paid-at pair is wanted later, it needs a Proposed amendment to Doc 02 first.</li>
+<li><b>ST-15.</b> <code>PAID</code> is terminal for the money flow. It changes nothing in the ledger. The entries were already <code>settled</code> from <code>APPROVED</code> onward.</li>
+</ul>
+<h3>7.6 Cancellation and re-draft</h3>
+<ul>
+<li><b>ST-16.</b> Only a <code>DRAFT</code> can be cancelled. Cancelling an <code>APPROVED</code>, <code>SENT</code> or <code>PAID</code> settlement returns <code>422 settlement_not_cancellable</code>. Money already promised or paid is not un-promised by a button. An error after approval is corrected in the next period, by compensating entries — the same rule as the ledger itself (RS-3).</li>
+<li><b>ST-17.</b> Cancellation sets <code>status = 'CANCELLED'</code> and writes one <code>audit_log</code> row. Nothing else is written. The <code>settlement_line</code> rows stay on the cancelled settlement — they are the record of what the draft contained. The <code>share_ledger_entry</code> rows never change.</li>
+<li><b>ST-18.</b> Because a line on a <code>CANCELLED</code> settlement does not count (§6.7), the entries are <code>pending</code> again at once. No cleanup task runs. Nothing is deleted.</li>
+<li><b>ST-19.</b> Re-draft is a new generation run for that partner and period (Owner-triggered from the SPA, or the next scheduled logic that finds them pending). It inserts a <b>new</b> <code>settlement</code> row. The partial unique index allows this precisely because the old row is <code>CANCELLED</code> (F-6). The new draft picks up the same entries, plus any that arrived since (§12.5).</li>
+</ul>
+<h3>7.7 Partners with no email</h3>
+<ul>
+<li><b>ST-20.</b> <code>referral_partner.email</code> is nullable. A partner with no email still gets settlements drafted normally. Money owed does not depend on an inbox.</li>
+<li><b>ST-21.</b> At delivery, the finalize flow records a <code>notification</code> row with <code>status = 'FAILED'</code> and <code>last_error = 'partner_email_missing'</code>. The settlement stays <code>APPROVED</code> — approval is real; only the sending failed. The Owner sees the failure on the settlement and on the dashboard, and can download the statement and hand it over by any other means. Adding the email later and re-sending (§9) completes the flow normally.</li>
+</ul>
+
+<h2 id="s8">8. Statement PDF specification</h2>
+<h3>8.1 What the statement is — and is not</h3>
+<p>The statement is a settlement statement: “this is what you earned from this lab in this month, line by line.” <b>It is not a legal invoice and it is not a tax document.</b> It creates no tax obligation and settles no tax question. That sentence is printed on the document itself (§8.2, footer) so a partner who asks gets the answer from the paper, not from a phone call.</p>
+<p><b>Language: English only.</b> The statement uses the <code>en</code> row of the <code>settlement_ready</code> notification template (Doc 02 §5.9). An <code>ur</code> row exists in the schema. It is not used for statements in v1. The reason is plain: the reader is a doctor or a facility's accounts person, reading a professional financial document. Patient-facing Urdu exists because patients need it (Doc 03 §9.2). Partners read English professional documents, and one language keeps one canonical figure set — a bilingual financial statement invites “which total is right?” disputes that help nobody. The email that carries the statement is likewise the <code>en</code> template.</p>
+<h3>8.2 Layout</h3>
+<p>The shape follows the statement model in F-4: identity, period, referenced lines, totals.</p>
+<div class="box"><table><thead><tr><th>Block</th><th>Contents</th></tr></thead><tbody>
+<tr><td>Header</td><td>Lab display name (<code>brand_display_name</code>, Doc 04 §10.2). The words “Referral Partner Settlement Statement”. Statement ID: the <code>settlement.id</code>. Generated date.</td></tr>
+<tr><td>Partner block</td><td><code>referral_partner.name</code>, <code>organisation</code> when present. The statement recipient of record.</td></tr>
+<tr><td>Period block</td><td><code>settlement.period</code> printed as a month name and year (for example “September 2026” for <code>2026-09</code>). Currency stated once: PKR.</td></tr>
+<tr><td>Lines</td><td>One row per <code>settlement_line</code>, ordered by the entry's payment date: payment date · invoice reference (the invoice the payment belongs to, via <code>share_ledger_entry.payment_id</code> → <code>payment.invoice_id</code>) · <code>basis_amount</code> · <code>percent_applied</code> · <code>amount</code>. Reversal lines show a negative <code>amount</code> and are labelled “Refund reversal”. Late lines (§12.5) show their own entry <code>period</code> in a “Period” column, so the partner can see the item belongs to an earlier month.</td></tr>
+<tr><td>Subtotals</td><td>A subtotal per entry period, printed only when the settlement contains lines from more than one period (the late-entry case, §12.5). A normal single-period statement has no subtotals — nothing to subtotal.</td></tr>
+<tr><td>Total</td><td><code>settlement.total</code>, printed in PKR with 2 decimals. A negative total prints as a negative figure with the line “This amount will be adjusted against your next settlement.” — a statement of the lab's practice, printed because the partner will ask.</td></tr>
+<tr><td>Footer</td><td>“This is a settlement statement. It is not a legal invoice or a tax document.” · Page X of Y on every page (Doc 03 §9.5). · The lab's contact line.</td></tr>
+</tbody></table></div>
+<h3>8.3 Rendering rules</h3>
+<ul>
+<li><b>PDF-1.</b> Rendering reuses Doc 03 §9's WeasyPrint approach in full: the same installed fonts, block layout and tables only, <code>@page</code> margin boxes for the running footer, CSS counters for “Page X of Y”, no JavaScript, no web fonts loaded at render time, no external images. Deterministic render: the same settlement renders the same bytes-shaped document every time.</li>
+<li><b>PDF-2.</b> The lines table header repeats on every page (<code>thead</code>), and a line never splits across pages (<code>break-inside: avoid</code>) — the same rules as the report results table (Doc 03 §9.5).</li>
+<li><b>PDF-3.</b> Rendering runs in the finalize task on the <code>referral_partners</code> queue, under Doc 01 §13's retry policy. A render exception fails the task cleanly. No partial PDF object is kept (Doc 03 §9.5's rule, applied here too). The settlement stays <code>APPROVED</code> with <code>statement_pdf_key</code> still NULL, which is the visible, retryable state (§12.3).</li>
+<li><b>PDF-4.</b> Amounts print from the stored Decimal values with 2 decimals. The template never recomputes a figure. Printed total = <code>settlement.total</code> = sum of the stored line amounts, by construction at draft time (ST-4).</li>
+</ul>
+<h3>8.4 Template version</h3>
+<p>When the statement template changes, support needs to know which template produced a stored statement. <code>settlement</code> has no column for that in Doc 02 v1.3. <b>A-18 (Proposed, §14)</b> adds <code>settlement.template_version</code>. Until it is accepted, the interim behaviour is: the template version is written into the PDF's document metadata and into the <code>audit_log</code> row written at approval. A re-render always uses the current template. This mirrors Doc 03's still-Proposed A-6 for <code>report_version</code> — the same gap, the same interim answer.</p>
+
+<h2 id="s9">9. Delivery</h2>
+<ul>
+<li><b>DL-1.</b> Delivery is by <b>email only</b> in v1. The statement PDF is attached to the email. The channel is the partner's <code>email</code> (ST-20 covers a missing one).</li>
+<li><b>DL-2.</b> The path is Doc 01 §13's signed webhook protocol, unchanged: Django writes a <code>webhook_delivery</code> row and emits the event with payload <code>{event, tenant_slug, callback_url, idempotency_key, timestamp, data}</code>, signed with HMAC-SHA256. n8n verifies the signature, rejects timestamps older than 5 minutes, de-duplicates on the idempotency key, sends the email, and calls back. The callback lands on the tenant's own subdomain, and the body's <code>tenant_slug</code> must match the resolved tenant. Doc 06 owns the workflow internals (OQ-42).</li>
+<li><b>DL-3.</b> The delivery itself is tracked as a <code>notification</code> row (Doc 02 §5.9): <code>template_key = 'settlement_ready'</code>, <code>recipient_type = 'partner'</code>, <code>recipient_id</code> = the partner's ID, <code>channel = 'email'</code>, <code>status</code> starting at <code>PENDING</code>, with a UNIQUE <code>idempotency_key</code> per settlement delivery attempt series. On the success callback the row becomes <code>SENT</code> and the settlement moves <code>APPROVED → SENT</code> (ST, §7.3). The settlement status is set by the callback, never assumed at send time.</li>
+<li><b>DL-4. No WhatsApp for statements in v1.</b> A statement is a financial document. It needs the PDF attached and a delivery record the lab can point to. WhatsApp in v1 is a staff-clicked <code>wa.me</code> link with no receipts and no unattended sending (Doc 01 §13). That channel is wrong for money documents, and a doctor's personal WhatsApp is not the lab's filing system. The <code>settlement_ready</code> template's WhatsApp channel rows are not used in v1.</li>
+<li><b>DL-5.</b> Failed deliveries retry on the <code>notification</code> pattern: <code>attempts</code> and <code>next_attempt_at</code> on the row, and the 15-minute Beat sweep that retries failed deliveries (Doc 01 §13). Retry counts and backoff follow the notifications queue policy in Doc 01 §13 (5 retries, 30 s to 30 min). When retries are exhausted the row stays <code>FAILED</code> with <code>last_error</code> set, Sentry alerts, and the settlement shows the failure to the Owner. The settlement stays <code>APPROVED</code>. A delivery failure never un-approves money.</li>
+<li><b>DL-6.</b> The Owner can re-send manually from the SPA: <code>POST /api/v1/settlements/{id}/send</code> (§10). A re-send creates a <b>fresh</b> <code>notification</code> row — the failed row stays as the record of the failure. Re-send is allowed only when the settlement is <code>APPROVED</code> or <code>SENT</code> (§10). Re-sending a <code>SENT</code> settlement sends a second copy, labelled as a copy in the email subject by the template. That is deliberate: partners lose email.</li>
+<li><b>DL-7.</b> Staff can always download the statement directly: <code>GET /api/v1/settlements/{id}/statement.pdf</code> (§10). Delivery trouble never locks the lab out of its own document.</li>
+</ul>
+
+<h2 id="s10">10. API reference</h2>
+<h3>10.1 Conventions</h3>
+<p>Doc 03 §6.1 applies in full and is not repeated: base path <code>/api/v1</code>, tenant resolved from the host, cursor pagination (<code>cursor</code>, <code>limit</code> default 50, max 200; response <code>{ "results": [...], "next_cursor": ... }</code>), <code>application/problem+json</code> errors with a machine-stable <code>code</code>, money as strings with 2 decimals, and no tenant identifier in any path or body. Role codes are §4's. The conventions specific to this module:</p>
+<ul>
+<li><b>AP-1.</b> Every endpoint in this section enforces §4's matrix in the API. A role with “—” gets <code>403 forbidden</code>. This includes list endpoints: a Receptionist does not get an empty settlement list. She gets a refusal.</li>
+<li><b>AP-2.</b> Mutating settlement actions (approve, cancel, mark-paid) require an <code>If-Match</code> header carrying the settlement's current version token (its <code>updated_at</code>-derived ETag, per Doc 03 §6.1's versioning convention). A stale token returns <code>409 version_conflict</code> (§12.2).</li>
+<li><b>AP-3.</b> Error codes introduced here: <code>rule_overlap</code> (422), <code>partner_has_ledger_entries</code> (409), <code>settlement_not_cancellable</code> (422), <code>partner_email_missing</code> (422, on send), <code>owner_approval_required</code> (403, refund ceiling — §13, OQ-31; the refund endpoint itself is Doc 03 §6.4's and is not redefined here). Standard codes from Doc 03 §6.1 apply unchanged: <code>validation_error</code> (422), <code>not_found</code> (404), <code>forbidden</code> (403), <code>invalid_state_transition</code> (409), <code>version_conflict</code> (409), <code>subscription_read_only</code> (403, Doc 04 §11.2).</li>
+<li><b>AP-4.</b> All list ordering is <code>created_at DESC, id DESC</code> unless an endpoint says otherwise. The ledger list orders by <code>created_at DESC</code>; settlement lines inside a settlement detail order by the entry's payment date, then entry <code>created_at</code>.</li>
+</ul>
+<h3>10.2 Endpoints</h3>
+<div class="box"><table><thead><tr><th>Endpoint</th><th>Roles</th><th>Behaviour</th></tr></thead><tbody>
+<tr><td><code>GET /api/v1/referral-partners</code></td><td>O</td><td>List. Filters: <code>q</code> (name search), <code>is_active</code>, <code>include_deleted</code> (default false). Soft-deleted rows are excluded unless asked for.</td></tr>
+<tr><td><code>POST /api/v1/referral-partners</code></td><td>O</td><td>Create (RP-1). Returns 201 with the partner.</td></tr>
+<tr><td><code>GET /api/v1/referral-partners/{id}</code></td><td>O</td><td>Detail, including <code>deleted_at</code> and <code>is_active</code>.</td></tr>
+<tr><td><code>PATCH /api/v1/referral-partners/{id}</code></td><td>O</td><td>Update <code>name</code>, <code>organisation</code>, <code>phone</code>, <code>email</code>, <code>is_active</code> (RP-4). Audited (RP-6).</td></tr>
+<tr><td><code>DELETE /api/v1/referral-partners/{id}</code></td><td>O</td><td>Soft delete: sets <code>deleted_at</code>. Refused with <code>409 partner_has_ledger_entries</code> while any ledger row points at the partner (RP-5).</td></tr>
+<tr><td><code>GET /api/v1/referral-partners/{id}/rules</code></td><td>O</td><td>The partner's rules, all buckets, ordered by bucket rank (§5.3) then <code>effective_from DESC</code>. Closed rules included — history is the point.</td></tr>
+<tr><td><code>POST /api/v1/referral-partners/{id}/rules</code></td><td>O</td><td>Create a rule. Overlap inside the bucket returns <code>422 rule_overlap</code> and writes nothing (RR-7).</td></tr>
+<tr><td><code>PATCH /api/v1/revenue-share-rules/{id}</code></td><td>O</td><td>The edit operation (RR-3): the body gives the new <code>percent</code> and its <code>effective_from</code>. The server closes the named row (<code>effective_to</code> = the day before) and inserts the replacement row, in one transaction, and returns the new row. A body that tries to change <code>percent</code> in place is not supported — there is no such operation. Closing a rule without a replacement is the same call with <code>{ "close_only": true, "effective_to": "..." }</code>.</td></tr>
+<tr><td><code>GET /api/v1/share-ledger</code></td><td>O only</td><td>Ledger entries. Filters: <code>partner_id</code>, <code>period</code> (<code>YYYY-MM</code>), <code>settled</code> (<code>true</code> = derived status <code>settled</code>; <code>false</code> = <code>pending</code> or <code>in-draft</code>). Each row carries its derived status (§6.7) as a read-time field named <code>derived_status</code>. It is computed in the response. It is not a column.</td></tr>
+<tr><td><code>GET /api/v1/settlements</code></td><td>O, M</td><td>List. Filters: <code>partner_id</code>, <code>period</code>, <code>status</code>.</td></tr>
+<tr><td><code>GET /api/v1/settlements/{id}</code></td><td>O, M</td><td>Detail: the settlement, its lines (with each entry's payment date, invoice reference, <code>basis_amount</code>, <code>percent_applied</code>, <code>amount</code>), <code>total</code>, <code>statement_pdf_key</code> presence, and the latest delivery state from its <code>notification</code> rows.</td></tr>
+<tr><td><code>POST /api/v1/settlements/{id}/approve</code></td><td>O</td><td>Approve a <code>DRAFT</code> (ST-9). Requires <code>If-Match</code> (AP-2). Sets <code>APPROVED</code>, <code>approved_by</code>, <code>approved_at</code>; enqueues finalize. In read-only mode returns <code>403 subscription_read_only</code> (§13, OQ-36).</td></tr>
+<tr><td><code>POST /api/v1/settlements/{id}/cancel</code></td><td>O</td><td>Cancel a <code>DRAFT</code> (ST-16). Requires <code>If-Match</code>. Non-DRAFT returns <code>422 settlement_not_cancellable</code>.</td></tr>
+<tr><td><code>POST /api/v1/settlements/{id}/send</code></td><td>O</td><td>Manual re-send (DL-6). Allowed only from <code>APPROVED</code> or <code>SENT</code>; otherwise <code>409 invalid_state_transition</code>. Creates a fresh <code>notification</code> row and fires the delivery webhook. Partner with no email returns <code>422 partner_email_missing</code>.</td></tr>
+<tr><td><code>POST /api/v1/settlements/{id}/mark-paid</code></td><td>O</td><td>Confirm the partner was paid (ST-13). Body: <code>{ "reference": "..." }</code>, required, stored in the audit row only (ST-14). Allowed only from <code>SENT</code>. Requires <code>If-Match</code>.</td></tr>
+<tr><td><code>GET /api/v1/settlements/{id}/statement.pdf</code></td><td>O, M</td><td>Staff download of the stored statement. Available once <code>statement_pdf_key</code> is set; before that, <code>404 not_found</code> with <code>detail</code> stating the statement has not been rendered. Served through the tenant's storage prefix with a short-lived signed URL, minted only after the role check (Doc 04 §13.4).</td></tr>
+<tr><td><code>GET /api/v1/referral-partners/{id}/dashboard</code></td><td>O only</td><td>Owner summary for one partner: year-to-date earned (Decimal sum of this calendar year's ledger <code>amount</code> values, as a string), year-to-date settled, current pending total, the partner's last 6 settlements (period, status, total), a <code>late_entries</code> count (§12.5), and whether the partner has an email on file. All figures are computed at read time from the ledger and settlements. Nothing is stored.</td></tr>
+</tbody></table></div>
+<h3>10.3 Worked response: one ledger entry</h3>
+<pre>{
+  "id": "7c1f…",
+  "payment_id": "a92e…",
+  "referral_partner_id": "41bd…",
+  "rule_id": "e077…",
+  "amount": "800.00",
+  "percent_applied": "20.00",
+  "basis_amount": "4000.00",
+  "period": "2026-09",
+  "derived_status": "pending",
+  "created_at": "2026-09-14T10:22:31+05:00"
+}</pre>
+<p>Money and percent are strings (AP, RS-7). <code>derived_status</code> is computed from <code>settlement_line</code> at read time (§6.7). There is no <code>status</code> field and no <code>settlement_id</code> field, because there are no such columns.</p>
+
+<h2 id="s11">11. Workflows</h2>
+<p>Diagrams use the exact status values and column names from Doc 02. “Entry status” in captions is always the derived status of §6.7.</p>
+<h3>11.1 Workflow 1 — Owner creates a partner and their first rule</h3>
+<div class="diagram"><pre class="mermaid">sequenceDiagram
+  participant O as Owner (SPA)
+  participant API as Django API
+  participant DB as PostgreSQL
+  O->>API: POST /api/v1/referral-partners {name, organisation, email}
+  API->>DB: INSERT referral_partner (is_active = true)
+  API->>DB: INSERT audit_log (partner created)
+  API-->>O: 201 partner
+  O->>API: POST /api/v1/referral-partners/{id}/rules {branch_id: null, test_category: null, percent: "20.00", effective_from}
+  API->>DB: check overlap in bucket (partner, NULL, NULL)
+  API->>DB: INSERT revenue_share_rule
+  API-->>O: 201 rule</pre>
+<p class="dcap">Workflow 1 — Partner and first rule (RP-1, RR-1, RR-7). No rule was seeded for this partner at provisioning (A-10). Until this rule exists, resolution returns 0% and payments write no ledger rows (RR-11, RR-12).</p></div>
+<h3>11.2 Workflow 2 — Payment arrives, ledger entry created</h3>
+<div class="diagram"><pre class="mermaid">sequenceDiagram
+  participant R as Receptionist (SPA)
+  participant API as Django API (billing)
+  participant SVC as partners.services.record_share_entry()
+  participant DB as PostgreSQL
+  R->>API: POST /api/v1/invoices/{id}/payments {kind: payment, method: cash, amount: "4000.00", Idempotency-Key}
+  API->>DB: BEGIN, INSERT payment (kind = payment)
+  API->>SVC: event billing.payment_recorded {payment_id, invoice_id, referral_partner_id, kind, amount, branch_id}
+  SVC->>DB: SELECT invoice.referral_partner_id, invoice.branch_id
+  SVC->>DB: resolve rule by specificity (partner, branch, category), payment date
+  SVC->>DB: INSERT share_ledger_entry (basis_amount 4000.00, percent_applied 20.00, amount 800.00, period 2026-09)
+  API->>DB: COMMIT, INSERT audit_log (payment)
+  API-->>R: 201 payment</pre>
+<p class="dcap">Workflow 2 — Payment → ledger entry (§6.2, §6.3). One transaction: if the ledger insert fails, the payment rolls back with it. Walk-in (referral_partner_id NULL) skips the insert (SL-2). A 0.00 result skips the insert (SL-13). The new entry's derived status is pending.</p></div>
+<h3>11.3 Workflow 3 — Refund arrives, compensating entry in the current open period</h3>
+<div class="diagram"><pre class="mermaid">sequenceDiagram
+  participant M as Branch Manager (SPA)
+  participant API as Django API (billing)
+  participant SVC as partners.services.record_share_entry()
+  participant DB as PostgreSQL
+  M->>API: POST /api/v1/invoices/{id}/payments {kind: refund, method: cash, amount: "4000.00", Idempotency-Key}
+  API->>DB: check BL-7: cumulative refunds do not exceed payments, and check OQ-31 ceiling
+  API->>DB: BEGIN, INSERT payment (kind = refund, amount positive)
+  API->>SVC: event billing.payment_recorded {payment_id, kind: refund}
+  SVC->>DB: SELECT original entry by original payment_id, and copy percent_applied 20.00, rule_id
+  SVC->>DB: original period settlement status is PAID (closed)
+  SVC->>DB: INSERT share_ledger_entry (amount -800.00, basis_amount 4000.00, period = refund month)
+  API->>DB: COMMIT
+  API-->>M: 201 refund payment</pre>
+<p class="dcap">Workflow 3 — Refund reversal (SL-8 to SL-11). The original entry (+800.00) is untouched. The new entry (−800.00) carries the current open period because the original period is closed. Both entries' derived status: the original is settled; the reversal is pending until its own period settles.</p></div>
+<h3>11.4 Workflow 4 — Monthly Beat drafts settlements</h3>
+<div class="diagram"><pre class="mermaid">sequenceDiagram
+  participant Beat as Celery Beat
+  participant W as Celery Worker
+  participant DB as PostgreSQL
+  participant N as Owner notification
+  Beat->>W: 1st, 01:00 Asia/Karachi: referral_partners.generate_monthly_settlements
+  W->>W: fan out: one child task per tenant (Doc 04 TP-5)
+  W->>W: per tenant: one draft task per partner with pending entries
+  W->>DB: SELECT share_ledger_entry WHERE referral_partner_id = partner AND period = previous month AND no live settlement_line
+  W->>DB: INSERT settlement (status = DRAFT, total = sum of lines)
+  W->>DB: INSERT settlement_line per entry (amount snapshot)
+  W->>N: drafts ready for review
+  Note over DB: entries are now in-draft (derived). Ledger rows unchanged.</pre>
+<p class="dcap">Workflow 4 — Monthly generation (ST-1 to ST-8). A partner with no pending entries gets no settlement (ST-5). Re-running is a no-op where a live settlement exists (ST-7).</p></div>
+<h3>11.5 Workflow 5 — Owner approves, PDF rendered, email sent, status SENT</h3>
+<div class="diagram"><pre class="mermaid">sequenceDiagram
+  participant O as Owner (SPA)
+  participant API as Django API
+  participant DB as PostgreSQL
+  participant W as Celery Worker (finalize)
+  participant S3 as Storage (R2 / MinIO)
+  participant N8N as n8n
+  participant P as Partner (email)
+  O->>API: POST /api/v1/settlements/{id}/approve (If-Match)
+  API->>DB: UPDATE settlement SET status = APPROVED, approved_by, approved_at, and INSERT audit_log
+  API->>W: enqueue referral_partners.finalize_settlement(id)
+  API-->>O: 200 settlement (status = APPROVED), entries now settled (derived)
+  W->>DB: render statement PDF (WeasyPrint)
+  W->>S3: PUT settlements/{partner_id}/{period}.pdf
+  W->>DB: UPDATE settlement SET statement_pdf_key
+  W->>DB: INSERT webhook_delivery + notification (template_key = settlement_ready, status = PENDING)
+  W->>N8N: signed webhook: settlement approved (Doc 01 section 13)
+  N8N->>P: email with statement PDF attached
+  N8N->>API: delivery callback (tenant host, slug checked)
+  API->>DB: UPDATE notification SET status = SENT, and UPDATE settlement SET status = SENT</pre>
+<p class="dcap">Workflow 5 — Approval (ST-9 to ST-11, DL-2, DL-3). Order is fixed: approve, render, store, set statement_pdf_key, then webhook. The settlement becomes SENT only on the delivery callback — never at send time.</p></div>
+<h3>11.6 Workflow 6 — Statement email delivery and retry</h3>
+<div class="diagram"><pre class="mermaid">sequenceDiagram
+  participant N8N as n8n
+  participant API as Django API
+  participant DB as PostgreSQL
+  participant Beat as Celery Beat (15-min sweep)
+  participant O as Owner (SPA)
+  N8N->>API: delivery callback: FAILED (mailbox rejected)
+  API->>DB: UPDATE notification SET status = FAILED, attempts + 1, next_attempt_at, last_error
+  Note over DB: settlement stays APPROVED. Nothing is un-approved.
+  Beat->>DB: sweep finds notification FAILED and due
+  Beat->>N8N: re-fire signed webhook (same idempotency_key)
+  N8N->>API: delivery callback: SENT
+  API->>DB: UPDATE notification SET status = SENT, and UPDATE settlement SET status = SENT
+  Note over O: if retries exhaust, the row stays FAILED and the Owner re-sends by hand (workflow: POST /settlements/{id}/send)</pre>
+<p class="dcap">Workflow 6 — Delivery retry (DL-5, DL-6). Retries ride the notification row's attempts and next_attempt_at, swept every 15 minutes (Doc 01 §13). A manual re-send creates a fresh notification row.</p></div>
+<h3>11.7 Workflow 7 — Re-draft after a cancelled settlement</h3>
+<div class="diagram"><pre class="mermaid">sequenceDiagram
+  participant O as Owner (SPA)
+  participant API as Django API
+  participant DB as PostgreSQL
+  participant W as Celery Worker
+  O->>API: POST /api/v1/settlements/{id}/cancel (If-Match)
+  API->>DB: UPDATE settlement SET status = CANCELLED, and INSERT audit_log
+  API-->>O: 200 settlement (status = CANCELLED)
+  Note over DB: settlement_line rows stay on the cancelled settlement. Ledger rows unchanged. Entries are pending again (derived).
+  O->>API: re-draft this partner and period
+  API->>W: draft task for (partner, period)
+  W->>DB: SELECT pending entries for the period (the same entries, plus any new ones)
+  W->>DB: INSERT new settlement (status = DRAFT) + settlement_line rows
+  Note over DB: allowed by the partial unique index: the old row is CANCELLED, so it does not block the new live row.</pre>
+<p class="dcap">Workflow 7 — Cancel and re-draft (ST-16 to ST-19). The re-draft is a new settlement row, not an un-cancel. Settlement versioning does not exist (§1.1).</p></div>
+
+<h2 id="s12">12. Concurrency, failure handling, observability, test plan</h2>
+<p>Every case below was chosen by asking: “what does the retry, the second click, or the crash leave behind?” The answer must always be a consistent state a human can see and fix.</p>
+<h3>12.1 Double payment event</h3>
+<p>The same <code>billing.payment_recorded</code> event is delivered twice — a retry, a replay, the reconciliation sweep racing a slow request. The consumer is idempotent on <code>payment_id</code> (SL-5): the second call finds the existing row through UNIQUE (<code>payment_id</code>) and does nothing. One payment can never produce two rows, so a partner can never be paid twice for it. The sweep (§6.4) depends on this property to be safe.</p>
+<h3>12.2 Two Owners approve at once</h3>
+<p>Approve, cancel and mark-paid require <code>If-Match</code> (AP-2). Two Owners open the same DRAFT. Both submit. The first request updates the row; its version token changes. The second request's token is stale and returns <code>409 version_conflict</code>, with the settlement's current state in the response. The Owner reloads and sees what actually happened. A double approval can therefore never enqueue two finalize tasks for two different decisions. The finalize task is also idempotent: if it runs twice, the second run finds <code>statement_pdf_key</code> already set to the same key and the PDF already stored, and the delivery webhook carries the same idempotency key, which n8n de-duplicates (DL-2).</p>
+<h3>12.3 PDF render failure</h3>
+<p>The finalize task renders under Doc 01 §13's policy for its queue (the <code>referral_partners</code> queue: 3 retries, backoff). A render exception fails the task cleanly and keeps no partial PDF (PDF-3). The settlement stays <code>APPROVED</code> with <code>statement_pdf_key</code> NULL. That pair — approved, no PDF — is the visible retryable state. It shows on the settlement list. When retries exhaust, Sentry alerts (Doc 01 §13) and the Owner's re-send is not the fix; support re-runs the finalize task, which is idempotent (§12.2). The approval is never rolled back: the lab did approve the number.</p>
+<h3>12.4 Email delivery failure</h3>
+<p>Covered by DL-5 and workflow 6: the <code>notification</code> row carries <code>attempts</code>, <code>next_attempt_at</code> and <code>last_error</code>; the 15-minute Beat sweep retries; exhaustion leaves a <code>FAILED</code> row and an alert; the Owner re-sends by hand (DL-6) or downloads the statement (DL-7). The settlement stays <code>APPROVED</code> throughout. Delivery state and money state are separate, on purpose.</p>
+<h3>12.5 Late-arriving entries</h3>
+<p>A payment can be recorded late for a period that has already been drafted or settled — a back-office correction, a restored record, a reversal under SL-11. The rule is fixed:</p>
+<ul>
+<li><b>CF-1.</b> An entry <b>never joins a settlement that already exists</b>. A settlement is a snapshot taken at draft time (ST-4). Its lines and total never change after drafting.</li>
+<li><b>CF-2.</b> If the entry's period settlement is still <code>DRAFT</code>: the entry stays <code>pending</code>. It is counted in the dashboard's <code>late_entries</code> (§10) so the Owner can see it before approving. It joins only if the Owner cancels that draft and re-drafts (§7.6), which picks it up with the rest. The Owner chooses. The system does not silently grow an open draft either — that would change a total the Owner may already be reviewing.</li>
+<li><b>CF-3.</b> If the entry's period is already closed (<code>APPROVED</code>, <code>SENT</code> or <code>PAID</code>): the entry stays <code>pending</code> until the next monthly generation. Generation selects by derived status <code>pending</code>, so the entry is picked up as a line on that partner's <b>current-period</b> settlement — alongside that month's own entries, keeping its own stored <code>period</code> value. The statement shows that period on the line (§8.2), and the two-period statement prints subtotals (§8.2). The partner can see exactly which item is late and which month it belongs to.</li>
+<li><b>CF-4.</b> Selection detail, so generation cannot miss these: the draft task selects entries whose derived status is <code>pending</code> and whose stored <code>period</code> is the target month, <b>plus</b> any still-pending entries from earlier periods whose period settlement is closed. Those older entries are written as lines on the new settlement. Their rows keep their original <code>period</code> — a line's period is the entry's fact, not the settlement's.</li>
+</ul>
+<h3>12.6 Approval when an entry's original period is closed</h3>
+<p>This is the normal refund case, not an edge case. A settlement in front of the Owner may hold a reversal whose original entry settled two months ago (workflow 3). Approval acts on the settlement in front of the Owner — its lines, its total. Historical settlements are never reopened, never edited, never re-totalled. Their PDFs stay as issued. The compensating entry in the current settlement is the whole correction. That is the reversing-entry pattern of F-3, applied end to end.</p>
+<h3>12.7 Beat crash mid-fan-out</h3>
+<p>Generation fans out per tenant, then per partner (ST-2, Doc 04 TP-5). If the parent task or a worker dies mid-fan-out, some partners have drafts and some do not. Nothing is half-written: each partner's draft is one transaction (ST-4). Recovery is “run generation again”. For partners already drafted, the partial unique index makes the re-run a no-op (ST-7). For the rest, the re-run drafts normally. There is no fan-out progress table and no resume logic. Idempotency is the resume logic. The same holds inside delivery: a crash between storing the PDF and firing the webhook leaves <code>APPROVED</code> with <code>statement_pdf_key</code> set and no <code>notification</code> row — the finalize re-run detects that exact state and fires the webhook (§12.3).</p>
+<h3>12.8 Observability</h3>
+<div class="box"><table><thead><tr><th>Signal</th><th>What it watches</th><th>Alert</th></tr></thead><tbody>
+<tr><td>Ledger reconciliation count</td><td>Partner-attributed payments with no ledger row, as found by the hourly sweep (SL-6), excluding correctly skipped zero-amount payments</td><td>Any count above 0 after the sweep runs. Target is always 0. A repaired row means the synchronous path failed somewhere — that is a bug, not routine.</td></tr>
+<tr><td>Generation run, per tenant</td><td>Partners drafted, partners skipped (no pending entries), partners failed, run duration, for each monthly run</td><td>Any partner failure. Also: a run that drafts nothing for a tenant who had pending entries.</td></tr>
+<tr><td>Drafts awaiting approval</td><td>Settlements in <code>DRAFT</code> older than 7 days</td><td>Owner-facing reminder. Money partners are owed should not sit unreviewed.</td></tr>
+<tr><td>Approved, no PDF</td><td>Settlements <code>APPROVED</code> with <code>statement_pdf_key</code> NULL older than 1 hour</td><td>Support alert — finalize is stuck (§12.3).</td></tr>
+<tr><td>Delivery failures</td><td><code>notification</code> rows for <code>settlement_ready</code> reaching <code>FAILED</code> after retries, grouped by <code>last_error</code></td><td>Alert on any exhausted delivery. <code>partner_email_missing</code> is reported separately — it is fixed by data entry, not by engineering.</td></tr>
+<tr><td>Negative settlements</td><td>Drafts with <code>total</code> below 0</td><td>Listed on the Owner's dashboard. Not an error. The Owner must see it before approving (ST-6).</td></tr>
+<tr><td>Paused deliveries (read-only)</td><td><code>PENDING</code> settlement notifications held while a tenant is in read-only mode (§13, OQ-36)</td><td>Counted per tenant, so support can answer “why has this partner not been emailed?” in one look.</td></tr>
+</tbody></table></div>
+<p>Logs follow Doc 01 §16: every task log line carries <code>tenant_slug</code> first (Doc 04 §13.2). No partner email addresses or money figures are written to Sentry payloads beyond IDs — Sentry's scrubbing rules are Doc 08's.</p>
+<h3>12.9 Test plan</h3>
+<p>Scenarios RS-01 to RS-42. Each names the rule it proves. Money figures are Decimal strings end to end.</p>
+<div class="box"><table><thead><tr><th>ID</th><th>Scenario</th><th>Expected</th></tr></thead><tbody>
+<tr><td>RS-01</td><td>Create two rules in the same bucket with overlapping windows</td><td>Second create returns <code>422 rule_overlap</code>; nothing written (RR-7)</td></tr>
+<tr><td>RS-02</td><td>Create overlapping rules in different buckets</td><td>Both accepted (RR-8)</td></tr>
+<tr><td>RS-03</td><td>All four buckets match one payment</td><td>Bucket 1 percent applied: (partner, branch, category) wins (§5.3)</td></tr>
+<tr><td>RS-04</td><td>Buckets 2 and 3 both match</td><td>Bucket 2 wins: branch beats category (§5.3)</td></tr>
+<tr><td>RS-05</td><td>Only bucket 4 matches</td><td>General rate applied</td></tr>
+<tr><td>RS-06</td><td>Partner with no rules at all receives a payment</td><td>Payment succeeds; no ledger row; resolution returns 0% without error (RR-11, RR-12)</td></tr>
+<tr><td>RS-07</td><td>Rule starts next month; payment today, payment next month</td><td>Today: no row. Next month: row at the rule's percent (RR-13)</td></tr>
+<tr><td>RS-08</td><td>Edit a rule via PATCH</td><td>Old row closed with <code>effective_to</code>; new row inserted; old row's <code>percent</code> and <code>effective_from</code> unchanged (RR-3)</td></tr>
+<tr><td>RS-09</td><td>Payment of 1.00 at 1%</td><td>Row written, <code>amount = "0.01"</code> (§6.6)</td></tr>
+<tr><td>RS-10</td><td>Payment of 0.01 at 1%</td><td>No row written; sweep does not flag the payment as missing (SL-13, SL-6)</td></tr>
+<tr><td>RS-11</td><td>Payment of 999.99 at 15%</td><td><code>amount = "150.00"</code> — ROUND_HALF_UP on 149.9985 (§6.6)</td></tr>
+<tr><td>RS-12</td><td>Walk-in payment (<code>referral_partner_id</code> NULL)</td><td>No ledger row (SL-2)</td></tr>
+<tr><td>RS-13</td><td>Mixed-category invoice; a category rule exists</td><td>Category rule ignored; only NULL-category buckets considered (RR-10)</td></tr>
+<tr><td>RS-14</td><td>Single-category invoice matching its category rule</td><td>Category bucket considered normally (RR-10)</td></tr>
+<tr><td>RS-15</td><td>Doc 02 §12 worked example, end to end</td><td>Entries +2,000.00, +800.00, −800.00; net 2,000.00 (§6.8)</td></tr>
+<tr><td>RS-16</td><td>Fire <code>billing.payment_recorded</code> twice for one payment</td><td>Exactly one ledger row (SL-5, §12.1)</td></tr>
+<tr><td>RS-17</td><td>Consumer raises during payment insert</td><td>Whole payment transaction rolls back; no payment row, no ledger row (§6.3)</td></tr>
+<tr><td>RS-18</td><td>Delete a ledger row / update its amount as the app role</td><td>Database refuses both (Doc 02 §6)</td></tr>
+<tr><td>RS-19</td><td>Refund while the original entry is pending, no live settlement for its period</td><td>Reversal carries the original period (SL-11)</td></tr>
+<tr><td>RS-20</td><td>Refund after the original period's settlement is PAID</td><td>Reversal carries the refund month's period; original settlement untouched (SL-11, §12.6)</td></tr>
+<tr><td>RS-21</td><td>Refund after the rule's percent changed</td><td>Reversal uses the original entry's <code>percent_applied</code>, not the new percent (SL-8)</td></tr>
+<tr><td>RS-22</td><td>Refund of a payment that was zero-skipped</td><td>No reversal row (SL-10)</td></tr>
+<tr><td>RS-23</td><td>Refund of a walk-in payment</td><td>No reversal row (SL-10)</td></tr>
+<tr><td>RS-24</td><td>Two partial refunds of one payment</td><td>Two negative rows; sum never exceeds the original entry (SL-12)</td></tr>
+<tr><td>RS-25</td><td>Monthly generation with pending entries for 3 partners</td><td>3 DRAFT settlements, correct lines and Decimal totals; entries now <code>in-draft</code> (ST-3, ST-4)</td></tr>
+<tr><td>RS-26</td><td>Generation for a partner with no pending entries</td><td>No settlement created (ST-5)</td></tr>
+<tr><td>RS-27</td><td>Run generation twice for the same period</td><td>Second run is a no-op; still one live settlement per partner (ST-7)</td></tr>
+<tr><td>RS-28</td><td>Kill the worker mid-fan-out, then re-run generation</td><td>All partners drafted exactly once; no partner has two live settlements (§12.7)</td></tr>
+<tr><td>RS-29</td><td>Two Owners approve the same DRAFT at once</td><td>One succeeds; the other gets <code>409 version_conflict</code> (§12.2)</td></tr>
+<tr><td>RS-30</td><td>Approve a settlement; force the PDF render to fail, then exhaust retries</td><td>Settlement stays <code>APPROVED</code>, <code>statement_pdf_key</code> NULL, no partial object stored; alert fires (§12.3)</td></tr>
+<tr><td>RS-31</td><td>Cancel a DRAFT, then re-draft</td><td>Old row <code>CANCELLED</code> with its lines intact; entries <code>pending</code> again; new DRAFT holds them (ST-17 to ST-19)</td></tr>
+<tr><td>RS-32</td><td>Cancel an APPROVED settlement</td><td><code>422 settlement_not_cancellable</code> (ST-16)</td></tr>
+<tr><td>RS-33</td><td>Late payment recorded for a period whose settlement is still DRAFT</td><td>Entry stays <code>pending</code>, counted in <code>late_entries</code>; the DRAFT's total does not change (CF-2)</td></tr>
+<tr><td>RS-34</td><td>Late payment recorded for a closed period, then next month's generation</td><td>Entry appears as a line on the current-period settlement, with its own period shown; statement prints subtotals (CF-3, CF-4)</td></tr>
+<tr><td>RS-35</td><td>Manager records a refund of exactly 5,000.00 (default threshold)</td><td>Allowed (OQ-31)</td></tr>
+<tr><td>RS-36</td><td>Manager records a refund of 5,000.01</td><td><code>403 owner_approval_required</code>; no payment row written (OQ-31)</td></tr>
+<tr><td>RS-37</td><td>Tenant in read-only mode on the 1st of the month</td><td>Generation still drafts settlements; approve returns <code>403 subscription_read_only</code>; queued statement notifications stay <code>PENDING</code> and deliver after reactivation (OQ-36)</td></tr>
+<tr><td>RS-38</td><td>Soft-delete a partner who has ledger rows; then one who has none</td><td>First: <code>409 partner_has_ledger_entries</code>. Second: <code>deleted_at</code> set (RP-5)</td></tr>
+<tr><td>RS-39</td><td>Receptionist, Technician or Pathologist calls any endpoint in §10</td><td><code>403 forbidden</code> on every one, including lists (RM-5, AP-1)</td></tr>
+<tr><td>RS-40</td><td>Branch Manager opens the ledger and the approval action</td><td><code>403</code> for both; settlement list, detail and statement download succeed (RM-4)</td></tr>
+<tr><td>RS-41</td><td>Partner with <code>email</code> NULL reaches delivery</td><td>Settlement drafts and approves; <code>notification</code> row FAILED with <code>last_error = 'partner_email_missing'</code>; statement still downloadable (ST-21)</td></tr>
+<tr><td>RS-42</td><td>Month with reversals larger than earnings</td><td>DRAFT created with a negative <code>total</code>; statement prints the negative total and the adjustment line (ST-6, §8.2)</td></tr>
+</tbody></table></div>
+
+<h2 id="s13">13. Resolved and open questions</h2>
+<h3>13.1 Resolved here</h3>
+<div class="box"><table><thead><tr><th>ID</th><th>Question</th><th>Decision</th></tr></thead><tbody>
+<tr><td>OQ-31 (from Doc 03 §13.2)</td><td>May a Branch Manager refund any amount, or is Owner approval required above a PKR threshold?</td><td><b>Threshold adopted.</b> A Branch Manager may record a refund alone up to and including <code>refund_owner_approval_threshold_pkr</code> — default <b>5000</b> (PKR), per tenant (A-17, Proposed, §14). Above the threshold, only the Owner may record the refund: a Manager attempt returns <code>403 owner_approval_required</code> (problem+json) and writes nothing. In v1 “Owner approval” means the Owner performs the refund herself. There is no approval-request queue and no pending-refund state in v1 (§15). Doc 03 BL-7's cap still applies to everyone, Owner included: cumulative refunds may never exceed cumulative payments (<code>422 refund_exceeds_payments</code>). The threshold setting uses the key in A-17; until A-17 is accepted, the interim behaviour is the platform constant <code>5000</code>, read through the same settings accessor (Doc 04 §10.2's pattern), so accepting A-17 changes configuration, not code. A threshold of <code>0</code> means the Owner records every refund. Why a threshold and not “no ceiling”: refund fraud and refund mistakes are the two classic ways money leaks from a lab till, and a Manager-only refund of any size has no second pair of eyes at any value. Why 5000: it sits above the price of most single tests, so routine refunds stay fast, and below the value of a full panel day, so real money gets a second person.</td></tr>
+<tr><td>OQ-36 (from Doc 04 §19.2)</td><td>While a tenant is past_due or in read-only mode, do monthly settlement generation and partner statement emails keep running?</td><td><b>Generation continues. Delivery pauses in read-only mode.</b> Settlement generation keeps running in the past_due grace period and in read-only mode, unchanged. Beat is platform system work, not a staff API write, and Doc 04 §11.2's read-only gate applies to staff writes through the middleware — it was never a switch for the platform's own accounting. Partners are third parties who did nothing wrong; if generation stopped, the record of what they are owed would silently fall behind and be wrong when the lab returns. Drafts cost little and keep the obligation exact. Delivery is different: approving a settlement is a staff write, so in read-only mode approve returns <code>403 subscription_read_only</code> and no new finalize starts. The statement email is a new delivery, which Doc 04 §11.2 stops in read-only mode; queued <code>notification</code> rows stay <code>PENDING</code> and the 15-minute sweep delivers them after reactivation. A finalize task already running when read-only begins completes — stopping mid-render would leave worse state than finishing (§12.7). Mark-paid is also a staff write and waits for reactivation. In the past_due 14-day grace (Doc 04 §11.2) access is full, so approval and delivery run normally. Net effect: the lab's debt to its partners is always computed, and emails resume the moment the lab does.</td></tr>
+<tr><td>OQ-16 (Doc 02 §12)</td><td>How do partial payments, discounts and refunds change the share?</td><td>Resolved in Doc 02 §12 and inherited, not reopened: per payment, on the paid amount; discounts need no row; refunds are compensating negative entries (§6).</td></tr>
+<tr><td>OQ-22 (Doc 02 §20)</td><td>Is <code>share_ledger_entry</code> truly append-only?</td><td>Resolved in Doc 02 and inherited: yes, fully. No status column, no <code>settlement_id</code> column; status is derived (§6.7).</td></tr>
+<tr><td>OQ-15 (Doc 02 §11)</td><td>One report per sample or per order?</td><td>Resolved in Doc 02 §11 and noted here only to prevent confusion: it governs <code>report_version</code>. It constrains nothing in this module (§1.1).</td></tr>
+</tbody></table></div>
+<h3>13.2 New open questions</h3>
+<div class="box"><table><thead><tr><th>ID</th><th>Question</th><th>Owner doc</th><th>Needed by</th></tr></thead><tbody>
+<tr><td>OQ-42</td><td>What are the exact n8n workflow internals for the settlement email — PDF attachment handling, and what happens when a partner's mailbox bounces or is full?</td><td>Doc 06</td><td>Doc 06</td></tr>
+<tr><td>OQ-43</td><td>How long are statement PDFs and ledger data kept, and is archival (not deletion) the mechanism — including statements for partners whose relationship has ended?</td><td>Doc 08</td><td>Doc 08</td></tr>
+<tr><td>OQ-44</td><td>What does the monthly settlement fan-out cost at 100+ tenants — queue time, PDF render load, and email volume on the 1st — and does generation need staggering by tenant?</td><td>Doc 10</td><td>Doc 10</td></tr>
+</tbody></table></div>
+
+<h2 id="s14">14. Proposed amendments</h2>
+<p>Amendment numbering continues the shared register: Doc 03 proposed A-1 to A-6, Doc 04 proposed A-7 to A-16. Doc 05's amendments start at A-17. Both items below are <b>Proposed</b>. Neither is built against until it is accepted into the document it names. The interim behaviour for each is stated in its row and in the section that uses it.</p>
+<div class="box"><table><thead><tr><th>ID</th><th>Status</th><th>Amendment</th><th>Reason</th><th>Affects</th></tr></thead><tbody>
+<tr><td>A-17</td><td><b>Proposed</b></td><td>Add one key to the tenant-settings registry: <code>refund_owner_approval_threshold_pkr</code> — type int (PKR), default <code>5000</code>, validation: integer ≥ 0; <code>0</code> means the Owner records every refund. <b>No schema change:</b> the <code>tenant_setting</code> table already exists (Doc 02 v1.3 §5.12, A-7 accepted). This is a registry addition only. Interim behaviour until accepted: the platform constant <code>5000</code>, read through the same settings accessor.</td><td>OQ-31's resolution (§13) needs a per-tenant refund ceiling. A fixed platform number would force one lab's risk policy onto every lab.</td><td>Doc 04 §10.2 (key registry) · Doc 03 §5.3 BL-7 (refund rule gains the ceiling) · Doc 05 §13</td></tr>
+<tr><td>A-18</td><td><b>Proposed</b></td><td>Add <code>template_version</code> text NULL to <code>settlement</code> — the version of the statement template that rendered <code>statement_pdf_key</code>, set by the finalize task. Interim behaviour until accepted: the version is written into the PDF metadata and the approval <code>audit_log</code> row; a re-render always uses the current template (§8.4).</td><td>When the statement template changes, support must be able to say which template produced a stored statement. The settlement row is the only durable place to record it. Mirrors Doc 03's A-6 for <code>report_version</code>, which is still Proposed there.</td><td>Doc 02 §5.8 · Doc 05 §8.4</td></tr>
+</tbody></table></div>
+<p><b>Nothing else is proposed.</b> The consistency check (§1.4) found every other column, constraint and status value this module needs already present in Doc 02 v1.3. Rule-overlap rejection is application behaviour. The dashboard is computed. Derived status is a read. None of them needs an amendment, and none is smuggled in as one.</p>
+
+<h2 id="s15">15. What is NOT built in v1</h2>
+<div class="box"><table><thead><tr><th>Not built</th><th>Why not</th></tr></thead><tbody>
+<tr><td>No partner portal and no partner login</td><td>Decided in Doc 01 (OQ-07): partners are record-only in v1 and receive a monthly statement PDF. A portal is a second product — accounts, passwords, support — for readers who need one document a month.</td></tr>
+<tr><td>No multi-currency</td><td>PKR only across LabFlow v1 (Doc 01). One currency keeps every figure on a statement comparable.</td></tr>
+<tr><td>No retroactive rule edits</td><td>Rules are history (RR-4, RS-6). Rewriting the past would make every issued statement suspect. Corrections happen in the current period, visibly.</td></tr>
+<tr><td>No per-partner tax or VAT handling; no tax engine</td><td>LabFlow records the share the Owner agreed. Tax treatment of that share is the lab's and the partner's own affair, with their own advisers (F-1, AS-2).</td></tr>
+<tr><td>No partial settlement</td><td>A settlement is all-or-nothing per partner per period (§7.1). Partial settlement would need a rule for which entries wait, and a partner-facing explanation for it. Neither earns its complexity in v1.</td></tr>
+<tr><td>No per-item (per-category) split of one payment</td><td>One entry per payment (RS-4) forces one percent per payment; mixed-category invoices use NULL-category rules (RR-10). Splitting would multiply ledger rows and break the payment-level idempotency story.</td></tr>
+<tr><td>No adjustment invoices</td><td>Corrections are compensating ledger entries in the current open period (§6.5). An adjustment-invoice mechanism would duplicate that pattern with more paper.</td></tr>
+<tr><td>No automated payment to partners, and no electronic bank integration</td><td>The Owner pays outside LabFlow and confirms with mark-paid (§7.5). Moving real money is a regulated, failure-heavy feature. v1 records payment; it does not make it.</td></tr>
+<tr><td>No refund approval queue</td><td>OQ-31's v1 answer is “the Owner performs refunds above the threshold herself” (§13). A request-and-approve queue with a pending-refund state is real workflow machinery; it waits until a lab actually asks for it.</td></tr>
+<tr><td>No WhatsApp delivery of statements</td><td>Email only in v1 (DL-4). Financial documents need attachments and a delivery record.</td></tr>
+<tr><td>No partner-facing dispute flow</td><td>A partner who questions a statement contacts the lab, as today. The lab's answer is the ledger: every line traces to a payment (§8.2). A built-in dispute workflow is post-v1.</td></tr>
+</tbody></table></div>
+
+<h2 id="s16">16. Interview talking points</h2>
+<p><b>Why is the ledger append-only, with no status column?</b> Because a status column would be a second copy of a fact that already lives in one place. Whether an entry is settled is fully determined by <code>settlement_line</code> and its settlement's status. Storing it twice invites the two copies to disagree — and in a money system, the disagreement is always found by the person you owe. Deriving it costs one join. It can never be stale, because there is nothing to update. And revoking UPDATE outright (Doc 02 §6) means even a buggy deploy cannot rewrite history; the database refuses.</p>
+<p><b>Why one entry per payment, instead of one per invoice?</b> Because share follows cash (RS-2). Patients pay in parts, late, and sometimes not at all. An invoice-total entry would pay the partner for money the lab has not received, then need corrections when the balance never arrives. Per-payment entries make part payments, discounts and refunds fall out of one rule with no special cases — and UNIQUE (<code>payment_id</code>) turns that rule into an idempotency guarantee for free.</p>
+<p><b>Why compensating negative entries instead of editing the original row?</b> Because the original row was true when it was written: that payment did happen, at that percent. A refund is a second true event, later. Accounting has known the pattern for a long time (F-3): you reverse with a new entry and keep both. Editing the original would falsify the record of the month it belonged to — a month whose statement the partner may already hold.</p>
+<p><b>Why does settlement membership live in settlement_line, not on the ledger row?</b> A <code>settlement_id</code> column on the ledger would make the ledger mutable — every draft, cancel and re-draft would update ledger rows. That breaks immutability for a bookkeeping convenience. The line table holds membership, a snapshot amount, and nothing else. Cancelling a settlement then touches only settlement tables. The ledger never moves. That separation is what makes “the ledger rows never change” a provable sentence instead of a promise.</p>
+<p><b>Why does a refund reversal land in the current open period, not the original one?</b> Because the original period is closed: its settlement is approved, its PDF is issued, the partner has it. Rewriting it would make the partner's copy wrong. Putting the reversal in the current period keeps every issued document true forever, and the correction appears once, visibly, in the next statement. This is Doc 02 §12's rule. It is also how accountants treat closed periods (F-3).</p>
+<p><b>Why skip zero-amount entries instead of writing them for audit completeness?</b> Because the audit record of a zero-share payment already exists: the payment row, plus the rule rows that resolve to 0% for it. A <code>0.00</code> ledger row adds a line to a partner's financial statement that says “you earned nothing from this” — noise that erodes trust in every other line. The skip rule is deterministic and the reconciliation sweep applies the same computation, so “skipped” and “missing” are always distinguishable (§6.6). Audit completeness comes from inputs being preserved, not from storing derived zeros.</p>
+<p><b>Why synchronous ledger writes, when the rest of the system loves queues?</b> Because the failure modes are asymmetric. A queued report PDF that fails is visible and retryable. A lost ledger write is invisible: no error, no queue depth, just a partner underpaid. The insert is one row inside a transaction that already exists, so synchronous costs almost nothing and deletes an entire failure class. The hourly reconciliation sweep then exists purely as a tripwire — it should find zero rows, forever (SL-6).</p>
+<p><b>Why does settlement generation keep running when a tenant stops paying?</b> Because the debt belongs to the lab, but the partners did nothing wrong (OQ-36). Generation is the platform keeping an exact record of a third party's money. If it paused, the record would silently rot, and the lab's first day back would start with wrong figures. Delivery pausing is different: email is a service the subscription buys, and read-only mode (Doc 04 §11.2) already defines it as stopped. Compute the truth always. Send the email when the account is live. That split is the whole answer.</p>
+
+<h2 id="s17">17. Glossary</h2>
+<div class="box"><table><thead><tr><th>Term</th><th>Meaning</th></tr></thead><tbody>
+<tr><td>Referral partner</td><td>A doctor or facility that sends patients to the lab and earns a revenue share (Doc 02 §5.8). Record only — no login in v1.</td></tr>
+<tr><td>Revenue share</td><td>The percent of a payment that belongs to the partner, under the partner's current rule. Computed per payment, on the amount paid.</td></tr>
+<tr><td>Rule resolution</td><td>Picking the one <code>revenue_share_rule</code> that applies to a payment: by partner, then by the specificity order in §5.3, effective on the payment date. No match means 0% (§5.4).</td></tr>
+<tr><td>Specificity bucket</td><td>One exact (partner, branch, category) triple on a rule, with NULL counting as a value. Overlap is rejected inside a bucket and resolved by rank across buckets (§5.3).</td></tr>
+<tr><td>Share ledger</td><td><code>share_ledger_entry</code>: the immutable list of share facts, one row per payment. The truth every total derives from (RS-1).</td></tr>
+<tr><td>Basis amount</td><td><code>basis_amount</code> on a ledger row: the payment amount the share was computed on. Always the paid amount, never the invoice total.</td></tr>
+<tr><td>Percent applied</td><td><code>percent_applied</code> on a ledger row: the percent actually used for that entry, copied at write time so history survives rule changes.</td></tr>
+<tr><td>Compensating entry</td><td>A new negative ledger row that reverses an earlier entry's effect without editing it. How refunds work (§6.5).</td></tr>
+<tr><td>Derived status</td><td>An entry's status — <code>pending</code>, <code>in-draft</code> or <code>settled</code> — read from <code>settlement_line</code> and <code>settlement.status</code> at query time. Never stored (§6.7).</td></tr>
+<tr><td>Settlement</td><td>One partner's statement run for one calendar month: a <code>settlement</code> row, its <code>settlement_line</code> rows, its total, and its PDF.</td></tr>
+<tr><td>Live settlement</td><td>A settlement whose <code>status</code> is not <code>CANCELLED</code>. The partial unique index guarantees at most one live settlement per partner per period.</td></tr>
+<tr><td>Closed period</td><td>A period whose settlement for that partner is <code>APPROVED</code>, <code>SENT</code> or <code>PAID</code>. Closed periods are never reopened; corrections land in the current open period.</td></tr>
+<tr><td>Current open period</td><td>The calendar month currently accruing entries — the period a reversal takes when its original period is closed (§6.5, SL-11).</td></tr>
+<tr><td>Late entry</td><td>A pending ledger entry whose stored <code>period</code> already has a settlement. Handled by the fixed rules in §12.5; never silently added to an existing settlement.</td></tr>
+<tr><td>Finalize task</td><td><code>referral_partners.finalize_settlement</code>: renders the statement PDF, stores it, sets <code>statement_pdf_key</code>, then fires the delivery webhook (§7.4).</td></tr>
+<tr><td>Reconciliation sweep</td><td><code>partners.reconcile_missing_ledger_entries</code>: the hourly check that every partner-attributed payment has the ledger row it should. Target count: zero (§6.4).</td></tr>
+<tr><td>Refund ceiling</td><td>The per-tenant amount above which only the Owner may record a refund: <code>refund_owner_approval_threshold_pkr</code>, default 5000 (OQ-31, A-17 Proposed).</td></tr>
+<tr><td>Statement</td><td>The partner-facing PDF for one settlement. A settlement statement — not a legal invoice and not a tax document (§8.1).</td></tr>
+</tbody></table></div>
+<p class="meta">End of Doc 05. Next: Doc 06 — Automation Layer (n8n), which owns the settlement-email workflow internals raised here as OQ-42.</p>
+</main>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
+<script>
+(function () {
+  if (!window.mermaid) return;
+  mermaid.initialize({ startOnLoad: true, theme: "dark", securityLevel: "strict", themeVariables: { primaryColor: "#1c2128", primaryBorderColor: "#4a5561", primaryTextColor: "#e6edf3", secondaryColor: "#2a313a", tertiaryColor: "#161b22", lineColor: "#4a5561", textColor: "#e6edf3", actorBkg: "#1c2128", actorBorder: "#4a5561", actorTextColor: "#e6edf3", actorLineColor: "#9aa7b4", signalColor: "#9aa7b4", signalTextColor: "#e6edf3", noteBkgColor: "#2a313a", noteTextColor: "#e6edf3", noteBorderColor: "#4a5561", labelTextColor: "#e6edf3" } });
+})();
+</script>
+</body>
+</html>

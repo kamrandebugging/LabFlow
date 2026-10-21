@@ -1,0 +1,735 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="dark" />
+    <link rel="icon" href="data:," />
+    <title>LabFlow Doc 04: Multi-Branch and Tenancy</title>
+    <style>
+:root{--bg:#0d1117;--fg:#e6edf3;--mut:#9aa7b4;--line:#30363d;--card:#161b22;--card2:#21262d;--acc:#e8a33d;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:dark}
+*,*::before,*::after{box-sizing:border-box}
+html{height:100%;scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--fg);font:15.5px/1.65 system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+.wrap{max-width:740px;margin:0 auto;padding:40px 24px 88px}
+nav.toc{margin:0 0 10px;padding:0 0 20px;border-bottom:1px solid var(--line)}
+nav.toc .th{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--mut);margin:0 0 10px}
+nav.toc a{display:block;color:#f0c476;text-decoration:none;font-size:13.5px;line-height:1.5;padding:2.5px 0}
+nav.toc a.sub{padding-left:16px;font-size:13px}
+main{min-width:0}
+h1{font-size:27px;line-height:1.25;margin:0 0 10px;font-weight:700;letter-spacing:-.01em}
+h2{font-size:19px;line-height:1.35;margin:42px 0 12px;padding-top:28px;border-top:1px solid var(--line);font-weight:700}
+h2:first-of-type{margin-top:32px}
+h3{font-size:15.5px;margin:24px 0 6px;font-weight:700}
+h4{font-size:14.5px;margin:18px 0 4px;font-weight:700}
+p{margin:8px 0}
+.meta{color:var(--mut);font-size:13.5px;line-height:1.6}
+.tag{display:inline-block;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:1px 9px;font-size:12px;margin:0 6px 4px 0;color:var(--fg);white-space:nowrap}
+.box{margin:14px 0;overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:13.6px;line-height:1.5}
+th,td{border:1px solid var(--line);padding:7px 10px;text-align:left;vertical-align:top;overflow-wrap:break-word}
+th{background:var(--card2);font-weight:600;color:var(--fg)}
+tbody tr:nth-child(even) td,tr:nth-child(even) td{background:#12161c}
+code{font:12.8px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:var(--card2);border-radius:5px;padding:1.5px 5px;overflow-wrap:anywhere;color:#f0c476}
+pre{font:12.6px/1.55 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:14px 16px;margin:14px 0;white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word;color:#dbe4ee}
+.diagram{background:#11161d;border:1px solid var(--line);border-radius:8px;padding:16px 12px;margin:14px 0;overflow-x:auto}
+.diagram svg{display:block;width:100%;height:auto;min-width:520px}
+pre.mermaid{background:transparent;border:none;margin:0;padding:4px;text-align:center;color:#dbe4ee}
+.dcap{color:var(--mut);font-size:12.5px;text-align:center;margin-top:8px}
+.note{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:12px 14px;margin:14px 0;font-size:14.5px;line-height:1.6}
+.spec{border:1px solid var(--line);border-radius:8px;padding:4px 14px 10px;margin:16px 0;background:#10141a}
+.spec h4{color:#f0c476}
+ul,ol{padding-left:24px;margin:8px 0}li{margin:4px 0}
+a{color:#f0c476;overflow-wrap:anywhere}
+.kv{font-size:13.8px}
+.pass{font-weight:700}
+@media(max-width:600px){.wrap{padding:28px 18px 64px}h1{font-size:24px}h2{font-size:17.5px;margin-top:36px;padding-top:22px}table{font-size:12.8px}th,td{padding:6px 7px}pre{padding:12px;font-size:12px}.diagram svg{min-width:480px}}
+</style>
+  </head>
+  <body>
+<div class="wrap">
+<nav class="toc" aria-label="Table of contents">
+<p class="th">Doc 04 · Multi-Branch and Tenancy</p>
+<a href="#s1">1. Purpose, scope, inputs, consistency check</a>
+<a href="#s2">2. Research findings</a>
+<a href="#s3">3. Design principles</a>
+<a href="#s4">4. Tenant model and lifecycle</a>
+<a href="#s5">5. Provisioning in detail</a>
+<a href="#s6">6. Request-time tenant resolution</a>
+<a href="#s7">7. Migrations across tenants</a>
+<a href="#s8">8. Branch model</a>
+<a href="#s9">9. Sample transfer between branches</a>
+<a href="#s10">10. Tenant settings</a>
+<a href="#s11">11. Plans and limits</a>
+<a href="#s12">12. Platform admin</a>
+<a href="#s13">13. Isolation and noisy-neighbour</a>
+<a href="#s14">14. Backup, restore and disaster recovery per tenant</a>
+<a href="#s15">15. API reference — tenancy and platform endpoints</a>
+<a href="#s16">16. Workflows</a>
+<a href="#s17">17. Observability</a>
+<a href="#s18">18. Test plan</a>
+<a href="#s19">19. Resolved and open questions</a>
+<a href="#s20">20. Proposed amendments to Docs 01, 02 and 03</a>
+<a href="#s21">21. What is NOT built in v1</a>
+<a href="#s22">22. Interview talking points</a>
+<a href="#s23">23. Glossary</a>
+</nav>
+<main>
+<h1>LabFlow — Doc 04: Multi-Branch and Tenancy</h1>
+<p class="meta"><span class="tag">Doc 04 of 10</span><span class="tag">v1.1</span><span class="tag">2026-10-20</span><span class="tag">Depends on Doc 01 v2.1, Doc 02 v1.3, Doc 03 v1.2</span></p>
+<p class="meta">Tenancy: tenant lifecycle, provisioning, request-time resolution, fleet migrations, plans. Branches: the branch and collection-centre model, branch scope in the query layer, inter-branch sample transfer.<br>Audience: the developer building LabFlow v1. Stack and schema come from Doc 01 and Doc 02, module behaviour from Doc 03 — none is re-decided here.</p>
+<div class="note"><p><b>Changes in v1.1.</b> A sync and fix pass against Doc 02 v1.3 and Doc 03 v1.2; no decision is re-made.</p>
+<ul>
+<li>§6.4 — the apex host <code>labflow.app</code> is now a fixed pre-approved host in the TLS ask endpoint's allow list, so the platform admin's certificate can issue (§4.2's "TLS ask" column updated to match).</li>
+<li>§4.3 — the offboarding export now states an explicit secret-exclusion list (<code>password_hash</code>, <code>totp_secret_encrypted</code>, <code>totp_backup_codes_hash</code>, every <code>token_hash</code> column); the manifest records what was excluded and why.</li>
+<li>§5 P-8 — owner activation now points at A-14 (revised): an activation row in <code>password_reset_token</code> with <code>purpose = 'activation'</code>.</li>
+<li>§8.1 — <code>result_entry_enabled</code> semantics stated plainly: the flag gates entry only at a collection centre (<code>is_collection_centre = true</code>); a processing branch enters results per the Doc 03 role rules regardless of the flag.</li>
+<li>§9.2 — one line added: a lost transfer does not change <code>sample.status</code>; the sample is resolved through reject-sample (SM-8) and recollect (SM-9), and a lost transfer is terminal.</li>
+<li>§10.1 — <code>tenant_setting.updated_by</code> synced to Doc 02 v1.3 §5.12: FK → <code>staff_user(id)</code> RESTRICT.</li>
+<li>§10.2 — <code>brand_logo_key</code> removed from the key registry: it has no upload endpoint, and logos are a Doc 07 feature once the report template is stable.</li>
+<li>§10.2 — <code>report_default_language</code> description broadened to cover every patient-facing message from the reports and notifications modules (A-16).</li>
+<li>§20 — A-14 marked "Revised — accepted in Doc 02 v1.3"; A-15 (cancel / mark-lost test-plan additions) and A-16 (<code>report_default_language</code> scope broadening) added as Accepted in Doc 03 and Doc 04.</li>
+<li>Consequential syncs only: header and §1.3 now cite Doc 02 v1.3 and Doc 03 v1.2; §1.4 findings 3–5 and §19.1 record the A-8/A-9/A-10 resolutions; §15.2/§15.3, TN-08, TN-13, TN-28 and TN-38 updated to match the changes above. §11, §12, §13 (including §13.6), §14, §16, §17, §21, §22 and §23 are untouched.</li>
+</ul></div>
+<div class="note"><p><b>How this document treats earlier docs.</b> Doc 01 v2.1, Doc 02 v1.3 and Doc 03 v1.2 are ground truth; where they disagree or leave a gap, each item is named in §1.4, given an interim behaviour, and listed as a <b>Proposed amendment</b> in §20 — never silently fixed. Everything beyond Docs 01–03 is marked <b>Proposed</b> where used.</p></div>
+
+<h2 id="s1">1. Purpose, scope, inputs, consistency check</h2>
+<h3>1.1 Purpose</h3>
+<p>Doc 01 chose schema-per-tenant (ADR-003), Doc 02 fixed the public-schema tables, Doc 03 stated the branch rules and left the mechanics here. This document fixes them: how a tenant is created, resolved, migrated, limited, suspended and removed, and how branch scope is enforced in code, not promises.</p>
+<h3>1.2 Scope</h3>
+<div class="box"><table><thead><tr><th>In scope (this document)</th><th>Out of scope (owner document)</th></tr></thead><tbody>
+<tr><td>Tenant lifecycle, provisioning, offboarding, export</td><td>Revenue-share behaviour on subscription states (Doc 05, OQ-36)</td></tr>
+<tr><td>Tenant resolution, the TLS ask endpoint</td><td>Auth design, token policy, threat model (Doc 08)</td></tr>
+<tr><td>Fleet migrations and the deploy script</td><td>Coding standards and CI shape (Doc 09)</td></tr>
+<tr><td>Branch model, staff assignment, scope enforcement</td><td>Core module behaviour (Doc 03)</td></tr>
+<tr><td>Tenant settings, plans and limits, platform admin</td><td>Screen layouts (Doc 07); retention (Doc 08, OQ-32)</td></tr>
+<tr><td>Per-tenant backup, restore, isolation, noisy-neighbour</td><td>Capacity and launch decisions (Doc 10, OQ-17, OQ-40)</td></tr>
+</tbody></table></div>
+<h3>1.3 Inputs</h3>
+<ul>
+<li><b>Doc 01 — Architecture Overview v2.1.</b> ADR-003 (schema per tenant), §8, §13, §14, §15, §16. Goals G4 (provisioning ≤ 3 min, idempotent) and G5 (zero cross-tenant leakage, proven by tests).</li>
+<li><b>Doc 02 — Database Schema v1.3.</b> Public schema (§4): <code>tenant</code>, <code>domain</code>, <code>plan</code>, <code>subscription</code>, <code>platform_user</code>, <code>platform_audit</code>. Tenant schema: <code>branch</code>, <code>staff_user</code>, <code>staff_branch</code> (§5.1), <code>sample_transfer</code> (§5.5), <code>tenant_setting</code> (§5.12, A-7), <code>password_reset_token.purpose</code> (§5.11, A-14 revised). REVOKE list (§6), migration rules (§15), seed list (§16).</li>
+<li><b>Doc 03 — Core Lab Modules v1.2.</b> Branch rules BS-1 to BS-6, P-7 (scope in the query, not the UI), SM-7, OQ-26 (identifiers-only cross-branch search), OQ-27 (collection centre = branch row), OQ-33 (billing hold default OFF).</li>
+<li><b>Research for Doc 04</b> (2026-10-20): §2, with citations.</li>
+</ul>
+<h3>1.4 Consistency check against Docs 01, 02 and 03</h3>
+<p>Result: <span class="pass">PASS with findings.</span> Everything built on here was confirmed in the earlier docs. Five items disagree or are missing; each has an interim behaviour below and a Proposed amendment in §20. Nothing else was changed.</p>
+<div class="box"><table><thead><tr><th>#</th><th>Item checked</th><th>Result</th><th>Interim behaviour here</th></tr></thead><tbody>
+<tr><td>1</td><td>Tenant statuses. Doc 01 §9 ERD shows <code>provisioning / active / suspended</code>; Doc 02 §4.1 defines <code>provisioning | active | suspended | deleted</code></td><td><b>Minor conflict.</b> Doc 02 governs — it is the schema. Doc 01's ERD lags</td><td>This document uses the four Doc 02 statuses. Amendment A-11 updates Doc 01's ERD</td></tr>
+<tr><td>2</td><td>Branch type. Doc 01 §9 ERD shows a branch <code>type</code> string ("branch / collection centre"); Doc 02 §5.1 has the boolean <code>branch.is_collection_centre</code></td><td><b>Minor conflict.</b> Doc 02 governs; Doc 03 OQ-27 already follows the boolean</td><td>Boolean everywhere. Amendment A-11 updates Doc 01's ERD</td></tr>
+<tr><td>3</td><td>The seeded 0% revenue-share rule. Doc 02 v1.2 §16 said provisioning seeds one <code>revenue_share_rule</code> with "no partner restriction", but <code>revenue_share_rule.referral_partner_id</code> is <code>NOT NULL</code> (Doc 02 §5.8)</td><td><b>Conflict inside Doc 02 — resolved.</b> The seed row as written could not be inserted, since no partner exists at provisioning time. Doc 02 v1.3 accepted A-10 and fixed §16</td><td>Provisioning does <b>not</b> insert the rule row; the 0% default applies by rule resolution when no rule matches, and the owner creates the first real rule per partner (Doc 05 owns resolution and inherits this)</td></tr>
+<tr><td>4</td><td>Transfer timestamps and state. Doc 03 §2 (R-6) says v1 records dispatch and receipt times on <code>sample_transfer</code>. Doc 02 v1.2 accepted the table with only <code>created_at</code> / <code>updated_at</code> and <code>received_by</code> — no dispatch/receipt timestamps, no status column</td><td><b>Gap — resolved.</b> Doc 02 v1.3 accepted A-9: <code>sample_transfer</code> now has <code>status</code>, <code>dispatched_at</code> and <code>received_at</code>. §9 uses the A-9 columns; the event-based fallback below is retained only for rows written before A-9</td><td>§9: dispatch time is <code>dispatched_at</code>, set when the transfer is created; a transfer is open while <code>status = open</code>. Pre-A-9 rows are read as before: dispatch time = <code>created_at</code>, open = <code>received_by IS NULL</code> and no closing event</td></tr>
+<tr><td>5</td><td>Collection-centre result entry switch. Doc 03 (OQ-27, AS-1) says a collection centre cannot enter results "unless the owner enables it". Doc 02 v1.2's <code>branch</code> had no column for that switch</td><td><b>Gap — resolved.</b> Doc 02 v1.3 accepted A-8: <code>branch.result_entry_enabled</code> (boolean NOT NULL DEFAULT false) now exists</td><td>§8.1 states the semantics: the flag gates entry only when <code>is_collection_centre = true</code>; a processing branch enters results per the Doc 03 role rules regardless of the flag</td></tr>
+<tr><td>6</td><td>Provisioning as a Celery task. Doc 01 §8 says a failed provisioning run "is retried by a Celery task"; Doc 01 §13 says "tenant migrations are not a Celery task"</td><td><b>Not a conflict.</b> Two different jobs: provisioning (one new tenant) is a task; fleet migrations at deploy time are the deploy script</td><td>Kept separate throughout: §5 (task) and §7 (script)</td></tr>
+<tr><td>7</td><td>PgBouncer. Doc 01 §16 puts PgBouncer second in the scaling order — it is not in the day-one Compose stack, and no mode is chosen anywhere</td><td><b>Open decision, closed here.</b> The mode must be fixed before any code relies on session state</td><td>§13.6 decides transaction mode with guardrails, effective the day PgBouncer is introduced</td></tr>
+<tr><td>8</td><td>Subscription states. Doc 02 defines <code>subscription.status</code> (<code>active | past_due | cancelled | expired</code>) and <code>plan.max_branches</code>, but no document says what <code>past_due</code> does to a tenant</td><td><b>Undefined behaviour, defined here.</b> No schema change is needed</td><td>§11: grace period, then read-only mode. Enforcement is middleware plus one service check</td></tr>
+</tbody></table></div>
+<h3>1.5 Assumptions</h3>
+<ul>
+<li><b>AS-1.</b> v1 scale is tens of tenants on one VPS (Doc 01 §5: up to ~50,000 patient rows per tenant). Every choice is priced for that scale; where it stops working is named (§13.1, §21).</li>
+<li><b>AS-2.</b> One registered base domain (placeholder <code>labflow.app</code>, Doc 01 §5); tenant hosts are exactly one label under it: <code>&lt;slug&gt;.labflow.app</code>.</li>
+<li><b>AS-3.</b> No self-service signup in v1: the Super Admin creates every tenant (§12). The one anonymous abuse surface is the TLS ask endpoint (§6.4).</li>
+<li><b>AS-4.</b> Money here is platform money only: <code>plan.price</code> is <code>numeric(12,2)</code> PKR/month (Doc 02 §4.1). Billing the labs is manual in v1; <code>subscription</code> rows are Super Admin-maintained.</li>
+</ul>
+
+<h2 id="s2">2. Research findings</h2>
+<p>Each finding is paraphrased from the cited source; the last column states its effect on this design. Items marked <b>Unverified</b> are not treated as facts elsewhere here.</p>
+<div class="box"><table><thead><tr><th>#</th><th>Finding</th><th>Source</th><th>Effect on design</th></tr></thead><tbody>
+<tr><td>F-1</td><td>Migrations run once per schema, not atomically across the fleet: at thousands of schemas, seconds per schema becomes hours; the fleet sits half-migrated and code must tolerate both shapes. Catalogues grow with schema count; planning time degrades measurably in the thousands.</td><td><a href="https://dev.to/freddie_thompson_e0488262/multi-tenant-database-isolation-rls-schema-per-tenant-and-the-migration-wall-4og0">Multi-Tenant Database Isolation: RLS, Schema-per-Tenant, and the Migration Wall — dev.to</a></td><td>Accepted at v1 scale (AS-1): migrations stay short (§7); the exit path is in §21.</td></tr>
+<tr><td>F-2</td><td>Practitioners describe django-tenants "migration hell": migrations multiplied by schemas, one failure halting the run until that schema is understood.</td><td><a href="https://forum.djangoproject.com/t/multitenancy-in-django/41540">Multitenancy in django — Django Forum</a></td><td>Deploy script: per-schema result log, halt on first failure, single-schema re-run (§7.3)</td></tr>
+<tr><td>F-3</td><td>django-tenants splits <code>SHARED_APPS</code> (public) from <code>TENANT_APPS</code> (every tenant schema), routes migrations via <code>TenantSyncRouter</code>, resolves tenants by host. Content types and permissions exist per schema.</td><td><a href="https://django-tenants.readthedocs.io/en/latest/use.html">Using django-tenants — django-tenants documentation</a></td><td>App split follows Doc 01 §7 (§6.1); per-schema content types are one reason cross-schema queries are banned (§13.1)</td></tr>
+<tr><td>F-4</td><td>In transaction pooling mode each transaction may use a different backend, so session-level <code>SET search_path</code> / <code>SET ROLE</code> do not persist — a query relying on them can silently land in <code>public</code>. The author's fix: migrations direct, never through PgBouncer.</td><td><a href="https://dev.to/artemooon/django-pgbouncer-in-production-pitfalls-fixes-and-survival-tricks-3jib">Django + PgBouncer in Production: Pitfalls, Fixes, and Survival Tricks — dev.to</a></td><td>§13.6: transaction mode chosen, but migrations and provisioning always connect directly; TN-34 is the gate test (§18).</td></tr>
+<tr><td>F-5</td><td>Measured (PostgreSQL 18 / PgBouncer 1.25): session-level state left by one client — settings, <code>search_path</code>, prepared statements, advisory locks — can be observed by the next client on the same backend. Transaction-scoped state (<code>SET LOCAL</code>, locks) dies with the transaction.</td><td><a href="https://seedfa.st/blog/pgbouncer-transaction-mode">PgBouncer Transaction Mode: What Leaks Between Clients — seedfa.st</a></td><td>§13.6's rule is mechanical: tenant switching is transaction-scoped; session-scoped tenant code is a defect</td></tr>
+<tr><td>F-6</td><td>A production schema-per-tenant deployment uses <code>SET LOCAL search_path</code> at the start of every transaction, injected by middleware per tenant; pool wait time is the key health metric.</td><td><a href="https://dzone.com/articles/database-connection-pooling-at-scale-pgbouncer-mul">PgBouncer at Scale: 10K+ Connections Multi-Tenant Postgres — DZone</a></td><td>The §13.6 pattern is proven practice; pool wait time joins §17.</td></tr>
+<tr><td>F-7</td><td>Scanners trigger on-demand issuance for junk hostnames; Let's Encrypt has announced heuristics against unrestricted-looking issuance. Rule: an <code>ask</code> endpoint answers 200 only for pre-approved hostnames, never deeply nested subdomains.</td><td><a href="https://community.letsencrypt.org/t/blocking-some-on-demand-issuance-caused-by-internet-scanning/245553">Blocking some on-demand issuance caused by internet scanning — Let's Encrypt Community</a></td><td>§6.4: exact-match lookup in <code>domain</code>, one label only, negative answers cached; no wildcard path. The one fixed exception is the apex itself, pre-approved so the platform admin's certificate can issue.</td></tr>
+<tr><td>F-8</td><td>With Caddy <code>ask</code> configured, the built-in issuance limits no longer apply; <code>on_demand_tls</code> takes its own <code>interval</code> and <code>burst</code> throttles.</td><td><a href="https://www.honeybadger.io/blog/secure-custom-domains-caddy/">How to serve secure custom domains with Caddy — Honeybadger</a>; <a href="https://caddy.community/t/trying-to-use-caddy-to-provide-ssl-for-custom-domains/5128">Trying to use Caddy to provide SSL for custom domains — Caddy Community</a></td><td>A-12 adds <code>interval</code> / <code>burst</code> to Doc 01's Caddyfile; the ask endpoint is not the only throttle</td></tr>
+<tr><td>F-9</td><td>Let's Encrypt per-account limits do not rise automatically with usage; an increase must be requested. Exact figures not re-verified — <b>Unverified</b>.</td><td><a href="https://community.letsencrypt.org/t/do-lets-encrypt-per-account-rate-limits-automatically-increase-with-high-volume-usage/245393/3">Do Let's Encrypt per-account rate limits automatically increase with high-volume usage? — Let's Encrypt Community</a></td><td>Provisioning never loops issuance retries (Doc 01 §8); a burst of new tenants is planned work (§6.4)</td></tr>
+<tr><td>F-10</td><td>FOLIO dumps each tenant's schemas separately (<code>pg_dump --schema=…</code>), so one tenant restores without restoring all.</td><td><a href="https://folio-org.atlassian.net/wiki/plugins/viewsource/viewpagesrc.action?pageId=1400942">FOLIO wiki — tenant backup and restore approach (Atlassian)</a></td><td>§14: per-schema dumps — the same unit as provisioning, migration and deletion (TP-5)</td></tr>
+<tr><td>F-11</td><td>Offboarding practice: export first (first days, not last), with a manifest (files, counts, checksums); revocation log; close billing; then delete; confirm in writing. A worked example runs 30 days.</td><td><a href="https://appmaster.io/blog/customer-offboarding-playbook-saas-apps-export-revoke-delete">Customer offboarding playbook for SaaS apps — AppMaster</a>; <a href="https://resources.rework.com/libraries/post-sale-management/cancellation-process">Cancellation Process: Managing Customer Offboarding Gracefully — Rework</a></td><td>§4.3 follows it: suspend → export + manifest → 30-day grace → drop → written confirmation.</td></tr>
+<tr><td>F-12</td><td>Noisy-neighbour control combines per-tenant rate limits keyed by tenant (not IP), queue isolation or priority lanes, and quotas.</td><td><a href="https://www.devopsschool.com/blog/how-to-design-a-multi-tenant-saas-architecture-that-wont-collapse-at-10000-users/">How to Design a Multi-Tenant SaaS Architecture That Won't Collapse at 10,000 Users — DevOpsSchool</a></td><td>§13.5 implements all three at v1 weight; per-tenant queues are the named upgrade (§21)</td></tr>
+<tr><td>F-13</td><td>Celery workers are long-lived: tenant context must travel in the task payload and be entered per task (tenant-schemas-celery exists for this); a kept context leaks into the next task.</td><td><a href="https://deepwiki.com/maciej-gol/tenant-schemas-celery/6.1-django-configuration">Django Configuration — tenant-schemas-celery (DeepWiki)</a></td><td>§13.2: <code>tenant_slug</code> in every payload; the base task enters context and resets in a <code>finally</code> block</td></tr>
+<tr><td>F-14</td><td>Django caches content types and permissions in-process; django-tenants tooling flushes them on schema switch to stop cross-tenant leakage.</td><td><a href="https://pypi.org/project/django-rest-pgtenants/0.1.0/">django-rest-pgtenants — PyPI</a></td><td>§13.3: all app cache keys carry the tenant prefix; framework caches are a named test item (§18)</td></tr>
+<tr><td>F-15</td><td>Hub-and-spoke lab networks are established practice: collection sites capture and transport samples to a staffed hub with analysers, which analyses and returns results (e.g. Uganda's referral network).</td><td><a href="https://cphl.go.ug/uploads/library/1782711691486-bca02834cee7.pdf">National Sample Referral Network — Uganda Ministry of Health / CPHL (PDF)</a>; <a href="https://www.streamlinesci.com/blog/making-in-house-pcr-work-for-your-urgent-care-the-hub-and-spoke-model">Making In-House PCR Work for Your Urgent Care: The Hub-and-Spoke Model — Streamline</a></td><td>§8/§9's shape: centres are spokes, processing branches hubs; exception reports are per branch pair (§9.4).</td></tr>
+<tr><td>F-16</td><td><code>pg_dump</code> reads from one snapshot and holds locks blocking schema changes on the dumped tables until it finishes — long dumps are an operational event.</td><td><a href="https://docs.terrascale.tech/ar/guides/import-postgresql">Export from PostgreSQL — TerraScale documentation</a></td><td>§14.1: nightly per-schema dumps, never concurrent with the migration window</td></tr>
+</tbody></table></div>
+
+<h2 id="s3">3. Design principles</h2>
+<p>Doc 03's principles P-1 to P-10 govern the lab modules. These govern tenancy and branches. Where they meet, Doc 03's P-1 (patient safety first) still outranks everything.</p>
+<div class="box"><table><thead><tr><th>#</th><th>Principle</th><th>What it means here</th></tr></thead><tbody>
+<tr><td>TP-1</td><td>Isolation comes from the schema, never from a filter.</td><td>No tenant table carries a tenant column (Doc 02 §3) — there is nothing to filter. Filtering is the mechanism only for <i>branch</i> scope, built once (§8.5).</td></tr>
+<tr><td>TP-2</td><td>The host is the only tenant selector.</td><td>No path, query, header or body field may name a tenant (Doc 01 §8, Doc 03 §6.1).</td></tr>
+<tr><td>TP-3</td><td>Provisioning is a resumable state machine, not a script.</td><td>Schema creation, migrations, seeding and an email cannot be one transaction, so each step is idempotent: a crash or retry resumes, not restarts (§5).</td></tr>
+<tr><td>TP-4</td><td>The public schema holds the registry, never tenant data.</td><td><code>tenant</code>, <code>domain</code>, <code>plan</code>, <code>subscription</code>, <code>platform_user</code>, <code>platform_audit</code> — and nothing else (Doc 02 §3). No platform feature may need to read a tenant table (§12).</td></tr>
+<tr><td>TP-5</td><td>One tenant is the blast radius.</td><td>Provisioning, migration, backup, restore, suspension and deletion all operate on exactly one schema. A job looping over tenants enqueues one unit of work per tenant (§13.2), so one tenant's failure cannot roll back others.</td></tr>
+<tr><td>TP-6</td><td>Suspension is reversible; deletion is forever. Keep them far apart.</td><td>Different states, endpoints and confirmations, with a 30-day grace period between them (§4). Non-payment never deletes data automatically (§11).</td></tr>
+<tr><td>TP-7</td><td>The Super Admin has no silent powers.</td><td>Every platform write lands in <code>platform_audit</code> (Doc 02 §4.1); there is no impersonation (§12.3).</td></tr>
+<tr><td>TP-8</td><td>Patient documents outrank billing disputes.</td><td>A report link already issued keeps working while the tenant is suspended or read-only (§4.2, §11.2): a billing dispute must not strand a patient holding a clinical result.</td></tr>
+</tbody></table></div>
+
+<h2 id="s4">4. Tenant model and lifecycle</h2>
+<h3>4.1 The tenant row</h3>
+<p>One <code>tenant</code> row per lab or chain (Doc 02 §4.1): <code>id</code>, <code>slug</code> (unique; subdomain and schema suffix), <code>name</code>, <code>schema_name</code> (unique; <code>tenant_&lt;slug&gt;</code>, stored, never recomputed), <code>status</code>, timestamps. The plan is <b>not</b> a column: it resolves through the one active <code>subscription</code> row. Hosts live in <code>domain</code> (one primary row per tenant in v1).</p>
+<h3>4.2 States</h3>
+<div class="diagram"><pre class="mermaid">stateDiagram-v2
+  [*] --> provisioning: Super Admin creates tenant
+  provisioning --> provisioning: task retries a failed step
+  provisioning --> active: provisioning task completes
+  provisioning --> deleted: abandoned, Super Admin cleans up
+  active --> suspended: Super Admin suspends
+  suspended --> active: Super Admin reactivates
+  suspended --> deleted: offboarding completes after grace
+  active --> deleted: offboarding completes after grace
+  deleted --> [*]</pre>
+<p class="dcap">Tenant states (Doc 02 §4.1). No transition is automatic except provisioning → active, which only the provisioning task may make. Non-payment never moves a tenant by itself (§11).</p></div>
+<div class="box"><table><thead><tr><th>State</th><th>Who may enter it</th><th>Staff app and API</th><th>Patient report links</th><th>Celery work</th><th>TLS ask (§6.4)</th></tr></thead><tbody>
+<tr><td><code>provisioning</code></td><td>Super Admin (create); task (→ active); Super Admin (cleanup → deleted)</td><td>Host resolves; API returns <code>503 tenant_provisioning</code> except <code>tenant-status</code>; SPA shows "setting up"</td><td>None yet</td><td>Provisioning task only</td><td>200 — certificate ready before activation</td></tr>
+<tr><td><code>active</code></td><td>Provisioning task; Super Admin (reactivate)</td><td>Full, subject to subscription mode (§11.2)</td><td>Work normally</td><td>Normal</td><td>200</td></tr>
+<tr><td><code>suspended</code></td><td>Super Admin only, with a reason</td><td>Staff API returns <code>403 tenant_suspended</code>; SPA shows notice and platform contact; staff cannot log in</td><td><b>Keep working</b> (TP-8) — issued tokens serve the current report version</td><td>Retries for issued reports continue; new work refused at the API, so queues drain</td><td>200 — host must serve for patient links and reactivation</td></tr>
+<tr><td><code>deleted</code></td><td>Super Admin, only via completed offboarding (§4.3) or abandoned-provisioning cleanup</td><td>Host no longer resolves (<code>domain</code> rows deleted at offboarding) — platform 404</td><td>Stop working — tokens lived in the dropped schema (stated to the owner before grace starts)</td><td>None; queued tasks for the slug fail fast, discarded</td><td>Non-200 — no <code>domain</code> row</td></tr>
+</tbody></table></div>
+<p><b>The apex is an exception to the "TLS ask" column.</b> The apex host <code>labflow.app</code> is not a tenant host — it serves the platform admin — yet the ask endpoint answers <code>200</code> for it: it is a fixed pre-approved entry in the ask endpoint's allow list (§6.4), not a <code>domain</code> lookup. Without that entry its certificate would never issue, because Doc 01's Caddyfile places the apex in the on-demand block.</p>
+<p><b>Who may change state.</b> Only the Super Admin, through §15's endpoints. A Lab Owner may <i>request</i> cancellation (no self-service cancel in v1, AS-3) — correspondence, not a state. Every transition writes a <code>platform_audit</code> row, with the reason where required.</p>
+<h3>4.3 Offboarding</h3>
+<p>Offboarding is a procedure, not a button. It follows the order in F-11: export first, then closure, then deletion, with a grace period between the last two.</p>
+<ol>
+<li><b>Start.</b> Super Admin calls <code>POST /api/v1/platform/tenants/{id}/offboard</code>. The tenant is suspended — staff access stops at once, not at month-end: departing staff must not keep writing into a record about to be exported. <code>platform_audit</code>: <code>tenant.offboarding_started</code>.</li>
+<li><b>Export.</b> A Celery task (<code>tenants.export_tenant</code>, maintenance queue) runs in the tenant context and produces the owner's copy: one CSV per tenant table (the full record, not a summary), every report PDF at its stored <code>pdf_key</code>, and a <code>manifest.json</code> naming every file with row count or byte size and SHA-256 checksum. <b>Secrets are never exported.</b> The following columns are excluded from every CSV, without exception: <code>password_hash</code> (in <code>staff_user</code>), <code>totp_secret_encrypted</code> and <code>totp_backup_codes_hash</code> (in <code>staff_user</code>), and every <code>token_hash</code> column — in <code>password_reset_token</code>, <code>report_access_token</code> and any other token table. An export that carried password hashes or live token hashes would hand anyone holding the bundle working credentials and report links. The manifest records exactly which columns were excluded and why — excluded for security, not missing through corruption — so an absent column is never mistaken for lost data. The bundle sits under the tenant's storage prefix (§13.4), delivered to the Lab Owner via a signed download link valid 7 days — the report-link pattern. The Super Admin triggers it but never receives it (§12.2). <code>platform_audit</code>: <code>tenant.export_generated</code> with file count and total bytes — counts only.</li>
+<li><b>Grace period: 30 days.</b> The tenant stays <code>suspended</code>, data intact; reactivation is one Super Admin action (§16, workflow 2). The owner is told in writing the exact drop date, and that patient links stop that day.</li>
+<li><b>Schema drop.</b> After grace, the Super Admin calls <code>POST /api/v1/platform/tenants/{id}/complete-offboarding</code> with an explicit confirmation flag. An ops script (not request-handling code) then: takes a final per-schema <code>pg_dump</code> (§14.1 format) into the backups prefix; verifies it exists and is non-empty; runs <code>DROP SCHEMA tenant_&lt;slug&gt; CASCADE</code>; deletes the tenant's storage prefix except the final export bundle, kept for Doc 08's retention period (OQ-32, OQ-38); sets <code>tenant.status = deleted</code>; deletes the <code>domain</code> rows. <code>platform_audit</code>: <code>tenant.schema_dropped</code>. The <code>tenant</code> row itself is never deleted — it records that this lab existed, and its export and drop dates.</li>
+<li><b>Confirmation.</b> The owner receives written confirmation naming the export date, the drop date, and what was retained (<code>platform_audit</code> rows, backup rotation §14.1).</li>
+</ol>
+<p><b>Backups are not an escape hatch.</b> After the drop, nightly dumps age out on the normal rotation (Doc 01 §15); restoring a deleted tenant inside that window is a Super Admin decision recorded in <code>platform_audit</code>. After rotation the data is gone — stated in the confirmation.</p>
+
+<h2 id="s5">5. Provisioning in detail</h2>
+<p>Provisioning turns a Super Admin's form into a working lab. It is one Celery task, <code>tenants.provision</code> (default queue, Doc 01 §13), in steps P-1 to P-9. The API request does P-1 and P-2 only, then enqueues the task and returns <code>202</code> with the tenant in <code>provisioning</code>. Every later step is idempotent and checks before it acts, so a re-run — retry or the Super Admin's retry action (§15) — resumes, not restarts (TP-3). The run is measured against <b>G4: ≤ 3 minutes</b>, timed per step (§17).</p>
+<div class="box"><table><thead><tr><th>Step</th><th>Action</th><th>Idempotent because</th><th>If it fails</th></tr></thead><tbody>
+<tr><td>P-1</td><td><b>Validate.</b> Slug format + reserved list (§5.1), plan exists and <code>plan.is_active = true</code>, owner email well-formed</td><td>No writes</td><td><code>422</code> with the specific code (<code>slug_invalid</code>, <code>slug_reserved</code>, <code>plan_inactive</code>). Nothing is created</td></tr>
+<tr><td>P-2</td><td><b>Register.</b> Insert the <code>tenant</code> row (<code>status = provisioning</code>, <code>schema_name = tenant_&lt;slug&gt;</code>), primary <code>domain</code> row, first <code>subscription</code>. Audit: <code>tenant.created</code></td><td><code>uq_tenant_slug</code> and <code>uq_domain_domain</code>: a replay returns the existing tenant; <code>Idempotency-Key</code> also accepted (§15)</td><td>Unique violation = taken: <code>409 slug_taken</code>. The three inserts are one transaction — no partial state</td></tr>
+<tr><td>P-3</td><td><b>Create schema.</b> <code>CREATE SCHEMA IF NOT EXISTS tenant_&lt;slug&gt;</code> on a direct connection (never through PgBouncer, §13.5)</td><td><code>IF NOT EXISTS</code></td><td>Task retries with backoff; tenant stays <code>provisioning</code></td></tr>
+<tr><td>P-4</td><td><b>Migrate the one schema.</b> Tenant migrations, this schema only (<code>migrate_schemas --tenant --schema=tenant_&lt;slug&gt;</code>)</td><td>Per-schema <code>django_migrations</code>: re-runs apply only what is missing</td><td>Retries; a deterministic failure stops after the queue policy (3 attempts), tenant stays <code>provisioning</code>, failure in <code>platform_audit</code> (<code>tenant.provisioning_failed</code>). Fix = code fix + Super Admin retry; never hand-edit <code>django_migrations</code></td></tr>
+<tr><td>P-5</td><td><b>Revoke.</b> Doc 02 §6 in this schema: <code>REVOKE UPDATE, DELETE</code> on <code>payment</code>, <code>sample_event</code>, <code>report_version</code>, <code>critical_notification</code>, <code>audit_log</code>, <code>share_ledger_entry</code> from the app role</td><td><code>REVOKE</code> of an unheld privilege is a no-op</td><td>Retries. Provisioning never proceeds past a failed REVOKE</td></tr>
+<tr><td>P-6</td><td><b>Seed.</b> In <code>tenant_context</code>: default branch, role permissions, starter catalogue with components and ranges, EN + UR <code>notification_template</code> rows (Doc 02 §16). The 0% rule is <b>not</b> seeded as a row — finding 3 (A-10, accepted in Doc 02 v1.3)</td><td><code>get_or_create</code> on natural keys throughout (Doc 02 §16)</td><td>Retries; a half-seeded catalogue completes next run</td></tr>
+<tr><td>P-7</td><td><b>Settings defaults.</b> Insert §10 registry defaults into <code>tenant_setting</code> (A-7, accepted in Doc 02 v1.3 §5.12)</td><td><code>get_or_create</code> per key; re-runs never overwrite existing values</td><td>Task retries. A missing key falls back to the registry default at read time (§10.2), so a soft failure is acceptable — still retried</td></tr>
+<tr><td>P-8</td><td><b>Create the Lab Owner.</b> Owner <code>staff_user</code> (<code>role = owner</code>, <code>branch_id = NULL</code>, <code>is_active = false</code>) + an activation token: a <code>password_reset_token</code> row with <code>purpose = 'activation'</code>, the token stored hashed (A-14 revised, accepted in Doc 02 v1.3 §5.11 — no separate activation table). Email links to the tenant's subdomain: set-password flow, single use, 72-hour expiry</td><td>Owner keyed by unique email (<code>uq_staff_user_email</code>); a re-run re-issues a fresh token, not a second owner</td><td>Email failure does not block completion — activation is re-sendable (§15)</td></tr>
+<tr><td>P-9</td><td><b>Activate.</b> Set <code>tenant.status = active</code>, emit <code>TenantProvisioned</code> (Doc 01 §8), write <code>platform_audit</code>: <code>tenant.provisioned</code> with total run duration</td><td>Status write is guarded: only fires from <code>provisioning</code></td><td>If this write fails, the next run finds all steps complete and performs only this step</td></tr>
+</tbody></table></div>
+<h3>5.1 Slug rules and reserved subdomains</h3>
+<p>The slug does two jobs — subdomain label and schema suffix — so it gets one conservative alphabet: <code>^[a-z][a-z0-9]{2,29}$</code> (lowercase letters/digits, starts with a letter, 3–30 chars). <b>No hyphens:</b> legal in a subdomain, not in an unquoted PostgreSQL identifier. Allowing them would need a permanent slug→schema mapping.</p>
+<p>Reserved slugs are refused at P-1 even if unused: platform/service names (<code>www</code>, <code>api</code>, <code>admin</code>, <code>app</code>, <code>platform</code>, <code>internal</code>, <code>static</code>, <code>media</code>, <code>assets</code>, <code>cdn</code>, <code>n8n</code>, <code>sentry</code>, <code>minio</code>, <code>staging</code>, <code>health</code>, <code>metrics</code>), account words (<code>login</code>, <code>signup</code>, <code>register</code>, <code>account</code>, <code>billing</code>, <code>support</code>, <code>help</code>), mail/protocol names (<code>mail</code>, <code>smtp</code>, <code>imap</code>, <code>ftp</code>), system words (<code>public</code>, <code>tenant</code>, <code>tenants</code>, <code>system</code>, <code>root</code>, <code>labflow</code>, <code>test</code>, <code>demo</code>, <code>example</code>, <code>null</code>). One constant in the tenants app, checked by set membership; TN-02 pins the list so it cannot quietly shrink.</p>
+<h3>5.2 Timing and failure posture</h3>
+<p>Per-step durations are logged with the tenant slug (§17); P-4 dominates, P-6 is second. A run over 3 minutes alerts but is <b>not</b> killed. A stuck tenant shows on the platform list, failed step named — no silent stuck state. Cleanup for abandoned provisioning is the <code>provisioning → deleted</code> transition (§4.2): the ops script drops any created schema; registry rows stay as the record.</p>
+
+<h2 id="s6">6. Request-time tenant resolution</h2>
+<h3>6.1 Host to tenant</h3>
+<p>Resolution is django-tenants' <code>TenantMainMiddleware</code>, first in the chain (Doc 01 §11): the host is matched exactly against <code>domain.domain</code> (<code>uq_domain_domain</code>), the tenant's schema becomes the <code>search_path</code>, the URLconf is selected. Two URLconfs exist (F-3):</p>
+<ul>
+<li><b>Public URLconf</b> (<code>PUBLIC_SCHEMA_URLCONF</code>) — served on the apex host and any unmatched host that is still ours: the platform API (§15.1), platform admin screens, <code>/internal/tls-check</code> (§6.4). Runs against the <code>public</code> schema.</li>
+<li><b>Tenant URLconf</b> — served on tenant hosts: the whole Doc 03 API, staff auth, the patient report-access endpoint — inside the tenant's schema. Platform routes do not exist here: a platform path on a tenant host is a plain <code>404</code>.</li>
+</ul>
+<p>The app split mirrors the URL split: <code>SHARED_APPS</code> = django-tenants, the tenants and platform_admin apps, contenttypes; <code>TENANT_APPS</code> = the Doc 01 §7 tenant modules (accounts, patients, branches, catalog, billing, samples, results, reports, partners, notifications, audit, automation). A model in the wrong list puts its table in the wrong schema.</p>
+<h3>6.2 Unknown host</h3>
+<p>A host with no <code>domain</code> row gets a generic <code>404</code> — never a fallback to a default tenant, never a redirect to a "nearest" one.</p>
+<h3>6.3 Provisioning and suspended tenants at request time</h3>
+<p>After tenant resolution, one middleware check reads <code>tenant.status</code>:</p>
+<ul>
+<li><code>provisioning</code> → <code>503</code> <code>tenant_provisioning</code> for every tenant-API path except <code>GET /api/v1/tenant-status</code>, which returns <code>{slug, name, status}</code> so the SPA can render its "setting up" page. That endpoint is unauthenticated; it returns only what the host already reveals.</li>
+<li><code>suspended</code> → <code>403</code> <code>tenant_suspended</code> for staff paths. Two exemptions: <code>GET /api/v1/tenant-status</code> (the SPA renders the suspension notice) and the patient report-access path (TP-8). The check runs before JWT authentication: suspended staff get the suspension answer, not a login prompt, and no session work happens against a suspended schema.</li>
+<li>Read-only mode (§11.2) is a second, separate gate, running after authentication: it blocks writes, not access.</li>
+</ul>
+<h3>6.4 The TLS ask endpoint</h3>
+<p>Caddy obtains certificates on demand (Doc 01 §8, §15). Before issuing, it calls <code>GET http://backend:8000/internal/tls-check?domain=&lt;host&gt;</code> on the internal network. The Caddyfile refuses external access to <code>/internal/*</code> with a <code>404</code> (Doc 01 §15), so the only caller is Caddy. The logic is deliberately tiny — one fixed allow-list entry, then one indexed lookup:</p>
+<ol>
+<li><b>The apex is pre-approved.</b> If the host is exactly <code>labflow.app</code>, answer <code>200</code>. The apex is a fixed entry in the ask endpoint's allow list — a constant in code, not a <code>domain</code> lookup and not a wildcard. It must be there: Doc 01 serves the platform admin on the apex, and Doc 01's Caddyfile places the apex in the on-demand block — without this entry the platform admin's own certificate would never issue.</li>
+<li>Otherwise, the host must be exactly one label under the platform base domain (<code>&lt;label&gt;.labflow.app</code>). Anything else — two labels deep, a foreign domain — is refused (F-7: no nested subdomain is ever approved).</li>
+<li>The host must exist in <code>domain</code> with tenant status <code>provisioning</code>, <code>active</code> or <code>suspended</code>. (A <code>deleted</code> tenant has no <code>domain</code> rows left, so it fails by construction.)</li>
+<li>Step 1 true, or steps 2 and 3 both true → <code>200</code>; anything else → <code>404</code>, no body, no reason.</li>
+</ol>
+<p><b>Abuse protection</b>, in layers (F-7, F-8): (a) exact-match only — no code path approves an unregistered host; (b) negative answers cached in Redis for 60 s (<code>platform:tls-ask:miss:&lt;host&gt;</code>), so scans cannot hammer the database; (c) Caddy's <code>on_demand_tls</code> gets <code>interval</code> and <code>burst</code> limits (A-12) — with <code>ask</code> set, the only throttle on issuance itself (F-8); (d) misses counted hourly and alerted (§17) — a spike means a scan or a DNS mistake; (e) issuance failures (F-9) logged, never retried by provisioning.</p>
+<h3>6.5 Custom domains (v2)</h3>
+<p>Custom domains (<code>reports.citylab.pk</code>) are a Doc 01 non-goal for v1. The door stays open cheaply: <code>domain</code> already holds many rows per tenant, so resolution needs no change. What v2 must add first is <b>ownership verification</b> (a DNS TXT challenge): the ask endpoint must never return <code>200</code> for an unverified host. Until then, §6.4 steps 2–3 refuse every non-platform host; the only fixed approval is the apex itself (§6.4 step 1).</p>
+
+<h2 id="s7">7. Migrations across tenants</h2>
+<p>Fleet migrations are the deploy script's job, never a Celery task (§1.4, finding 6) and never a request-path event. The order is Doc 01 §8.6 and Doc 02 §15, made operational:</p>
+<h3>7.1 Deploy script order</h3>
+<ol>
+<li><b>Gate checks.</b> Last night's backup exists (§14.1); no other deploy running (CI lock — one at a time); the tag passed the staging rehearsal (§7.4), timings attached.</li>
+<li><b>Shared migrations.</b> <code>migrate_schemas --shared</code> against the <code>public</code> schema, on a direct PostgreSQL connection (§13.5).</li>
+<li><b>Tenant migrations.</b> <code>migrate_schemas --tenant</code>, schema by schema in alphabetical order (Doc 02 §15), each schema's result (applied list, duration) in the deploy log. Application containers are <b>not</b> yet updated: old code runs on new schemas, safe only because every migration obeys §7.2.</li>
+<li><b>Data commands.</b> Backfills run now, as separate management commands after the schema migrations (Doc 02 §15) — batched (§7.2), per schema, logged per schema.</li>
+<li><b>Roll out the new code.</b> Application and worker containers update. Beat restarts last, so no scheduled task fires against a half-deployed fleet.</li>
+<li><b>Smoke check.</b> One <code>tenant-status</code> request per tenant host (§6.3) plus the platform tenant list. A failing tenant is named in the deploy report, never skipped silently.</li>
+</ol>
+<h3>7.2 Long-migration rules</h3>
+<ul>
+<li><b>Backward-compatible only.</b> Every migration must run safely under the previous release's code (expand → migrate data → contract, per Doc 02 §15: add-new + backfill + drop-old across two deploy cycles; never a bare rename, never <code>ALTER COLUMN TYPE</code> in place, never <code>NOT NULL</code> without a cheap default)</li>
+<li><b>Per-schema time budget: 30 seconds.</b> A migration whose rehearsal exceeds 30 s of lock time on the largest schema does not ship as a normal migration: split it (schema now, batched data command after) or make it a maintenance-window job. Fleet cost is per-schema time × tenant count (F-1).</li>
+<li><b>Indexes are built concurrently, per schema.</b> <code>CREATE INDEX CONCURRENTLY</code> cannot run inside a transaction or a normal migration, so it goes through Doc 02 §15's dedicated command (worked example 2): <code>add_index_concurrently --app … --index …</code> loops the schemas, checks <code>pg_indexes</code> first (resumable after a crash), builds outside a transaction. <code>DROP INDEX CONCURRENTLY</code> is the rollback.</li>
+<li><b>No data work inside schema migrations.</b> A <code>RunPython</code> that also alters schema is forbidden (Doc 02 §15). Backfills are commands: batched at 5,000 rows, each batch its own transaction, progress logged per schema, safe to kill and re-run.</li>
+</ul>
+<h3>7.3 When one tenant fails</h3>
+<p>The fleet run <b>halts on the first failing schema</b>: migrations in one release can depend on each other, the fleet is small (AS-1), and old code is safe against both shapes (§7.2) — stopping costs little, hides nothing. The failing schema keeps serving on old code; migrated schemas serve old code on the new shape; the rest are untouched The report names schema, migration and error (F-2).</p>
+<p>Recovery is fix-forward: fix the data or the migration, then re-run the script — applied schemas are no-ops (<code>django_migrations</code> is per schema) — or re-run one schema (<code>migrate_schemas --tenant --schema=tenant_&lt;slug&gt;</code>). Nobody edits tenant data to "make it pass" without recording the fix in the deploy report.</p>
+<h3>7.4 Rollback and staging rehearsal</h3>
+<p><b>Rollback.</b> Every migration states its rollback (Doc 02 §15). Fleet rollback = redeploy the previous tag, then <code>migrate_schemas</code> backwards per schema (tenant schemas first, then shared, so no schema sits behind the code that reads it). Irreversible migrations need Doc 10 sign-off before they merge; the contract step of a two-phase change is the usual point of no return, so it waits a full deploy cycle.</p>
+<p><b>Staging rehearsal.</b> Before a tag is pushed, every migration is replayed on staging against a copy of production data (Doc 02 §15) — all schemas, in order, timed per schema, with the report attached to the tag.</p>
+
+<h2 id="s8">8. Branch model</h2>
+<p>Doc 03 §4 fixed the branch rules (BS-1 to BS-6) and the permission matrix. This section fixes the model underneath them: what a branch is, what each kind can do, how branches open and close, how staff are assigned, and how scope is enforced in code.</p>
+<h3>8.1 One table, two kinds</h3>
+<p>A branch is a <code>branch</code> row (Doc 02 §5.1): <code>id</code>, <code>code</code> (3 chars, unique per tenant — <code>uq_branch_code</code> — used in MRNs, Doc 02 §9), <code>name</code>, <code>address</code>, <code>phone</code>, <code>is_collection_centre</code> (boolean, default false), <code>deleted_at</code> (soft delete). A collection centre is the same row with <code>is_collection_centre = true</code> (OQ-27). There is no second table, no type hierarchy: the kinds differ in <i>capabilities</i>, not shape — a centre that grows an analyser is promoted by flipping one boolean, history, MRNs and samples untouched.</p>
+<div class="box"><table><thead><tr><th>Capability</th><th>Processing branch</th><th>Collection centre</th></tr></thead><tbody>
+<tr><td>Register patients, bill, take payment</td><td>Yes</td><td>Yes</td></tr>
+<tr><td>Collect samples, print labels</td><td>Yes</td><td>Yes — its purpose</td></tr>
+<tr><td>Transfer samples out</td><td>Yes</td><td>Yes</td></tr>
+<tr><td>Receive transfers</td><td>Yes</td><td><b>No</b> — samples flow out of a centre, never into it (§9.1)</td></tr>
+<tr><td>Bench receipt and processing</td><td>Yes</td><td>No</td></tr>
+<tr><td>Enter results</td><td>Yes, per Doc 03 roles</td><td>No — unless the owner enables it (column A-8, accepted in Doc 02 v1.3; default false)</td></tr>
+<tr><td>Deliver reports to patients</td><td>Yes</td><td>Yes — a link, not bench work</td></tr>
+</tbody></table></div>
+<p>The hub-and-spoke shape of real lab chains (F-15). The model records no centre's "hub" — any processing branch may receive from any centre (§9.1).</p>
+<p><b><code>result_entry_enabled</code> semantics (A-8).</b> A processing branch enters results per the Doc 03 role rules regardless of <code>branch.result_entry_enabled</code>. Only when <code>is_collection_centre = true</code> does the flag gate entry — default false, owner must turn it on (Doc 03 OQ-27, Doc 02 v1.3 A-8). So the default does not break a fresh tenant: a new processing branch enters results from day one, and only a collection centre is held back until the owner enables it. Doc 03 RS-3 enforces the gate: at a collection centre with the flag off, entry is refused with <code>403 result_entry_disabled_at_branch</code>.</p>
+<h3>8.2 Branch codes</h3>
+<p><code>code</code> is exactly 3 characters, uppercase letters and digits, chosen by the Owner at creation, and <b>immutable once any patient or sample references the branch</b>: it sits inside every issued MRN (<code>MRN-{code}-{seq}</code>, Doc 02 §9). Name, address and phone are editable (audited). A lab needing a new code opens a new branch and closes the old one (§8.3).</p>
+<h3>8.3 Closing a branch</h3>
+<p>Closing is Doc 02's soft delete: the Owner sets <code>deleted_at</code> (§15). Preconditions, checked in the close transaction: no open transfers in or out (§9.2), no samples held there in <code>collected</code>, <code>received</code> or <code>in_process</code>. Effects: the branch leaves pickers and default queries (the scope layer filters <code>deleted_at IS NULL</code>, §8.5); its <code>staff_branch</code> rows remain but grant nothing; its invoices, samples and reports stay readable by ID (FKs are <code>RESTRICT</code>). Reopening: the Owner clears <code>deleted_at</code> (audited), allowed whenever the row exists.</p>
+<h3>8.4 Staff assignment</h3>
+<p>Assignments live in <code>staff_branch</code> (Doc 02 §5.1): composite PK <code>(staff_user_id, branch_id)</code>, <code>is_primary</code>. Rules:</p>
+<ul>
+<li><b>SB-1.</b> Branch-scoped roles (<code>manager</code>, <code>reception</code>, <code>technician</code>) need at least one row: creating or updating such an account with zero assignments is refused (<code>422 staff_branch_required</code>, Doc 03 BS-2). An account losing its last assignment can still log in but sees empty lists and gets <code>403 branch_scope_denied</code> on writes (Doc 03 BS-2).</li>
+<li><b>SB-2.</b> Tenant-wide roles (<code>owner</code>, <code>pathologist</code>) take no assignments. The API refuses <code>staff_branch</code> writes for them (<code>422 tenant_wide_role</code>): a row would mean nothing — their scope is the tenant (Doc 03 BS-1).</li>
+<li><b>SB-3.</b> <code>staff_user.branch_id</code> is the home branch: a display default (which worklist opens first), never the scope source — scope comes from <code>staff_branch</code> only. Two fields that both look like scope is how scope bugs happen, so one is named display-only.</li>
+<li><b>SB-4.</b> Exactly one <code>is_primary = true</code> per staff member. Setting a new primary clears the old one in the same transaction.</li>
+<li><b>SB-5.</b> Only the Owner writes assignments (§15). A Manager reads the roster of their own branches; they cannot grant anyone — including themselves — a new branch.</li>
+<li><b>SB-6.</b> Assignment changes are audited in the tenant's <code>audit_log</code> (actor, staff member, branch set before/after) — access changes are security events.</li>
+</ul>
+<h3>8.5 How branch scope is enforced in code</h3>
+<p>Doc 03 P-7: scope is enforced in the query, not the UI — one implementation, in three layers: one place to audit, one place to test.</p>
+<p><b>Layer 1 — the queryset mixin.</b> Every branch-scoped model declares one class attribute naming its scope path:</p>
+<pre># branches/scoping.py — the only place branch scope is implemented
+class BranchScopedQuerySet(models.QuerySet):
+    scope_field = None  # e.g. "branch_id", or "sample__branch_id"
+
+    def scoped_to(self, user):
+        if user.is_tenant_wide:            # owner, pathologist (BS-1)
+            return self
+        branch_ids = user.assigned_branch_ids()   # staff_branch, open branches only
+        return self.filter(**{f"{self.scope_field}__in": branch_ids})
+
+class BranchScopedManager(models.Manager):
+    def get_queryset(self):
+        return BranchScopedQuerySet(self.model, using=self._db)
+
+    def scoped_to(self, user):
+        return self.get_queryset().scoped_to(user)</pre>
+<p>Scope paths: <code>patient.branch_id</code> (registering branch, BS-3), <code>invoice.branch_id</code>, <code>sample.branch_id</code> (the <i>holding</i> branch — moves on transfer receipt, BS-3/SM-7), <code>result</code>/<code>report</code> via <code>sample__branch_id</code>. Catalog models declare no scope path — tenant-wide reference data (BS-5). <code>assigned_branch_ids()</code> excludes closed branches, so closing a branch revokes access everywhere at once (§8.3).</p>
+<p><b>Layer 2 — the base viewset.</b> Every viewset for a scoped model inherits one base class whose <code>get_queryset()</code> returns <code>Model.objects.scoped_to(request.user)</code> — lists, details and actions alike. Detail views fetch through the same queryset, so an out-of-scope object is simply not found: <code>404</code>, indistinguishable from a missing one (Doc 03 P-7); no scoped viewset touches the unscoped manager.</p>
+<p><b>Layer 3 — the permission class.</b> <code>IsInBranchScope</code> sits on the same viewsets as defence in depth, re-checking an object's scope branch against the caller's assignments It covers what the queryset cannot see — actions receiving a branch in the body (transfer destination, staff assignments) — and Doc 03's explicit refusal: a zero-assignment write returns <code>403 branch_scope_denied</code>, not a misleading <code>404</code> (BS-2).</p>
+<p><b>The one exception is named, not hidden:</b> BS-4's identifiers-only search is a separate method, <code>identifiers_only_across_branches()</code>, used by exactly one endpoint, returning exactly the BS-4 fields through a restricted serializer — the only method allowed to cross branch scope.</p>
+<p><b>How it is tested</b> (§18, TN-19–TN-24): a generated scope matrix, a structural test that fails if a viewset skips the base class, and Doc 03's BS scenarios as integration tests.</p>
+
+<h2 id="s9">9. Sample transfer between branches</h2>
+<p>Transfer mechanics — the <code>sample_transfer</code> row, the <code>TRANSFERRED_OUT</code> / <code>TRANSFERRED_IN</code> events, custody, the state guards — are Doc 03 §5.4 (SM-7) and its workflow 3, not repeated here. This section adds only what Doc 03 left to Doc 04: routing rules, late and lost definitions, and the exception reports.</p>
+<h3>9.1 Routing rules</h3>
+<ul>
+<li><b>TR-1.</b> Transfers exist only inside one tenant: the schema makes a cross-tenant transfer inexpressible — no endpoint, at any layer, moves a sample between schemas.</li>
+<li><b>TR-2.</b> The destination must be an open (<code>deleted_at IS NULL</code>) processing branch (<code>is_collection_centre = false</code>) different from the source. Anything else is refused at creation: <code>422 branch_cannot_receive</code> (a centre or closed branch), <code>422 same_branch</code>. A centre can be a source, never a destination (§8.1).</li>
+<li><b>TR-3.</b> Any processing branch may receive from any branch; there is no fixed hub assignment in the data model (§8.1). A strict hub pattern is a tenant's rota, not a schema constraint.</li>
+</ul>
+<h3>9.2 Late and lost — definitions on the A-9 columns</h3>
+<p>The lifecycle is read from the columns Doc 02 v1.3 stores (A-9, §1.4 finding 4): <code>sample_transfer.status</code> is <code>open | received | cancelled | lost</code> (application-enforced); <code>dispatched_at</code> is the moment the sending branch hands the sample to the courier, set when the transfer is created; <code>received_at</code> is set at receipt. Cancel and mark-lost also write the <code>sample_event</code> values <code>TRANSFER_CANCELLED</code> and <code>TRANSFER_LOST</code>, each naming the transfer ID in the event <code>note</code> — the audit trail Doc 03 §5.4 expects. Rows written before A-9 are read by the old rule (dispatch time = <code>created_at</code>; open = <code>received_by IS NULL</code> and no closing event) until the backfill sets their <code>status</code>.</p>
+<ul>
+<li><b>Late.</b> An open transfer older than <code>transfer_late_after_hours</code> (default 24, §10) is late. Late is a report state, not a sample state: no status moves, no auto-receipt, no auto-loss (Doc 03 §5.4). The sample sits on both branches' and the Owner's exception lists (§9.4) until resolved by a human.</li>
+<li><b>Cancel.</b> Only the sending branch (Manager or Owner) may cancel an open transfer (<code>POST /api/v1/transfers/{id}/cancel</code>, §15). Cancellation sets <code>status = cancelled</code> and writes <code>TRANSFER_CANCELLED</code>; the sample stays at the sender, in its prior status (<code>collected</code> or <code>received</code>), transferable again or processed locally. A cancelled transfer is terminal: it cannot be received or marked lost. The receiver cannot cancel a transfer it never agreed to hold.</li>
+<li><b>Lost.</b> Only the sending branch (Manager or Owner) may declare a transfer lost (<code>POST /api/v1/transfers/{id}/mark-lost</code>, with a mandatory note). The declaration sets <code>status = lost</code> and writes <code>TRANSFER_LOST</code>. <b>Marking a transfer lost does not change <code>sample.status</code>. The sample is then resolved through reject-sample (Doc 03 SM-8) and recollect (SM-9) on the same invoice. A lost transfer is terminal: it cannot be cancelled or received.</b> In Doc 03's terms: the sender rejects the sample with reason code <code>other</code> and a note naming the loss (SM-8), and recollection (SM-9) creates the replacement against the same invoice. There is no "lost" sample status in v1 (Doc 02's CHECK list has none) and none is invented here — a developer must not assume a lost transfer auto-closes the sample.</li>
+<li><b>Custody is never ambiguous.</b> Exactly one branch holds the sample at every moment (SM-7): the sender, until receipt, cancellation or loss. "In transit" is a custody state of the sender, which is why late and lost are the sender's to raise.</li>
+</ul>
+<h3>9.3 The receiver's view before receipt</h3>
+<p>Before receipt, <code>sample.branch_id</code> still names the sender, so branch scope (§8.5) hides the sample from the destination. The destination's "expected arrivals" list queries <code>sample_transfer</code> rows addressed to it (open only), showing accession ID, source branch, dispatch time and ordered tests — for bench planning and spotting a missing dispatch. On receipt, Doc 03 SM-7 takes over and scope moves with the sample.</p>
+<h3>9.4 Exception reports</h3>
+<p>Three read-only reports, all computed from <code>sample_transfer</code> and <code>sample_event</code> — no new tables. Owner sees all branch pairs; a Manager sees pairs touching their assigned branches.</p>
+<div class="box"><table><thead><tr><th>Report</th><th>Contents</th><th>Used for</th></tr></thead><tbody>
+<tr><td>In-transit over threshold</td><td>Open transfers older than <code>transfer_late_after_hours</code>: accession, source → destination, age, collected-by contact</td><td>The daily chase list (Doc 03 §11) — a courier problem found in hours, not at the patient's phone call</td></tr>
+<tr><td>Lost transfers</td><td><code>TRANSFER_LOST</code> events in a period, by branch pair, with the resolution (recollected / refunded) from the sample's later events</td><td>Loss rate per route — the evidence for changing a courier</td></tr>
+<tr><td>Route health</td><td>Per branch pair per month: transfer count, median and p90 transit time (dispatch → receipt)</td><td>Hub-and-spoke planning (F-15): which spokes are too far from their hub to meet turnaround promises</td></tr>
+</tbody></table></div>
+
+<h2 id="s10">10. Tenant settings</h2>
+<p>Doc 03 needs per-tenant settings (billing hold, OQ-33) and Doc 02 v1.2 had no settings table. <b>Amendment A-7</b> proposed one; Doc 02 v1.3 accepted it as §5.12. This section is the design on top of that table, built so that adding a setting never needs a migration.</p>
+<h3>10.1 The table (A-7, accepted in Doc 02 v1.3 §5.12)</h3>
+<p><code>tenant_setting</code>, in the tenant schema: <code>id</code> uuid PK · <code>key</code> text NOT NULL UNIQUE (<code>uq_tenant_setting_key</code>) · <code>value</code> text NOT NULL · <code>updated_by</code> uuid NULL, FK → <code>staff_user(id)</code> RESTRICT (Doc 02 v1.3 §5.12; NULL for provisioning defaults — no staff user exists yet at seed time) · <code>created_at</code> / <code>updated_at</code>. No JSONB (Doc 02 §2 sanctions it in four named places; this is not one), no <code>value_type</code> column: a key's type is declared once, in code, in the registry.</p>
+<h3>10.2 The key registry</h3>
+<p>Every legal key is declared in one registry in the tenants app: key, type, default, validation. Reads go through one accessor: stored row → parse by declared type → validate → return; <b>missing row or unparsable value → registry default, plus an error log</b>. A bad row degrades a feature to its default; it never crashes a request or invents a value. Writes validate before storing.</p>
+<div class="box"><table><thead><tr><th>Key</th><th>Type</th><th>Default</th><th>Validation</th><th>Used by</th></tr></thead><tbody>
+<tr><td><code>billing_hold_enabled</code></td><td>bool</td><td><code>false</code></td><td><code>true</code>/<code>false</code> only</td><td>Doc 03 RP-7: blocks patient delivery while unpaid. Default OFF (OQ-33)</td></tr>
+<tr><td><code>report_default_language</code></td><td>enum</td><td><code>en</code></td><td><code>en</code> | <code>ur</code></td><td>Language of every patient-facing message produced by the reports and notifications modules, and of the report's Urdu patient-summary block (A-16). This one key therefore covers report delivery messages (Doc 03 RP-6) and rejection notices (Doc 03 §5.4) alike — no separate key exists for either. Tenant default only; per-patient preference is OQ-30 (Doc 07), not resolved here</td></tr>
+<tr><td><code>report_link_validity_days</code></td><td>int</td><td><code>7</code></td><td>1–30</td><td>Expiry of newly issued <code>report_access_token</code> rows (Doc 03 RP-8); never alters tokens already issued — <code>expires_at</code> is stored on the row (Doc 02 §5.7). When the row is absent, the platform default is 7</td></tr>
+<tr><td><code>transfer_late_after_hours</code></td><td>int</td><td><code>24</code></td><td>1–168</td><td>§9.2 late threshold and the §9.4 exception report</td></tr>
+<tr><td><code>brand_display_name</code></td><td>text</td><td><code>tenant.name</code></td><td>1–120 chars, trimmed</td><td>Lab name on report headers (Doc 03 §9.1) when it differs from the legal tenant name</td></tr>
+<tr><td><code>brand_accent_colour</code></td><td>text</td><td>platform default</td><td><code>#RRGGBB</code></td><td>Accent colour of the PDF template and SPA theme</td></tr>
+</tbody></table></div>
+<p><b>Removed in v1.1:</b> <code>brand_logo_key</code>. v1.0 listed it as the report-header logo key, but no upload endpoint exists anywhere in Docs 01–04, so the key could never be set — a dead row. Logos are a Doc 07 feature, added once the report template is stable; the key returns then, together with its upload endpoint.</p>
+<p><b>Not a setting:</b> timezone. Asia/Karachi for every tenant in v1 (Doc 01 §13, Doc 03 §10); a key that does nothing is worse than no key.</p>
+<h3>10.3 Who writes, and the audit</h3>
+<p>Only the Lab Owner (§15). The Super Admin cannot edit tenant settings — they are tenant data (TP-4, §12.2). Every write produces an <code>audit_log</code> row in the tenant schema (entity <code>tenant_setting</code>, key, before/after). Reads use a cached accessor keyed <code>tenant:&lt;slug&gt;:settings</code> (§13.3), invalidated on every write; the cache is an optimisation over the table, never the source of truth.</p>
+
+<h2 id="s11">11. Plans and limits</h2>
+<h3>11.1 The plan and subscription rows</h3>
+<p>Doc 02 §4.1: a <code>plan</code> has <code>name</code> (unique), <code>price</code> (<code>numeric(12,2)</code> PKR/month), <code>max_branches</code> (int, NULL = unlimited) and <code>is_active</code>. A tenant's plan is its one active <code>subscription</code> — the partial unique index <code>uq_subscription_one_active_per_tenant</code> makes "two active subscriptions" inexpressible. <code>subscription.status</code>: <code>active | past_due | cancelled | expired</code>.</p>
+<p><b>Plan rows are effectively immutable.</b> Once a subscription references a plan, its <code>price</code> and <code>max_branches</code> are not edited in place — a price change creates a new plan row; tenants move to it at renewal by a new subscription. Editing in place would silently re-price every lab on that plan (Doc 03 P-2 applies to platform money too). Retiring a plan is <code>is_active = false</code>: existing subscriptions keep working; no new ones.</p>
+<h3>11.2 What subscription states do to a tenant</h3>
+<div class="box"><table><thead><tr><th>Subscription</th><th>Tenant access</th><th>Notes</th></tr></thead><tbody>
+<tr><td><code>active</code></td><td>Full</td><td>—</td></tr>
+<tr><td><code>past_due</code>, within 14 days of the change</td><td>Full, with a payment banner to the Owner on every page</td><td>Grace. The 14 days run from <code>subscription.updated_at</code> when the status became <code>past_due</code>; the transition is in <code>platform_audit</code></td></tr>
+<tr><td><code>past_due</code>, after 14 days</td><td><b>Read-only mode</b> (below)</td><td>Automatic — a mode, not a punishment someone must remember to apply</td></tr>
+<tr><td><code>expired</code> or <code>cancelled</code></td><td><b>Read-only mode</b> at once</td><td>After 30 days in read-only, the Super Admin <i>may</i> suspend (§4) — manually, always: suspension for non-payment is a human decision about a lab holding clinical records, never a timer</td></tr>
+</tbody></table></div>
+<p><b>Read-only mode, defined exactly.</b> All GET endpoints work for all staff roles — a lab can always read its own records. Every write returns <code>403 subscription_read_only</code>, with three exemptions: patient report-access (TP-8); the Owner's data export (§15) — a tenant that cannot pay must still leave with its data; and platform actions, which are not tenant writes. Report <i>generation</i> and new deliveries are writes and stop; sent links keep working.</p>
+<p><b>Lock vs read-only — why not a full lock.</b> A hard lock (no reads) was rejected: these are clinical records patients and regulators may need, the data is the lab's, and reads cost almost nothing. Read-only keeps the pressure — no new work — without the hostage optics.</p>
+<p><b>Who enforces it, and where.</b> One service function, <code>tenant_access_mode(tenant)</code>, computes <code>full | read_only</code> from the subscription. The §6.3 middleware calls it (after authentication); the result is cached per tenant in Redis (<code>tenant:&lt;slug&gt;:access-mode</code>, §13.3), 60-second TTL, invalidated immediately by any platform write to that subscription — so fixing a subscription unblocks the lab within seconds. No view re-implements the check.</p>
+<h3>11.3 max_branches enforcement</h3>
+<p>Enforcement point: the branch-create service (§15), inside the create transaction. The count is <code>branch</code> rows with <code>deleted_at IS NULL</code> — <b>collection centres count</b>: a site holds staff, samples and scope. At the limit: <code>409 plan_limit_reached</code> with count and limit in the body. Concurrent creates racing the last slot are serialised by a transaction advisory lock keyed on the tenant (<code>pg_advisory_xact_lock</code> — transaction-scoped, so PgBouncer-safe, F-5). Plan changes bite on the next create: raising unblocks at once; lowering below the count blocks new branches, closes nothing.</p>
+
+<h2 id="s12">12. Platform admin</h2>
+<h3>12.1 The surface</h3>
+<p>The Super Admin works on the apex host, in the public URLconf (§6.1), as a <code>platform_user</code>. TOTP is mandatory (Doc 01 §14): an account with <code>totp_enabled = false</code> may log in and enrol, but every write returns <code>403 totp_required</code> until enrolment is done. Login attempts go to <code>platform_audit</code> (<code>auth.login_succeeded</code> / <code>auth.login_failed</code>, <code>actor_id</code> NULL on failure — nullable by design, Doc 02 §4.1).</p>
+<h3>12.2 What the Super Admin can and cannot see</h3>
+<div class="box"><table><thead><tr><th>Can see and do</th><th>Cannot see or do</th></tr></thead><tbody>
+<tr><td>The tenant registry: slug, name, status, domains, plan, subscription, <code>platform_audit</code> status history</td><td>Any tenant row content: patients, invoices, results, reports, staff lists; the public URLconf contains no tenant-module routes (§6.1)</td></tr>
+<tr><td>Platform metadata: schema size (PostgreSQL catalogues), migration state (applied count per schema vs the release's), provisioning step and failure detail</td><td>Tenant settings (§10.3), tenant audit logs, backup contents</td></tr>
+<tr><td>Create, suspend, reactivate tenants; retry provisioning; start/complete offboarding; trigger an export <i>delivered to the Lab Owner</i></td><td>Receive a tenant's export; reset a tenant staff password (owner uses the tenant-side reset flow, Doc 02 §5.11); edit anything inside a tenant schema via the API</td></tr>
+<tr><td>Plans and subscriptions (§11); the platform audit trail</td><td>Delete a <code>platform_audit</code> row — UPDATE/DELETE revoked (Doc 02 §6), from the Super Admin too</td></tr>
+</tbody></table></div>
+<p>The line is deliberate: schema size and migration state come from PostgreSQL's catalogues — the <i>platform's</i> machinery, not the lab's business. Tenant row counts (patients per month) would cross it; not shown in v1 (OQ-41).</p>
+<h3>12.3 Impersonation is NOT allowed</h3>
+<p>There is no "log in as this lab" feature, and none may be added without an amendment to this document and Doc 01 §4. Three reasons, in order of weight:</p>
+<ol>
+<li><b>Audit integrity.</b> Every tenant audit row names a staff actor (Doc 03 P-3). An impersonated session writes real actions under a borrowed name — from that day, "who did this?" is "maybe us, maybe support" for every tenant, and the audit trail is worth less for all of them.</li>
+<li><b>The role is defined without patient data.</b> Doc 01 §4 gives the Super Admin "no tenant patient data"; impersonation is precisely that access with a friendlier name, quietly repealing the platform's clearest privacy promise.</li>
+<li><b>Support does not need it.</b> Platform metadata (§12.2), the owner-sent export, and screen-sharing with the owner driving cover real support needs.</li>
+</ol>
+
+<h2 id="s13">13. Isolation and noisy-neighbour</h2>
+<h3>13.1 The isolation model, restated as rules</h3>
+<ul>
+<li>Isolation is the schema (TP-1). Cross-schema SQL exists in exactly three platform-side places — provisioning, fleet migration, backup — each on one named schema at a time (TP-5)</li>
+<li>Content types and permissions exist per schema (F-3); Django caches them per process (F-14). So nothing framework-cached is tenant truth across a context switch; app caching follows §13.3's prefix rule, and the suite includes a cache-poisoning scenario (TN-33).</li>
+<li>Goal G5 (zero cross-tenant leakage, proven by tests on every merge, Doc 01 §3) is discharged by the suite in §13.6, not code review.</li>
+</ul>
+<h3>13.2 Celery tenant context</h3>
+<p>Doc 01 §8's rule, made mechanical: every tenant task's payload carries <code>tenant_slug</code> first. All tenant tasks inherit one base class: <code>__call__</code> looks the tenant up by slug (unknown slug raises — fail loudly, not in the worker's current context), enters <code>tenant_context(tenant)</code>, and resets to public in a <code>finally</code> block (F-13: a surviving context is the next task's leak). Beat fan-out (TP-5): one child task per <code>active</code> tenant, never a schema loop, so one tenant's exception cannot abort the rest.</p>
+<h3>13.3 Cache key prefixing</h3>
+<p>Redis is shared (broker and cache, Doc 01 §15), so cache isolation is a naming discipline enforced by construction: all tenant cache access goes through one wrapper prefixing every key with <code>tenant:&lt;slug&gt;:</code> (<code>tenant:citylab:settings</code>, <code>tenant:citylab:access-mode</code>); platform keys use <code>platform:</code>. Raw cache access from tenant apps is banned mechanically — a CI import-linter rule (Doc 01 §7) fails any build importing the raw client outside the wrapper. No patient data is cached at all (Doc 01 §15); cached values are settings, access mode and other inert state.</p>
+<h3>13.4 Storage prefixes</h3>
+<p>Every object a tenant owns lives under <code>tenants/&lt;slug&gt;/</code> in the bucket. Doc 02 §9's keys are relative to that root: a report PDF's stored <code>pdf_key</code> is <code>reports/{report_id}/{version}.pdf</code>, its effective path <code>tenants/&lt;slug&gt;/reports/{report_id}/{version}.pdf</code>; statements and exports follow the same pattern (<code>settlements/…</code>, <code>exports/…</code>). Pre-signed URLs are minted only after Doc 03 RP-8's tenant-context and token checks. Deleting a tenant deletes exactly its prefix (§4.3).</p>
+<h3>13.5 Rate limits and fairness per tenant</h3>
+<ul>
+<li><b>API.</b> A DRF throttle keyed by tenant slug — not IP (a chain's branches share one NAT address). Separate budgets: staff API per tenant; the unauthenticated report-access path by token + IP; the platform. Values are configuration (§17).</li>
+<li><b>Queues.</b> Doc 01's queues are shared by design; fairness inside them is a per-tenant concurrency cap on the reports queue (at most 2 concurrent <code>generate_pdf</code> tasks per tenant, counted in Redis; a task finding the cap full re-queues with a short countdown instead of failing) (F-12). Settlements and exports already fan out per tenant (§13.2).</li>
+<li><b>Database.</b> <code>statement_timeout</code> is set for the app role, so one tenant's runaway query dies instead of holding the shared PostgreSQL — set generously, as catastrophe insurance, not query tuning.</li>
+</ul>
+<h3>13.6 Connection pooling: the PgBouncer decision</h3>
+<p>Doc 01 §16's scaling order puts PgBouncer second, after a reports worker on a second VPS. It is <b>not</b> in the day-one Compose stack; until it lands, Django connects directly, connections capped well under <code>max_connections</code>. The decision is recorded now, so no code is written a pooler would break:</p>
+<div class="note"><p><b>Decision: when PgBouncer is introduced, it runs in transaction pooling mode</b> (<code>pool_mode = transaction</code>). Session mode was rejected: it pins one backend per client for the connection's life, which at tenant scale recreates the connection-count problem PgBouncer exists to solve.</p>
+<p><b>The risk, stated exactly:</b> django-tenants switches tenants by setting <code>search_path</code>. In transaction mode a backend serves a different client at every transaction boundary, so a <i>session-level</i> <code>SET search_path</code> does not survive the transaction — and session-level state can be observed by the next client on that backend (F-4, F-5). That failure mode is not "wrong results"; it is one tenant reading another tenant's schema.</p>
+<p><b>Guardrails:</b> (1) tenant switching must be transaction-scoped (<code>SET LOCAL</code>) before PgBouncer is enabled — verified by gate test TN-34 (§18); if it fails, PgBouncer does not ship; the fallback is session mode with a small pool, recorded as a new decision; (2) <code>CONN_MAX_AGE = 0</code>; (3) migrations and provisioning always connect directly (F-4); (4) server-side prepared statements disabled at the driver unless the deployed PgBouncer's <code>max_prepared_statements</code> support is enabled and covered by the same gate test.</p></div>
+<h3>13.7 The cross-tenant test suite</h3>
+<p>The suite (Doc 01 §8's two-tenant proof, generalised) is <b>generated from the model registry</b>: every <code>TENANT_APPS</code> model gets tenants A and B with one factory row each — A's row ID on B's host → <code>404</code>; B's lists never contain A's key; a B-context query returns only B's row. New models are covered on landing. Opting out needs an allow-list entry with a written reason, reviewed like a schema change. The named §18 scenarios sit on top (tokens across hosts, callback slug mismatch, cache poisoning, context reset).</p>
+
+<h2 id="s14">14. Backup, restore and disaster recovery per tenant</h2>
+<h3>14.1 Backup unit: one schema, one file</h3>
+<p>Nightly, from the maintenance path (never in the migration window, F-16): <code>pg_dump --schema=public</code>, then one <code>pg_dump --schema=tenant_&lt;slug&gt; --format=custom</code> per tenant, each encrypted (age, Doc 01 §14) and uploaded as <code>backups/&lt;date&gt;/…</code>, with a manifest of sizes and checksums. Retention: 7 daily, 4 weekly (Doc 01 §15) Per-schema files (F-10) mean one tenant's dump can fail, be re-run or be restored without touching another, and a restore never loads another lab's data to get one lab back. A schema missing from the manifest is an alert (§17), not a log line</p>
+<h3>14.2 Restoring one tenant</h3>
+<p>Procedure (workflow in §16):</p>
+<ol>
+<li>Suspend the tenant (§4) so nothing writes during the restore.</li>
+<li>Rename the live schema aside: <code>ALTER SCHEMA tenant_&lt;slug&gt; RENAME TO tenant_&lt;slug&gt;_quarantine_&lt;date&gt;</code> — kept for diagnosis, nothing dropped yet.</li>
+<li>Create a fresh <code>tenant_&lt;slug&gt;</code> schema and <code>pg_restore</code> the chosen night's per-schema dump into it.</li>
+<li>Re-apply the Doc 02 §6 REVOKEs (a dump may carry privileges; the script runs unconditionally) and migrate that schema forward to the current release — the dump may predate it (§7.3's single-schema command).</li>
+<li>Smoke checks: row counts for the core tables against the dump manifest, owner login, one report PDF opens.</li>
+<li>Reactivate. The quarantine schema is dropped after 7 days by the ops script, the drop recorded in <code>platform_audit</code> (<code>tenant.restored</code> covers the event).</li>
+</ol>
+<p>No other tenant is suspended, dumped, restored or locked at any point in this procedure — the entire reason for §14.1's file layout.</p>
+<h3>14.3 Targets and the monthly drill</h3>
+<p><b>RPO: 24 hours</b> — nightly dumps lose at most a day of data, the honest number for a free-tier single VPS (Doc 01 §5); PITR via WAL archiving would lower it and is not built in v1 (§21). <b>RTO: one tenant within 1 hour; the whole platform within 4 hours</b> (new VPS, Compose up, public dump, then tenants alphabetically; object storage is already off-VPS in R2). Both are <i>targets proven by drill</i>, not guarantees: monthly, the largest tenant plus public are restored into a scratch database and smoke-tested, duration recorded; an overrun changes the RTO or the procedure, in writing. Full-platform recovery: same procedure at fleet scale, public first — the registry must exist before any host resolves.</p>
+
+<h2 id="s15">15. API reference — tenancy and platform endpoints</h2>
+<p>Conventions: Doc 03 §6.1 unchanged — problem+json errors, <code>code</code> machine-stable, cursor pagination, money as strings. New codes introduced here: <code>tenant_suspended</code> (403), <code>tenant_provisioning</code> (503), <code>slug_taken</code> (409), <code>slug_invalid</code> / <code>slug_reserved</code> (422), <code>plan_limit_reached</code> (409), <code>subscription_read_only</code> (403), <code>totp_required</code> (403), <code>branch_cannot_receive</code> (422), <code>staff_branch_required</code> (422), <code>tenant_wide_role</code> (422). Roles: SA = Super Admin (<code>platform_user</code>); O/M/R/T/P per Doc 03 §4.1.</p>
+<h3>15.1 Platform endpoints (apex host, public schema)</h3>
+<div class="box"><table><thead><tr><th>Endpoint</th><th>Roles</th><th>Request → Response</th><th>Errors · Idempotency · Audit</th></tr></thead><tbody>
+<tr><td><code>POST /api/v1/platform/tenants</code></td><td>SA</td><td>Body: <code>name</code>, <code>slug</code>, <code>plan_id</code>, owner <code>email</code> + <code>name</code> → <code>202</code>, <code>status: provisioning</code> (§5, P-1/P-2)</td><td>422 <code>slug_invalid</code> / <code>slug_reserved</code> / <code>plan_inactive</code>; 409 <code>slug_taken</code>. Idempotency: <code>Idempotency-Key</code> header accepted; unique slug is the backstop. Audit: <code>tenant.created</code></td></tr>
+<tr><td><code>GET /api/v1/platform/tenants</code> · <code>GET /api/v1/platform/tenants/{id}</code></td><td>SA</td><td>Filters: <code>status</code>. Detail adds domains, subscription, provisioning step/failure, schema size, migration state (§12.2)</td><td>Read-only. Audit: none</td></tr>
+<tr><td><code>POST /api/v1/platform/tenants/{id}/retry-provisioning</code></td><td>SA</td><td>Re-enqueues <code>tenants.provision</code> (§5) → <code>202</code></td><td>409 <code>invalid_state_transition</code> unless <code>status = provisioning</code>. Safe to repeat (steps idempotent). Audit: <code>tenant.provisioning_retried</code></td></tr>
+<tr><td><code>POST /api/v1/platform/tenants/{id}/suspend</code></td><td>SA</td><td>Body: <code>reason</code> (required) → tenant <code>suspended</code></td><td>409 unless <code>active</code>. Audit: <code>tenant.suspended</code> + reason</td></tr>
+<tr><td><code>POST /api/v1/platform/tenants/{id}/reactivate</code></td><td>SA</td><td>→ tenant <code>active</code></td><td>409 unless <code>suspended</code>. Audit: <code>tenant.reactivated</code></td></tr>
+<tr><td><code>POST /api/v1/platform/tenants/{id}/offboard</code></td><td>SA</td><td>Starts §4.3: suspends, enqueues owner export → <code>202</code></td><td>409 if already <code>deleted</code> or offboarding started. Audit: <code>tenant.offboarding_started</code>; export adds <code>tenant.export_generated</code></td></tr>
+<tr><td><code>POST /api/v1/platform/tenants/{id}/complete-offboarding</code></td><td>SA</td><td>Body: <code>confirm_schema_drop: true</code> (required, so this cannot fire from a generic form post). Runs §4.3 step 4 → tenant <code>deleted</code></td><td>409 unless suspended via offboarding and grace elapsed (or <code>waive_grace</code> with reason — audited). Audit: <code>tenant.schema_dropped</code></td></tr>
+<tr><td><code>POST /api/v1/platform/tenants/{id}/resend-activation</code></td><td>SA</td><td>Re-issues owner activation token and email (§5, P-8) → <code>202</code></td><td>409 once owner is active. Audit: <code>tenant.activation_resent</code></td></tr>
+<tr><td><code>GET /api/v1/platform/plans</code> · <code>POST /api/v1/platform/plans</code> · <code>POST /api/v1/platform/plans/{id}/retire</code></td><td>SA</td><td>Create: <code>name</code>, <code>price</code> (Decimal string, PKR), <code>max_branches</code> (nullable). Retire sets <code>is_active = false</code> (§11.1)</td><td>422 on negative price or duplicate name; referenced plans uneditable (§11.1) — 409 <code>plan_in_use</code>. Audit: <code>plan.created</code> / <code>plan.retired</code></td></tr>
+<tr><td><code>POST /api/v1/platform/tenants/{id}/subscription</code></td><td>SA</td><td>Body: <code>plan_id</code>, <code>status</code>, optional <code>ends_at</code>. Creates the new subscription row; the previous active row is closed in the same transaction (one-active partial unique index is the backstop)</td><td>Invalidates the cached access mode at once (§11.2). Audit: <code>subscription.changed</code> with before/after plan IDs</td></tr>
+<tr><td><code>GET /api/v1/platform/audit</code></td><td>SA</td><td><code>platform_audit</code> list; filters: <code>action</code>, <code>entity_type</code>, dates</td><td>Read-only; the audit is never writable via the API</td></tr>
+</tbody></table></div>
+<h3>15.2 Tenant-side tenancy endpoints (tenant host)</h3>
+<div class="box"><table><thead><tr><th>Endpoint</th><th>Roles</th><th>Request → Response</th><th>Errors · Idempotency · Audit</th></tr></thead><tbody>
+<tr><td><code>GET /api/v1/tenant-status</code></td><td>Unauthenticated</td><td>→ <code>{slug, name, status}</code> (§6.3) — the only tenant endpoint the suspension and provisioning gates exempt</td><td>Read-only; returns nothing else — no plan, no counts</td></tr>
+<tr><td><code>GET /api/v1/branches</code> · <code>POST /api/v1/branches</code></td><td>GET: O M R T P · POST: O</td><td>List excludes closed branches unless <code>include_closed=true</code> (O only). Create: <code>code</code>, <code>name</code>, <code>address</code>, <code>phone</code>, <code>is_collection_centre</code> → 201</td><td>409 <code>plan_limit_reached</code> (§11.3); 409 duplicate <code>code</code>; 422 bad code format (§8.2). Audit: <code>branch.created</code></td></tr>
+<tr><td><code>PATCH /api/v1/branches/{id}</code></td><td>O</td><td>Body: <code>name</code>, <code>address</code>, <code>phone</code>, <code>is_collection_centre</code>; <code>code</code> not accepted once referenced (§8.2)</td><td>422 <code>branch_code_immutable</code>. If-Match supported (Doc 03 §6.1). Audit: field-level before/after</td></tr>
+<tr><td><code>POST /api/v1/branches/{id}/close</code> · <code>POST /api/v1/branches/{id}/reopen</code></td><td>O</td><td>Close sets <code>deleted_at</code> (§8.3) → branch</td><td>409 <code>branch_has_open_work</code> with blocking counts (open transfers, live samples). Idempotent by state guard. Audit: <code>branch.closed</code> / <code>branch.reopened</code></td></tr>
+<tr><td><code>GET /api/v1/staff/{id}/branches</code> · <code>PUT /api/v1/staff/{id}/branches</code></td><td>O (GET also M, own branches)</td><td>PUT replaces the set: <code>[{branch_id, is_primary}]</code> → assignments</td><td>422 <code>staff_branch_required</code> (empty set, branch-scoped role); 422 <code>tenant_wide_role</code>; 422 two primaries. Atomic: validated whole or nothing changes. Audit: before/after (SB-6)</td></tr>
+<tr><td><code>GET /api/v1/settings</code> · <code>PATCH /api/v1/settings</code></td><td>GET: O · PATCH: O</td><td>(Table: A-7, accepted in Doc 02 v1.3 §5.12.) PATCH body: <code>{key: value}</code> pairs, validated by the §10 registry. → the full effective settings (stored value or default, marked which)</td><td>422 <code>unknown_setting_key</code>; per-key validation errors. Audit: one <code>audit_log</code> row per key changed (§10.3)</td></tr>
+<tr><td><code>GET /api/v1/transfers/exceptions</code></td><td>O M</td><td>→ §9.4 reports: late list, lost list (period filter), route health (month filter). Managers see pairs touching their branches</td><td>Read-only. Computed from <code>sample_transfer</code> + <code>sample_event</code></td></tr>
+<tr><td><code>POST /api/v1/transfers/{id}/cancel</code> · <code>POST /api/v1/transfers/{id}/mark-lost</code></td><td>O M (sending branch scope)</td><td>§9.2; mark-lost body: <code>note</code> (required) → transfer + closing event</td><td>409 <code>invalid_state_transition</code> if already received or closed; 404 if caller not scoped to the sending branch. Audit + the <code>TRANSFER_CANCELLED</code> / <code>TRANSFER_LOST</code> event row</td></tr>
+<tr><td><code>POST /api/v1/exports</code> · <code>GET /api/v1/exports/{id}</code></td><td>O</td><td>The §4.3 export outside offboarding (same task, same manifest) → <code>202</code>; owner gets the signed link on completion</td><td>Allowed in read-only mode (§11.2) — leaving with your data is not a tenant write. Audit: <code>tenant.export_requested</code> in <code>audit_log</code></td></tr>
+</tbody></table></div>
+<h3>15.3 Internal endpoint</h3>
+<div class="box"><table><thead><tr><th>Endpoint</th><th>Caller</th><th>Behaviour</th><th>Protection</th></tr></thead><tbody>
+<tr><td><code>GET /internal/tls-check?domain=&lt;host&gt;</code></td><td>Caddy only</td><td>§6.4: <code>200</code> iff the host is the apex <code>labflow.app</code> (fixed pre-approved entry, no DB lookup), or one label under the base domain and exists in <code>domain</code> for a non-deleted tenant; else <code>404</code>, empty body</td><td>External <code>/internal/*</code> 404'd by Caddy (Doc 01 §15); negatives cached 60 s; miss rate alerted (§17)</td></tr>
+</tbody></table></div>
+
+<h2 id="s16">16. Workflows</h2>
+<h3>16.1 Provision a tenant</h3>
+<div class="diagram"><pre class="mermaid">sequenceDiagram
+  participant SA as Super Admin
+  participant API as Platform API
+  participant PUB as Public schema
+  participant W as Celery worker
+  participant TS as Tenant schema
+  participant OWN as Lab Owner
+  SA->>API: POST platform tenants with slug, plan, owner email
+  API->>API: validate slug, reserved list, plan active
+  API->>PUB: insert tenant provisioning, domain, subscription
+  API->>PUB: platform audit tenant created
+  API->>W: enqueue tenants provision
+  API-->>SA: 202 tenant provisioning
+  W->>TS: create schema if not exists
+  W->>TS: run tenant migrations for this schema only
+  W->>TS: revoke update and delete on append-only tables
+  W->>TS: seed branch, catalogue, ranges, templates
+  W->>TS: insert owner inactive plus activation token hashed
+  W->>OWN: activation email with link to tenant subdomain
+  W->>PUB: set tenant status active, audit tenant provisioned
+  OWN->>API: open activation link, set password
+  API->>TS: owner active</pre>
+<p class="dcap">Workflow 1 — Provisioning (§5): retries resume at the first incomplete step.</p></div>
+<h3>16.2 Suspend and reactivate</h3>
+<div class="diagram"><pre class="mermaid">sequenceDiagram
+  participant SA as Super Admin
+  participant API as Platform API
+  participant PUB as Public schema
+  participant STF as Lab staff browser
+  participant PAT as Patient
+  SA->>API: POST suspend with reason
+  API->>PUB: tenant status suspended, audit with reason
+  API-->>SA: 200 tenant suspended
+  STF->>API: any staff API request on tenant host
+  API-->>STF: 403 tenant suspended
+  PAT->>API: open report link issued before suspension
+  API-->>PAT: 302 to the current report PDF
+  SA->>API: POST reactivate
+  API->>PUB: tenant status active, audit tenant reactivated
+  STF->>API: staff API request
+  API-->>STF: 200 normal service</pre>
+<p class="dcap">Workflow 2 — Suspend and reactivate (§4.2): staff stop at once, patient links keep working (TP-8).</p></div>
+<h3>16.3 Offboard and export</h3>
+<div class="diagram"><pre class="mermaid">sequenceDiagram
+  participant SA as Super Admin
+  participant API as Platform API
+  participant W as Celery worker
+  participant TS as Tenant schema
+  participant STORE as Object storage
+  participant OWN as Lab Owner
+  SA->>API: POST offboard
+  API->>API: tenant suspended, audit offboarding started
+  API->>W: enqueue tenants export tenant
+  W->>TS: read every tenant table in tenant context
+  W->>STORE: write CSV per table plus report PDFs
+  W->>STORE: write manifest with counts and checksums
+  W->>OWN: signed download link, valid 7 days
+  Note over SA,OWN: 30 day grace - tenant stays suspended, reactivation still possible
+  SA->>API: POST complete offboarding with confirm flag
+  API->>STORE: verify final schema dump exists
+  API->>TS: drop schema cascade
+  API->>API: tenant status deleted, domain rows deleted, audit schema dropped
+  API->>OWN: written deletion confirmation</pre>
+<p class="dcap">Workflow 3 — Offboarding (§4.3): export first, grace second, drop last (F-11).</p></div>
+<h3>16.4 Deploy with migrations</h3>
+<div class="diagram"><pre class="mermaid">flowchart TD
+  A[Tag pushed, staging rehearsal attached] --> B{Backup from last night exists}
+  B -->|no| X[Abort deploy]
+  B -->|yes| C[Run shared migrations on public]
+  C --> D[Run tenant migrations schema by schema]
+  D --> E{Any schema failed}
+  E -->|yes| F[Halt. Fix forward, re-run script]
+  F --> D
+  E -->|no| G[Run data commands, batched, per schema]
+  G --> H[Roll out new app and worker containers]
+  H --> I[Restart Beat last]
+  I --> J[Smoke check tenant-status on every tenant host]
+  J --> K[Deploy report with per-schema results]</pre>
+<p class="dcap">Workflow 4 — Deploy (§7): old code runs on new schemas until step H (§7.2).</p></div>
+<h3>16.5 Restore one tenant</h3>
+<div class="diagram"><pre class="mermaid">flowchart TD
+  A[Tenant data damaged or lost] --> B[Suspend the tenant]
+  B --> C[Rename live schema to quarantine with date]
+  C --> D[Create fresh schema with the tenant name]
+  D --> E[Restore the chosen nightly per-schema dump]
+  E --> F[Re-apply REVOKEs on append-only tables]
+  F --> G[Migrate this schema to the current release]
+  G --> H{Smoke checks pass}
+  H -->|no| I[Keep tenant suspended, diagnose from quarantine schema]
+  H -->|yes| J[Reactivate tenant, audit tenant restored]
+  J --> K[Drop quarantine schema after 7 days]</pre>
+<p class="dcap">Workflow 5 — Restore one tenant (§14.2): no other tenant is touched.</p></div>
+<h3>16.6 Branch transfer exception handling</h3>
+<div class="diagram"><pre class="mermaid">flowchart TD
+  A[Transfer created, custody with sender] --> B{Received by destination}
+  B -->|yes| C[Custody moves, sample received - Doc 03 SM-7]
+  B -->|no| D{Older than transfer late threshold}
+  D -->|no| B
+  D -->|yes| E[Appears on exception lists of both branches and Owner]
+  E --> F{Sender decision}
+  F -->|courier still moving| B
+  F -->|call it back| G[Cancel transfer, sample stays at sender]
+  F -->|declare lost| H[TRANSFER LOST event with note]
+  H --> I[Reject sample, reason other, note names the loss]
+  I --> J[Recollect against the same invoice - Doc 03 SM-9]</pre>
+<p class="dcap">Workflow 6 — Transfer exceptions (§9.2): late triggers no automatic action.</p></div>
+
+<h2 id="s17">17. Observability</h2>
+<p>Doc 01 §16 already puts <code>tenant_slug</code> in every JSON log line; Doc 03 §11 covers the lab's own metrics. This section is the platform's view: per-tenant signals the operator needs, all from logs, catalogues and the public schema — none reads tenant row content (§12.2).</p>
+<div class="box"><table><thead><tr><th>Signal</th><th>Source</th><th>Alert / use</th></tr></thead><tbody>
+<tr><td>Provisioning duration per step, per tenant</td><td>Task logs (§5.2)</td><td>Alert when a run exceeds G4's 3 minutes, or P-4 grows release over release (F-1)</td></tr>
+<tr><td>Tenants stuck in <code>provisioning</code>, with failed step</td><td><code>tenant</code> + <code>platform_audit</code></td><td>Any tenant in <code>provisioning</code> over 15 minutes pages the operator</td></tr>
+<tr><td>Migration drift: applied count per schema vs the release's count</td><td>Per-schema <code>django_migrations</code> (platform metadata, §12.2)</td><td>Alert when any schema is behind 24 hours after a deploy</td></tr>
+<tr><td>API latency and error rate per tenant</td><td>Request logs by <code>tenant_slug</code></td><td>G3 watch per tenant; the noisy-neighbour tripwire: one tenant rising alone points at that tenant, all rising at the platform</td></tr>
+<tr><td>Reports-queue time share per tenant</td><td>Task logs by <code>tenant_slug</code></td><td>Alert when one tenant takes over half the queue's time in an hour (§13.5)</td></tr>
+<tr><td>Schema size and growth per tenant</td><td>PostgreSQL catalogues, weekly job</td><td>Capacity planning toward OQ-40; a schema growing 10× faster than peers signals a data bug or abuse</td></tr>
+<tr><td>TLS ask hits and misses per hour</td><td>Ask-endpoint logs (§6.4)</td><td>Miss spike = scan or DNS mistake (F-7); issuance failures logged separately (F-9)</td></tr>
+<tr><td>Backup completeness</td><td>Nightly manifest (§14.1)</td><td>Alert when any active schema is missing from last night's manifest</td></tr>
+<tr><td>Access-mode census</td><td><code>subscription</code> states</td><td>Tenants in grace or read-only — billing health at a glance</td></tr>
+<tr><td>Restore drill age</td><td>Drill log (§14.3)</td><td>Alert at 35 days without a drill</td></tr>
+</tbody></table></div>
+<p><b>Cardinality note:</b> per-tenant labels are cheap at tens of tenants; at hundreds, aggregate by plan tier.</p>
+
+<h2 id="s18">18. Test plan</h2>
+<p>40 named scenarios. Types: U unit, I integration, X tenant/branch isolation, O ops. X scenarios run in CI on every merge (G5); §13.7's generated suite sits underneath TN-31 and runs with them.</p>
+<div class="box"><table><thead><tr><th>ID</th><th>Scenario</th><th>Type</th><th>What it proves</th></tr></thead><tbody>
+<tr><td>TN-01</td><td>Slug validation: uppercase, hyphen, leading digit, 2 chars, 31 chars all refused; <code>citylab</code>, <code>lab2</code> accepted</td><td>U</td><td>§5.1 format rule</td></tr>
+<tr><td>TN-02</td><td>Every reserved slug refused; deleting one from the list constant fails this test</td><td>U</td><td>§5.1 — the list cannot shrink</td></tr>
+<tr><td>TN-03</td><td>Provisioning happy path on staging-shaped data inside 3 minutes; per-step timings recorded</td><td>O</td><td>G4</td></tr>
+<tr><td>TN-04</td><td>Provisioning task twice concurrently → one schema, one owner, one domain, one subscription; second run is a no-op resume</td><td>I</td><td>§5 idempotency (TP-3)</td></tr>
+<tr><td>TN-05</td><td>Worker killed mid-step at each of P-3…P-9 in turn → tenant stays <code>provisioning</code>, retry completes, no duplicated seed rows</td><td>I</td><td>§5 failure table, step by step</td></tr>
+<tr><td>TN-06</td><td>Seed: four panels with components and ranges; templates in <code>en</code> and <code>ur</code>; NO <code>revenue_share_rule</code> row exists</td><td>I</td><td>Doc 02 §16 + finding 3 (A-10)</td></tr>
+<tr><td>TN-07</td><td>App role cannot UPDATE or DELETE any of the six append-only tables in the new schema</td><td>I</td><td>§5 P-5; Doc 02 §6</td></tr>
+<tr><td>TN-08</td><td>Activation link sets password and activates; reuse refused; expired token refused with resend path; token stored hashed only, as <code>password_reset_token</code> with <code>purpose = 'activation'</code> (A-14 revised)</td><td>I</td><td>§5 P-8</td></tr>
+<tr><td>TN-09</td><td>Abandoned provisioning cleanup: schema dropped, tenant <code>deleted</code>, host 404s, audit shows the full history</td><td>O</td><td>§4.2, §5.2</td></tr>
+<tr><td>TN-10</td><td>Unknown host → generic 404, no redirect; apex serving a tenant path → 404; tenant host serving a platform path → 404</td><td>I</td><td>§6.1, §6.2 — no fallback tenant</td></tr>
+<tr><td>TN-11</td><td>Provisioning tenant: staff API → 503 <code>tenant_provisioning</code>; <code>tenant-status</code> → 200 with slug, name, status only</td><td>I</td><td>§6.3</td></tr>
+<tr><td>TN-12</td><td>Suspended tenant: staff API → 403 before auth; a pre-suspension report token still opens the current PDF; <code>tenant-status</code> works</td><td>I</td><td>§4.2, §6.3, TP-8</td></tr>
+<tr><td>TN-13</td><td>TLS ask: registered host → 200; apex <code>labflow.app</code> → 200 (fixed pre-approved entry, no <code>domain</code> row needed); unknown, two-labels-deep, deleted tenant's host, foreign domain → 404</td><td>I</td><td>§6.4 (F-7)</td></tr>
+<tr><td>TN-14</td><td>1,000 random ask hosts → all 404; negative cache keeps the DB query count flat; miss alert fires</td><td>I</td><td>§6.4 abuse layers</td></tr>
+<tr><td>TN-15</td><td>One poisoned schema: run halts there; earlier schemas migrated, later untouched, old code serves all shapes; fix + re-run completes</td><td>O</td><td>§7.1, §7.3 (F-2)</td></tr>
+<tr><td>TN-16</td><td>Concurrent-index command run twice, once killed mid-build → exactly one index, no table lock, resumable</td><td>O</td><td>§7.2; Doc 02 §15</td></tr>
+<tr><td>TN-17</td><td>Rollback: full deploy, then migrate backwards per schema and redeploy old tag → healthy on the old shape</td><td>O</td><td>§7.4</td></tr>
+<tr><td>TN-18</td><td>Branch code change after a patient exists → 422; before any reference → allowed; format enforced</td><td>I</td><td>§8.2</td></tr>
+<tr><td>TN-19</td><td>Scope matrix (generated): every scoped model × every role, two branches — list, detail and action visibility match BS-1…BS-3</td><td>X</td><td>§8.5 (Doc 03 P-7)</td></tr>
+<tr><td>TN-20</td><td>Dummy viewset over a scoped model without the base class → suite fails</td><td>U</td><td>§8.5 structural guard</td></tr>
+<tr><td>TN-21</td><td>Zero-assignment account: lists empty, writes → 403 <code>branch_scope_denied</code>; assignments written for a tenant-wide role → 422 <code>tenant_wide_role</code></td><td>X</td><td>SB-1, SB-2 (BS-2)</td></tr>
+<tr><td>TN-22</td><td>Close with an open transfer → 409 with counts; clean close revokes scope there at once, history stays readable by ID; reopen restores scope</td><td>I</td><td>§8.3, §8.5</td></tr>
+<tr><td>TN-23</td><td>Collection centre: receive transfer → 422 <code>branch_cannot_receive</code>; result entry refused; collect, transfer out, report delivery work</td><td>I</td><td>§8.1, §9.1 TR-2</td></tr>
+<tr><td>TN-24</td><td>Cross-branch patient search returns exactly name, MRN, sex, year of birth — receptionist and manager alike (OQ-26)</td><td>X</td><td>§8.5 named exception (BS-4)</td></tr>
+<tr><td>TN-25</td><td>Late flag at exactly the tenant threshold, moving when the setting moves; sender cancels → sample actionable at sender; receiver cancel → 404</td><td>I</td><td>§9.2, §10</td></tr>
+<tr><td>TN-26</td><td>Mark lost: note required; <code>TRANSFER_LOST</code> written; sample rejected with <code>other</code> + loss note; recollection succeeds on the same invoice</td><td>I</td><td>§9.2 via SM-8/SM-9</td></tr>
+<tr><td>TN-27</td><td>Destination sees the open transfer in expected arrivals while the sample itself is still 404 in its scope; after receipt, scope moves</td><td>X</td><td>§9.3, BS-6</td></tr>
+<tr><td>TN-28</td><td>Settings (A-7, accepted in Doc 02 v1.3): defaults served with no rows; invalid value → 422; unknown key → 422; corrupted stored value → registry default + error log; writes audited; billing-hold flip changes RP-7 behaviour</td><td>I</td><td>§10</td></tr>
+<tr><td>TN-29</td><td>max_branches: at limit → 409 with count and limit; centres count; closing frees a slot; two concurrent creates for the last slot → exactly one succeeds; plan raise unblocks</td><td>I</td><td>§11.3</td></tr>
+<tr><td>TN-30</td><td>past_due day 13 → full access + banner; day 15 → writes 403 <code>subscription_read_only</code>, reads, links and export fine; SA fix → full access within seconds</td><td>I</td><td>§11.2</td></tr>
+<tr><td>TN-31</td><td>Generated cross-tenant suite: every <code>TENANT_APPS</code> model — A's row on B's host → 404; B's lists exclude A's keys; B-context ORM returns only B's rows</td><td>X</td><td>§13.7, G5</td></tr>
+<tr><td>TN-32</td><td>A's report token on B's host → 404; n8n callback slug mismatch → 403; task with missing slug raises, writes nothing</td><td>X</td><td>§13.1, §13.2</td></tr>
+<tr><td>TN-33</td><td>Task raising mid-work leaves worker on public schema; next task sees only its own tenant. A's cache value invisible under B's prefix; raw cache import fails CI</td><td>X</td><td>§13.2, §13.3 (F-13, F-14)</td></tr>
+<tr><td>TN-34</td><td><b>PgBouncer gate (staging, when enabled):</b> two tenants interleaved over one pooled backend → each sees only its own schema; migrations run direct only</td><td>X</td><td>§13.6 guardrails (F-4–F-6)</td></tr>
+<tr><td>TN-35</td><td>Tenant A floods the reports queue; tenant B's single PDF still completes inside G1; A's excess re-queue, none fail</td><td>I</td><td>§13.5 (F-12)</td></tr>
+<tr><td>TN-36</td><td>SA token on a tenant host returns nothing; any login-as path → 404; SA without TOTP → writes 403 <code>totp_required</code>, enrolment allowed</td><td>X</td><td>§12.1, §12.3</td></tr>
+<tr><td>TN-37</td><td>Every §15.1 platform write produces exactly one <code>platform_audit</code> row; the app role cannot UPDATE or DELETE <code>platform_audit</code></td><td>I</td><td>§12, TP-7; Doc 02 §6</td></tr>
+<tr><td>TN-38</td><td>Offboarding: manifest counts match the DB for every table; checksums verify; no CSV contains <code>password_hash</code>, <code>totp_secret_encrypted</code>, <code>totp_backup_codes_hash</code> or any <code>token_hash</code> column, and the manifest lists those exclusions with their reason; grace reactivation restores service; completion drops schema and domains; tenant row and audit remain</td><td>O</td><td>§4.3 (F-11)</td></tr>
+<tr><td>TN-39</td><td>Restore drill: last night's fixture-tenant dump into scratch DB → counts match manifest, REVOKEs verified, owner login works, duration recorded</td><td>O</td><td>§14.2, §14.3</td></tr>
+<tr><td>TN-40</td><td>Tenant A restored per workflow 5 while tenant B's latency and writes are unaffected throughout</td><td>O</td><td>§14, TP-5</td></tr>
+</tbody></table></div>
+
+<h2 id="s19">19. Resolved and open questions</h2>
+<h3>19.1 Resolved in this document</h3>
+<div class="box"><table><thead><tr><th>Item</th><th>Resolution</th><th>Where</th></tr></thead><tbody>
+<tr><td>Tenant status list (Doc 01 §9 vs Doc 02 §4.1)</td><td>Doc 02's four statuses govern; Doc 01's ERD is amended (A-11)</td><td>§1.4, §4.2</td></tr>
+<tr><td>What <code>past_due</code> does</td><td>14 days full access with banner → read-only mode (§11.2 definition); <code>expired</code>/<code>cancelled</code> → read-only at once; suspension stays manual</td><td>§11.2</td></tr>
+<tr><td>Suspended tenant behaviour</td><td>Staff blocked (<code>403 tenant_suspended</code>); issued patient report links keep working (TP-8)</td><td>§4.2, §6.3</td></tr>
+<tr><td>Slug charset</td><td><code>[a-z][a-z0-9]{2,29}</code>, no hyphens — one string serves as subdomain and schema suffix</td><td>§5.1</td></tr>
+<tr><td>Do collection centres count toward <code>max_branches</code>?</td><td>Yes — a site is a site</td><td>§11.3</td></tr>
+<tr><td>PgBouncer mode</td><td>Transaction mode, when introduced, with the §13.6 guardrails and the TN-34 gate; session mode is the recorded fallback</td><td>§13.6</td></tr>
+<tr><td>Transfer late / lost</td><td>Late = open beyond <code>transfer_late_after_hours</code> (default 24); since A-9 (Doc 02 v1.3) <code>status</code>, <code>dispatched_at</code> and <code>received_at</code> are columns, and cancel/lost also write <code>sample_event</code> values. A lost transfer never changes <code>sample.status</code> — resolution is reject (SM-8) + recollect (SM-9)</td><td>§9.2</td></tr>
+<tr><td>The seeded 0% rule conflict</td><td>Not seeded as a row (it cannot be — §1.4 finding 3); the 0% default is a code fallback Doc 05 inherits; A-10 amends Doc 02 §16</td><td>§1.4, §5 P-6</td></tr>
+</tbody></table></div>
+<h3>19.2 New open questions</h3>
+<div class="box"><table><thead><tr><th>ID</th><th>Question</th><th>Owner doc</th><th>Needed by</th></tr></thead><tbody>
+<tr><td>OQ-36</td><td>While a tenant is <code>past_due</code> or in read-only mode, do monthly settlement generation and partner statement emails keep running? Money owed to referral partners is the tenant's obligation, but the work runs on platform queues. This document defines read-only mode (§11.2) for the tenant's own writes; Doc 05 must rule on its scheduled money jobs.</td><td>Doc 05</td><td><b>Doc 05 — answer before writing it</b></td></tr>
+<tr><td>OQ-37</td><td>Is the offboarding export (CSV per table + report PDFs + manifest, §4.3) sufficient as the lab's copy of its clinical record, or must the owner also be offered a full per-schema <code>pg_dump</code>? A dump is complete but useless without PostgreSQL skills; CSV is usable but loses constraints and audit shape.</td><td>Doc 08</td><td>Doc 08</td></tr>
+<tr><td>OQ-38</td><td>After schema drop, how long are the final export bundle and the tenant's rotating backups retained before they too are destroyed? (Extends OQ-32's retention question to platform-held copies.)</td><td>Doc 08</td><td>Doc 08</td></tr>
+<tr><td>OQ-39</td><td>Custom domains (v2, §6.5): is DNS TXT the verification method, and does the feature wait for the first tenant who asks, or ship proactively? Pricing it into plans is a Doc 10 decision.</td><td>Doc 10</td><td>Doc 10</td></tr>
+<tr><td>OQ-40</td><td>At what measured point — tenant count, total schema size, migration wall time — does PostgreSQL move to its own host, and later become managed? This needs a load-test number from the staging harness, not a guess (OQ-17 owns the VPS choice itself).</td><td>Doc 10</td><td>Doc 10</td></tr>
+<tr><td>OQ-41</td><td>May the Super Admin ever see per-tenant row counts (patients, samples per month) for support triage, or is catalogue metadata (schema size, migration state) the permanent line (§12.2)? Counts are not content, but they are the tenant's business volume.</td><td>Doc 08</td><td>Doc 08</td></tr>
+</tbody></table></div>
+<p>OQ-32 (retention periods for tenant records) stays with Doc 08, as recorded in Doc 03 §13.2; §4.3 and OQ-38 above depend on its answer but do not pre-empt it.</p>
+
+<h2 id="s20">20. Proposed amendments to Docs 01, 02 and 03</h2>
+<p>Each amendment takes effect only when accepted into the named document, the way A-1 to A-3 were accepted into Doc 02 v1.2. Doc 02 v1.3 accepted A-7, A-8, A-9, A-10 and A-14 (revised); A-11, A-12 and A-13 are accepted for Doc 01 and Doc 03 respectively. A-15 and A-16 are accepted in Doc 03 and Doc 04 — both are locked by Doc 03 v1.3. Numbering continues Doc 03's series (A-1 to A-6 exist there; A-4, A-5, A-6 are still Proposed).</p>
+<div class="box"><table><thead><tr><th>ID</th><th>Status</th><th>Amendment</th><th>Reason</th><th>Affects</th></tr></thead><tbody>
+<tr><td>A-7</td><td>Accepted in Doc 02 v1.3 (§5.12)</td><td>New table <code>tenant_setting</code> (<code>key</code> UNIQUE, <code>value</code> text, <code>updated_by</code> FK → <code>staff_user(id)</code> RESTRICT) in the tenant schema</td><td>Doc 03 OQ-33 made billing hold a per-tenant setting and no settings store existed anywhere in Doc 02</td><td>Doc 02 §5.12 · Doc 04 §10</td></tr>
+<tr><td>A-8</td><td>Accepted in Doc 02 v1.3 (§5.1)</td><td>Add <code>result_entry_enabled</code> boolean NOT NULL DEFAULT false to <code>branch</code></td><td>Doc 03 OQ-27 lets the owner enable result entry at a collection centre; the switch had no column (§1.4 finding 5)</td><td>Doc 02 §5.1 · Doc 03 · Doc 04 §8.1</td></tr>
+<tr><td>A-9</td><td>Accepted in Doc 02 v1.3 (§5.5)</td><td>Add <code>status</code> (open | received | cancelled | lost, application-enforced), <code>dispatched_at</code> and <code>received_at</code> to <code>sample_transfer</code></td><td>Doc 03 R-6 expects dispatch/receipt times on the transfer row; before A-9, "open" was inferred from <code>received_by</code> plus event notes (§1.4 finding 4)</td><td>Doc 02 §5.5 · Doc 04 §9.2</td></tr>
+<tr><td>A-10</td><td>Accepted in Doc 02 v1.3 (§16)</td><td>Doc 02 §16: correct the seed list — remove the tenant-level 0% <code>revenue_share_rule</code> row (impossible: <code>referral_partner_id</code> is NOT NULL and no partner exists at provisioning); state instead that the 0% default applies by rule resolution when no rule matches, and that a partner's first real rule is created by the owner</td><td>§1.4 finding 3 — the seed as written could not be inserted</td><td>Doc 02 §16 · Doc 04 §5 P-6 · Doc 05 inherits</td></tr>
+<tr><td>A-11</td><td>Accepted (Doc 01)</td><td>Doc 01 §9 ERDs: tenant status string gains <code>deleted</code>; the branch entity's <code>type</code> string becomes <code>is_collection_centre</code> boolean</td><td>§1.4 findings 1–2 — the diagrams lagged Doc 02</td><td>Doc 01 §9</td></tr>
+<tr><td>A-12</td><td>Accepted (Doc 01)</td><td>Doc 01 §15 Caddyfile: add <code>interval</code> and <code>burst</code> to the <code>on_demand_tls</code> block</td><td>With <code>ask</code> configured, Caddy's built-in issuance limits do not apply (F-8); the throttle must be explicit</td><td>Doc 01 §15 · Doc 04 §6.4</td></tr>
+<tr><td>A-13</td><td>Accepted (Doc 03)</td><td>Doc 03 §2 R-6 and §5.4: replace the parenthetical "(Proposed in Doc 02)" on transfer times with a reference to A-9, since Doc 02 v1.2 accepted <code>sample_transfer</code> without those columns</td><td>Keeps Doc 03's wording honest about what the accepted schema holds</td><td>Doc 03 §2, §5.4</td></tr>
+<tr><td>A-14</td><td><b>Revised — accepted in Doc 02 v1.3</b> (<code>password_reset_token.purpose</code>, no new table)</td><td>Add a <code>purpose</code> text column to <code>password_reset_token</code>, CHECK in ('password_reset', 'email_verification', 'activation'), default 'password_reset'. Owner activation (§5 P-8) is a row in this table with <code>purpose = 'activation'</code>. The original proposal — a separate activation-token table — was withdrawn: OWASP requires single-use, expiring, hashed tokens, and one token table with a purpose column is simpler than a second table with duplicate cleanup logic</td><td>Provisioning needs an activation token; Doc 02 v1.2 had only the reset flow's table to point at</td><td>Doc 02 §5.11 · Doc 04 §5 P-8</td></tr>
+<tr><td>A-15</td><td>Accepted in Doc 03 and Doc 04 (locked by Doc 03 v1.3)</td><td>Test-plan additions for transfer cancel and mark-lost: Doc 03 §12 gains T-50 (transfer cancel) and T-51 (transfer mark-lost), covering terminal-state behaviour, the sending-branch-only rule, and resolution by reject + recollect on the same invoice</td><td>Doc 04 §9.2/§15 defined cancel and mark-lost behaviour that no test scenario pinned down</td><td>Doc 03 §12 · Doc 04 §9.2</td></tr>
+<tr><td>A-16</td><td>Accepted in Doc 03 and Doc 04 (locked by Doc 03 v1.3)</td><td><code>report_default_language</code> scope broadening (§10.2): the key is the language of every patient-facing message produced by the reports and notifications modules, and of the report's Urdu patient-summary block — not only of the report summary</td><td>Doc 03 §5.4's rejection notices use the tenant default language; without this broadening, that wording needed a second setting key that does not exist</td><td>Doc 03 §5.4, RP-6 · Doc 04 §10.2</td></tr>
+</tbody></table></div>
+
+<h2 id="s21">21. What is NOT built in v1 and why</h2>
+<div class="box"><table><thead><tr><th>Not built</th><th>Why not</th></tr></thead><tbody>
+<tr><td>Custom domains per tenant</td><td>Doc 01 non-goal. Needs ownership verification before the ask endpoint may approve a host (§6.5) — a security feature, not a DNS record</td></tr>
+<tr><td>Self-service tenant signup</td><td>Super Admin-driven (AS-3). Public signup adds a payment flow, abuse surface and support load not needed before the first paying labs exist.</td></tr>
+<tr><td>Per-tenant Celery queues or workers</td><td>Queue count grows with tenants; the fleet is one VPS. The §13.5 concurrency cap buys fairness at v1 scale; dedicated queues are the named upgrade when a tenant's volume justifies them (F-12).</td></tr>
+<tr><td>Database-per-tenant for large tenants ("silo" tier)</td><td>Doc 01 ADR-003 rejected N databases on one VPS. The per-schema backup/restore machinery (§14) is already the unit a later paid silo tier would use.</td></tr>
+<tr><td>Point-in-time recovery (WAL archiving)</td><td>Nightly dumps give an honest RPO of 24 h (§14.3). WAL archiving adds a second backup system to operate and drill.</td></tr>
+<tr><td>Automatic suspension or deletion for non-payment</td><td>Read-only applies automatically (§11.2); anything harsher is a human decision about a lab holding clinical records (TP-6).</td></tr>
+<tr><td>Cross-tenant platform analytics</td><td>Any aggregate over tenant rows means reading tenant schemas platform-side, crossing the §12.2 line. If ever needed: an explicit, audited export pipeline — never a quiet reporting query.</td></tr>
+<tr><td>Tenant migration between hosts / rebalancing</td><td>One VPS (AS-1). The per-schema dump + restore path (§14.2) is the manual version, already drilled monthly.</td></tr>
+<tr><td>Renaming a tenant's slug</td><td>The slug is a subdomain, schema name, storage prefix and cache prefix at once. Renaming is a migration between two identities, not an edit; v1 tenants keep their slug.</td></tr>
+</tbody></table></div>
+
+<h2 id="s22">22. Interview talking points</h2>
+<p>The eight decisions in this document worth being able to defend out loud. Each states the decision, the defence, and the alternative that was rejected.</p>
+<ol>
+<li><b>Schema-per-tenant, with its ceiling named (§2 F-1, §7).</b> Isolation is strong and per-tenant operations (backup, restore, delete) are clean, but costs are linear in tenant count: every migration runs N times, catalogues grow with N schemas. At tens of tenants the trade is obviously right; the document says where it stops being right. <i>Rejected:</i> shared tables with <code>tenant_id</code> — one missed filter is a breach — and database-per-tenant, whose ops cost a solo developer cannot carry.</li>
+<li><b>Provisioning is an idempotent, resumable state machine (§5).</b> Schema DDL, migrations, seeding and an email cannot be one transaction, so pretending provisioning is atomic just moves the failure into a half-built tenant. Each step checks before it acts, re-runs are safe, and G4 is measured per step so slowness has an address. <i>Rejected:</i> one big provisioning script run by hand — unrepeatable, unresumable, and exactly how tenant number nine ends up different from tenants one to eight.</li>
+<li><b>The host is the only tenant selector (§6, TP-2).</b> No request field can name a tenant, so an entire class of cross-tenant bugs — swapping an ID or a header to reach another lab — has no surface to live on. Credentials issued inside one schema simply do not exist in another. <i>Rejected:</i> a tenant header or claim trusted from the client — flexible for APIs, and a permanent invitation to test whether every endpoint really checks it.</li>
+<li><b>PgBouncer in transaction mode — with the <code>search_path</code> risk stated, not waved away (§13.6).</b> Transaction pooling is the only mode that scales, but it makes session state unreliable, and tenant switching <i>is</i> session state in django-tenants. So the decision comes with guardrails: transaction-scoped switching, direct connections for migrations, and a two-tenant interleave gate test that must pass before the pooler ships. <i>Rejected:</i> session mode (safe, and quietly re-creates the connection ceiling), and enabling transaction mode on faith.</li>
+<li><b>Branch scope lives in one queryset mixin, one base viewset, one permission class (§8.5).</b> Scope bugs are born in the tenth hand-written filter, not the first. A single implementation, a structural test that fails if a viewset skips it, and 404-not-403 answers mean the property "staff see only their branches" is enforced by architecture. <i>Rejected:</i> per-view filtering (drifts immediately) and UI hiding (not access control at all).</li>
+<li><b>Past-due becomes read-only, never a lock, and suspension never deletes (§11.2, §4).</b> The lab's data is the lab's — clinical records its patients may need. Read-only mode applies real commercial pressure (no new work) while keeping every record readable and every issued patient link alive. Deletion sits at the end of a 30-day grace with an export in the owner's hands. <i>Rejected:</i> hard lockout on a missed payment — maximum pressure, and the platform holding patient records hostage to a billing dispute.</li>
+<li><b>No impersonation, even though support will ask for it (§12.3).</b> "Log in as the lab" would write real actions under a borrowed identity and quietly devalue every tenant's audit trail, and it hands the Super Admin the patient data Doc 01 promises they never see. Metadata, owner-driven exports and screen-sharing cover real support needs. <i>Rejected:</i> impersonation with an audit flag — the flag records that the trail is unreliable, which is the problem, not the fix.</li>
+<li><b>Backups are per-schema so restore is per-tenant (§14).</b> One <code>pg_dump</code> per schema means the worst day — restoring a lab — never touches another lab's data, and the monthly drill proves the 1-hour RTO on the largest tenant rather than asserting it. <i>Rejected:</i> one full-database dump — simpler to write, and it makes every restore an all-tenants event with all-tenants risk.</li>
+</ol>
+
+<h2 id="s23">23. Glossary</h2>
+<p><b>Tenant</b> one lab or chain on the platform; one <code>tenant</code> row, one schema, one subdomain · <b>Slug</b> the tenant's short identifier — subdomain label and schema suffix in one string (§5.1) · <b>Schema</b> a PostgreSQL namespace; <code>tenant_&lt;slug&gt;</code> holds one tenant's tables · <b>Provisioning</b> step-wise creation of a tenant (schema, migrations, REVOKEs, seed, owner) by the <code>tenants.provision</code> task · <b>Suspension</b> reversible blocking of staff access by the Super Admin; patient links keep working · <b>Read-only mode</b> the subscription-driven state where reads work and writes return <code>403 subscription_read_only</code> · <b>Offboarding</b> the ordered exit: suspend → export → 30-day grace → schema drop → written confirmation · <b>Branch scope</b> the branches a staff member may see, from their <code>staff_branch</code> rows, enforced in the query layer · <b>Collection centre</b> a <code>branch</code> row with <code>is_collection_centre = true</code>: collects and dispatches, never receives · <b>Hub and spoke</b> the lab-chain shape: spokes (centres) capture samples, hubs (processing branches) analyse them · <b>search_path</b> the PostgreSQL setting deciding which schema unqualified table names resolve to — the mechanism of tenant switching · <b>Transaction pooling</b> PgBouncer mode sharing one backend between clients transaction by transaction · <b>Ask endpoint</b> <code>/internal/tls-check</code>, which Caddy consults before issuing a certificate on demand · <b>On-demand TLS</b> certificate issuance at first visit, gated by the ask endpoint · <b>Manifest</b> the file inventory (names, counts, SHA-256 checksums) shipped with every export and backup · <b>Quarantine schema</b> a damaged tenant schema renamed aside during restore, kept 7 days for diagnosis · <b>RPO / RTO</b> recovery point / time objective: how much data a disaster may lose (24 h) and how long recovery may take (1 h per tenant) · <b>Proposed</b> anything beyond Docs 01–03 as written — listed in §20, not yet ground truth.</p>
+<p class="meta">End of Doc 04. Next: Doc 05 — Revenue-Share Module, which inherits §11's subscription modes, the §1.4 note on the 0% rule, and open question OQ-36.</p>
+</main>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
+<script>
+(function () {
+  if (!window.mermaid) return;
+  mermaid.initialize({ startOnLoad: true, theme: "dark", securityLevel: "strict", themeVariables: { primaryColor: "#1c2128", primaryBorderColor: "#4a5561", primaryTextColor: "#e6edf3", secondaryColor: "#2a313a", tertiaryColor: "#161b22", lineColor: "#4a5561", textColor: "#e6edf3", actorBkg: "#1c2128", actorBorder: "#4a5561", actorTextColor: "#e6edf3", actorLineColor: "#9aa7b4", signalColor: "#9aa7b4", signalTextColor: "#e6edf3", noteBkgColor: "#2a313a", noteTextColor: "#e6edf3", noteBorderColor: "#4a5561", labelTextColor: "#e6edf3" } });
+})();
+</script>
+</body>
+</html>

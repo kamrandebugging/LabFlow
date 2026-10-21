@@ -1,0 +1,511 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="color-scheme" content="dark" />
+<link rel="icon" href="data:," />
+<title>LabFlow Doc 10: Delivery Plan</title>
+<style>
+:root{--bg:#0d1117;--fg:#e6edf3;--mut:#9aa7b4;--line:#30363d;--card:#161b22;--card2:#21262d;--acc:#e8a33d;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:dark}
+*,*::before,*::after{box-sizing:border-box}
+html{height:100%;scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--fg);font:15.5px/1.65 system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+.wrap{max-width:740px;margin:0 auto;padding:40px 24px 88px}
+nav.toc{margin:0 0 10px;padding:0 0 20px;border-bottom:1px solid var(--line)}
+nav.toc .th{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--mut);margin:0 0 10px}
+nav.toc a{display:block;color:#f0c476;text-decoration:none;font-size:13.5px;line-height:1.5;padding:2.5px 0}
+nav.toc a.sub{padding-left:16px;font-size:13px}
+main{min-width:0}
+h1{font-size:27px;line-height:1.25;margin:0 0 10px;font-weight:700;letter-spacing:-.01em}
+h2{font-size:19px;line-height:1.35;margin:42px 0 12px;padding-top:28px;border-top:1px solid var(--line);font-weight:700}
+h2:first-of-type{margin-top:32px}
+h3{font-size:15.5px;margin:24px 0 6px;font-weight:700}
+h4{font-size:14.5px;margin:18px 0 4px;font-weight:700}
+p{margin:8px 0}
+.meta{color:var(--mut);font-size:13.5px;line-height:1.6}
+.tag{display:inline-block;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:1px 9px;font-size:12px;margin:0 6px 4px 0;color:var(--fg);white-space:nowrap}
+.box{margin:14px 0;overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:13.6px;line-height:1.5}
+th,td{border:1px solid var(--line);padding:7px 10px;text-align:left;vertical-align:top;overflow-wrap:break-word}
+th{background:var(--card2);font-weight:600;color:var(--fg)}
+tbody tr:nth-child(even) td,tr:nth-child(even) td{background:#12161c}
+code{font:12.8px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:var(--card2);border-radius:5px;padding:1.5px 5px;color:#f0c476}
+pre{font:12.6px/1.55 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:14px 16px;margin:14px 0;white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word;color:#dbe4ee}
+.diagram{background:#11161d;border:1px solid var(--line);border-radius:8px;padding:16px 12px;margin:14px 0;overflow-x:auto}
+.diagram svg{display:block;width:100%;height:auto;min-width:520px}
+pre.mermaid{background:transparent;border:none;margin:0;padding:4px;text-align:center;color:#dbe4ee}
+.dcap{color:var(--mut);font-size:12.5px;text-align:center;margin-top:8px}
+.note{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:12px 14px;margin:14px 0;font-size:14.5px;line-height:1.6}
+.spec{border:1px solid var(--line);border-radius:8px;padding:4px 14px 10px;margin:16px 0;background:#10141a}
+.spec h4{color:#f0c476}
+ul,ol{padding-left:24px;margin:8px 0}li{margin:4px 0}
+a{color:#f0c476;overflow-wrap:anywhere}
+.kv{font-size:13.8px}
+.pass{font-weight:700}
+@media(max-width:600px){.wrap{padding:28px 18px 64px}h1{font-size:24px}h2{font-size:17.5px;margin-top:36px;padding-top:22px}table{font-size:12.8px}th,td{padding:6px 7px}pre{padding:12px;font-size:12px}.diagram svg{min-width:480px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<nav class="toc" aria-label="Table of contents">
+<p class="th">Doc 10 · Delivery Plan</p>
+<a href="#s1">1. Purpose, scope, inputs, consistency check</a>
+<a href="#s2">2. Research findings</a>
+<a href="#s3">3. Delivery principles</a>
+<a href="#s4">4. Build phases and order</a>
+<a href="#s5">5. Infrastructure decisions: domain, VPS, staging</a>
+<a href="#s6">6. Launch costing</a>
+<a href="#s7">7. Capacity plan and scaling triggers</a>
+<a href="#s8">8. Email operations: provider, limits, message_id</a>
+<a href="#s9">9. The scheduler timetable</a>
+<a href="#s10">10. Settlement fan-out on the 1st</a>
+<a href="#s11">11. Release and deployment procedure</a>
+<a href="#s12">12. Launch checklist and go-live gates</a>
+<a href="#s13">13. Pilot and tenant onboarding</a>
+<a href="#s14">14. Operations cadence</a>
+<a href="#s15">15. Continuity and operator succession</a>
+<a href="#s16">16. Accessibility audit plan</a>
+<a href="#s17">17. CI hosting economics</a>
+<a href="#s18">18. Failure handling</a>
+<a href="#s19">19. Test plan</a>
+<a href="#s20">20. Resolved and open questions</a>
+<a href="#s21">21. Proposed amendments</a>
+<a href="#s22">22. What is NOT built in v1</a>
+<a href="#s23">23. Interview talking points</a>
+<a href="#s24">24. Glossary</a>
+</nav>
+<main>
+<h1>LabFlow — Doc 10: Delivery Plan</h1>
+<p class="meta"><span class="tag">Doc 10 of 10</span><span class="tag">v1.0</span><span class="tag">2026-10-20</span><span class="tag">Depends on Doc 01 v2.2, Doc 02 v1.3, Doc 03 v1.3, Doc 04 v1.1</span><span class="tag">Doc 05 v1.0, Doc 06 v1.0, Doc 07 v1.1, Doc 08 v1.1, Doc 09 v1.0</span></p>
+<p class="meta">How LabFlow v1 gets built, launched and run: the build phases and their exit gates, the domain and VPS decisions, the launch cost of the platform, the capacity triggers that say when the single VPS stops being enough, the email provider and its limits, the exact scheduler timetable, the release and launch procedure, the pilot plan, and the weekly and monthly operations cadence.<br>Audience: the developer building and operating LabFlow v1. What the system does comes from Docs 01–09 — none of it is re-decided here. Doc 02 remains the only source of truth for tables, columns and status values.</p>
+<div class="note"><p><b>How this document treats earlier docs.</b> Docs 01–09 are ground truth. This document owns only what they left to it: launch, capacity, costing, provider choices, schedules and operations. It answers every open question the earlier docs assigned to Doc 10 — OQ-17, OQ-40, OQ-44, OQ-45, OQ-46, OQ-47, OQ-48, OQ-50, OQ-51, OQ-52, OQ-53, OQ-54 and OQ-55 — with one decision each, recorded in §20.1. Anything that would need a new table, column, endpoint or status value would be a <b>Proposed amendment</b> in §21; §21 in fact proposes none, because every decision here is a choice of provider, schedule, threshold or procedure inside territory Doc 10 owns. Prices in §2 and §6 were checked on 2026-10-20 and are labelled with their sources; prices move, and §6 states the budget rule that survives a price change.</p></div>
+
+<h2 id="s1">1. Purpose, scope, inputs, consistency check</h2>
+<h3>1.1 Purpose</h3>
+<p>Docs 01–09 say what LabFlow is and how its code is written. None of them says in what order it gets built, what it costs to run, when it has outgrown one VPS, which email provider sends its mail, at what minute each scheduled job fires, or what the operator does every week to keep it healthy. Those are delivery and operations questions, and nine documents deliberately deferred them here. This document answers them. It is the last document of the series: after it, no open question in Docs 01–09 is unowned.</p>
+<h3>1.2 Scope</h3>
+<div class="box"><table><thead><tr><th>In scope (this document)</th><th>Out of scope (owner document)</th></tr></thead><tbody>
+<tr><td>Build phases, order and exit gates</td><td>Module behaviour and API contracts (Docs 03–06)</td></tr>
+<tr><td>Domain, VPS and staging decisions (OQ-17, OQ-55)</td><td>Deployment topology and the Caddyfile (Doc 01 §15)</td></tr>
+<tr><td>Platform running costs and budget rules</td><td>Tenant plan prices — commercial data set by the operator in the plan table (Doc 02, Doc 04 §11); this document costs the platform, it does not price the product</td></tr>
+<tr><td>Capacity triggers and the scaling order (OQ-40, OQ-52)</td><td>The fairness mechanisms themselves (Doc 04 §13.5)</td></tr>
+<tr><td>SMTP provider, its limits, message_id semantics (OQ-46, OQ-47, OQ-48)</td><td>The delivery protocol, events and retry design (Doc 06)</td></tr>
+<tr><td>The exact Beat timetable (OQ-45)</td><td>Which periodic jobs exist (Docs 01 §13, 05, 06, 08)</td></tr>
+<tr><td>Release, launch, pilot and operations procedure</td><td>Release mechanics and CI gates (Doc 09 §11–§12)</td></tr>
+<tr><td>CSP promotion sign-off (OQ-51), operator succession (OQ-53), WCAG audit scheduling (OQ-50), CI hosting economics (OQ-54)</td><td>The CSP values (Doc 08 §8), the key custody rules (Doc 08 §12.2), the WCAG baseline (Doc 07 D-2)</td></tr>
+</tbody></table></div>
+<h3>1.3 Inputs</h3>
+<p><b>Doc 01 — Architecture Overview v2.2.</b> The stack and the single-VPS Compose deployment (§15); the goals G1–G7 (§3), including G3 measured on a 2 vCPU / 4 GB VPS and G7 uptime ≥ 99%; the scaling order in §16 (reports worker on a second VPS → PgBouncer → split worker queues → managed Postgres); the pre-launch manual k6 run (§16); the risk table (§17), which names scope creep, single-VPS failure and domain expiry, and says scope is fixed in Doc 10; OQ-17 (real domain name and VPS) left open for this document.</p>
+<p><b>Doc 02 — Database Schema v1.3.</b> Every table, column and status value. §12 fixes the monthly settlement generation schedule's data; §14 fixes which state lives in Redis and which in tables — the timetable in §9 and the provider decision in §8 are checked against it.</p>
+<p><b>Doc 03 — Core Lab Modules v1.3.</b> The clinical and billing behaviour built in Phase 1 (§4), and the T-01–T-51 test plan that is Phase 1's exit gate.</p>
+<p><b>Doc 04 — Multi-Branch and Tenancy v1.1.</b> Provisioning (P-1–P-9), per-tenant fairness (§13.5: at most 2 concurrent <code>generate_pdf</code> tasks per tenant), backup and restore (§14: RPO 24 h, RTO 1 h per tenant / 4 h platform, monthly drill), the platform observability signals (§17) that §14's cadence reads, and OQ-40 (the measured point where PostgreSQL leaves the shared host) assigned to this document.</p>
+<p><b>Doc 05 — Revenue-Share Module v1.0.</b> Monthly generation on the 1st at 01:00 Asia/Karachi (ST-1), the per-tenant per-partner fan-out (F-7), the generation-run log (§12.7), statement delivery only after Owner approval, and OQ-44 (fan-out cost at 100+ tenants) assigned to this document.</p>
+<p><b>Doc 06 — Automation Layer (n8n) v1.0.</b> The delivery protocol: rows, the 15-minute sweeps, the <code>hard_bounce:</code> rule, one SMTP provider account for the whole platform (AS-4). OQ-45 (exact Beat entry for the <code>webhook_delivery</code> sweep), OQ-46 (SMTP provider), OQ-47 (provider free-tier limits) and OQ-48 (<code>message_id</code> semantics) assigned to this document.</p>
+<p><b>Doc 07 — Frontend Architecture v1.1.</b> The WCAG AA baseline (D-2) and OQ-50 (the full WCAG 2.2 AA audit: which release carries it, against which assistive-technology matrix) assigned to this document as a launch-readiness question.</p>
+<p><b>Doc 08 — Security and Cross-Cutting v1.1.</b> Backups to R2 with age encryption and two offline identity copies (§12), the alert rules (§11.4), CSP report-only first with promotion after two clean weeks (§8.3), and OQ-51 (CSP promotion sign-off), OQ-52 (Sentry quota vs growth) and OQ-53 (operator succession) assigned to this document.</p>
+<p><b>Doc 09 — Development Guidelines v1.0.</b> The CI pipeline and its under-15-minute wall-clock target (§12), releases as SemVer tags on <code>main</code> (§11.5), no staging environment by default (§4.3), scenario suites as ship gates (§9.2), and OQ-54 (CI hosting economics) and OQ-55 (staging at launch) assigned to this document.</p>
+<p>Research for Doc 10 (2026-10-20): §2, with citations.</p>
+<h3>1.4 Consistency check against Docs 01–09</h3>
+<p><span class="pass">Result: PASS — no conflicts.</span> Every decision below was checked against the earlier docs. Fourteen open questions are resolved. No decision needs a schema change, a new endpoint or a UI change, so §21 proposes no amendments.</p>
+<div class="box"><table><thead><tr><th>#</th><th>Item checked</th><th>Result</th><th>Where settled</th></tr></thead><tbody>
+<tr><td>1</td><td>OQ-17 (Doc 01, Doc 02): real domain name and VPS, due before Doc 10</td><td>Answered as a purchase rule, not an invented name: .app-class domain, 5-year term, at-cost registrar (§5.1); VPS class fixed at Doc 01 G3's 2 vCPU / 4 GB machine (§5.2). The exact name and the purchase-day price are the operator's act of purchase — a document cannot register a domain</td><td>§5.1, §5.2, §20.1</td></tr>
+<tr><td>2</td><td>OQ-40 (Doc 04): the Postgres split point must be measured — tenant count, total schema size, migration wall time</td><td>Answered with all three named measures plus a latency measure, each with a threshold and a review point. Thresholds are triggers read off instruments Docs 04 and 09 already built (weekly schema-size job, deploy logs, G3 watch) — no new monitoring mechanism</td><td>§7.2, §20.1</td></tr>
+<tr><td>3</td><td>OQ-44 (Doc 05): settlement fan-out cost at 100+ tenants; staggering?</td><td>Answered: no staggering in v1, with the reason (generation writes drafts; email waits for Owner approval, Doc 05) and a measured trigger that would add it</td><td>§10, §20.1</td></tr>
+<tr><td>4</td><td>OQ-45 (Doc 06): the sweep rule is fixed (every 15 minutes, its own task, per-tenant fan-out); only the exact crontab entry is open</td><td>Answered with exact minute offsets for every periodic job, chosen so no two 15-minute sweeps share a start minute. No job is added or removed</td><td>§9, §20.1</td></tr>
+<tr><td>5</td><td>OQ-46 / OQ-47 / OQ-48 (Doc 06): provider identity changes no rule in Doc 06 (AS-4)</td><td>Confirmed. Brevo is chosen in §8.1; Doc 06's protocol, payload and callback shapes are untouched — the provider sits behind the SMTP credentials n8n already holds. OQ-48's interim rule is confirmed as final against the chosen provider</td><td>§8, §20.1</td></tr>
+<tr><td>6</td><td>OQ-50 (Doc 07): the full WCAG audit is unscoped until a release owns it</td><td>Answered: the audit is owned by the first post-pilot release cycle, against a fixed assistive-technology matrix (§16). Doc 07 D-2's baseline is unchanged and remains the v1 commitment</td><td>§16, §20.1</td></tr>
+<tr><td>7</td><td>OQ-51 / OQ-52 / OQ-53 (Doc 08): launch-checklist, capacity and operations questions</td><td>Answered in kind: OQ-51 names the signer and the review (§12.3); OQ-52 gives a measured quota trigger, not a guessed tenant count (§7.3); OQ-53 fixes the succession mechanism on top of Doc 08 §12.2's existing two-copy custody (§15)</td><td>§7.3, §12.3, §15, §20.1</td></tr>
+<tr><td>8</td><td>OQ-54 / OQ-55 (Doc 09): CI economics and staging were left as genuine questions, with Doc 09 §4.3's default (no staging) applying until answered</td><td>Answered: GitHub-hosted CI on the Free plan with a $0 spending limit (§17); no staging host at launch, with a named trigger that adds one (§5.3). Doc 09's pipeline and gates are unchanged</td><td>§5.3, §17, §20.1</td></tr>
+<tr><td>9</td><td>Doc 01 §17: "Scope creep for a solo developer — fixed scope in Doc 10"</td><td>Honoured. §3 DP-1 freezes v1 scope at Docs 01–09 exactly; anything else is post-v1 backlog and never a launch blocker</td><td>§3</td></tr>
+<tr><td>10</td><td>Money and currencies. Doc 01: PKR only for the product; providers price in USD/EUR</td><td>No conflict. §6 states platform costs in the currency each provider charges and does not convert to PKR — an exchange rate printed here would be stale on arrival and is not a fact this document can fix</td><td>§6</td></tr>
+<tr><td>11</td><td>Backups and drills. Doc 04 §14.3 and Doc 08 §12 fix the drill and the retention; Doc 10 must not re-specify them</td><td>Agreed. §14 schedules the existing drill inside the monthly cadence and §19 tests that the cadence happens; the procedure itself is not restated</td><td>§14.3, §19</td></tr>
+</tbody></table></div>
+<h3>1.5 Assumptions</h3>
+<p><b>AS-1.</b> The builder and the operator are the same solo developer Docs 01–09 assume. Every procedure here (launch, weekly review, monthly drill) is sized for one person and stated in hours, not team-days.</p>
+<p><b>AS-2.</b> Phase durations in §4 are planning estimates for one developer working full-time. They are estimates, not commitments: the exit gates are the commitment, the week ranges are the forecast.</p>
+<p><b>AS-3.</b> Pilot scale means the first handful of tenants — up to about 5 labs — with platform email volume in the low hundreds per day. Every free-tier decision in this document is made for pilot scale and carries a measured trigger for the day it stops fitting (§7, §8.2).</p>
+<p><b>AS-4.</b> Prices in §2 were checked on 2026-10-20 against the cited pages. Where sources disagreed (VPS pricing after the June 2026 adjustments), §6 budgets a class ceiling instead of a point price.</p>
+
+<h2 id="s2">2. Research findings</h2>
+<p>Findings are numbered F-1 to F-9 and cited where the document uses them. Anything that could not be sourced is marked <b>Unverified</b> and is not used as the basis for a decision.</p>
+<div class="spec"><h4>F-1 — VPS prices moved in 2026; budget the class, not the price</h4>
+<p>A Hetzner CX22 (2 vCPU, 4 GB RAM, 40 GB disk, 20 TB traffic) — the class of machine Doc 01's G3 is measured on — is listed at about €3.99/month in a 2026 review of Hetzner Cloud pricing. Hetzner then adjusted prices on 15 June 2026: the CPX22 (same 2 vCPU / 4 GB shape, newer hardware) rose from €7.99 to €19.49/month. The same 2 vCPU / 4 GB shape costs $24/month at DigitalOcean, Linode and Lightsail, and $20/month at Vultr. Two lessons: the cost-optimised class is still cheap, and any exact price printed in a design document will be wrong within a year — so §6 budgets a ceiling for the class and §5.2 records the purchase-day price as the fact that matters. Sources: <a href="https://blog.byte-guard.net/hetzner-review-2026/">Hetzner Review 2026 — pricing breakdown</a>; <a href="https://dev.to/hostingsift/we-scraped-vps-prices-nightly-for-up-to-196-nights-273-plans-never-moved-and-our-first-query-520i">VPS price tracking through the 2026 increases</a>.</p></div>
+<div class="spec"><h4>F-2 — Brevo's free tier is a daily cap: 300 emails/day, transactional included</h4>
+<p>Brevo's free plan sends 300 emails/day with unlimited contacts, and the cap is shared between marketing and transactional mail on the same account; SMTP access is included, and no credit card is required. The first paid tier (Starter) starts at $9/month for 5,000 emails/month and removes the daily cap; higher tiers scale by monthly sends. For a platform whose mail is all transactional (report links, notices, statements) and sent through one account (Doc 06 AS-4), the daily cap — not the monthly total — is the binding number, and §8.2's triggers are written against it. Sources: <a href="https://mkceo.com/articles/email-marketing/brevo-pricing.html">Brevo pricing 2026: free, Starter and Business plans</a>; <a href="https://nanopo.st/smtp-email-services/sendinblue/">Brevo as an SMTP server — pricing</a>.</p></div>
+<div class="spec"><h4>F-3 — Amazon SES is the cheap scale path, with an account-setup cost</h4>
+<p>Amazon SES à-la-carte sending costs $0.10 per 1,000 emails with no monthly minimum; since 21 July 2026 new accounts start on an Essentials plan at $0.16 per 1,000 and can switch back to à la carte. At LabFlow's plausible grown-up volume — say 100,000 emails/month — SES costs about $10/month in sending, far below any hosted tier. The cost is operational instead: an AWS account, sandbox-exit approval, and bounce/complaint handling the platform must watch itself. That is why SES is §8.3's documented scale path and not the launch provider: at pilot volume the saving is a few dollars and the setup is days. Sources: <a href="https://smtpedia.com/platforms/amazon-ses/pricing/">Amazon SES pricing and free tier 2026</a>; <a href="https://wraps.dev/blog/ses-pricing-plans-2026">What changed in SES pricing plans</a>.</p></div>
+<div class="spec"><h4>F-4 — Sentry's free plan is 5,000 error events a month, one user</h4>
+<p>Sentry's Developer plan is free, allows one user, and includes 5,000 error events and 10,000 performance spans per month with 30-day retention. The Team plan starts at $26/month with 50,000 error events included. Doc 08 §11.1 sends 100% of error events unsampled, so the free quota is a hard ceiling that error volume — not tenant count directly — consumes; §7.3 turns that into a measured trigger. Sources: <a href="https://sentry.io/pricing/">Sentry pricing</a>; <a href="https://www.vendr.com/marketplace/sentry?int_campaign=2024-Q3-08-GLOB-OSH-GO_MarketplaceVisits-From-Blog">Sentry plans and free-tier contents</a>.</p></div>
+<div class="spec"><h4>F-5 — GitHub Free includes 2,000 Actions minutes a month for private repos</h4>
+<p>GitHub Free includes 2,000 Actions minutes per month for private repositories (GitHub Pro raises this to 3,000); beyond the allowance, standard Linux runners bill $0.008/minute, and jobs on self-hosted runners carry no per-minute charge. With a $0 spending limit, jobs stop when the allowance is exhausted instead of billing. Doc 09's pipeline target is under 15 minutes per PR run; §17 does the arithmetic against this allowance. Sources: <a href="https://docs.github.com/en/enterprise-cloud@latest/get-started/learning-about-github/githubs-plans">GitHub's plans — GitHub Docs</a>; <a href="https://Octopus.com/devops/github-actions/">GitHub Actions guide — pricing section</a>.</p></div>
+<div class="spec"><h4>F-6 — Cloudflare R2's free tier covers v1's storage shape</h4>
+<p>R2's free tier includes 10 GB-month of storage, 1 million Class A (write) operations and 10 million Class B (read) operations per month, with egress free on every tier; beyond the tier, storage is $0.015 per GB-month. Doc 01 §15 estimates roughly 150 KB per report, so the free storage tier alone holds tens of thousands of report PDFs before backups and exports are counted — storage cost is not a launch constraint, and §6 records it as $0 at pilot scale with the per-GB rate as the growth rule. Source: <a href="https://developers.cloudflare.com/r2/pricing/">R2 pricing — Cloudflare Docs</a>.</p></div>
+<div class="spec"><h4>F-7 — A .app domain costs about $14/year at renewal; first-year prices mislead</h4>
+<p>Tracked .app pricing across registrars shows renewal — the price paid every year — at about $14.20/year at at-cost registrars such as Cloudflare Registrar, while headline first-year offers run lower and some registrars renew above $20/year. Doc 01 §17 already names domain expiry as a risk with "multi-year domain" as the mitigation; §5.1 therefore fixes the registrar class (at-cost, flat renewal), a 5-year initial term, and auto-renew — the decision is about the renewal price and the term, not the first-year discount. Sources: <a href="https://www.dndetector.com/blog/cheapest-app-domain-registrar-2026.html">Cheapest .app domain registrar 2026</a>; <a href="https://domainoffer.net/tld/app/cloudflare">.app at Cloudflare — registration and renewal prices</a>.</p></div>
+<div class="spec"><h4>F-8 — The VPS region is a measurement, not a preference</h4>
+<p>Hetzner Cloud operates locations in Germany, Finland, Singapore and the USA. LabFlow's users are in Pakistan; the closest of those locations on the map is not automatically the fastest route, and no source consulted gives a trustworthy Pakistan-to-datacenter latency figure — any number printed here would be <b>Unverified</b>. §5.2 therefore fixes the procedure (measure from Pakistan on provisioning day, pick the lowest, keep the choice reversible inside the first week because billing is hourly) instead of naming a region. Source for the location list: <a href="https://www.cloudpicked.com/hetzner-review-en.html">Hetzner Cloud review 2026 — datacenters</a>.</p></div>
+<div class="spec"><h4>F-9 — One Beat process, crontab schedules, fan-out by task</h4>
+<p>Celery Beat is a single scheduler process that sends due tasks to the queues; periodic work is declared with crontab schedules, and only one Beat may run. This is Doc 05 F-7, restated because §9's timetable depends on it: every periodic job in LabFlow is one Beat entry fanning out to per-tenant child tasks (Doc 04 §13.2), and the only freedom left — the one OQ-45 reserves — is the minute each entry fires at. Source: Celery periodic tasks documentation, as cited in Doc 05 F-7.</p></div>
+
+<h2 id="s3">3. Delivery principles</h2>
+<p><b>DP-1 — Scope is frozen.</b> v1 is exactly what Docs 01–09 specify — no more. Doc 01 §17 names scope creep as this project's highest-likelihood risk and assigns the fix to this document; the fix is this rule. A new idea found during the build goes to the post-v1 backlog (§22) with a note, never into the current phase. The only exception is a defect: work needed to make a specified behaviour true is in scope by definition.</p>
+<p><b>DP-2 — A phase ends at its gate, not at a date.</b> Each phase in §4 exits when its scenario suites pass in CI (Doc 09 §9.2's traceability rule), not when its estimated weeks run out. A phase that is "90% built" with a red suite is not done, and the next phase does not start on top of it — in a schema-per-tenant system, building phase N+1 over a broken phase N multiplies the repair by every tenant created meanwhile.</p>
+<p><b>DP-3 — Build in dependency order; the frontend and the security layer are not phases.</b> The build order follows the documents' own dependency order (§4). Doc 07's screens are built inside the phase that owns their backend behaviour, screen by screen, so every phase ends with something usable. Doc 08's controls are likewise built with the module they protect (throttles with login, the scrubber with the first Sentry wiring); Phase 5 then proves them end-to-end as a set. A separate "frontend phase" or "security phase" at the end is how both end up shallow.</p>
+<p><b>DP-4 — Free tiers first, each with a written exit trigger.</b> Doc 01's constraint is a zero-budget build on free tiers and open source. This document keeps that rule and makes it safe: every free tier adopted in §5–§8 and §17 is paired with the measured signal that says it has stopped fitting, and the paid step that follows. A free tier without an exit trigger is a surprise outage scheduled for later.</p>
+<p><b>DP-5 — One VPS until a trigger fires.</b> The platform runs on one VPS (Doc 01 §15) until a §7 trigger — not a feeling, not a tenant's request — says otherwise. Each trigger names the next step in Doc 01 §16's scaling order. Premature splitting is the symmetric failure to late splitting: a solo operator pays for every extra host every week, in patching and in drills, whether it is needed or not.</p>
+<p><b>DP-6 — Rehearse the bad days before the first tenant.</b> Backups are proven by a restore, the deploy by a rollback, and the launch by the checklist in §12 — all before a real lab depends on any of them. The pilot (§13) starts only when §12's gates pass. A solo operator has no team to improvise with during an incident; the rehearsal is the team.</p>
+<p><b>DP-7 — Operate on a cadence, not on anxiety.</b> §14 fixes what is checked daily, weekly and monthly, and how long each check should take. Everything Docs 04, 06 and 08 need watched is on that list, with its alert or its review. If a signal is not on the cadence and has no alert, it is not being watched — and §14 says so rather than pretending otherwise.</p>
+
+<h2 id="s4">4. Build phases and order</h2>
+<h3>4.1 The phases</h3>
+<div class="box"><table><thead><tr><th>Phase</th><th>Builds</th><th>Exit gate</th><th>Estimate (AS-2)</th></tr></thead><tbody>
+<tr><td><b>0 — Platform skeleton</b></td><td>Repo and CI (Doc 09), shared schema, tenants app, provisioning P-1–P-9, Caddy with on-demand TLS and the ask endpoint, Super Admin basics, the demo tenants (Doc 09 DG-17)</td><td>TN-01–TN-14 and the DG suite green; a demo tenant provisions end-to-end inside G4's 3 minutes</td><td>2–3 weeks</td></tr>
+<tr><td><b>1 — Core lab</b></td><td>Doc 03 end to end: patients, samples, transfers' clinical half, billing, results, reports, signed-link delivery; the Doc 07 screens for those flows, built with them (DP-3)</td><td>T-01–T-51 green; the FE scenarios for the built screens green; G1 and G2 measured on the demo tenant</td><td>4–6 weeks</td></tr>
+<tr><td><b>2 — Tenancy complete</b></td><td>Doc 04's remainder: branch scope and staff_branch enforcement, collection centres, tenant settings, subscription states and read-only mode, offboarding export</td><td>TN-15–TN-40 green, including the generated cross-tenant suite (TN-31) on every merge (G5)</td><td>2–3 weeks</td></tr>
+<tr><td><b>3 — Revenue share</b></td><td>Doc 05 end to end: partners, rules, synchronous ledger, monthly generation, statement PDF and delivery, mark-paid</td><td>RS-01–RS-42 green; a full monthly cycle run against a demo tenant with synthetic payments</td><td>2 weeks</td></tr>
+<tr><td><b>4 — Automation</b></td><td>Doc 06 end to end: the six events, the n8n workflows, callbacks, both 15-minute sweeps, hard-bounce handling; Brevo wired as the SMTP provider (§8)</td><td>AU-01–AU-40 green; one real email per workflow delivered through the production provider on a test tenant</td><td>1–2 weeks</td></tr>
+<tr><td><b>5 — Security hardening</b></td><td>Doc 08 proven as a set: the auth contract and TOTP, throttles, audit contract, Sentry with the scrubber live, backups running nightly, the first restore drill passed</td><td>SE-01–SE-40 green (including SE-28b); one per-tenant restore inside the 1-hour RTO on the largest demo tenant</td><td>1–2 weeks</td></tr>
+<tr><td><b>6 — Launch readiness</b></td><td>The k6 run (Doc 01 §16), the §12 checklist, domain and production VPS (§5), pilot onboarding (§13)</td><td>§12's gates all pass; G1–G7 checked and the numbers recorded in the capacity log (§7.1)</td><td>1 week + pilot</td></tr>
+</tbody></table></div>
+<p>Total forecast: roughly 13–19 full-time weeks for one developer (AS-2). The forecast is the least important number in this section — DP-2 makes the gates the commitment.</p>
+<div class="diagram"><pre class="mermaid">flowchart LR
+    P0[Phase 0&lt;br/&gt;Platform skeleton] --&gt; P1[Phase 1&lt;br/&gt;Core lab]
+    P1 --&gt; P2[Phase 2&lt;br/&gt;Tenancy complete]
+    P2 --&gt; P3[Phase 3&lt;br/&gt;Revenue share]
+    P3 --&gt; P4[Phase 4&lt;br/&gt;Automation]
+    P4 --&gt; P5[Phase 5&lt;br/&gt;Security hardening]
+    P5 --&gt; P6[Phase 6&lt;br/&gt;Launch readiness]
+    P6 --&gt; PL[Pilot tenants&lt;br/&gt;§13]
+    P1 -. screens built with behaviour .-&gt; F[Doc 07 screens]
+    P5 -. controls built with modules .-&gt; S[Doc 08 controls]</pre><p class="dcap">Figure 4.1 — Build order. Phases are sequential and gate-driven (DP-2). Doc 07's screens and Doc 08's controls are built inside the phases that own their behaviour, not as phases of their own (DP-3); Phases 1 and 5 are where most of that work lands.</p></div>
+<h3>4.2 Why this order</h3>
+<p><b>Tenancy before features.</b> Phase 0 builds the skeleton because every later module assumes schema context, provisioning and the ask endpoint exist. Retrofitting tenancy under finished features is the one reorder this plan forbids: Doc 04's rules (TP-4, per-schema migrations) are cheapest when there is nothing to retrofit.</p>
+<p><b>Money after the clinical path.</b> Revenue share (Phase 3) consumes payments, and payments exist only once billing (Phase 1) is true. Building the ledger first would mean building it against imagined payment behaviour.</p>
+<p><b>Automation after the events exist.</b> n8n workflows (Phase 4) subscribe to events Docs 03 and 05 emit. The workflows are quick to build once the events are real, and untestable before.</p>
+<p><b>Hardening as a gate, not a start.</b> Doc 08's individual controls are built with their modules (DP-3), but the SE suite is run as one gate in Phase 5 — because several controls (the scrubber, the throttle set, the audit contract) only prove themselves against the whole surface at once.</p>
+
+<h2 id="s5">5. Infrastructure decisions: domain, VPS, staging</h2>
+<h3>5.1 The domain (OQ-17, part 1)</h3>
+<p><b>Decision.</b> Buy a real domain in the .app class Doc 01 assumes, from an at-cost registrar with flat renewal pricing (Cloudflare Registrar is the reference example, F-7), for an initial term of <b>5 years</b>, with auto-renew on and expiry alerts at 90, 30 and 7 days. The wildcard DNS and on-demand TLS design (Doc 01 §15, Doc 04 §6.4) needs no other DNS product: one wildcard A record, no wildcard certificate, no DNS token.</p>
+<p><b>What this document does not do</b> is print a chosen name. <code>labflow.app</code> is Doc 01's placeholder; whether it — or a better available name — is the one bought is decided at the registrar on purchase day, by availability and price. What is fixed here is everything that makes the choice safe: the TLD class (HTTPS-enforced, matching the platform's HSTS posture, Doc 08 §8), the renewal price class (~$14.20/year, F-7), the 5-year term (Doc 01 §17's "multi-year domain" mitigation), and the alerts (an expired domain takes every tenant host down at once; it is the cheapest catastrophic failure to prevent).</p>
+<p><b>Failure mode.</b> If the preferred name is unavailable or premium-priced, the rule is: choose another clean name in the same class rather than a cheap first-year offer at a high-renewal registrar — the 5-year cost table (F-7) is the comparison, never the first-year price.</p>
+<h3>5.2 The VPS (OQ-17, part 2)</h3>
+<p><b>Decision.</b> Launch on one Hetzner Cloud cost-optimised VPS of the class Doc 01's G3 is stated on: <b>2 vCPU / 4 GB RAM / 40 GB disk</b> (CX22 class, F-1), hourly billed. The region is chosen on provisioning day by measurement (F-8): from a connection in Pakistan, measure latency to the candidate locations (Falkenstein, Nuremberg, Helsinki, Singapore), pick the lowest, and record the measurement and the result in the capacity log (§7.1). Because billing is hourly and nothing tenant-facing exists yet, the choice is reversible inside the first week at a cost of cents: if the measured region performs badly under the Phase 6 k6 run, move before the pilot, not after.</p>
+<p><b>Fallback.</b> The Compose stack is provider-agnostic (Doc 01 §15), so the provider is replaceable without any design change. If a Hetzner account cannot be opened or the class is unavailable, the pre-approved fallback is the same 2 vCPU / 4 GB shape at DigitalOcean or Vultr ($24 and $20/month respectively, F-1) — more expensive, identical architecture. No third option is evaluated at launch; provider-shopping is not a phase.</p>
+<p><b>Sizing honesty.</b> 2 vCPU / 4 GB runs the whole Compose stack (Doc 01 §15) at pilot scale (AS-3). It is not sized for growth, and §7's triggers — not optimism — decide when it changes. The first upgrade step is a bigger VPS in the same class line (4 vCPU / 8 GB), which is a resize, not a migration; splitting services comes later in Doc 01 §16's order.</p>
+<h3>5.3 Staging (OQ-55)</h3>
+<p><b>Decision.</b> <b>No staging host at launch.</b> Pre-release verification for v1 is: local Compose with dev/prod parity (Doc 09 §4.4), the full pipeline plus the nightly full Playwright suite on <code>main</code> (Doc 09 §12), and the synthetic demo tenants (Doc 09 DG-17) on the production host for tenant-shaped verification with synthetic data only. This is Doc 09 §4.3's default, now confirmed as the launch plan rather than left as an assumption.</p>
+<p><b>Why this is safe enough for the pilot.</b> The dangerous operation in this system is not a code deploy — CI rehearses those — it is a per-schema migration. That risk is carried by Doc 09's migration gates (drift check, expand/contract, DG-22's halt-on-failure) and Doc 04's TN-15/TN-17, all of which run without a staging host. A second host would rehearse the same migrations against the same synthetic data CI already uses; at pilot scale it buys little and costs a second box to patch, back up and drill.</p>
+<p><b>The trigger that adds staging.</b> A staging host (same VPS class as production, §6) is added before the first release that (a) ships to a paying tenant, and (b) carries a contract-step migration (Doc 09 §7.3) — whichever release first meets both conditions. From that release on, migrations rehearse on staging against a restored copy of the largest tenant's schema (Doc 04 §14's restore procedure) before they run in production. Until the trigger fires, §5.3's second paragraph is the whole staging story, and no procedure in this document may quietly assume a staging host exists.</p>
+
+<h2 id="s6">6. Launch costing</h2>
+<p>The platform's running cost at pilot scale (AS-3). Costs are stated in the currency the provider charges (§1.4, item 10). The budget rule is stated per line, so a price change updates the arithmetic, not the plan.</p>
+<div class="box"><table><thead><tr><th>Line</th><th>Launch choice</th><th>Cost at pilot scale</th><th>Budget rule / exit trigger</th></tr></thead><tbody>
+<tr><td>Domain</td><td>.app-class, at-cost registrar, 5-year term (§5.1)</td><td>≈ $14.20/year at renewal (F-7); the 5-year term is prepaid at purchase</td><td>Fixed. Expiry alerts at 90/30/7 days; the term, not the price, is the risk control</td></tr>
+<tr><td>VPS</td><td>Hetzner CX22 class, 2 vCPU / 4 GB (§5.2)</td><td>≈ €3.99/month at check-day prices (F-1)</td><td>Budget ceiling €10/month for the launch class. If the class price passes the ceiling, re-run §5.2's fallback comparison once — do not silently absorb repeated rises</td></tr>
+<tr><td>Object storage (R2)</td><td>Reports, backups, exports (Docs 01 §15, 08 §12)</td><td>$0 inside the free tier (F-6)</td><td>$0.015 per GB-month beyond 10 GB-month. Watched in the weekly review (§14.2) as total stored GB</td></tr>
+<tr><td>Email</td><td>Brevo free tier (§8.1)</td><td>$0 inside 300/day (F-2)</td><td>Starter $9/month when §8.2's trigger fires; SES (§8.3) when §8.3's trigger fires</td></tr>
+<tr><td>Error tracking</td><td>Sentry Developer (free) (Doc 08 §11)</td><td>$0 inside 5,000 events/month (F-4)</td><td>Team $26/month when §7.3's quota trigger fires</td></tr>
+<tr><td>CI</td><td>GitHub Actions, Free plan (§17)</td><td>$0 inside 2,000 minutes/month (F-5)</td><td>$0 spending limit set — jobs stop rather than bill. Pro (3,000 minutes) when §17's trigger fires</td></tr>
+<tr><td>Code hosting</td><td>GitHub Free (Doc 09 AS-2)</td><td>$0</td><td>No trigger in v1</td></tr>
+<tr><td>n8n, PostgreSQL, Redis, Caddy, WeasyPrint</td><td>Self-hosted, open source, on the VPS (Doc 01 §15)</td><td>$0 licence cost; the cost is operator time, counted in §14's cadence</td><td>The §7 triggers decide when a piece leaves the shared host</td></tr>
+</tbody></table></div>
+<p><b>Total at launch: the domain term plus roughly €4/month.</b> In the steady state after the prepaid domain term, the platform's fixed floor is the VPS line alone. Every other line is $0 until its own measured trigger fires — which is the point of DP-4: the platform's cost grows only when a number in this document says it must, and the operator sees the number coming in the weekly review before the bill does.</p>
+<p><b>What is not in this table.</b> Tenant plan prices (what labs pay) are commercial data in the plan table (§1.2), not platform costs. The operator's own time is the real v1 cost and is budgeted in §14 as hours per week, not money. A payment method for tenant subscriptions is not a platform cost line in v1: subscription state is operated per Doc 04 §11, and no payment gateway appears in Docs 01–09.</p>
+
+<h2 id="s7">7. Capacity plan and scaling triggers</h2>
+<h3>7.1 The capacity log</h3>
+<p>One page, kept by the operator, appended at each weekly review (§14.2): date; active tenants; total database size and largest schema size (Doc 04 §17's weekly job); last deploy's total migration wall time; G3 latency watch result; reports-queue time share per tenant (Doc 04 §17); Sentry events used this month; CI minutes used this month; emails sent per day (peak and average); R2 stored GB. Every trigger below reads from this log. A trigger that cannot be read off the log does not exist — this is what "measured, not guessed" (OQ-40) means in practice.</p>
+<h3>7.2 When PostgreSQL leaves the shared host (OQ-40)</h3>
+<p><b>Decision.</b> PostgreSQL moves to its own host when <b>any one</b> of these measured triggers fires, checked at the weekly review:</p>
+<div class="box"><table><thead><tr><th>Measure (OQ-40's own three, plus latency)</th><th>Trigger</th><th>Source of the number</th></tr></thead><tbody>
+<tr><td>Migration wall time</td><td>A production deploy's migrations across all schemas take &gt; 20 minutes end to end</td><td>Deploy log (Doc 09 §12.3 records per-deploy migration outcome)</td></tr>
+<tr><td>Total schema size</td><td>Total database size exceeds 50% of the VPS disk (20 GB on the launch class)</td><td>Weekly catalogue job (Doc 04 §17)</td></tr>
+<tr><td>Tenant count</td><td>60 active tenants</td><td>Tenant registry (public schema)</td></tr>
+<tr><td>Latency</td><td>G3 (common reads p95 ≤ 300 ms) breached in two consecutive weekly reviews, with database CPU the visible cause in the request logs</td><td>Per-tenant request logs (Doc 04 §17)</td></tr>
+</tbody></table></div>
+<p><b>The step taken when a trigger fires</b> follows Doc 01 §16's order, which this document does not reorder: first the reports worker moves to a second VPS if queue pressure is the symptom; then PgBouncer (with Doc 04 §13.6's SET LOCAL guardrails, TN-34); then PostgreSQL to its own host; managed PostgreSQL is the step after that, taken when a second trigger fires on the split topology or when the operator's database maintenance time exceeds roughly 2 hours a week for a month — the point at which the operator is the bottleneck the managed fee exists to remove.</p>
+<p><b>Baselines.</b> The Phase 6 k6 run (Doc 01 §16) records the starting numbers on the launch VPS — G3 latency at pilot-shaped load, provisioning time (G4), a full migration pass's wall time — into the capacity log's first entry. Triggers are reviewed against reality after the first 10 tenants: if a threshold proves wrong (too tight, firing on noise; or too loose, firing after users felt it), the threshold changes by a written note in the log, not by memory. Tenant count alone is deliberately the weakest trigger — 60 quiet tenants load the database less than 10 busy ones — which is why any one measure suffices and none is required to wait for the others.</p>
+<h3>7.3 The Sentry quota trigger (OQ-52)</h3>
+<p><b>Decision.</b> There is no honest tenant count at which the free quota breaks, and this document does not invent one: Doc 08 §11.1 sends error events unsampled, so the quota is consumed by <i>error volume</i>, and one looping bug in one tenant burns more than ten quiet tenants combined (F-4). The trigger is therefore the quota itself, read weekly (§14.2):</p>
+<ul>
+<li><b>Watch:</b> month-to-date events project past 3,500 (70% of 5,000) at the current rate.</li>
+<li><b>Act:</b> projection past 4,000 (80%), or two consecutive months ending above 3,500. First, cut noise at the source — Doc 08 §11.4's quiet classes and any single issue dominating the count get fixed or filtered first, because a paid plan bought to store one bug's loop is waste. If the volume is real signal after that pass, move to Sentry Team ($26/month, 50,000 events, F-4) and add the line to §6.</li>
+<li><b>Self-hosting</b> Sentry is the alternative Doc 08 §18 already defers: it is reconsidered only if Team pricing itself becomes the problem, because a self-hosted Sentry is a second platform to patch on the same one-person cadence (§14).</li>
+</ul>
+<p>During the CSP report-only period (§12.3), <code>csp_report</code> events count against the same quota. The weekly review reads them as their own line: a browser-extension noise spike is expected and is not, by itself, an Act trigger.</p>
+<h3>7.4 Object storage growth</h3>
+<p>R2 growth is the slowest-moving number in the log: at roughly 150 KB per report (Doc 01 §15) plus nightly per-schema dumps inside Doc 08 §12's retention (7 daily + 4 weekly), the free 10 GB (F-6) covers pilot scale for a long time. No trigger is needed beyond the weekly GB reading; past the free tier the cost is $0.015 per GB-month, which stays a rounding error until stored data reaches the hundreds of GB — by which point §7.2's disk trigger will already have fired for the database, and storage is reviewed in the same conversation.</p>
+
+<h2 id="s8">8. Email operations: provider, limits, message_id</h2>
+<h3>8.1 The provider (OQ-46)</h3>
+<p><b>Decision. Brevo</b> sends all LabFlow email in v1, through the single platform SMTP account Doc 06 AS-4 assumes, held as credentials in n8n (Doc 06's design: Django never talks to the provider; n8n does). The sending domain is authenticated (SPF, DKIM, DMARC records on the platform domain, §5.1) before the pilot's first real email. Doc 06's protocol is provider-agnostic by design, so this choice touches no payload, event or callback — it is a credential and a DNS record, which is exactly why Doc 06 could defer it safely.</p>
+<p><b>Why Brevo and not the alternatives.</b> The free tier needs no credit card and includes transactional SMTP today (F-2) — the launch constraint (Doc 01: zero budget) is met without a sales process or an AWS account. Amazon SES is cheaper per email at volume but costs days of setup and approval at pilot scale to save single-digit dollars (F-3); it is kept as the documented scale path (§8.3). SendGrid's free plan no longer exists for new accounts (a 60-day trial at 100/day, per F-3's comparison sources), so it fails the launch constraint outright.</p>
+<h3>8.2 The free-tier limits and what happens at them (OQ-47)</h3>
+<p><b>The limit that binds is 300 emails/day</b> across the whole platform account (F-2). LabFlow's daily volume is: report-ready emails and link resends (Doc 03), sample-collected and rejection notices (Doc 06), password resets (Doc 08 A-27's event, delivered the same way), settlement statements (monthly, after approval — §10), and platform mail to owners. At pilot scale (AS-3: up to ~5 labs) a busy platform day sits in the low hundreds — inside the cap, without headroom to waste.</p>
+<p><b>What hitting the cap looks like.</b> A provider-side throttle is not a new failure shape: sends fail softly at n8n, delivery rows age, and the existing 15-minute sweep retries them (Doc 06 §9) — the mail goes out late, not never, and the ageing rows are visible in the weekly review (§14.2). No design change is needed for the cap; what is needed is to move tiers <i>before</i> lateness becomes normal:</p>
+<div class="box"><table><thead><tr><th>Signal (from the capacity log)</th><th>Action</th></tr></thead><tbody>
+<tr><td>Any single day reaches 300 sends (cap touched)</td><td>Move to Brevo Starter ($9/month, 5,000/month, no daily cap, F-2) within the week. One touched cap is proof the headroom is gone</td></tr>
+<tr><td>Seven-day average above 240/day (80% of cap)</td><td>Same move, planned rather than reactive — the trend says the touch is coming</td></tr>
+<tr><td>On a paid tier: monthly sends project past 80% of the tier's volume</td><td>Move up one volume tier at the next cycle; tiers scale by sends (F-2), so this is a billing change, not a migration</td></tr>
+</tbody></table></div>
+<h3>8.3 The scale path</h3>
+<p>When monthly sends pass roughly 20,000 — the point where hosted volume tiers stop being cheap relative to per-email pricing — re-evaluate once against Amazon SES à la carte ($0.10 per 1,000, F-3): at 20,000/month SES sending costs about $2 against a hosted tier's higher volume price, and the operator-time cost of the switch (AWS account, sandbox exit, credential swap in n8n) is a one-off measured in hours. Because Doc 06's protocol never names the provider, the switch is: new credentials in n8n, SPF/DKIM for the sending domain at the new provider, one test email per workflow, done. Nothing in Django changes.</p>
+<h3>8.4 message_id, finally (OQ-48)</h3>
+<p><b>Decision. Doc 06's interim rule is confirmed as the final v1 rule, unchanged.</b> Against the chosen provider the facts are: Brevo's SMTP/API response carries a message identifier for an accepted message; where the provider's response to n8n exposes it, n8n includes <code>message_id</code> in the callback; where it does not, the field is omitted. It is optional, never required, never invented, logged with the callback, and <b>not persisted on the delivery row in v1</b> — Doc 02 has no column for it and none is proposed (§21). If a future support dispute ever needs per-message tracing against the provider's logs, the callback logs plus the provider's own dashboard cover the pilot era; a persisted column would be a Doc 02 amendment proposed then, with that dispute as its evidence.</p>
+
+<h2 id="s9">9. The scheduler timetable</h2>
+<p>Every periodic job in the system, with its exact firing time. All times Asia/Karachi (Doc 01: Asia/Karachi everywhere). Jobs are Beat entries (F-9) except the two host-cron jobs, marked as such. The jobs themselves — what each does, its idempotency, its per-tenant fan-out — are owned by Docs 01 §13, 04, 05, 06 and 08 and are not restated here; this section fixes only <i>when</i>, which is the freedom OQ-45 reserved.</p>
+<div class="box"><table><thead><tr><th>Job</th><th>Schedule</th><th>Owner of the job's design</th></tr></thead><tbody>
+<tr><td>Settlement generation — <code>referral_partners.generate_monthly_settlements</code></td><td><code>crontab(minute=0, hour=1, day_of_month=1)</code> — the 1st, 01:00</td><td>Doc 05 ST-1 (time already fixed there; restated here to complete the table)</td></tr>
+<tr><td><code>webhook_delivery</code> sweep</td><td>Every 15 minutes at minutes <b>3, 18, 33, 48</b></td><td>Doc 06 §9; OQ-45 asked for this exact entry</td></tr>
+<tr><td>Notification / report-delivery retry sweep</td><td>Every 15 minutes at minutes <b>11, 26, 41, 56</b></td><td>Doc 06 (DL-5's sweep), Doc 01 §13</td></tr>
+<tr><td>Share-ledger reconciliation sweep</td><td>Hourly at minute <b>22</b></td><td>Doc 05 SL-6</td></tr>
+<tr><td>Backup: per-schema pg_dump → age → R2 <i>(host cron, not Beat)</i></td><td>Nightly at <b>02:30</b></td><td>Doc 08 §12 (procedure); Doc 04 §14.1 (unit)</td></tr>
+<tr><td>Retention run (audit archive, login_event and token cleanup)</td><td>Monthly on the <b>2nd at 03:15</b></td><td>Doc 08 §13 (periods and mechanism)</td></tr>
+<tr><td>Weekly schema-size and growth job</td><td>Mondays at <b>04:00</b></td><td>Doc 04 §17 (signal); feeds §7.1's log</td></tr>
+</tbody></table></div>
+<p><b>The offset rule (OQ-45's actual question).</b> The two 15-minute sweeps are offset by 8 minutes from each other, and neither shares a start minute with the hourly reconciliation (:22) or the top of any hour, where tenant-facing cron-shaped work (and the 01:00 generation on the 1st) begins. The reason is the one OQ-45 names: sweeps that fire in the same minute compete for the same worker slots and the same Redis, and their delays then correlate — a slow minute makes both sweeps late together, and the retry system stutters platform-wide four times an hour. Offsetting costs nothing and decorrelates them. The monthly jobs sit on the 2nd, not the 1st, so the retention run never competes with settlement generation (§10).</p>
+<p><b>One Beat, still.</b> The timetable changes nothing about F-9: a single Beat process holds all of it, and the deploy procedure (§11) restarts Beat exactly once per deploy. A second Beat would double-fire every row in this table; the deploy checklist names it.</p>
+
+<h2 id="s10">10. Settlement fan-out on the 1st</h2>
+<p><b>Decision (OQ-44). No staggering in v1.</b> The monthly run stays exactly as Doc 05 specifies: one Beat entry at 01:00 on the 1st (§9) fanning out to one task per tenant, then per partner (Doc 05 F-7). Three reasons, in order of weight:</p>
+<p><b>1. Generation is not email.</b> The run creates DRAFT settlements and renders statement PDFs. A statement is emailed only after the Owner approves it (Doc 05 §7–§8) — a staff act that happens during lab hours, spread by human behaviour across the first days of the month. The feared spike — 100 tenants' statements hitting the SMTP cap at 01:00 — cannot occur, because nothing is sent at 01:00. The email volume of the 1st is bounded by approvals (§8.2's daily reading catches it if that ever changes).</p>
+<p><b>2. Fairness already exists where the load is.</b> The run's real cost is CPU: aggregation queries and WeasyPrint renders. The renders ride the same queues as report PDFs, where Doc 04 §13.5's per-tenant concurrency cap (at most 2 concurrent renders per tenant) already stops any one tenant — including a tenant whose own generation run is large — from monopolising the workers. Staggering tenants would solve a contention the cap already solves.</p>
+<p><b>3. The run has a night of slack, and a log.</b> Drafts are needed when labs open, not at 01:05. Doc 05 §12.7's generation-run log records, per tenant, partners drafted, partners skipped, failures and run duration — the measurement this decision is reviewed against (§14.3).</p>
+<div class="diagram"><pre class="mermaid">flowchart LR
+    B[Beat: 1st, 01:00] --&gt; G[generate_monthly_settlements]
+    G --&gt; T1[Tenant A task]
+    G --&gt; T2[Tenant B task]
+    G --&gt; T3[Tenant … task]
+    T1 --&gt; P1[Per-partner tasks&lt;br/&gt;aggregate + render PDF]
+    T2 --&gt; P2[Per-partner tasks&lt;br/&gt;aggregate + render PDF]
+    P1 --&gt; D[DRAFT settlements&lt;br/&gt;ready before labs open]
+    P2 --&gt; D
+    D --&gt; A[Owner approves&lt;br/&gt;during lab hours]
+    A --&gt; E[Statement email&lt;br/&gt;via delivery sweep §9]</pre><p class="dcap">Figure 10.1 — The 1st of the month. Generation fans out per tenant and per partner and ends in drafts; email follows human approval, which is what makes staggering unnecessary (§10, reason 1).</p></div>
+<p><b>The trigger that would add staggering.</b> If the generation-run log shows the fleet run finishing after 05:00 Asia/Karachi in two consecutive months, or G1 (PDF after approval, p95 ≤ 60 s) is breached on the 1st with settlement renders the visible cause, add a deterministic per-tenant start offset — <code>hash(tenant_slug) mod 120</code> minutes after 01:00 — as Beat configuration. It is a schedule change, not a schema or protocol change, and it is deliberately not built now: an offset added before it is needed just makes the run finish later every month for no benefit. At the scale where even a staggered single-VPS run cannot finish overnight, the binding constraint is render CPU, and the answer is Doc 01 §16's first scaling step (reports worker on a second VPS) under §7's triggers — not a cleverer timetable.</p>
+
+<h2 id="s11">11. Release and deployment procedure</h2>
+<p>The mechanics are Doc 09's (§11.5, §12.3): SemVer tag on <code>main</code> → CI builds images from the tag → deploy updates the Compose stack and runs tenant migrations → changelog section cut. This section fixes the operator's sequence around those mechanics — the order of human acts on deploy day — and nothing else.</p>
+<h3>11.1 The deploy sequence</h3>
+<ol>
+<li><b>Confirm the gates.</b> The tag's pipeline is fully green, including every scenario suite (Doc 09 §9.2). A release that cannot show T, TN, RS, AU, FE and SE all green does not deploy.</li>
+<li><b>Confirm last night's backup.</b> The backup manifest (Doc 04 §17) shows every active schema in last night's run. Never migrate on an unproven backup day.</li>
+<li><b>Note the migration shape.</b> If the release carries migrations, they are expand-step or additive (Doc 09 §7.3); a contract-step is a separate, later release and — after §5.3's trigger — a staging-rehearsed one. Record the expected total migration wall time in the capacity log after the run (§7.2 reads it).</li>
+<li><b>Deploy in a quiet window.</b> Early morning Asia/Karachi, before labs open. The deploy runs migrations per schema; a failure on any schema halts the deploy (Doc 09 §17.2, TN-15) — the operator fixes forward with a new release or rolls back per step 6; no schema is hand-patched, ever.</li>
+<li><b>Restart Beat once.</b> Exactly one Beat process after the deploy (§9). Verify in the worker logs that each timetable entry fires once.</li>
+<li><b>Smoke.</b> On a demo tenant: login with TOTP, one sample to one report, one delivery email received. On the apex: tenant-status answers, the ask endpoint answers 200 for a known host and 404 for a random one (TN-13/TN-14's shape, run by hand).</li>
+<li><b>Record.</b> Release tag, deploy duration, migration wall time and smoke result go into the capacity log (§7.1).</li>
+</ol>
+<div class="diagram"><pre class="mermaid">flowchart LR
+    T[Tag vX.Y.Z on main] --&gt; CI[CI builds images&lt;br/&gt;from the tag]
+    CI --&gt; BK{Last backup&lt;br/&gt;complete?}
+    BK --&gt;|no| STOP1[Stop: fix backups first]
+    BK --&gt;|yes| DP[Deploy: Compose update&lt;br/&gt;+ per-schema migrations]
+    DP --&gt; MG{All schemas&lt;br/&gt;migrated?}
+    MG --&gt;|no| RB[Rollback per §11.2&lt;br/&gt;or fix-forward release]
+    MG --&gt;|yes| BT[Restart Beat once]
+    BT --&gt; SM[Smoke: demo tenant&lt;br/&gt;+ ask endpoint]
+    SM --&gt; LG[Record in&lt;br/&gt;capacity log]</pre><p class="dcap">Figure 11.1 — Deploy day. The gates and mechanics are Doc 09's; the sequence, the backup precondition and the recording duty are this document's (§11.1).</p></div>
+<h3>11.2 Rollback</h3>
+<p>Rollback is the previous tag redeployed, with migrations reversed per schema (TN-17 proves the shape). Two rules: a rollback is a release event — it is recorded, changelog-noted, and followed by a fix-forward release, never by editing the rolled-back code in place; and a release whose migrations cannot reverse (a contract step that dropped data) is not rolled back but fixed forward — which is precisely why contract steps ship alone, in quiet windows, and after §5.3's trigger, rehearsed (§5.3).</p>
+<h3>11.3 Hotfixes</h3>
+<p>Doc 09 §11.5's shape: a normal PR to <code>main</code>, a new PATCH tag, the same sequence as §11.1 with no steps skipped. Urgency shortens the quiet-window rule only when the bug is actively harming a tenant; the backup precondition and the smoke step are never skipped — a hotfix deployed onto an unproven backup converts one incident into the option of two.</p>
+
+<h2 id="s12">12. Launch checklist and go-live gates</h2>
+<h3>12.1 The gates</h3>
+<p>Go-live requires every row true at once. The checklist is run in Phase 6 (§4) and re-run in full before the first <i>paying</i> tenant (the pilot may start on §13's terms once the first run passes).</p>
+<div class="box"><table><thead><tr><th>Gate</th><th>Evidence</th><th>Owned by</th></tr></thead><tbody>
+<tr><td>Domain live; wildcard DNS resolving; first-visit TLS issuing for a fresh tenant host</td><td>A brand-new demo tenant's host loads over HTTPS with no manual certificate step</td><td>§5.1; Doc 04 §6.4</td></tr>
+<tr><td>Production VPS hardened per Doc 08 §7: Caddy the only public ingress; no Postgres/Redis host ports; n8n cannot reach the data layer</td><td>Port scan from outside shows only 80/443; the Compose networks match Doc 01 §15</td><td>Doc 08 §7</td></tr>
+<tr><td>Backups running nightly; first restore drill passed</td><td>Manifest complete for 7 consecutive nights; drill restored the largest demo tenant inside 1 hour (RTO)</td><td>Doc 08 §12; Doc 04 §14.3</td></tr>
+<tr><td>Age-key custody in place: two offline copies, separately held</td><td>Operator confirms both copies exist and are readable; the archive identity held per Doc 08 v1.1's split</td><td>Doc 08 §12.2</td></tr>
+<tr><td>Sentry live in both processes, scrubber verified</td><td>A forced test error from Django and from the SPA arrives with identifiers hashed and no patient data (SE suite's scrubber scenarios, run against production config)</td><td>Doc 08 §11</td></tr>
+<tr><td>CSP in report-only; violations flowing to Sentry as <code>csp_report</code></td><td>Test page views produce no unexpected violation classes; §12.3's review is scheduled</td><td>Doc 08 §8.3</td></tr>
+<tr><td>Email authenticated and delivering</td><td>SPF/DKIM/DMARC pass on a real send; one email per Doc 06 workflow received on a test tenant (§4, Phase 4 gate, re-verified on the production domain)</td><td>§8.1</td></tr>
+<tr><td>All scenario suites green on the launch tag</td><td>CI record for the exact tag being deployed (Doc 09 §9.2)</td><td>Doc 09 §12</td></tr>
+<tr><td>k6 run recorded</td><td>G1–G4, G6 measured on the production VPS; numbers in the capacity log (§7.2's baselines)</td><td>Doc 01 §16</td></tr>
+<tr><td>Rollback rehearsed</td><td>Previous-tag redeploy with migration reversal performed once on the demo stack (TN-17's shape)</td><td>§11.2</td></tr>
+<tr><td>Continuity envelope sealed and held (§15)</td><td>The holder confirms receipt; the 6-month review is in the calendar</td><td>§15</td></tr>
+<tr><td>Support path exists</td><td>One published contact route for lab owners (email address on the platform domain), with the response expectation §13.3 states</td><td>§13.3</td></tr>
+</tbody></table></div>
+<h3>12.2 What "launched" means</h3>
+<p>Launched = the gates passed, the pilot tenants (§13) onboarded, and the operations cadence (§14) running. A deployment without the cadence is a demo, not a launch: the monthly drill, the weekly review and the quota readings are part of the product's definition of done, because Docs 04 and 08 promise tenants their effects (restores inside RTO, statements on the 1st, links that keep working in read-only mode) and only the cadence keeps those promises true.</p>
+<h3>12.3 The CSP promotion sign-off (OQ-51)</h3>
+<p><b>Decision.</b> The signer is the platform operator — in v1 there is no second person to sign, and Doc 08 §8.3's rule does not need one: promotion happens when <b>two consecutive weeks of production traffic show no violation that is not a browser extension</b>. The procedure on top of that rule: the operator reviews the week's <code>csp_report</code> events as part of the weekly review (§14.2); at the first weekly review where the two-clean-weeks condition holds — expected around week 3 after go-live, not scheduled by date — the operator promotes the header from report-only to enforcing as a PATCH release (§11), with the changelog noting the promotion and the two weeks' evidence. If a violation names a real source (the SPA, a workflow page, a PDF preview), the source is fixed and the two weeks restart; the policy's values are Doc 08 §8's and are never weakened to make the weeks pass. After promotion, <code>csp_report</code> stays collected for one further month, then the report endpoint is reviewed for removal as ordinary Doc 08 maintenance.</p>
+
+<h2 id="s13">13. Pilot and tenant onboarding</h2>
+<h3>13.1 The pilot shape</h3>
+<p>The pilot is the first 3–5 tenants (AS-3), onboarded <b>one at a time, at most one per week</b>. The rate limit is the operator's attention, not the platform's: provisioning is a ≤ 3-minute task (G4), but a lab's first week generates the questions, the data corrections and the training moments that decide whether the lab stays. One new lab a week is what one operator can absorb while still running §14's cadence for the labs already live.</p>
+<h3>13.2 Onboarding sequence, per tenant</h3>
+<ol>
+<li><b>Provision</b> per Doc 04 §5 (P-1–P-9): schema, seeds, owner activation via the P-8 flow. Verify against the provisioning checklist: no <code>revenue_share_rule</code> seed row (Doc 02 §16), templates present in both languages, owner TOTP enrolled (mandatory for the role, Doc 08 §4.4).</li>
+<li><b>Configure with the owner:</b> branches and collection centres, staff accounts and branch assignments, test catalogue and prices, referral partners and their rules (the owner creates the first real rule per partner, Doc 05), tenant settings (report language, link validity, billing hold default off).</li>
+<li><b>Synthetic dry run:</b> one patient, one sample, one result, one approved report, one delivered email — on the tenant's own subdomain, with test data cleared afterwards, before the first real patient. The dry run is the lab's training session and the platform's smoke test in one.</li>
+<li><b>Go-live day:</b> the lab starts real work at the start of its day, not mid-day; the operator is reachable on the support path (§13.3) for that whole first day.</li>
+<li><b>First settlement cycle:</b> the operator watches the tenant's first monthly generation (the §9 run after their first full month) and walks the owner through the first approval and statement delivery.</li>
+</ol>
+<h3>13.3 Support expectations, stated plainly</h3>
+<p>One operator means honest support terms, told to each lab before go-live: support by email/message on the published route; acknowledgement the same working day; platform-down incidents (a tenant cannot work) treated ahead of everything else in §14's queue; no 24/7 promise, because a promise one person cannot keep is worse than a true one. These terms are a conversation with each lab, recorded in writing at onboarding — this document fixes that they are stated, not their commercial wording.</p>
+
+<h2 id="s14">14. Operations cadence</h2>
+<p>DP-7 made concrete. Total steady-state load: about 1 hour a week plus the monthly block — the budget the solo model (AS-1) can actually pay.</p>
+<h3>14.1 Daily (minutes, mostly automated)</h3>
+<p>No daily manual check is required by design: the watching is done by alerts already specified — exhausted Celery deliveries and paging events (Doc 08 §11.4), backup-completeness and provisioning alerts, migration-drift and restore-drill-age alerts (Doc 04 §17), throttle and TLS-ask signals (Docs 04 §17, 08 §10). The operator's daily duty is only to <i>notice</i>: one glance at the alert channel and the Sentry inbox while doing other work. An operator-side free-tier uptime check on <code>/healthz</code> covers the one case Sentry cannot — the process too dead to report (Doc 01 §16 provides the endpoint; the checker is operator tooling, not a platform component).</p>
+<h3>14.2 Weekly (about 30 minutes)</h3>
+<p>One sitting, the capacity log (§7.1) as the agenda:</p>
+<ul>
+<li>Append the week's readings: tenants, schema sizes and growth, migration wall times from any deploy, G3 watch, queue time shares, R2 GB.</li>
+<li>Sentry: events used vs the 5,000 quota (§7.3's watch/act lines); the week's top issue; during report-only, the <code>csp_report</code> review (§12.3).</li>
+<li>Email: peak and average daily sends vs §8.2's triggers; any delivery rows ageing abnormally (Doc 06 §13's signals).</li>
+<li>CI: minutes used vs §17's budget; any quarantined test's age (Doc 09 §9.5).</li>
+<li>Certificates and domain: days to domain expiry (§5.1 alerts should make this a formality); any TLS issuance failures in the ask-endpoint log (Doc 04 §17).</li>
+<li>Check each §7 trigger explicitly — fired or not — and write the word. A trigger checked and recorded as not-fired is operations; a trigger "kept in mind" is not.</li>
+</ul>
+<h3>14.3 Monthly (about 2 hours)</h3>
+<ul>
+<li><b>Restore drill</b> (Doc 04 §14.3): restore the largest tenant plus the public schema into a scratch database, smoke-test, record the duration against the 1-hour RTO. Schedule it <i>after</i> the 2nd, so it never collides with settlement generation or the retention run (§9).</li>
+<li><b>Settlement run review:</b> read the generation-run log (Doc 05 §12.7) — partners drafted, skipped, failed, fleet finish time vs §10's 05:00 trigger.</li>
+<li><b>Retention run:</b> confirm the §9 retention job ran and wrote its audit rows (Doc 08 §13).</li>
+<li><b>Dependencies:</b> the batched monthly update and security advisories (Doc 09 §13).</li>
+<li><b>Backups:</b> sample-check one nightly manifest against the active-tenant list (Doc 04 §17 automates the alert; the monthly check proves the alert itself works by eyeballing one).</li>
+</ul>
+<h3>14.4 Every six months</h3>
+<p>Continuity review (§15): the holder reconfirms they hold the sealed material; the operator re-reads the instruction card for staleness (provider accounts change; the card must not). Age-identity copies are re-verified readable at the same sitting — a backup key that cannot be read is discovered here, not during a restore.</p>
+
+<h2 id="s15">15. Continuity and operator succession</h2>
+<p><b>The question (OQ-53).</b> Doc 08 §12.2 fixes custody: the age identity never lives on the VPS and exists in two offline copies. It does not say who the second copy's holder is to <i>be</i>, or what happens if the operator is unavailable for an extended period. That is an operations question, answered here.</p>
+<p><b>Decision — the continuity holder.</b> The holder of the second offline age-identity copy is designated the platform's <b>continuity holder</b>: one named, trusted person, chosen by the operator, who is not expected to operate anything. The holder receives a sealed instruction envelope (physical, or its encrypted digital equivalent — the medium is the operator's choice; the sealing and the naming are not optional) containing:</p>
+<ul>
+<li>What they hold: the second age identity copy, and a plain-language statement of what it unlocks (the backups, Doc 08 §12) and what it does not.</li>
+<li>The recovery facts for the platform's accounts — registrar, VPS provider, GitHub, R2, Sentry, Brevo — meaning <i>where</i> each account lives and how the operator's own recovery works (password-manager emergency access or account recovery contacts), so a successor operator can regain control in order.</li>
+<li>The instruction itself, in order: (1) do nothing while the operator is reachable; (2) if the operator is unreachable for an extended period, hand the envelope's contents to the successor the operator has named in it; (3) never use the keys, log in, or direct the platform yourself — the holder is a custodian, not a deputy operator.</li>
+<li>The tenants' interest, stated on the card: labs' data sits in the backups this key unlocks; the handover exists so tenants are never locked out of their own records by one person's absence.</li>
+</ul>
+<p><b>Why this shape.</b> The realistic failure is not malice; it is one person in hospital for a month while a VPS bill or a domain renewal comes due. The mechanism therefore optimises for <i>legibility to a non-technical custodian and a clean handover</i>, not for the holder running anything. Naming the actual person inside this document would be wrong — the document is a design record, the envelope is the operational artefact — so this section fixes the role, the contents and the review (§14.4), and §12's launch gates require the envelope to exist before the pilot. <b>Interim until then:</b> none is needed — with no real tenant, there is nothing to succeed to; the gate is what makes "later" impossible to forget.</p>
+
+<h2 id="s16">16. Accessibility audit plan</h2>
+<p><b>The question (OQ-50).</b> Doc 07 D-2 fixes the v1 baseline (labels, visible focus, keyboard-complete flows, the §3.1 colour rules) and defers the full WCAG 2.2 AA audit as unscoped. This section owns it.</p>
+<p><b>Decision.</b> The audit runs in the <b>first release cycle after the pilot completes</b> — concretely, it is a named work item in the first post-pilot release (the release planned once the §13 pilot tenants are live and stable), and in any case is scheduled no later than 3 months after go-live. The reasoning is Doc 07's own: an audit against screens that are still changing weekly certifies a moving target. The pilot is when the screens stop moving weekly; that, not the calendar, is the real trigger, and the 3-month backstop stops "after the pilot" from becoming "eventually".</p>
+<p><b>The matrix.</b> The audit covers the staff app's core flows (Doc 07 §8) and the patient report page, against: NVDA + Chrome on Windows; VoiceOver + Safari on iOS; keyboard-only operation (no screen reader); 200% browser zoom with no horizontal scrolling of content; Android TalkBack as a spot check on the two highest-traffic flows. Urdu UI is audited in the same passes — RTL layout and the Doc 09 §10.2 language-stable test IDs are part of what is being certified, not an extra.</p>
+<p><b>Method and output.</b> The operator performs the audit against a checklist built from the WCAG 2.2 AA success criteria, flow by flow; every failure becomes either a fix in the same release or a FE-suite test (Doc 09 §9) plus a scheduled fix — findings are never left as a PDF nobody re-opens. Where an automated check can carry a criterion forward (contrast, labels, roles), it is added to CI in Doc 09's pipeline, so the audit's result persists as gates rather than as a one-day state. An external auditor is a budget decision, not part of this plan: if the platform's revenue ever justifies one, the matrix above is the brief they are hired against. Until then the honest claim, matching Doc 08 §18, is "baseline built in, full audit performed against this matrix on this schedule" — no compliance certification is claimed anywhere.</p>
+
+<h2 id="s17">17. CI hosting economics</h2>
+<p><b>The question (OQ-54).</b> Doc 09's pipeline — full suite on every merge, nightly full Playwright — runs on GitHub Actions. Hosted minutes are finite on the Free plan (F-5); a self-hosted runner is unmetered but, per Doc 09 §12.4 and Doc 08's trust boundary, must never be the production VPS.</p>
+<p><b>The arithmetic.</b> Doc 09 §12.4 targets under 15 minutes for the PR pipeline. At a solo developer's merge cadence — planning figure: up to 40 PR/merge runs a month — that is ≈ 600 minutes. The nightly full suite (full Playwright, FE-01–FE-20 plus the smoke already counted in PR runs) is the larger consumer: planning figure 30 runs × ~30 minutes ≈ 900 minutes. Total planning figure ≈ <b>1,500 minutes/month against the Free plan's 2,000</b> (F-5). These are planning figures, not measurements; the weekly review (§14.2) replaces them with the real numbers from the first month onward.</p>
+<p><b>Decision.</b> Stay on GitHub-hosted runners on the Free plan, with the account's spending limit set to <b>$0</b> — so exhaustion stops jobs rather than billing (F-5), turning an overage from a surprise invoice into a visible, fixable event. Triggers:</p>
+<ul>
+<li><b>Watch:</b> measured usage passes 1,600 minutes (80%) in a month — first response is waste removal (cancel-in-progress on PR runs, caching), not payment.</li>
+<li><b>Act:</b> usage passes 1,800 minutes in two consecutive months after the waste pass: move to GitHub Pro (3,000 included minutes, F-5) and add the line to §6.</li>
+<li><b>Self-hosted</b> is rejected for v1's scale: it needs a separate always-on box that is not the production VPS — a second VPS-class cost (§6) plus a second machine to patch — to save at most the Pro fee. It is revisited only if minutes pass what Pro's allowance comfortably holds, at which point the comparison is redone with real numbers.</li>
+</ul>
+<p><b>Failure mode, stated.</b> If the allowance is exhausted mid-month at $0 limit, PR gates stop running and merges wait for the reset (or the Act trigger is pulled early). That is acceptable for a solo developer for days; it is not acceptable silently — which is why the weekly reading exists. The nightly E2E is the first thing thinned (every second night) if rationing is ever needed, because the PR smoke subset still gates every merge.</p>
+
+<h2 id="s18">18. Failure handling</h2>
+<p>Delivery and operations failures — the things that go wrong around the system rather than inside it. Module-level failure behaviour stays in Docs 03–08; this section covers the plan's own seams.</p>
+<p><b>Deploy fails mid-migration.</b> Covered by Doc 09 §17.2 and TN-15: the deploy halts, migrated schemas serve the old code shapes they are compatible with by the expand/contract rule, unmigrated schemas are untouched. The operator's part is §11.1 step 4: fix forward or roll back (§11.2); the one forbidden act is hand-patching a schema, because it makes that tenant's state unreproducible by any later migration.</p>
+<p><b>The VPS dies.</b> Doc 04 §14.3 owns the procedure (new VPS, Compose up, public dump first, tenants in order; platform RTO 4 hours). The plan's part is that the procedure's inputs exist off-VPS by construction: backups in R2 (§14.3 drills them), the age identity offline (§15), the domain at an independent registrar (§5.1), the code on GitHub (Doc 09). A dead VPS destroys nothing irreplaceable; that sentence is true only because §12's gates check each input before the pilot.</p>
+<p><b>A provider disappears or reprices.</b> Each paid-or-free dependency has its exit already written: email (§8.3's SES path — a credential swap, because Doc 06 is provider-agnostic), VPS (§5.2's fallback — the stack is provider-agnostic), Sentry (§7.3 — self-hosting is the documented, deferred alternative), CI (§17 — the pipeline is host-shaped, not host-owned, per Doc 09 AS-2). The common pattern is the defence: no provider named in this document is load-bearing in the code.</p>
+<p><b>The free-tier cap is hit mid-day.</b> Email: §8.2 — sends fail softly, rows age, sweeps retry, the tier moves within the week. Sentry: events past quota are dropped by Sentry, not by the application (Doc 08 §11.4's failure mode) — the platform keeps working blind for the remainder of the month, which is exactly why §7.3 acts at 80% projection instead of at the wall. CI: §17 — merges pause, visibly.</p>
+<p><b>The operator is unavailable.</b> Short absences: the cadence slips, alerts still fire, nothing in the design needs daily human hands (§14.1). Extended absence: §15's continuity mechanism. The platform's obligations that cannot slip silently — domain and VPS billing — are the ones §5.1 and §6 put on multi-year terms and monthly auto-paid ceilings respectively; both are called out on the continuity card.</p>
+<p><b>A pilot tenant wants out.</b> Offboarding is Doc 04 §4's procedure (suspend → export → 30-day grace → schema drop), with Doc 08 §13's retention answers. The pilot adds one rule: a pilot exit interview, however brief, and its notes filed with the capacity log — at pilot scale, why a lab left is the most valuable data the platform produces.</p>
+
+<h2 id="s19">19. Test plan</h2>
+<p>Twenty-four scenarios, DL-01 to DL-24. Types: O ops drill, C configuration check, M measurement. These test the delivery plan itself — that the procedures in this document work when performed — the same way Doc 09's DG suite tests the guidelines. Product behaviour is tested by Docs 03–08's suites and is not repeated here.</p>
+<div class="box"><table><thead><tr><th>ID</th><th>Scenario</th><th>Type</th><th>What it proves</th></tr></thead><tbody>
+<tr><td>DL-01</td><td>Provision a brand-new demo tenant and open its host for the first time</td><td>O</td><td>On-demand TLS issues on first visit; §12's domain gate and Doc 04 §6.4 working together</td></tr>
+<tr><td>DL-02</td><td>Domain expiry alerts fire at the registrar (test alert / calendar check)</td><td>C</td><td>§5.1's 90/30/7-day alerts exist, not just the intention</td></tr>
+<tr><td>DL-03</td><td>Measure latency from Pakistan to the candidate VPS regions before provisioning</td><td>M</td><td>§5.2's region choice is a recorded measurement (F-8), not a guess</td></tr>
+<tr><td>DL-04</td><td>Full-platform recovery on a scratch VPS: Compose up, public dump, two tenants restored</td><td>O</td><td>Doc 04 §14.3's 4-hour platform RTO is achievable by the §11-era operator, before the pilot (§12 gate)</td></tr>
+<tr><td>DL-05</td><td>Monthly restore drill: largest tenant restored and smoke-tested, duration recorded</td><td>O</td><td>The 1-hour per-tenant RTO (Doc 04 §14); §14.3's cadence item performed, not scheduled-and-skipped</td></tr>
+<tr><td>DL-06</td><td>Deploy a tag, then roll back to the previous tag with migrations reversed</td><td>O</td><td>§11.2 / TN-17's shape performed by hand on the real stack before go-live</td></tr>
+<tr><td>DL-07</td><td>Kill a per-schema migration mid-run during a drill deploy</td><td>O</td><td>Deploy halts; other tenants keep serving (§18); DG-22's behaviour on the production-shaped stack</td></tr>
+<tr><td>DL-08</td><td>After a deploy, count Beat processes and watch one full 15-minute cycle</td><td>C</td><td>Exactly one Beat; each §9 entry fires once, at its offset minute</td></tr>
+<tr><td>DL-09</td><td>Assert the timetable's offsets from the deployed Beat schedule</td><td>C</td><td>No two 15-minute sweeps share a start minute; the hourly job shares none either (§9's offset rule)</td></tr>
+<tr><td>DL-10</td><td>Settlement fan-out rehearsal: synthetic dataset at 100 tenants × partners, generation run timed</td><td>M</td><td>§10's no-staggering decision measured: fleet finish time vs the 05:00 trigger, before a real 1st ever depends on it</td></tr>
+<tr><td>DL-11</td><td>On the 1st (or rehearsal), confirm zero statement emails leave before any Owner approval</td><td>O</td><td>§10 reason 1 in practice: generation creates drafts only (Doc 05)</td></tr>
+<tr><td>DL-12</td><td>Force a provider throttle (test sends past the daily cap on a scratch account) and watch delivery rows age and retry</td><td>O</td><td>§8.2: cap = late mail via the sweep, not lost mail (Doc 06 §9)</td></tr>
+<tr><td>DL-13</td><td>Send one email per Doc 06 workflow through the production provider and domain</td><td>O</td><td>SPF/DKIM/DMARC pass; §8.1 wiring proven per-workflow, not once globally</td></tr>
+<tr><td>DL-14</td><td>Callback with and without a provider message id</td><td>O</td><td>§8.4: present → logged with the callback; absent → delivery still completes; never required</td></tr>
+<tr><td>DL-15</td><td>k6 run on the production VPS at pilot-shaped load; record G1–G4, G6</td><td>M</td><td>§7.2's baselines exist in the capacity log's first entry (Doc 01 §16)</td></tr>
+<tr><td>DL-16</td><td>Weekly review performed against a seeded capacity log with one §7 trigger deliberately over its line</td><td>O</td><td>The trigger is noticed and the §7 step is named — the review is a procedure, not a glance (§14.2)</td></tr>
+<tr><td>DL-17</td><td>Sentry quota projection read at 70% and 80% synthetic month-to-date values</td><td>C</td><td>§7.3's Watch and Act lines are computed the same way every week</td></tr>
+<tr><td>DL-18</td><td>Force a production error in Django and in the SPA; inspect both Sentry events</td><td>O</td><td>Scrubber live in both processes (§12 gate); source tag reads backend / spa (Doc 08 v1.1)</td></tr>
+<tr><td>DL-19</td><td>CSP: two consecutive weekly reviews with only extension violations recorded</td><td>O</td><td>§12.3's promotion evidence is producible; the promotion ships as a PATCH with the evidence in the changelog</td></tr>
+<tr><td>DL-20</td><td>Continuity envelope: holder confirms possession and reads the instruction card aloud back to the operator</td><td>O</td><td>§15: the envelope exists, is held, and is legible to a non-technical custodian (§14.4's review)</td></tr>
+<tr><td>DL-21</td><td>CI minutes: pull the month's real usage after the first month and compare with §17's planning figures</td><td>M</td><td>§17's decision re-based on measurement; Watch/Act lines set from fact</td></tr>
+<tr><td>DL-22</td><td>Accessibility audit executed on one core flow against the §16 matrix (pilot run of the audit itself)</td><td>O</td><td>The checklist and matrix are workable before the full audit release depends on them</td></tr>
+<tr><td>DL-23</td><td>Pilot onboarding dry run on a demo tenant, timed end to end (§13.2 steps 1–3)</td><td>O</td><td>Onboarding fits one working session; the P-8 activation and TOTP enrolment steps are in the run</td></tr>
+<tr><td>DL-24</td><td>Simulated operator absence for one weekly cycle: rely on alerts only</td><td>O</td><td>§14.1 and §18: nothing tenant-facing silently depends on a daily human check</td></tr>
+</tbody></table></div>
+
+<h2 id="s20">20. Resolved and open questions</h2>
+<h3>20.1 Resolved here</h3>
+<div class="box"><table><thead><tr><th>#</th><th>Question</th><th>Resolution</th></tr></thead><tbody>
+<tr><td>OQ-17</td><td>Real domain name and VPS (Doc 01, Doc 02)</td><td>RESOLVED in §5.1–§5.2. Domain: .app class, at-cost registrar, 5-year term, auto-renew, 90/30/7-day expiry alerts; the exact name is chosen at purchase by availability — a design doc cannot register one. VPS: Hetzner cost-optimised 2 vCPU / 4 GB class (Doc 01 G3's machine), region picked by a recorded latency measurement from Pakistan on provisioning day, DigitalOcean/Vultr same-shape as the pre-approved fallback</td></tr>
+<tr><td>OQ-40</td><td>At what measured point does PostgreSQL move to its own host, then to managed (Doc 04)</td><td>RESOLVED in §7.2. Any one of: migration wall time &gt; 20 min per deploy; total DB size &gt; 50% of VPS disk; 60 active tenants; G3 breached two consecutive weekly reviews with DB CPU the cause. Steps follow Doc 01 §16's order; managed Postgres when a trigger re-fires on the split topology or operator DB time exceeds ~2 h/week for a month. Baselines recorded by DL-15</td></tr>
+<tr><td>OQ-44</td><td>Settlement fan-out cost at 100+ tenants; staggering? (Doc 05)</td><td>RESOLVED in §10. No staggering in v1: generation writes drafts (email waits for Owner approval), renders already sit under Doc 04 §13.5's per-tenant cap, and the run has overnight slack measured by Doc 05 §12.7's log. Trigger to add a hash-based per-tenant offset: fleet finish after 05:00 in two consecutive months, or a G1 breach on the 1st caused by renders. Rehearsed by DL-10</td></tr>
+<tr><td>OQ-45</td><td>Exact Beat entry for the webhook_delivery sweep (Doc 06)</td><td>RESOLVED in §9. Webhook sweep at minutes 3/18/33/48; delivery retry sweep at 11/26/41/56; reconciliation hourly at :22; settlement generation 01:00 on the 1st (ST-1, unchanged); backups 02:30 nightly (host cron); retention 03:15 on the 2nd; schema-size job Mondays 04:00. No two periodic jobs share a start minute</td></tr>
+<tr><td>OQ-46</td><td>Which SMTP provider sends LabFlow email in v1 (Doc 06)</td><td>RESOLVED in §8.1. Brevo, single platform account, credentials in n8n per Doc 06; sending domain authenticated (SPF/DKIM/DMARC) before the pilot. SES is the documented scale path (§8.3), not the launch provider (F-3)</td></tr>
+<tr><td>OQ-47</td><td>The chosen provider's free-tier limits, and what happens approaching them (Doc 06)</td><td>RESOLVED in §8.2. The binding limit is 300 emails/day platform-wide (F-2). At the cap, sends fail softly and the existing sweep retries — late, not lost. Triggers: any day touching 300, or a 7-day average above 240 → Brevo Starter ($9/month) within the week; paid tiers are re-sized at 80% of tier volume; SES re-evaluation at ~20,000 sends/month (§8.3)</td></tr>
+<tr><td>OQ-48</td><td>What exactly is message_id in a callback (Doc 06)</td><td>RESOLVED in §8.4. Doc 06's interim rule confirmed as final for v1 against Brevo: optional; included by n8n when the provider's response exposes an identifier; logged with the callback; never required, never invented, never persisted on the row. A persisted column would be a future Doc 02 amendment with a support dispute as its evidence</td></tr>
+<tr><td>OQ-50</td><td>Full WCAG 2.2 AA audit: which release, which AT matrix (Doc 07)</td><td>RESOLVED in §16. The first release cycle after the pilot completes, backstopped at 3 months after go-live. Matrix: NVDA + Chrome, VoiceOver + Safari (iOS), keyboard-only, 200% zoom, TalkBack spot check; Urdu UI inside the same passes. Findings become fixes or FE tests in the same release; automatable criteria move into CI</td></tr>
+<tr><td>OQ-51</td><td>CSP promotion: who signs the move to enforcing; does the two-clean-weeks rule hold (Doc 08)</td><td>RESOLVED in §12.3. The operator signs — v1 has no second person, and the rule is evidence-based, not opinion-based: two consecutive clean weeks (extension-only violations) in the weekly review of csp_report events, then promotion as a PATCH release with the evidence in the changelog. Real-source violations restart the clock; the policy is never weakened to pass</td></tr>
+<tr><td>OQ-52</td><td>Sentry free-tier quota vs tenant growth (Doc 08)</td><td>RESOLVED in §7.3. No fixed tenant count is honest — unsampled errors (Doc 08 §11.1) make error volume the binding variable. Watch at a projected 3,500/month (70% of 5,000, F-4); act at a projected 4,000 or two months above 3,500: noise pass first, then Sentry Team ($26/month, 50,000 events). Self-hosting stays deferred per Doc 08 §18</td></tr>
+<tr><td>OQ-53</td><td>Operator continuity: who holds the second age copy and the env recovery path, under what instruction (Doc 08)</td><td>RESOLVED in §15. The second copy's holder is the designated continuity holder, holding a sealed instruction envelope: what they hold, where every platform account lives and how recovery works, and a three-step instruction ending in handover to a named successor — custodianship, never operation. The person is named in the envelope, not in this document; §12 makes the envelope a launch gate and §14.4 reviews it every 6 months</td></tr>
+<tr><td>OQ-54</td><td>CI hosting economics: GitHub-hosted minutes vs a self-hosted runner (Doc 09)</td><td>RESOLVED in §17. GitHub-hosted on Free (2,000 min, F-5) with a $0 spending limit; planning usage ≈ 1,500 min/month. Watch at 1,600; act at 1,800 in two consecutive months → GitHub Pro (3,000 min). Self-hosted rejected at v1 scale: it needs a second non-production box to save at most the Pro fee</td></tr>
+<tr><td>OQ-55</td><td>Does v1 launch add a staging environment (Doc 09)</td><td>RESOLVED in §5.3. No staging host at launch: local parity, the nightly full suite and synthetic demo tenants carry pre-release verification (Doc 09 §4.3's default, confirmed). A staging host is added before the first release that both ships to a paying tenant and carries a contract-step migration, and from then on rehearse migrations against a restored largest-tenant schema</td></tr>
+</tbody></table></div>
+<h3>20.2 Open questions</h3>
+<p><b>None.</b> Doc 10 is the last document of the series and owns the last unowned questions; §20.1 closes all fourteen. Items deliberately deferred past v1 are not open questions — they are scope decisions, listed in §22 with their reasons, and any future document (a Doc 11, or a v1.1 amendment pass like Docs 01–08 went through) would own them then. This document opens no question about launch, capacity, providers or operations: those were its job, and they are decided.</p>
+
+<h2 id="s21">21. Proposed amendments</h2>
+<p><b>None.</b> Every decision in this document is one of: (a) a choice among providers, schedules, thresholds and procedures inside territory Docs 01–09 assigned to Doc 10; (b) an operational procedure (checklists, cadence, envelopes) that touches no table, column, endpoint, status value or screen; or (c) a confirmation of an interim rule an earlier doc wrote (OQ-48). Nothing here needs amending in an earlier doc. Candidates considered and rejected:</p>
+<div class="box"><table><thead><tr><th>Candidate</th><th>Verdict</th></tr></thead><tbody>
+<tr><td>A <code>message_id</code> column on the delivery rows (Doc 02) so callbacks can persist it</td><td>Rejected. OQ-48 asked what the field means; §8.4's answer (logged, not persisted) needs no column. Persisting it speculatively would amend the schema for a support case that has not happened</td></tr>
+<tr><td>A staging environment written into Doc 09 §4.3 as a launch requirement</td><td>Rejected. §5.3 answers OQ-55 with a trigger instead; Doc 09's text already frames staging as Doc 10's question, so the answer completes it without amendment</td></tr>
+<tr><td>A capacity or operations table (deploy log, drill log) in Doc 02</td><td>Rejected. The capacity log (§7.1) and drill records are operator artefacts kept with the runbooks; Doc 04 §17 already sources every reading from logs, catalogues and the public schema — promoting the log into the schema would make paperwork into product</td></tr>
+<tr><td>Tenant-visible status page or uptime commitment beyond G7</td><td>Rejected for v1. G7 (≥ 99% monthly, Doc 01) is the commitment; a public status page is a new surface with its own truthfulness problem for a one-person operator (§22)</td></tr>
+</tbody></table></div>
+
+<h2 id="s22">22. What is NOT built in v1</h2>
+<ul>
+<li><b>No staging host at launch</b> (§5.3) — it arrives on a named trigger, not on a date.</li>
+<li><b>No managed PostgreSQL, no PITR/WAL archiving</b> — Doc 04 §14's nightly dumps and 24-hour RPO stand until §7.2's triggers say otherwise.</li>
+<li><b>No per-tenant Celery queues or workers</b> — shared queues with Doc 04 §13.5's caps; dedicated queues remain Doc 04's named upgrade, taken via §7's path if it is ever taken.</li>
+<li><b>No second platform region, no multi-host redundancy</b> — one VPS, honestly backed up and drilled (Doc 04 §14.3), beats two hosts neither of which is rehearsed.</li>
+<li><b>No paid email tier and no SES account on day one</b> — both arrive on §8's measured triggers, not in anticipation.</li>
+<li><b>No public status page, no SLA beyond Doc 01's G7, no 24/7 support promise</b> (§13.3, §21).</li>
+<li><b>No external accessibility certification</b> — §16's audit is performed against the fixed matrix; no compliance claim is made (Doc 08 §18's posture).</li>
+<li><b>No payment gateway for tenant subscriptions</b> — no earlier doc specifies one; subscription state is operated per Doc 04 §11. If charging tenants online is ever wanted, it is a new module decision for a future document, not a launch task smuggled into this one.</li>
+<li><b>No launch marketing site beyond the apex basics</b> — the apex serves the platform (Doc 04); a marketing site is not in Docs 01–09 and DP-1 keeps it out of v1.</li>
+</ul>
+
+<h2 id="s23">23. Interview talking points</h2>
+<ul>
+<li><b>Why does the delivery plan refuse to print a domain name and an exact VPS price?</b> Because both are purchase-day facts (availability, the June 2026 repricing, F-1/F-7), and a document that prints them trains the reader to trust stale numbers. The plan fixes everything that makes the purchase safe — TLD class, renewal class, 5-year term, machine class, measurement procedure, fallback — and records the day-of facts where they belong: the capacity log and the receipt (§5, §6).</li>
+<li><b>Why is "no staggering" the right answer to the settlement fan-out?</b> Because the scary version of the problem (100 tenants emailing statements at 01:00) is impossible in the design as written: generation creates drafts, and humans approve them in daylight (Doc 05). The load that does exist — renders at 01:00 — is already governed by Doc 04's per-tenant caps, and the run is measured by Doc 05's own log against a written trigger (§10). Staggering would be a solution performing diligence about a problem the architecture already dissolved.</li>
+<li><b>Why are all the scaling triggers "any one of several measures" instead of one clean number?</b> Because load has several shapes — many tenants, one huge tenant, slow migrations, hot reads — and a single metric fires late for the shapes it does not measure. OQ-40 itself named three measures; §7.2 takes all three plus latency, any one sufficient, all read off one weekly log. The cost of a trigger firing slightly early is a bigger VPS; the cost of firing late is tenants feeling it first.</li>
+<li><b>Why is Sentry's trigger a quota percentage and not a tenant count, when OQ-52 asked for a tenant count?</b> Because the honest answer to the question as asked is that the premise is wrong: with unsampled error events, quota burn is a property of bugs, not of tenants (§7.3). Giving a tenant count anyway would be inventing a fact to fit the question. The trigger the operator can actually watch — projected events vs 5,000 — is stated instead, with the paid step priced.</li>
+<li><b>Why does the launch checklist gate on a restore drill rather than on backups "being configured"?</b> A backup that has never been restored is a hope with a schedule. Doc 04's RTO is a promise to tenants; DL-04/DL-05 prove the promise on the real stack before a real lab depends on it, and §14.3 re-proves it monthly. Configuration is a state; a drill is evidence (DP-6).</li>
+<li><b>Why is the continuity holder forbidden to operate anything?</b> Because the failure being planned for is absence, not incompetence: what the platform needs from the holder is custody and a clean handover, legible to a non-technical person under stress. A holder who could operate would need training, access reviews and trust decisions the solo model cannot maintain — and would become a second, unmonitored operator, which Doc 08's threat model would then have to price (§15).</li>
+<li><b>Why gate phases on test suites instead of dates?</b> In a schema-per-tenant system, defects compound by tenant count: a broken phase discovered after ten tenants are provisioned is repaired ten times. A date can be met by lowering the bar invisibly; a named suite going green cannot (DP-2, Doc 09 §9.2). The estimates are published as forecasts precisely so they can be wrong without the gates moving.</li>
+<li><b>Why set the GitHub spending limit to $0 — isn't a stopped pipeline worse than a small bill?</b> For a solo developer the failure that matters is the silent one: minutes quietly billing, or quota quietly eaten by a looping nightly job. A $0 limit converts overage into a stopped, visible, fixable event during a weekly review that already reads the number (§17). The bill it risks is bounded either way; the attention failure is not.</li>
+</ul>
+
+<h2 id="s24">24. Glossary</h2>
+<p><b>Capacity log</b> the operator's single page of weekly readings (§7.1) that every scaling trigger reads from · <b>Trigger</b> a measured condition, named in advance, that authorises a specific step (a bigger host, a paid tier, a staging box) · <b>Exit gate</b> the scenario suites a phase must show green before the next phase starts (DP-2) · <b>Pilot</b> the first 3–5 tenants, onboarded one per week at most (§13) · <b>Continuity holder</b> the named custodian of the second age-identity copy and the sealed instruction envelope (§15) · <b>Watch / Act</b> the two lines on a quota or capacity measure: watch means trend it in the weekly review; act means execute the named step (§7.3, §8.2, §17) · <b>Quiet window</b> the early-morning deploy slot before labs open (§11.1) · <b>Class (of machine or registrar)</b> a shape and price band rather than a specific product, used where the specific product is a purchase-day fact (F-1) · <b>Proposed</b> anything beyond Docs 01–09 as written — §21 proposes nothing, and records what was considered instead.</p>
+<p class="meta">End of Doc 10 — and of the LabFlow design series. Docs 01–10 are complete: architecture, schema, core modules, tenancy, revenue share, automation, frontend, security, development guidelines, and this delivery plan. Every open question raised in Docs 01–09 is resolved in its owning document or in §20.1 above. Doc 10 stops here for review.</p>
+</main>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
+<script>
+(function () {
+  if (!window.mermaid) return;
+  mermaid.initialize({ startOnLoad: true, theme: "dark", securityLevel: "strict", themeVariables: { primaryColor: "#1c2128", primaryBorderColor: "#4a5561", primaryTextColor: "#e6edf3", secondaryColor: "#2a313a", tertiaryColor: "#161b22", lineColor: "#4a5561", textColor: "#e6edf3", actorBkg: "#1c2128", actorBorder: "#4a5561", actorTextColor: "#e6edf3", actorLineColor: "#9aa7b4", signalColor: "#9aa7b4", signalTextColor: "#e6edf3", noteBkgColor: "#2a313a", noteTextColor: "#e6edf3", noteBorderColor: "#4a5561", labelTextColor: "#e6edf3" } });
+})();
+</script>
+</body>
+</html>

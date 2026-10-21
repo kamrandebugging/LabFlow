@@ -1,0 +1,617 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="dark" />
+    <link rel="icon" href="data:," />
+    <title>LabFlow Doc 06: Automation Layer (n8n)</title>
+    <style>
+:root{--bg:#0d1117;--fg:#e6edf3;--mut:#9aa7b4;--line:#30363d;--card:#161b22;--card2:#21262d;--acc:#e8a33d;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:dark}
+*,*::before,*::after{box-sizing:border-box}
+html{height:100%;scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--fg);font:15.5px/1.65 system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+.wrap{max-width:740px;margin:0 auto;padding:40px 24px 88px}
+nav.toc{margin:0 0 10px;padding:0 0 20px;border-bottom:1px solid var(--line)}
+nav.toc .th{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--mut);margin:0 0 10px}
+nav.toc a{display:block;color:#f0c476;text-decoration:none;font-size:13.5px;line-height:1.5;padding:2.5px 0}
+nav.toc a.sub{padding-left:16px;font-size:13px}
+main{min-width:0}
+h1{font-size:27px;line-height:1.25;margin:0 0 10px;font-weight:700;letter-spacing:-.01em}
+h2{font-size:19px;line-height:1.35;margin:42px 0 12px;padding-top:28px;border-top:1px solid var(--line);font-weight:700}
+h2:first-of-type{margin-top:32px}
+h3{font-size:15.5px;margin:24px 0 6px;font-weight:700}
+h4{font-size:14.5px;margin:18px 0 4px;font-weight:700}
+p{margin:8px 0}
+.meta{color:var(--mut);font-size:13.5px;line-height:1.6}
+.tag{display:inline-block;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:1px 9px;font-size:12px;margin:0 6px 4px 0;color:var(--fg);white-space:nowrap}
+.box{margin:14px 0;overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:13.6px;line-height:1.5}
+th,td{border:1px solid var(--line);padding:7px 10px;text-align:left;vertical-align:top;overflow-wrap:break-word}
+th{background:var(--card2);font-weight:600;color:var(--fg)}
+tbody tr:nth-child(even) td,tr:nth-child(even) td{background:#12161c}
+code{font:12.8px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:var(--card2);border-radius:5px;padding:1.5px 5px;overflow-wrap:anywhere;color:#f0c476}
+pre{font:12.6px/1.55 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:14px 16px;margin:14px 0;white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word;color:#dbe4ee}
+.diagram{background:#11161d;border:1px solid var(--line);border-radius:8px;padding:16px 12px;margin:14px 0;overflow-x:auto}
+.diagram svg{display:block;width:100%;height:auto;min-width:520px}
+pre.mermaid{background:transparent;border:none;margin:0;padding:4px;text-align:center;color:#dbe4ee}
+.dcap{color:var(--mut);font-size:12.5px;text-align:center;margin-top:8px}
+.note{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:12px 14px;margin:14px 0;font-size:14.5px;line-height:1.6}
+.spec{border:1px solid var(--line);border-radius:8px;padding:4px 14px 10px;margin:16px 0;background:#10141a}
+.spec h4{color:#f0c476}
+ul,ol{padding-left:24px;margin:8px 0}li{margin:4px 0}
+a{color:#f0c476;overflow-wrap:anywhere}
+.kv{font-size:13.8px}
+.pass{font-weight:700}
+@media(max-width:600px){.wrap{padding:28px 18px 64px}h1{font-size:24px}h2{font-size:17.5px;margin-top:36px;padding-top:22px}table{font-size:12.8px}th,td{padding:6px 7px}pre{padding:12px;font-size:12px}.diagram svg{min-width:480px}}
+    </style>
+  </head>
+  <body>
+<div class="wrap">
+<nav class="toc" aria-label="Table of contents">
+<p class="th">Doc 06 · Automation Layer (n8n)</p>
+<a href="#s1">1. Purpose, scope, inputs, consistency check</a>
+<a href="#s2">2. Research findings</a>
+<a href="#s3">3. Design principles</a>
+<a href="#s4">4. The n8n role and the trust boundary</a>
+<a href="#s5">5. The signed webhook contract</a>
+<a href="#s6">6. Event catalogue</a>
+<a href="#s7">7. n8n workflow catalogue</a>
+<a href="#s8">8. PDF attachment handling</a>
+<a href="#s9">9. Delivery outcomes and state</a>
+<a href="#s10">10. API reference — callback endpoints</a>
+<a href="#s11">11. Workflows</a>
+<a href="#s12">12. Concurrency, failure, test plan</a>
+<a href="#s13">13. Observability</a>
+<a href="#s14">14. Resolved and open questions</a>
+<a href="#s15">15. Proposed amendments</a>
+<a href="#s16">16. What is NOT built in v1</a>
+<a href="#s17">17. Interview talking points</a>
+<a href="#s18">18. Glossary</a>
+</nav>
+<main>
+<h1>LabFlow — Doc 06: Automation Layer (n8n)</h1>
+<p class="meta"><span class="tag">Doc 06 of 10</span><span class="tag">v1.0</span><span class="tag">2026-10-20</span><span class="tag">Depends on Doc 01 v2.2, Doc 02 v1.3, Doc 03 v1.3</span><span class="tag">Doc 04 v1.1, Doc 05 v1.0</span></p>
+<p class="meta">Signed webhooks from Django to n8n, the event and workflow catalogues, delivery callbacks on the tenant host, PDF attachment handling, bounce handling, and retry behaviour.<br>Audience: the developer building LabFlow v1. Stack comes from Doc 01, the schema from Doc 02, report behaviour from Doc 03, tenancy behaviour from Doc 04, settlement behaviour from Doc 05 — none is re-decided here.</p>
+
+<h2 id="s1">1. Purpose, scope, inputs, consistency check</h2>
+<h3>1.1 Purpose</h3>
+<p>Doc 01 fixed the architecture and the n8n protocol in outline (§13). Doc 02 fixed the delivery tables. Doc 03 fixed how reports reach patients. Doc 05 fixed how statements reach partners, and left the n8n workflow internals to this document (OQ-42). This document fixes the automation layer: what happens between Django and n8n, and back.</p>
+<p>After reading it, a developer should be able to build the webhook emitter, the four callback endpoints, and the n8n workflows without inventing rules. Anything this document needs that Doc 01 or Doc 02 does not have is marked <b>Proposed</b> and listed in §15.</p>
+<div class="note"><p><b>n8n is a transport, not a brain.</b> Every decision — who gets a message, what it says, when a delivery has failed for good — is made in Django and recorded in Doc 02 tables. n8n carries out one instruction at a time and reports back. If n8n vanished tomorrow, no LabFlow data would be lost: every unsent message would still be a row in a tenant schema, waiting.</p></div>
+<h3>1.2 Scope</h3>
+<div class="box"><table><thead><tr><th>In scope here</th><th>Owned elsewhere</th></tr></thead><tbody>
+<tr><td>The signed webhook contract: payload, HMAC, timestamp, idempotency (§5)</td><td>Report delivery behaviour and state machine (Doc 03 §5.6)</td></tr>
+<tr><td>The event catalogue: every event Django emits to n8n (§6)</td><td>Settlement lifecycle and delivery behaviour (Doc 05 §7, §9)</td></tr>
+<tr><td>The n8n workflow catalogue and node chains (§7)</td><td>Tables, columns, status values (Doc 02 §5.7, §5.9, §5.10)</td></tr>
+<tr><td>PDF attachment handling for statement email (§8)</td><td>Report PDF content and layout (Doc 03 §9)</td></tr>
+<tr><td>Delivery outcomes: success, soft failure, hard bounce (§9)</td><td>Statement PDF content and layout (Doc 05 §8)</td></tr>
+<tr><td>The callback endpoints n8n calls (§10)</td><td>Tenant lifecycle, read-only mode (Doc 04 §11)</td></tr>
+<tr><td>Answers to OQ-42 (settlement email internals) and OQ-28 (critical escalation) (§14)</td><td>n8n configuration values (Doc 10); n8n operations and runbooks (Doc 09)</td></tr>
+</tbody></table></div>
+<h3>1.3 Inputs</h3>
+<p><b>Doc 01 — Architecture Overview v2.2.</b> §12 Flow A (sample collected webhook), Flow B (report delivery), Flow C (settlement delivery); §13 in full (payload shape, HMAC-SHA256 with <code>N8N_WEBHOOK_SECRET</code>, 5-minute timestamp rule, idempotency keys, callback on the tenant host, <code>N8N_CALLBACK_KEY</code> plus <code>_NEXT</code>, wa.me click-to-send, Beat retry schedule, no custom dead-letter queue); §14 (security, Sentry strips patient fields); §15 (Compose services and networks: edge and internal; n8n cannot reach postgres).</p>
+<p><b>Doc 02 — Database Schema v1.3.</b> The only source of truth for tables, columns and status values. §5.7 (<code>report_delivery</code>), §5.9 (<code>notification</code>, <code>notification_template</code> — seeded keys <code>sample_collected</code>, <code>report_ready</code>, <code>report_link_resend</code>, <code>settlement_ready</code>), §5.10 (<code>webhook_delivery</code>), §8 (service API keys live in env only, no table).</p>
+<p><b>Doc 03 — Core Lab Modules v1.3.</b> §5.4 (<code>samples.notify_rejection</code>), §5.5 (<code>results.notify_critical</code>), §5.6 RP-6 (<code>reports.deliver</code>, delivery rows per channel, template in the tenant default language), §6.7 (report endpoints, unchanged), §6.8 (patient link access marks <code>OPENED</code>), §8.5 (critical results and the 30-minute rule), §11 (exceptions list), §13.2 (OQ-28, assigned here).</p>
+<p><b>Doc 04 — Multi-Branch and Tenancy v1.1.</b> §10.2 (<code>report_default_language</code> covers all patient-facing messages, A-16), §11 (subscription states; past-due read-only mode), §13.2 (every tenant Celery task carries <code>tenant_slug</code> first, enters <code>tenant_context</code>, resets in <code>finally</code>; Beat fans out one child task per active tenant, never a schema loop), §13.3 (cache prefixes), §13.4 (storage prefix <code>tenants/&lt;slug&gt;/</code>).</p>
+<p><b>Doc 05 — Revenue-Share Module v1.0.</b> §7.3 (settlement <code>APPROVED → SENT</code> only on the delivery callback), §9 DL-1 to DL-7 (email only, <code>settlement_ready</code> notification row, 15-minute Beat sweep, manual re-send creates a fresh row, PDF always downloadable), §11 workflows 5 and 6, §12.8 (delivery-failure observability), §13.2 (OQ-42, assigned here).</p>
+<h3>1.4 Consistency check against Docs 01, 02, 03, 04 and 05</h3>
+<p class="pass">Result: PASS. No conflict with Docs 01–05.</p>
+<p>Every event name, status value and column named in this document was checked against a real section of Docs 01–05. The four tables below are the ground truth this document builds on.</p>
+<div class="box"><table><thead><tr><th>Table (Doc 02)</th><th>Columns used here</th><th>Key constraint</th></tr></thead><tbody>
+<tr><td><code>webhook_delivery</code> (§5.10)</td><td><code>id</code>, <code>event</code>, <code>idempotency_key</code>, <code>payload_jsonb</code>, <code>status</code>, <code>attempts</code>, <code>next_attempt_at</code>, <code>last_error</code>, <code>created_at</code>/<code>updated_at</code></td><td><code>idempotency_key</code> UNIQUE (<code>uq_webhook_delivery_idempotency_key</code>). <code>status</code>: <code>PENDING | SENT | FAILED</code></td></tr>
+<tr><td><code>notification</code> (§5.9)</td><td><code>id</code>, <code>template_key</code> NULL, <code>recipient_type</code>, <code>recipient_id</code> NULL (plain UUID, no FK), <code>channel</code>, <code>status</code>, <code>attempts</code>, <code>next_attempt_at</code>, <code>last_error</code>, <code>idempotency_key</code></td><td><code>idempotency_key</code> UNIQUE. <code>recipient_type</code>: <code>patient | partner | staff</code>. <code>status</code>: <code>PENDING | SENT | FAILED</code></td></tr>
+<tr><td><code>notification_template</code> (§5.9)</td><td><code>key</code>, <code>locale</code> (<code>en | ur</code>), <code>channel</code> (<code>email | whatsapp</code>), <code>subject</code> NULL (email only), <code>body</code>, <code>template_context_schema</code></td><td>UNIQUE (<code>key</code>, <code>locale</code>, <code>channel</code>). Seeded keys: <code>sample_collected</code>, <code>report_ready</code>, <code>report_link_resend</code>, <code>settlement_ready</code></td></tr>
+<tr><td><code>report_delivery</code> (§5.7)</td><td><code>id</code>, <code>report_id</code> FK → <code>report</code>, <code>channel</code>, <code>status</code>, <code>whatsapp_url</code> NULL, <code>attempts</code>, <code>next_attempt_at</code>, <code>last_error</code>, <code>created_at</code>/<code>updated_at</code></td><td><code>channel</code>: <code>email | whatsapp</code>. <code>status</code>: <code>PENDING | SENT | FAILED | BOUNCED | OPENED</code>. Partial index on (<code>status</code>, <code>next_attempt_at</code>) drives the 15-minute retry task</td></tr>
+</tbody></table></div>
+<p><b>Section numbering.</b> The brief for this document named the proposed-amendments section as §14 in one paragraph and §15 in its detailed section list. This document follows the detailed list: observability is §13, resolved and open questions are §14, proposed amendments are §15. The test plan sits inside §12, following Doc 05's shape, so the numbering holds.</p>
+<p><b>Two gaps found.</b> Both are small. Both are listed as Proposed amendments in §15. Neither blocks the design.</p>
+<div class="box"><table><thead><tr><th>#</th><th>Gap</th><th>Amendment</th><th>Interim behaviour</th></tr></thead><tbody>
+<tr><td>1</td><td>The callback routes <code>/api/v1/webhooks/n8n/*</code> (§10) are not defined in Doc 03 or Doc 04. They are a new route namespace.</td><td>A-19 (Proposed): the callback namespace, four routes specified, three built in v1</td><td>The routes are specified in full in §10 and built as specified; acceptance folds them into the Doc 03 §6 route list</td></tr>
+<tr><td>2</td><td>The rejection notice (Doc 03 §5.4) is rendered from <code>notification_template</code>, but Doc 02 §5.9 seeds only four keys and none of them is a rejection key.</td><td>A-20 (Proposed): seed key <code>sample_rejected</code>, <code>en</code> and <code>ur</code> rows</td><td>The notice is specified in §6; the key name is used consistently until Doc 02 accepts it</td></tr>
+</tbody></table></div>
+<p><b>Three things that look like gaps and are not.</b></p>
+<ul>
+<li><b>Hard-bounce marker.</b> §9 distinguishes a hard bounce from a soft failure with a <code>last_error</code> prefix sentinel (<code>hard_bounce:</code>) plus <code>next_attempt_at = NULL</code>. Doc 02 already gives both columns on <code>notification</code> and <code>report_delivery</code>. No new column is needed, and none is proposed (§15).</li>
+<li><b><code>message_id</code>.</b> The notification callback body (§10) accepts an optional <code>message_id</code>. No Doc 02 column stores it, and Doc 06 does not propose one: in v1 it is accepted, logged with the callback, and not persisted on the row. Its exact meaning is OQ-48 (§14).</li>
+<li><b>Drafts-ready notice.</b> Doc 05 ST-8 notifies the Owner that settlement drafts are ready, using the <code>notification</code> pattern. Doc 05 names no event and no template key for it, and Doc 06 does not invent either. In v1 that notice is an in-SPA item only. No n8n delivery is catalogued for it.</li>
+</ul>
+<p><b>Event check.</b> Every event in §6 traces to a source: <code>sample.collected</code> to Doc 01 Flow A, <code>report.ready</code> and <code>report.amended</code> to Doc 03 §5.6, <code>sample.rejected</code> to Doc 03 §5.4, <code>result.critical</code> to Doc 03 §8.5, <code>settlement.approved</code> to Doc 05 §9. No other section of Docs 01–05 names a delivery through n8n, so no other event exists. Two of the six (<code>report.amended</code>, <code>result.critical</code>) deliberately cause no n8n delivery in v1; §6 says why for each.</p>
+<h3>1.5 Assumptions</h3>
+<ul>
+<li><b>AS-1.</b> One n8n instance serves all tenants (Doc 01 §15 runs one n8n Compose service). There is no per-tenant n8n (§16).</li>
+<li><b>AS-2.</b> Platform staff operate n8n. Tenants never see it, log into it, or configure it (§4).</li>
+<li><b>AS-3.</b> Django and n8n run on the same VPS (Doc 01 §15) with clocks kept in step by the host OS. The 5-minute timestamp window assumes skew stays well under 5 minutes (§5, §12).</li>
+<li><b>AS-4.</b> Email leaves through one SMTP provider account for the whole platform. Which provider is OQ-46 (§14); the choice changes no rule in this document.</li>
+<li><b>AS-5.</b> Message text is rendered by Django from <code>notification_template</code> before the webhook fires. n8n never reads a LabFlow table, so it cannot fetch a template (§4, §7).</li>
+<li><b>AS-6.</b> Dates and times in payloads are UTC, ISO 8601. Display converts to Asia/Karachi in the SPA, as everywhere else.</li>
+</ul>
+
+<h2 id="s2">2. Research findings</h2>
+<p>Each finding states what was found, the source, and what it changes here. One topic is covered by Doc 01 and is referenced, not re-researched: WhatsApp Business API pricing (F-6).</p>
+<div class="box"><table><thead><tr><th>#</th><th>Finding</th><th>Effect here</th></tr></thead><tbody>
+<tr><td>F-1</td><td><b>HMAC is the standard way to sign a webhook.</b> RFC 2104 defines HMAC: a keyed hash that proves a message came from a holder of the shared secret and was not altered. HMAC-SHA256 over the raw body, sent in a header, is the pattern used by major webhook senders. Source: <a href="https://www.iana.org/go/rfc2104">RFC 2104 — HMAC: Keyed-Hashing for Message Authentication</a>.</td><td>Confirms Doc 01 §13 unchanged: Django signs the raw body with <code>N8N_WEBHOOK_SECRET</code> and sends the hex digest in <code>X-LabFlow-Signature</code> (§5). The signature covers the exact bytes sent — any re-serialised body fails verification (AU-33).</td></tr>
+<tr><td>F-2</td><td><b>n8n does not verify HMAC signatures by itself.</b> The Webhook node accepts the request; signature verification is a step the workflow author adds immediately after the trigger, computing HMAC over the raw body and comparing in constant time, before any side effect runs. Sources: <a href="https://lumadock.com/tutorials/n8n-webhook-security">Verify webhook signatures in n8n (Stripe, GitHub, raw body) — Lumadock</a>; <a href="https://rapidevelopers.com/n8n-tutorial/how-to-secure-webhooks-in-n8n">Secure Webhooks in n8n — RapiDevelopers</a>.</td><td>Every workflow in §7 has the same shape: Webhook trigger → verify (HMAC, timestamp) → dedupe → act → callback. A failed verify stops the workflow before anything is sent. Verification is workflow code, so it is reviewed like code (§7).</td></tr>
+<tr><td>F-3</td><td><b>A client-generated unique key makes retries of a POST safe.</b> The IETF HTTPAPI draft for the <code>Idempotency-Key</code> header defines the pattern: the client generates one unique value per logical operation (a UUID is recommended), the server recognises repeats of the key and does not repeat the work. Source: <a href="https://datatracker.ietf.org/doc/html/draft-ietf-httpapi-idempotency-key-header-00">The Idempotency-Key HTTP Header Field — IETF draft</a>.</td><td>LabFlow carries the key in the payload body rather than a header, because the same key must survive the trip Django → n8n → callback and live on the <code>webhook_delivery</code> row. The pattern is the draft's; the transport is Doc 01 §13's (§5).</td></tr>
+<tr><td>F-4</td><td><b>SMTP failures split cleanly into temporary and permanent, and the reply class digit says which.</b> A 4xx reply is temporary (try again later); a 5xx reply is permanent (the same send will fail again). RFC 3463 enhanced status codes add detail: <code>5.1.1</code> is “bad destination mailbox address” — the mailbox does not exist; <code>4.2.2</code> is a mailbox over quota — full now, maybe fine later. Sources: <a href="https://www.greenarrowemail.com/blog/what-smtp-replies-enhanced-status-codes-mean-why-you-should-care">What SMTP replies and enhanced status codes mean — GreenArrow</a>; <a href="https://www.mailmodo.com/guides/email-bounce-codes/">A guide to email bounce codes — Mailmodo</a>.</td><td>§9's rule is mechanical: the SMTP reply class decides. <code>4xx</code> → soft failure, retry on the sweep. <code>5xx</code> → hard failure, <code>hard_bounce:</code> sentinel, retries stop. n8n copies the SMTP code and text into the callback's <code>last_error</code>; it does not interpret them. Django classifies.</td></tr>
+<tr><td>F-5</td><td><b>A 5-minute timestamp tolerance is the common replay window.</b> Widely used webhook verifiers reject signatures whose timestamp is more than about 5 minutes old, which bounds how long a captured request stays useful to an attacker while tolerating normal clock skew. Source: <a href="https://lumadock.com/tutorials/n8n-webhook-security">Verify webhook signatures in n8n — Lumadock</a> (Stripe-style verification with a 300-second tolerance).</td><td>Confirms Doc 01 §13's 5 minutes. §5 states the point plainly: the window is a replay guard, not a claim that the two clocks agree to the second (§12, AU-32).</td></tr>
+<tr><td>F-6</td><td><b>WhatsApp Business API pricing moved to per-message in 2025 — Unverified.</b> Doc 01 §13 records this with “as far as I know” and instructs that pricing be checked before relying on any free tier. Per the brief for this document, the topic is not re-researched here.</td><td>No effect on v1. WhatsApp stays a staff-clicked <code>wa.me</code> link (Doc 01 §13). The Cloud API remains the upgrade path and is not built (§16). No cost figure appears anywhere in this document.</td></tr>
+<tr><td>F-7</td><td><b>n8n's default single-process mode has a throughput ceiling; queue mode is the documented way past it.</b> n8n's own benchmark shows the single mode saturating under load while queue mode — webhook intake separated from workflow execution, workers pulling from Redis — handled the same load with no failures. Source: <a href="https://blog.n8n.io/the-n8n-scalability-benchmark/">The n8n scalability benchmark — n8n blog</a>.</td><td>Doc 01 §15 runs one n8n service in regular mode, and v1 keeps that: LabFlow's load is a handful of emails per report and one statement run per month per tenant. Queue mode needs its own Redis-backed worker topology and is a scaling decision for Doc 10, not a v1 need (§16). The retry design (§9, §12) never depends on n8n being up — that is what makes a single instance acceptable.</td></tr>
+</tbody></table></div>
+
+<h2 id="s3">3. Design principles</h2>
+<p>Doc 03's principles P-1 to P-10 govern the lab modules, and P-1 (patient safety first) still outranks everything here. These govern the automation layer.</p>
+<div class="box"><table><thead><tr><th>#</th><th>Principle</th><th>What it means here</th></tr></thead><tbody>
+<tr><td>AP-1</td><td><b>n8n is a transport, not a brain.</b></td><td>n8n makes no decisions. It does not choose recipients, templates, or retries. Django decides, records the decision as a row, and hands n8n one instruction.</td></tr>
+<tr><td>AP-2</td><td><b>Every send is a row first.</b></td><td>No row, no send. The <code>webhook_delivery</code> row and the <code>notification</code> or <code>report_delivery</code> row exist before the webhook fires. If the process dies between deciding and sending, the row is the recovery.</td></tr>
+<tr><td>AP-3</td><td><b>The callback is the truth.</b></td><td>A send is not done when n8n accepts the webhook, and not done when n8n sends the email. It is done when the callback lands and Django records it. Doc 05 DL-3 states the same rule for settlements; §9 applies it everywhere.</td></tr>
+<tr><td>AP-4</td><td><b>Idempotency at both ends.</b></td><td>The same <code>idempotency_key</code> travels out with the webhook and back with the callback. Retries are safe in both directions: n8n does not send twice for one key, and Django does not apply one outcome twice (§5).</td></tr>
+<tr><td>AP-5</td><td><b>Failure is a state, not an exception.</b></td><td>Every failure lands as a visible row state — <code>FAILED</code> with <code>last_error</code> set — that a sweep can retry and a person can inspect. There is no dead-letter queue and no silent drop (Doc 01 §13).</td></tr>
+<tr><td>AP-6</td><td><b>Least data in flight.</b></td><td>A payload carries only what its message needs: a link, a name, an address, a rendered text. n8n holds nothing after the workflow ends. Sentry strips patient fields before an error leaves the platform (Doc 01 §14).</td></tr>
+<tr><td>AP-7</td><td><b>One n8n, and tenant isolation does not depend on it.</b></td><td>The same workflows serve every tenant. Isolation comes from the callback landing on the tenant's own host, the <code>tenant_slug</code> match, and the row living in that tenant's schema — never from n8n-side routing or n8n-side data.</td></tr>
+<tr><td>AP-8</td><td><b>Money never rides this layer.</b></td><td>No event payload carries a share amount, an invoice amount, or any money figure. A settlement payload carries identifiers, a period, and the rendered statement PDF — the figures are inside the PDF, which LabFlow rendered. If a future payload ever must carry money, it is Decimal-as-string, per Doc 03 §6.1.</td></tr>
+</tbody></table></div>
+
+<h2 id="s4">4. The n8n role and the trust boundary</h2>
+<p>n8n sits outside the trust boundary of LabFlow data. It is a delivery tool the platform operates, in the same class as the SMTP provider itself: it sees a message because it is asked to carry it, and it keeps nothing.</p>
+<h3>4.1 What n8n is allowed to do</h3>
+<ul>
+<li>Receive a signed webhook from Django, verify it, and run the one workflow the <code>event</code> names (§5, §7).</li>
+<li>Send email through the platform's SMTP credential, with the subject, body, recipient and attachment exactly as given in the payload.</li>
+<li>Build a <code>wa.me</code> click-to-send URL for WhatsApp events and return it in the callback. Building the URL is all it does; a staff member clicks it and sends from their own WhatsApp (Doc 01 §13).</li>
+<li>Call back to the <code>callback_url</code> in the payload — one of the §10 endpoints, on the tenant's own subdomain — and report the outcome.</li>
+<li>Keep its own execution logs for operations (Doc 09). Those logs are platform operations data, not LabFlow records.</li>
+</ul>
+<h3>4.2 What n8n is never allowed to do</h3>
+<ul>
+<li><b>Never read PostgreSQL.</b> n8n has no database credential and no network path to postgres. Doc 01 §15 defines two Compose networks, edge and internal, and states it plainly: n8n cannot reach postgres. The boundary is enforced by the network, not by politeness.</li>
+<li><b>Never write to a LabFlow table</b> except through the callback endpoints in §10. Those endpoints are the only doors, and each one checks the callback key and the tenant slug before it touches a row.</li>
+<li><b>Never hold patient data beyond the in-flight payload.</b> A workflow receives the fields its message needs, uses them, and ends. No workflow stores patient data in n8n, writes it to a file, or passes it to any other service.</li>
+<li><b>Never send a message LabFlow did not ask for.</b> Every send begins with a signed webhook that names a <code>webhook_delivery</code> row. n8n has no schedules of its own for LabFlow messages, no lists, and no templates of its own — the message text arrives rendered, in the payload (AS-5).</li>
+<li><b>Never render a PDF.</b> Reports and statements are rendered by Django with WeasyPrint (Doc 03 §9, Doc 05 §8). n8n transports bytes; it does not create them (§8, §16).</li>
+</ul>
+<h3>4.3 Ownership</h3>
+<p>Platform staff own n8n: the instance, the workflows, the SMTP credential, and the two secrets (<code>N8N_WEBHOOK_SECRET</code>, <code>N8N_CALLBACK_KEY</code>). Tenants never touch it — no tenant login, no tenant workflow, no tenant-visible setting. A tenant experiences n8n only as “the email arrived” or “the delivery shows FAILED”. Workflow definitions are platform code: they are reviewed and deployed like code (Doc 09 owns operations, Doc 10 owns configuration values).</p>
+<div class="note"><p><b>Why the boundary is this strict.</b> n8n is a general automation tool with a broad plugin surface, running outside Django's permission system. If it could read the database, every tenant's data would depend on the security of a tool that was never designed to hold it. The design instead gives n8n exactly two capabilities — receive a signed instruction, report an outcome — and takes everything else away at the network layer, where a workflow mistake cannot undo it.</p></div>
+
+<h2 id="s5">5. The signed webhook contract</h2>
+<p>This is Doc 01 §13's protocol, written out in full. It does not change the protocol; it pins the details a developer needs: headers, check order, error codes, rotation.</p>
+<h3>5.1 Outbound: Django → n8n</h3>
+<p>When a module decides a message must go out, Django does three things in order:</p>
+<ol>
+<li>Writes the delivery rows: one <code>webhook_delivery</code> row (status <code>PENDING</code>, <code>attempts = 0</code>) and the matching <code>notification</code> or <code>report_delivery</code> row (status <code>PENDING</code>). Both carry the same <code>idempotency_key</code>.</li>
+<li>Builds the payload and stores it, unchanged, in <code>webhook_delivery.payload_jsonb</code>. A retry re-sends this exact payload. Nothing is rebuilt.</li>
+<li>POSTs the payload to the n8n webhook URL for the event, signed as below.</li>
+</ol>
+<pre>{
+  "event": "settlement.approved",
+  "tenant_slug": "city-diagnostics",
+  "callback_url": "https://city-diagnostics.labflow.app/api/v1/webhooks/n8n/settlement-delivery",
+  "idempotency_key": "3f8c2e1a-7b4d-4e5f-9a1c-0d2b3e4f5a6b",
+  "timestamp": "2026-10-20T08:15:30Z",
+  "data": { }
+}</pre>
+<p class="dcap" style="text-align:left">The payload shape is Doc 01 §13's, unchanged. <code>data</code> is per-event; §6 defines it for each event.</p>
+<div class="box"><table><thead><tr><th>Part</th><th>Rule</th></tr></thead><tbody>
+<tr><td>Signature</td><td>HMAC-SHA256 over the <b>raw request body</b>, keyed with <code>N8N_WEBHOOK_SECRET</code> (env only, Doc 02 §8). The hex digest travels in the header <code>X-LabFlow-Signature</code>. Both sides sign and verify the exact bytes; a re-serialised body with different spacing fails (F-1, AU-33).</td></tr>
+<tr><td><code>timestamp</code></td><td>ISO 8601 UTC, set when the payload is built. n8n rejects a webhook whose timestamp is more than <b>5 minutes</b> old. This is a replay guard, not a clock-accuracy claim (§5.2).</td></tr>
+<tr><td><code>idempotency_key</code></td><td>A UUID generated by LabFlow, stored on the <code>webhook_delivery</code> row, UNIQUE in the database. n8n de-duplicates on it (§5.3).</td></tr>
+<tr><td><code>callback_url</code></td><td>One of the §10 endpoints, on the tenant's own subdomain, chosen by event. n8n calls exactly this URL back. It does not build callback URLs itself.</td></tr>
+<tr><td>n8n's reply to the POST</td><td>A 2xx reply means “webhook accepted”. Django then sets the <code>webhook_delivery</code> row to <code>SENT</code> — the <i>webhook</i> was delivered. It says nothing about the email. The email's outcome arrives later, by callback (AP-3). A non-2xx reply or a timeout leaves the row <code>PENDING</code> with <code>attempts</code> incremented and <code>next_attempt_at</code> set; the sweep retries it (§12).</td></tr>
+</tbody></table></div>
+<h3>5.2 The timestamp rule</h3>
+<ul>
+<li><b>TS-1.</b> n8n's verify step reads <code>timestamp</code> first. If it is more than 5 minutes in the past, the workflow stops. No side effect, no callback. The webhook is treated as a replay or a stale retry.</li>
+<li><b>TS-2.</b> A rejected-stale webhook is not retried by re-sending the same payload — its timestamp would only get older. When the Beat sweep retries a <code>webhook_delivery</code> row, Django re-stamps <code>timestamp</code> at send time and re-signs. The stored <code>payload_jsonb</code> keeps the original <code>timestamp</code> for audit; the wire copy is re-stamped. The <code>idempotency_key</code> never changes, so n8n still recognises the delivery.</li>
+<li><b>TS-3.</b> The window is generous on purpose. Both processes run on one VPS (AS-3). A skew large enough to break a 5-minute window is a host fault, and it shows up as verify failures in n8n's log and a rise in <code>PENDING</code> rows — both alerted (§13).</li>
+</ul>
+<h3>5.3 The idempotency key</h3>
+<ul>
+<li><b>IK-1.</b> One key names one logical delivery. A manual re-send is a <i>new</i> logical delivery: new rows, new key (Doc 05 DL-6). A sweep retry is the <i>same</i> logical delivery: same rows, same key.</li>
+<li><b>IK-2.</b> n8n's dedupe step checks the key against the keys it has already processed, before any side effect. A key it has seen ends the workflow with no send and no second callback. This is what makes the §12 crash case safe.</li>
+<li><b>IK-3.</b> The hard guarantee lives in LabFlow, not in n8n. The key is UNIQUE on <code>webhook_delivery</code> and on <code>notification</code>, and every callback is idempotent by key (§5.4). If n8n's own dedupe record is ever lost, a duplicate send is possible but a duplicate <i>state change</i> is not: the second callback returns the row's current state and applies nothing (§10).</li>
+</ul>
+<h3>5.4 Inbound: n8n → Django (the callback)</h3>
+<p>The callback is a POST to the payload's <code>callback_url</code>. It carries the header <code>X-LabFlow-Callback-Key</code> with the value of <code>N8N_CALLBACK_KEY</code> (or <code>N8N_CALLBACK_KEY_NEXT</code> during rotation, §5.5). The body carries <code>tenant_slug</code> and the same <code>idempotency_key</code> as the outbound webhook. Django checks, in this order:</p>
+<div class="box"><table><thead><tr><th>Order</th><th>Check</th><th>Failure</th></tr></thead><tbody>
+<tr><td>1</td><td>The path is one of the §10 routes</td><td><code>404 not_found</code></td></tr>
+<tr><td>2</td><td><code>X-LabFlow-Callback-Key</code> matches the current key or, during rotation, the <code>_NEXT</code> key</td><td><code>401 unauthorized_callback</code></td></tr>
+<tr><td>3</td><td>The host resolves to a tenant (normal subdomain resolution, Doc 04)</td><td><code>404 not_found</code></td></tr>
+<tr><td>4</td><td>The body's <code>tenant_slug</code> equals the resolved tenant's slug (Doc 01 §13)</td><td><code>403 tenant_slug_mismatch</code></td></tr>
+<tr><td>5</td><td>A row exists for the <code>idempotency_key</code> in this tenant's schema</td><td><code>409 row_not_ready</code> — the callback outran the outbound write; n8n retries the callback (§12)</td></tr>
+<tr><td>6</td><td>The reported outcome can apply to the row's current state (§9)</td><td><code>409 state_conflict</code> if it contradicts a final state; <code>200</code> with the current state if the row is already final and the outcome agrees</td></tr>
+</tbody></table></div>
+<ul>
+<li><b>CB-1.</b> A callback delivered twice must not double-apply. The second delivery of the same outcome returns <code>200</code> with the row's current state and changes nothing (IK-3).</li>
+<li><b>CB-2.</b> A failed check changes no state. A <code>401</code> or <code>403</code> callback is logged with its source and counted; a non-zero rate of either is an alert, because in normal operation it never happens (§13).</li>
+<li><b>CB-3.</b> The callback key is a platform secret in env only (Doc 01 §13, Doc 02 §8). No database table holds it, and it is never sent anywhere except this header.</li>
+</ul>
+<h3>5.5 Key rotation</h3>
+<p>Two secrets exist: <code>N8N_WEBHOOK_SECRET</code> (Django signs, n8n verifies) and <code>N8N_CALLBACK_KEY</code> (n8n presents, Django checks). They rotate independently.</p>
+<p><b>Callback key rotation</b> uses the <code>_NEXT</code> slot, with a defined cutover:</p>
+<ol>
+<li>Set <code>N8N_CALLBACK_KEY_NEXT</code> on Django to the new key and restart the backend. Django now accepts <b>both</b> keys at check 2 above. n8n still presents the old key; nothing changes yet.</li>
+<li>Update n8n's callback credential to the new key. <b>This is the cutover.</b> From this moment, new callbacks present the <code>_NEXT</code> key. Callbacks already in flight may still present the old key, and are accepted.</li>
+<li>Watch the callback <code>401</code> rate (§13) for 24 hours. It must stay zero: zero means every callback is presenting one of the two accepted keys.</li>
+<li>Promote: set <code>N8N_CALLBACK_KEY</code> to the new key, clear <code>N8N_CALLBACK_KEY_NEXT</code>, restart the backend. The old key is no longer accepted; a callback presenting it gets <code>401</code> (AU-25).</li>
+</ol>
+<p><b>Webhook secret rotation</b> has no dual-accept slot in Doc 01 §13, and Doc 06 does not invent one. It is a coordinated change in one maintenance window: set the new <code>N8N_WEBHOOK_SECRET</code> in n8n's verify step and in Django's env, restart both, and confirm with one test event. During the window, deliveries wait as <code>PENDING</code> rows and the sweep sends them after (§12). The window is minutes, and no message is lost by it.</p>
+
+<h2 id="s6">6. Event catalogue</h2>
+<p>These are all the events LabFlow emits to n8n in v1. The <code>event</code> value is the payload's <code>event</code> field. The <code>data</code> shapes below are the full contents of <code>data</code> for each event; common envelope fields are in §5. Message text (<code>subject</code>, <code>body</code>) is always rendered by Django from <code>notification_template</code> before the webhook fires (AS-5), in the locale the owning module specifies. No <code>data</code> shape carries a money figure (AP-8).</p>
+<div class="box"><table><thead><tr><th>Event</th><th>Trigger</th><th><code>data</code> payload</th><th>Callback outcome(s)</th><th>Owning module</th></tr></thead><tbody>
+<tr><td><code>sample.collected</code></td><td>A sample is created at collection. Doc 01 Flow A enqueues <code>notify_sample_collected</code>; the worker fires this webhook. It is best-effort and never blocks the collection response.</td><td><code>sample_id</code>, <code>accession_id</code>, <code>patient_name</code>, recipient <code>email</code> (nullable), <code>phone</code> (nullable), <code>template_key: "sample_collected"</code>, <code>subject</code>, <code>body</code>, <code>whatsapp_text</code></td><td>On <code>/notification</code>: <code>SENT</code> or <code>FAILED</code> for the email. If a WhatsApp hand-off is built, the built URL returns on the same event's WhatsApp leg (§7). Failure changes nothing in the samples module.</td><td>Samples (Doc 01 Flow A; Doc 03 §5.4)</td></tr>
+<tr><td><code>report.ready</code></td><td>A report version is final and the patient link is issued. <code>reports.deliver</code> (Doc 03 §5.6 RP-6) creates one <code>report_delivery</code> row per channel and fires one webhook per channel row.</td><td><code>report_id</code>, <code>channel</code> (<code>email | whatsapp</code>), recipient <code>email</code> or <code>phone</code>, <code>patient_link</code> (the signed link, valid 7 days — the same URL as the QR code, Doc 03 §9.3), <code>verify_url</code>, <code>template_key</code> (<code>report_ready</code>, or <code>report_link_resend</code> for a staff re-send), <code>subject</code>, <code>body</code></td><td>On <code>/report-delivery</code>: <code>SENT</code> or <code>FAILED</code>; the WhatsApp leg's success callback also carries <code>whatsapp_url</code>, which Django stores on the row (Doc 02 §5.7). A hard email bounce leaves the row <code>BOUNCED</code> (§9).</td><td>Reports (Doc 03 §5.6)</td></tr>
+<tr><td><code>report.amended</code></td><td>A new report version becomes ready after an amendment (Doc 03 §5.6).</td><td><code>report_id</code>, <code>version</code>. Recorded on a <code>webhook_delivery</code> row for audit and staff visibility — and <b>no webhook is sent to n8n</b>.</td><td>None. <b>v1 does not auto-redeliver on amendment.</b> Staff re-send from the report screen; the re-send creates fresh <code>report_delivery</code> and <code>notification</code> rows and travels as a normal <code>report.ready</code> with <code>template_key = report_link_resend</code>.</td><td>Reports (Doc 03 §5.6)</td></tr>
+<tr><td><code>sample.rejected</code></td><td>A sample is rejected. <code>samples.notify_rejection</code> (Doc 03 §5.4) fires one webhook per notice: the branch notice always, the patient notice only under EV-4.</td><td><code>sample_id</code>, <code>accession_id</code>, <code>reason_code</code> (Doc 03 SM-8 list), <code>branch_id</code>, recipient (branch staff address, or patient <code>email</code>), <code>template_key: "sample_rejected"</code> (A-20, Proposed), <code>subject</code>, <code>body</code>; the patient leg's context also carries <code>branch_phone</code> when the branch has one</td><td>On <code>/notification</code>: <code>SENT</code> or <code>FAILED</code> per notice. Failure retries on the sweep; it never changes the sample's <code>rejected</code> state.</td><td>Samples (Doc 03 §5.4)</td></tr>
+<tr><td><code>result.critical</code></td><td>A result is approved with <code>flag = critical</code> (Doc 03 §8.5). <code>results.notify_critical</code> fires inside LabFlow to prompt for the notification to be recorded.</td><td>None leaves LabFlow. <b>No webhook is emitted for this event in v1.</b></td><td>None. <b>No automated delivery; the exceptions list is the channel</b> (OQ-28, resolved in §14). A critical result with no <code>critical_notification</code> record after 30 minutes appears on the Doc 03 §11 exceptions list and stays there until a human records the notification. Doc 06 changes neither the list nor the 30 minutes.</td><td>Results (Doc 03 §8.5)</td></tr>
+<tr><td><code>settlement.approved</code></td><td>The finalize task has rendered and stored the statement PDF and set <code>statement_pdf_key</code> (Doc 05 ST-11). PDF first, webhook second — the webhook never fires for a PDF that does not exist.</td><td><code>settlement_id</code>, <code>partner_id</code>, <code>partner_name</code>, recipient <code>email</code>, <code>period</code> (<code>YYYY-MM</code>), <code>template_key: "settlement_ready"</code>, <code>subject</code>, <code>body</code> (English only, Doc 05 §8.1), <code>pdf_base64</code>, <code>pdf_filename</code> (§8)</td><td>On <code>/settlement-delivery</code>: <code>SENT</code> (which also moves the settlement <code>APPROVED → SENT</code>, Doc 05 §7.3) or <code>FAILED</code>. The settlement stays <code>APPROVED</code> on any failure (§9).</td><td>Referral partners (Doc 05 §9)</td></tr>
+</tbody></table></div>
+<ul>
+<li><b>EV-1.</b> <code>report.amended</code> sends nothing, and that is deliberate. Most amendments are small corrections — a fixed typo, a re-worded comment. Auto-sending every one would spam patients and train them to ignore the lab's messages. The signed link already points at the report, so a patient who opens it again sees the current version. Whether an amendment is material is a clinical judgement; the pathologist or pathologist-facing staff make it, and the re-send button is how they act on it.</li>
+<li><b>EV-2.</b> A staff re-send is not a retry. A retry re-fires the same rows with the same key (IK-1). A re-send creates fresh rows with a fresh key, because the lab chose to send again — possibly to a corrected address. The old rows stay as the record of the first attempt.</li>
+<li><b>EV-3.</b> The collecting branch <b>always</b> gets the rejection notice. It is a staff notification (<code>recipient_type = staff</code>): the sample could not be processed, a recollection is needed, here is the reason code. Branch staff act on it the same day.</li>
+<li><b>EV-4.</b> The patient gets a rejection message <b>only if</b> the tenant permits patient rejection notices <b>and</b> a patient contact exists. If either is missing, no patient row is created. Silence is better than a message the lab did not choose to send.</li>
+<li><b>EV-5.</b> The patient rejection message is plain and short. It says the sample could not be processed. It asks the patient to contact the lab about a new sample. It gives the branch phone when one is in the template context. It contains <b>no result values and no clinical detail</b> — a rejection is a logistics fact, not a result. Its language is the tenant default language (<code>report_default_language</code>, Doc 04 §10.2, whose scope is all patient-facing messages; Doc 03 v1.3 §5.4).</li>
+<li><b>EV-6.</b> No other event exists. In particular there is no event for password resets, activation, or drafts-ready (§1.4): those flows are not delivered through n8n in v1, and Doc 06 does not add them.</li>
+</ul>
+
+<h2 id="s7">7. n8n workflow catalogue</h2>
+<p>One workflow per delivery kind. Every workflow has the same skeleton, because every event has the same contract (§5):</p>
+<p><b>Webhook trigger</b> (receives the POST, raw body preserved) → <b>Verify</b> (a code step: recompute HMAC-SHA256 over the raw body with <code>N8N_WEBHOOK_SECRET</code>, compare in constant time, check <code>timestamp</code> is within 5 minutes; any failure stops the workflow — no send, no callback) → <b>Dedupe</b> (check <code>idempotency_key</code> against processed keys; a seen key stops the workflow) → <b>Act</b> (the one side effect) → <b>Callback</b> (an HTTP request to <code>callback_url</code> with the <code>X-LabFlow-Callback-Key</code> header and the outcome body). If the Act step fails, the workflow still runs the Callback step with a <code>FAILED</code> outcome — a failure that is never reported is the one failure mode this design refuses (§12).</p>
+<p>The workflows use only built-in n8n nodes: the Webhook trigger, a code step for verify and dedupe, the email node with the platform SMTP credential, a set step to build the <code>wa.me</code> URL, and an HTTP request node for the callback. No community nodes. No workflow reads a database (§4). Workflow configuration values — URLs, credential names, the SMTP account — live in Doc 10; running and changing workflows lives in Doc 09.</p>
+<div class="box"><table><thead><tr><th>Workflow</th><th>Subscribes to</th><th>Side effect</th><th>Success callback</th><th>Failure callback</th><th>Idempotency</th><th>Retry</th></tr></thead><tbody>
+<tr><td><code>WF-EMAIL-REPORT</code></td><td><code>report.ready</code>, <code>channel = email</code></td><td>Send the report-link email to the patient via SMTP. The email contains the signed link. No PDF is attached (§8).</td><td><code>{report_id, idempotency_key, channel: "email", status: "SENT", message_id?}</code></td><td>Same body with <code>status: "FAILED"</code> and <code>last_error</code> carrying the SMTP reply</td><td>Dedupe on <code>idempotency_key</code> before the send</td><td>None in n8n. The Beat sweep re-fires the webhook; n8n treats it as the same delivery</td></tr>
+<tr><td><code>WF-WHATSAPP-HANDOFF</code></td><td><code>report.ready</code>, <code>channel = whatsapp</code>; <code>sample.collected</code> when the tenant uses the WhatsApp leg</td><td>Build the <code>wa.me</code> URL from the phone and the rendered <code>whatsapp_text</code>. <b>n8n sends nothing.</b> A staff member clicks the URL later and sends from their own WhatsApp.</td><td><code>{report_id, idempotency_key, channel: "whatsapp", status: "SENT", whatsapp_url}</code> — Django stores <code>whatsapp_url</code> on the row</td><td><code>status: "FAILED"</code> with <code>last_error</code> (for example a missing or malformed phone)</td><td>Dedupe on <code>idempotency_key</code>; rebuilding the same URL is harmless by construction</td><td>None in n8n; the sweep re-fires</td></tr>
+<tr><td><code>WF-EMAIL-SETTLEMENT</code></td><td><code>settlement.approved</code></td><td>Send the statement email to the partner via SMTP, with the statement PDF attached from <code>data.pdf_base64</code> (§8). This workflow is the OQ-42 answer; §8 and §9 give its full behaviour.</td><td><code>{settlement_id, idempotency_key, status: "SENT", message_id?}</code> — moves the settlement to <code>SENT</code></td><td><code>status: "FAILED"</code> with <code>last_error</code> carrying the SMTP reply; a hard bounce carries the <code>hard_bounce:</code> prefix (§9)</td><td>Dedupe on <code>idempotency_key</code> before the send</td><td>None in n8n; the Beat sweep re-fires the stored payload (Doc 05 DL-5)</td></tr>
+<tr><td><code>WF-EMAIL-REJECTION</code></td><td><code>sample.rejected</code></td><td>Send the rejection email via SMTP — to the collecting branch (always) or to the patient (only the leg Django created under EV-4). One webhook is one notice; the workflow does not decide who gets one.</td><td><code>{event, idempotency_key, status: "SENT", message_id?}</code> on <code>/notification</code></td><td><code>status: "FAILED"</code> with <code>last_error</code></td><td>Dedupe on <code>idempotency_key</code></td><td>None in n8n; the sweep re-fires</td></tr>
+<tr><td><code>WF-EMAIL-SAMPLE-COLLECTED</code></td><td><code>sample.collected</code></td><td>Send the collection email to the patient via SMTP (best-effort, Doc 01 Flow A). The optional WhatsApp leg is <code>WF-WHATSAPP-HANDOFF</code>.</td><td><code>{event, idempotency_key, status: "SENT", message_id?}</code> on <code>/notification</code></td><td><code>status: "FAILED"</code> with <code>last_error</code></td><td>Dedupe on <code>idempotency_key</code></td><td>None in n8n; the sweep re-fires. A permanently failed collection email is a dead row nobody acts on — acceptable for a courtesy message (AU-36)</td></tr>
+<tr><td><code>WF-EMAIL-CRITICAL-ESCALATION</code></td><td>—</td><td colspan="5"><b>Not built in v1.</b> OQ-28 is resolved as “no automated reminder” (§14). There is no workflow, no event delivery, and no callback endpoint for critical-result escalation. The Doc 03 §11 exceptions list is the mechanism.</td></tr>
+</tbody></table></div>
+<ul>
+<li><b>WF-1.</b> A workflow never retries a send on its own. Retry policy lives in one place — Django's rows and the Beat sweep — so there is exactly one backoff rule to reason about (Doc 05 DL-5: the notifications queue policy in Doc 01 §13, 5 retries with backoff). An n8n-side retry would double-send against the sweep's retry.</li>
+<li><b>WF-2.</b> A workflow never branches on tenant. The payload's <code>tenant_slug</code> is data for the callback body, not a routing input. The same workflow file serves every tenant (AP-7).</li>
+<li><b>WF-3.</b> If the callback itself fails (Django down, network error), the workflow's execution ends in error in n8n's log, and nothing else happens. The LabFlow rows are still <code>PENDING</code>, so the sweep re-fires the webhook; n8n's dedupe then decides whether the side effect repeats (§12).</li>
+</ul>
+
+<h2 id="s8">8. PDF attachment handling</h2>
+<p>First, a correction to a natural assumption: <b>report emails carry no PDF attachment in v1.</b> Doc 03 delivery is the signed patient link; the PDF sits behind that link, served by LabFlow after the token check (Doc 03 §6.8). Only one email in v1 carries an attachment: the settlement statement (Doc 05 DL-1 — “the statement PDF is attached to the email”). This section decides how that PDF reaches n8n. It is the first half of OQ-42.</p>
+<h3>8.1 The two options</h3>
+<div class="box"><table><thead><tr><th></th><th>(a) Base64 in the payload</th><th>(b) n8n fetches a pre-signed URL</th></tr></thead><tbody>
+<tr><td>How it works</td><td>Django base64-encodes the rendered PDF and puts it in <code>data.pdf_base64</code>, with <code>data.pdf_filename</code>. The email node decodes it into a binary attachment.</td><td>Django mints a short-lived pre-signed URL. n8n fetches it over HTTP, then attaches the bytes.</td></tr>
+<tr><td>Leak surface</td><td>No URL exists. The bytes travel inside an HMAC-signed body on the platform's internal path. Nothing fetchable exists after the send.</td><td>The URL is a bearer credential for a financial document. It lands in n8n's execution logs and is visible to any network observer. It needs a strict TTL (about 2 minutes) to be safe at all.</td></tr>
+<tr><td>Extra machinery</td><td>None. No fetch endpoint, no TTL, no expiry race.</td><td>A new signed-URL minting path for statements, TTL handling, and a fetch-failure branch in the workflow.</td></tr>
+<tr><td>Cost</td><td>Base64 adds about 33% to the payload, and HMAC signs the whole body. Statement PDFs are small monthly files (Doc 05 §8), rendered once per partner per month. The cost is trivial at this volume.</td><td>Smaller webhook payload; one extra HTTP fetch per send.</td></tr>
+<tr><td>Failure modes</td><td>Missing or corrupt base64 → the workflow fails before sending → <code>FAILED</code> callback → sweep retry.</td><td>Fetch fails or the URL expires mid-workflow → <code>FAILED</code> callback → sweep retry — plus the TTL race as a second way to fail.</td></tr>
+</tbody></table></div>
+<h3>8.2 Decision: option (a), base64 in the payload</h3>
+<ul>
+<li><b>PDF-1.</b> Django renders the statement PDF with WeasyPrint (Doc 05 §8), base64-encodes it, and puts it in the <code>settlement.approved</code> payload as <code>data.pdf_base64</code>, with the attachment name in <code>data.pdf_filename</code> (for example <code>statement-2026-09.pdf</code>). The bytes are inside the signed body: the HMAC covers them, so what n8n attaches is provably what Django rendered.</li>
+<li><b>PDF-2.</b> In <code>WF-EMAIL-SETTLEMENT</code>, the email node takes its attachment from the binary data decoded out of <code>data.pdf_base64</code>, named by <code>data.pdf_filename</code>. There is no fetch step in the workflow. There is no URL anywhere in the flow.</li>
+<li><b>PDF-3.</b> The defence is the leak surface. A statement is a financial document (Doc 05 DL-4 makes the same point about WhatsApp). Option (b) turns every send into a short-lived public capability URL for that document and writes it into a third-party tool's logs. Option (a) creates nothing that outlives the request. The costs of (a) — payload size and signing — are real but trivial for a small monthly PDF, and they buy the simpler failure model: one step that can fail (the send), not two.</li>
+<li><b>PDF-4.</b> Failure path. If <code>pdf_base64</code> is missing or does not decode, the workflow fails before the send and calls back <code>FAILED</code>. The <code>notification</code> row becomes <code>FAILED</code> with <code>last_error</code> set. The 15-minute Beat sweep re-fires the webhook, re-sending the stored payload from <code>webhook_delivery.payload_jsonb</code> — the PDF bytes are in that stored payload, so the retry needs nothing re-rendered and nothing re-fetched. There is no fetch, so there is no fetch-failure path.</li>
+<li><b>PDF-5.</b> The same mechanism is available to any future attachment-bearing email, unchanged. Report email does not use it in v1 (link only, above).</li>
+</ul>
+
+<h2 id="s9">9. Delivery outcomes and state</h2>
+<p>This section maps every callback outcome onto the Doc 02 rows. It does not change Doc 03's report-delivery states or Doc 05's settlement states; it says which callback moves which row, and what a failure leaves behind. It is the second half of OQ-42: bounce handling for statements.</p>
+<h3>9.1 Success</h3>
+<div class="box"><table><thead><tr><th>Row</th><th>On a <code>SENT</code> callback</th></tr></thead><tbody>
+<tr><td><code>notification</code></td><td><code>status = SENT</code>. <code>next_attempt_at = NULL</code>. The row is final.</td></tr>
+<tr><td><code>report_delivery</code> (email)</td><td><code>status = SENT</code>. <code>next_attempt_at = NULL</code>. Not final in one sense: the patient's first link use still moves it to <code>OPENED</code> (§9.4).</td></tr>
+<tr><td><code>report_delivery</code> (whatsapp)</td><td><code>status = SENT</code> and <code>whatsapp_url</code> stored from the callback body. <code>SENT</code> here means “the hand-off URL exists and staff can click it” — no message has been sent to the patient yet, and the row does not claim otherwise.</td></tr>
+<tr><td><code>settlement</code></td><td>On the settlement notification's <code>SENT</code> callback only: <code>APPROVED → SENT</code> (Doc 05 §7.3). Set by the callback, never at send time, never by hand.</td></tr>
+<tr><td><code>webhook_delivery</code></td><td>Already <code>SENT</code> from the outbound POST (§5.1). The callback does not change it.</td></tr>
+</tbody></table></div>
+<h3>9.2 Soft failure — temporary, retry</h3>
+<ul>
+<li><b>DO-1.</b> A soft failure is a temporary SMTP refusal: a <code>4xx</code> reply — mailbox full (<code>452 4.2.2</code>), receiving server busy, temporary rejection (F-4). n8n calls back <code>FAILED</code> with the SMTP code and text in <code>last_error</code>.</li>
+<li><b>DO-2.</b> Django sets the row <code>status = FAILED</code>, increments <code>attempts</code>, and sets <code>next_attempt_at</code> from the retry policy (Doc 01 §13 notifications queue policy, as Doc 05 DL-5 states: 5 retries, backoff from 30 seconds to 30 minutes; the 15-minute Beat sweep performs the re-fires). While <code>next_attempt_at</code> is set and <code>attempts</code> is under the cap, the row is retryable and the sweep will re-fire its webhook with the same <code>idempotency_key</code>.</li>
+<li><b>DO-3.</b> A soft failure moves nothing else. The settlement stays <code>APPROVED</code>. The report stays final. Only the delivery row knows anything went wrong.</li>
+<li><b>DO-4.</b> When retries are exhausted, the row stays <code>FAILED</code> with <code>last_error</code> set and <code>next_attempt_at = NULL</code>. It does not disappear and it is not queued anywhere else — there is no dead-letter queue (Doc 01 §13). It surfaces where §13 says it surfaces, and staff recover by the owning module's re-send path (EV-2, Doc 05 DL-6).</li>
+</ul>
+<h3>9.3 Hard failure — permanent, stop</h3>
+<ul>
+<li><b>DO-5.</b> A hard failure is a permanent SMTP refusal: a <code>5xx</code> reply — the mailbox does not exist (<code>550 5.1.1</code>), the address is invalid, the domain does not resolve (F-4). Retrying the same send will fail the same way, so retries stop.</li>
+<li><b>DO-6. The sentinel.</b> n8n recognises the <code>5xx</code> class and writes the callback's <code>last_error</code> starting with the exact prefix <code>hard_bounce:</code>, followed by the SMTP code and text — for example <code>hard_bounce:550 5.1.1 mailbox does not exist</code>. On a hard-failure callback Django sets <code>status = FAILED</code>, stores that <code>last_error</code>, and sets <code>next_attempt_at = NULL</code>. The Beat sweep <b>skips</b> any row whose <code>last_error</code> starts with <code>hard_bounce:</code>. That is the whole mechanism: a prefix on an existing text column, plus a NULL that already means “not scheduled”. No new column, no new status value, no amendment (§1.4, §15). A sentinel is the right tool here because “hard” is a fact about the error, not a state of the row — the row's state is <code>FAILED</code>, like any other failure; what differs is whether a retry can help, and <code>next_attempt_at</code> already encodes that.</li>
+<li><b>DO-7.</b> Classification rule, stated once: the SMTP reply class decides. <code>4xx</code> → soft (DO-1). <code>5xx</code> → hard (DO-5). n8n applies the class rule and the prefix; Django trusts the prefix, not a re-parse of free text. A failure with no SMTP reply at all (SMTP server unreachable, connection refused) is soft: the platform's own sending path is down, and a retry after recovery is exactly right.</li>
+<li><b>DO-8. Statements.</b> A hard bounce on a statement leaves the <code>notification</code> row <code>FAILED</code> with the sentinel, and the settlement stays <code>APPROVED</code> (Doc 05 DL-5: a delivery failure never un-approves money). The Owner is alerted (§13) and sees the failure on the settlement. The fix is a corrected partner email on the partner record, then a manual re-send (Doc 05 DL-6), which creates a fresh <code>notification</code> row; the bounced row stays as the record. The statement PDF is downloadable throughout (Doc 05 DL-7), so the lab is never locked out of its own document.</li>
+<li><b>DO-9. Reports.</b> A hard bounce on a report email moves the <code>report_delivery</code> row to <code>BOUNCED</code> — a status Doc 02 §5.7 already defines for exactly this. <code>BOUNCED</code> is terminal for that row: no sweep retry. The row also keeps the <code>hard_bounce:</code> text in <code>last_error</code>, so the report screen can show <i>why</i>. The bounced delivery lists on the report screen (§13); staff re-send through the report screen (EV-2), typically after correcting the patient's contact. The WhatsApp leg, if any, is a separate row and is unaffected.</li>
+</ul>
+<h3>9.4 OPENED</h3>
+<ul>
+<li><b>DO-10.</b> <code>OPENED</code> belongs to <code>report_delivery</code> only. It is set by the patient's first use of the signed link (Doc 03 §6.8) — a LabFlow request, not a callback. A callback body that claims <code>OPENED</code> is not accepted: the callback endpoints take <code>SENT</code> or <code>FAILED</code> only (§10). <code>OPENED</code> is not applicable to settlements or notifications; email open-tracking does not exist in v1 (§16).</li>
+</ul>
+<h3>9.5 The outcome map, in one table</h3>
+<div class="box"><table><thead><tr><th>Outcome</th><th><code>notification</code></th><th><code>report_delivery</code></th><th><code>settlement</code></th></tr></thead><tbody>
+<tr><td>Success callback</td><td><code>SENT</code>, final</td><td><code>SENT</code> (+ <code>whatsapp_url</code> on the WhatsApp leg)</td><td><code>APPROVED → SENT</code></td></tr>
+<tr><td>Soft failure</td><td><code>FAILED</code>, <code>attempts</code> +1, <code>next_attempt_at</code> set; sweep retries</td><td><code>FAILED</code>, <code>attempts</code> +1, <code>next_attempt_at</code> set; sweep retries</td><td>Stays <code>APPROVED</code></td></tr>
+<tr><td>Retries exhausted</td><td><code>FAILED</code>, <code>next_attempt_at = NULL</code>; Owner-visible; manual re-send</td><td><code>FAILED</code>, <code>next_attempt_at = NULL</code>; listed on the report screen; staff re-send</td><td>Stays <code>APPROVED</code></td></tr>
+<tr><td>Hard bounce</td><td><code>FAILED</code>, <code>last_error</code> = <code>hard_bounce:…</code>, <code>next_attempt_at = NULL</code>; sweep skips</td><td><code>BOUNCED</code>, terminal; <code>last_error</code> keeps the <code>hard_bounce:</code> text</td><td>Stays <code>APPROVED</code>; Owner alerted</td></tr>
+<tr><td>Patient opens link</td><td>—</td><td><code>OPENED</code> (Doc 03 §6.8, not a callback)</td><td>—</td></tr>
+</tbody></table></div>
+
+<h2 id="s10">10. API reference — callback endpoints</h2>
+<p>These are the <b>only</b> endpoints in the LabFlow API that an external service calls. They live on the tenant subdomain, because n8n calls the <code>callback_url</code> from the payload, which is the tenant host (Doc 01 §13). They are not session endpoints: no JWT, no cookie. The only credential is the callback key.</p>
+<h3>10.1 Conventions for all callback endpoints</h3>
+<ul>
+<li><b>Authentication.</b> Header <code>X-LabFlow-Callback-Key</code> carrying <code>N8N_CALLBACK_KEY</code> (or <code>N8N_CALLBACK_KEY_NEXT</code> during rotation, §5.5). Missing or wrong → <code>401 unauthorized_callback</code>.</li>
+<li><b>Tenant check.</b> The tenant resolves from the host. The body's <code>tenant_slug</code> must equal it → otherwise <code>403 tenant_slug_mismatch</code>. Check order is §5.4's.</li>
+<li><b>Idempotency.</b> Every endpoint is idempotent on (<code>idempotency_key</code>, <code>event</code>). Repeating a callback with the same key and the same outcome returns <code>200</code> with the row's current state and applies nothing (CB-1).</li>
+<li><b>Success response.</b> <code>200</code> with a body stating the new state of the row, for example <code>{ "idempotency_key": "…", "status": "SENT" }</code>.</li>
+<li><b>Errors.</b> <code>401 unauthorized_callback</code> · <code>403 tenant_slug_mismatch</code> · <code>404 not_found</code> (unknown path, unknown tenant host, or no row for the named object in this tenant) · <code>409 state_conflict</code> (the outcome contradicts a final row state) · <code>409 row_not_ready</code> (no row yet for the <code>idempotency_key</code>; the caller retries the callback, §12). Error bodies are <code>{ "error": "&lt;code&gt;" }</code>, matching Doc 03 §6.1's shape.</li>
+<li><b>Nothing else is callable.</b> These routes are the entire n8n surface. A request bearing the callback key to any other path on the tenant host, with no session, returns <code>404</code>. Holding the callback key grants no session, no staff endpoint, and no read access of any kind.</li>
+</ul>
+<div class="spec"><h4>POST /api/v1/webhooks/n8n/notification</h4>
+<p>Callback for a <code>notification</code> row that is not a report delivery and not a settlement delivery — in v1, the <code>sample.collected</code> and <code>sample.rejected</code> notices. Proposed as part of A-19 (§15).</p>
+<p><b>Body:</b> <code>{ event, tenant_slug, idempotency_key, status, message_id?, last_error? }</code> — <code>status</code> is <code>SENT</code> or <code>FAILED</code>. <code>message_id</code> is optional and is not persisted on the row in v1 (§1.4, OQ-48). <code>last_error</code> is required when <code>status</code> is <code>FAILED</code>, and starts with <code>hard_bounce:</code> for a hard failure (§9).</p>
+<p><b>Applies:</b> the §9 outcome map to the <code>notification</code> row found by <code>idempotency_key</code> in this tenant's schema.</p>
+<p><b>Responses:</b> <code>200 { idempotency_key, status }</code> with the row's new (or existing final) state · <code>401 unauthorized_callback</code> · <code>403 tenant_slug_mismatch</code> · <code>404 not_found</code> · <code>409 state_conflict</code> · <code>409 row_not_ready</code>.</p>
+</div>
+<div class="spec"><h4>POST /api/v1/webhooks/n8n/report-delivery</h4>
+<p>Callback for a <code>report_delivery</code> row. Proposed as part of A-19 (§15).</p>
+<p><b>Body:</b> <code>{ report_id, tenant_slug, idempotency_key, channel, status, whatsapp_url?, message_id?, last_error? }</code> — <code>channel</code> is <code>email</code> or <code>whatsapp</code> and must match the row's channel (a mismatch is <code>409 state_conflict</code>). <code>whatsapp_url</code> is required on a <code>SENT</code> callback for the WhatsApp channel and is stored on the row.</p>
+<p><b>Applies:</b> the §9 outcome map to the <code>report_delivery</code> row. A hard failure on the email channel leaves the row <code>BOUNCED</code> (DO-9). <code>OPENED</code> is never accepted here (DO-10).</p>
+<p><b>Responses:</b> <code>200 { idempotency_key, status }</code> · <code>401 unauthorized_callback</code> · <code>403 tenant_slug_mismatch</code> · <code>404 not_found</code> · <code>409 state_conflict</code> · <code>409 row_not_ready</code>.</p>
+</div>
+<div class="spec"><h4>POST /api/v1/webhooks/n8n/settlement-delivery</h4>
+<p>Callback for a settlement's <code>notification</code> row (Doc 05 DL-3). Proposed as part of A-19 (§15).</p>
+<p><b>Body:</b> <code>{ settlement_id, tenant_slug, idempotency_key, status, message_id?, last_error? }</code> — <code>status</code> is <code>SENT</code> or <code>FAILED</code>.</p>
+<p><b>Applies:</b> the §9 outcome map to the <code>notification</code> row. On <code>SENT</code>, in the same transaction, the settlement moves <code>APPROVED → SENT</code> (Doc 05 §7.3). If the settlement is not <code>APPROVED</code> when a <code>SENT</code> callback lands — for example it was cancelled after the send — the callback returns <code>409 state_conflict</code> and the notification row is left for staff to inspect; a delivery fact is never silently forced onto a settlement in the wrong state.</p>
+<p><b>Responses:</b> <code>200 { idempotency_key, status, settlement_status }</code> · <code>401 unauthorized_callback</code> · <code>403 tenant_slug_mismatch</code> · <code>404 not_found</code> · <code>409 state_conflict</code> · <code>409 row_not_ready</code>.</p>
+</div>
+<div class="spec"><h4>POST /api/v1/webhooks/n8n/critical-escalation — NOT BUILT</h4>
+<p><b>This route is not built in v1.</b> It is named here only so the namespace in A-19 is complete and nobody treats its absence as an oversight. OQ-28 is resolved as “no automated reminder” (§14): there is no <code>result.critical</code> delivery, no escalation workflow, and therefore nothing to call back to. A request to this path returns <code>404 not_found</code>, like every other unbuilt path. If a later version reverses OQ-28, this route, the workflow, the event delivery and a template key are designed together in that version's document — not improvised here.</p>
+</div>
+
+<h2 id="s11">11. Workflows</h2>
+<p>Sequence diagrams in the style of Doc 04 §16 and Doc 05 §11. Each shows one path end to end: the rows written, the webhook, the side effect, the callback, and the state the path leaves behind.</p>
+<div class="diagram"><pre class="mermaid">sequenceDiagram
+  autonumber
+  participant W as Celery Worker (reports.deliver)
+  participant API as Django API
+  participant DB as PostgreSQL
+  participant N as n8n
+  participant P as Patient (email)
+  participant S as Staff (SPA)
+  W-&gt;&gt;DB: INSERT report_delivery (email, PENDING) + (whatsapp, PENDING)
+  W-&gt;&gt;DB: INSERT webhook_delivery x2 (same idempotency keys)
+  W-&gt;&gt;N: signed webhook report.ready (email leg)
+  N-&gt;&gt;N: verify HMAC + timestamp, dedupe on key
+  N-&gt;&gt;P: email with signed report link (no attachment)
+  N-&gt;&gt;API: callback /report-delivery SENT (tenant host, key + slug checked)
+  API-&gt;&gt;DB: UPDATE report_delivery SET status = SENT (email)
+  W-&gt;&gt;N: signed webhook report.ready (whatsapp leg)
+  N-&gt;&gt;N: verify, dedupe, build wa.me URL (sends nothing)
+  N-&gt;&gt;API: callback /report-delivery SENT + whatsapp_url
+  API-&gt;&gt;DB: UPDATE report_delivery SET whatsapp_url (whatsapp leg SENT)
+  S-&gt;&gt;S: staff clicks the wa.me URL and sends from their own WhatsApp</pre>
+<p class="dcap">Workflow 1 — Report ready (Doc 03 §5.6 RP-6). Two channel rows, two webhooks, two callbacks. The email carries the link only (§8). The WhatsApp leg ends when the URL is stored; the send is a human's click.</p></div>
+<div class="diagram"><pre class="mermaid">sequenceDiagram
+  autonumber
+  participant N as n8n
+  participant API as Django API
+  participant DB as PostgreSQL
+  participant Beat as Celery Beat (15-min sweep)
+  participant P as Patient (email)
+  N-&gt;&gt;API: callback /report-delivery FAILED (452 4.2.2 mailbox full)
+  API-&gt;&gt;DB: UPDATE report_delivery SET status = FAILED, attempts +1, next_attempt_at set
+  Beat-&gt;&gt;DB: sweep finds the row due (tenant fan-out, Doc 04 section 13.2)
+  Beat-&gt;&gt;N: re-fire webhook, same idempotency key, re-stamped timestamp
+  N-&gt;&gt;N: verify, dedupe (new attempt of a known key)
+  alt mailbox now accepts mail
+    N-&gt;&gt;P: email with signed report link
+    N-&gt;&gt;API: callback SENT
+    API-&gt;&gt;DB: UPDATE report_delivery SET status = SENT
+  else mailbox does not exist (550 5.1.1)
+    N-&gt;&gt;API: callback FAILED, last_error = hard_bounce:550 5.1.1 ...
+    API-&gt;&gt;DB: UPDATE report_delivery SET status = BOUNCED (terminal, listed on report screen)
+  end</pre>
+<p class="dcap">Workflow 2 — Report delivery failure, retry, and bounce (§9). A soft failure retries on the sweep. A hard failure ends the row as <code>BOUNCED</code>. Staff recovery is a re-send from the report screen (EV-2), not a retry of this row.</p></div>
+<div class="diagram"><pre class="mermaid">sequenceDiagram
+  autonumber
+  participant W as Celery Worker (finalize)
+  participant DB as PostgreSQL
+  participant S3 as Storage (R2 / MinIO)
+  participant N as n8n
+  participant API as Django API
+  participant P as Partner (email)
+  W-&gt;&gt;S3: WeasyPrint PDF stored (statement_pdf_key set, Doc 05 ST-11)
+  W-&gt;&gt;DB: INSERT notification (settlement_ready, PENDING) + webhook_delivery
+  W-&gt;&gt;N: signed webhook settlement.approved (data.pdf_base64 inside)
+  N-&gt;&gt;N: verify HMAC + timestamp, dedupe on key
+  N-&gt;&gt;N: decode pdf_base64 to the email attachment (no fetch, section 8)
+  N-&gt;&gt;P: email with statement PDF attached
+  N-&gt;&gt;API: callback /settlement-delivery SENT
+  API-&gt;&gt;DB: UPDATE notification SET status = SENT; UPDATE settlement SET status = SENT</pre>
+<p class="dcap">Workflow 3 — Settlement approved → statement delivered (Doc 05 §9, OQ-42). PDF first, webhook second. The settlement becomes <code>SENT</code> only on the callback — never at send time (Doc 05 §7.3).</p></div>
+<div class="diagram"><pre class="mermaid">sequenceDiagram
+  autonumber
+  participant N as n8n
+  participant API as Django API
+  participant DB as PostgreSQL
+  participant Beat as Celery Beat (15-min sweep)
+  participant O as Owner (SPA)
+  N-&gt;&gt;API: callback /settlement-delivery FAILED (soft, 4xx)
+  API-&gt;&gt;DB: UPDATE notification SET status = FAILED, attempts +1, next_attempt_at set
+  Beat-&gt;&gt;N: re-fire webhook from stored payload_jsonb (same key, same PDF bytes)
+  N-&gt;&gt;API: callback FAILED ... (retries run out)
+  API-&gt;&gt;DB: notification stays FAILED, next_attempt_at = NULL; settlement stays APPROVED
+  API--&gt;&gt;O: failure visible on the settlement; Owner alert (section 13)
+  O-&gt;&gt;API: POST /settlements/{id}/send (Doc 05 DL-6, after fixing the partner email)
+  API-&gt;&gt;DB: INSERT fresh notification row (new idempotency key); failed row kept
+  API-&gt;&gt;N: signed webhook settlement.approved (new delivery)</pre>
+<p class="dcap">Workflow 4 — Settlement delivery failure and Owner re-send (§9, Doc 05 DL-5, DL-6). Exhaustion is a visible end state, not a queue. The re-send is a new delivery; the failed row remains the record of the failure.</p></div>
+<div class="diagram"><pre class="mermaid">sequenceDiagram
+  autonumber
+  participant Op as Platform operator
+  participant API as Django API
+  participant N as n8n
+  Op-&gt;&gt;API: set N8N_CALLBACK_KEY_NEXT = new key, restart backend
+  Note over API: Django now accepts BOTH keys (check 2, section 5.4)
+  Op-&gt;&gt;N: update callback credential to the new key
+  Note over N,API: CUTOVER: new callbacks present the _NEXT key
+  N-&gt;&gt;API: callbacks with new key: 200; in-flight callbacks with old key: 200
+  Op-&gt;&gt;Op: watch callback 401 rate for 24 hours: must stay zero (section 13)
+  Op-&gt;&gt;API: promote: N8N_CALLBACK_KEY = new key, clear _NEXT, restart
+  N-&gt;&gt;API: any callback still presenting the old key now gets 401</pre>
+<p class="dcap">Workflow 5 — Callback key rotation (§5.5). Both keys are accepted during the window; the cutover is the moment n8n's credential changes; promotion ends the window.</p></div>
+<p><b>Workflow 6 is not drawn.</b> The brief for this series lists a sixth diagram — critical result flagged → 30-minute timer → reminder — for the case where OQ-28 decides a reminder exists. OQ-28 is resolved the other way (§14): no automated reminder in v1. There is no timer, no reminder, and no workflow to draw. What happens instead is entirely inside LabFlow and already drawn in Doc 03: the result is flagged, <code>results.notify_critical</code> prompts staff, and an unrecorded critical appears on the §11 exceptions list after 30 minutes. Drawing an n8n diagram for it would invent a flow that does not exist.</p>
+
+<h2 id="s12">12. Concurrency and failure</h2>
+<p>n8n has no database access (§4), so no failure in this layer can corrupt LabFlow data. Every failure reduces to the same shape: <b>a LabFlow row sits in a visible, retryable state; Sentry sees the error; the Beat sweep retries; an exhausted row stays <code>FAILED</code>; staff recover by re-send.</b> The cases below are the ways reality produces that shape.</p>
+<h3>12.1 n8n is unavailable when the webhook fires</h3>
+<p>The POST times out or is refused. The <code>webhook_delivery</code> row stays <code>PENDING</code> with <code>attempts</code> incremented and <code>next_attempt_at</code> set. The Beat sweep re-fires it — re-stamped, re-signed, same key (TS-2). When n8n returns, the delivery proceeds as if nothing happened. A long outage shows up as <code>PENDING</code> rows ageing past 15 minutes, which alerts (§13). Nothing is lost, because the row was written before the first attempt (AP-2).</p>
+<h3>12.2 n8n accepted the webhook, but the side effect failed</h3>
+<p>n8n replies 2xx to the POST, so the <code>webhook_delivery</code> row becomes <code>SENT</code> — and then the SMTP send fails inside the workflow. The workflow still runs its callback step with <code>FAILED</code> (the §7 skeleton makes the callback unconditional). This is how LabFlow distinguishes “n8n failed” from “n8n never heard”: the <code>webhook_delivery</code> row's own state and <code>attempts</code>. Row <code>SENT</code> + a <code>FAILED</code> callback = received and failed. Row still <code>PENDING</code> with rising <code>attempts</code> = never accepted. The two cases never share a state, so nobody has to guess which one happened.</p>
+<h3>12.3 n8n crashes after sending, before the callback</h3>
+<p>The email went out; the callback never arrived. The <code>notification</code> or <code>report_delivery</code> row stays <code>PENDING</code>. The sweep re-fires the webhook with the same <code>idempotency_key</code>. n8n's dedupe step recognises the key and does not send a second email (IK-2); it re-runs only the callback. The patient gets one email, late. If n8n's dedupe record itself was lost in the crash, one duplicate email is possible — annoying, not harmful — and the duplicate callback still cannot double-apply state (IK-3).</p>
+<h3>12.4 The callback arrives before the row exists</h3>
+<p>The outbound write and the webhook fire are fast; n8n can, in principle, call back before the transaction that wrote the rows is visible. The callback endpoint looks the row up by <code>idempotency_key</code> inside the resolved tenant's schema. Not found → <code>409 row_not_ready</code>, no state change. n8n treats a <code>409</code> callback response as “retry the callback” and retries it on its own short backoff until it lands or the workflow execution is marked errored — by which time the row exists and the sweep provides the second chance (§12.3's path). Found but already final → <code>200</code> with the current state (CB-1). The <code>409</code> is what buys correctness here: the endpoint never guesses, never creates a row to match a callback, and never applies an outcome to a row it cannot see.</p>
+<h3>12.5 HMAC verification failure</h3>
+<p>n8n's verify step stops the workflow: no send, no callback, and the mismatch is logged with the event name and source. LabFlow's rows stay <code>PENDING</code> and the sweep keeps re-firing until the cause — a rotated secret not yet updated on one side, a proxy rewriting the body — is fixed. A burst of verify failures after a deploy is a config bug, and it is loud: n8n's error log plus ageing <code>PENDING</code> rows (§13). Django never sees the bad request at all; there is nothing to roll back.</p>
+<h3>12.6 Replay</h3>
+<p>Two guards, either of which is enough. A replayed webhook carries its original <code>timestamp</code>: older than 5 minutes, the verify step rejects it (TS-1). A replay inside the window carries an <code>idempotency_key</code> that already exists: the database refuses a second <code>webhook_delivery</code> row (UNIQUE), and n8n's dedupe refuses a second send. A replayed <i>callback</i> is handled by CB-1: <code>200</code>, current state, nothing applied twice.</p>
+<h3>12.7 Clock skew</h3>
+<p>The assumption (AS-3) is one VPS, one OS clock source, two processes. Skew of seconds is normal and the 5-minute window absorbs it (AU-32). The failure mode if the assumption breaks — a host clock fault — is total and obvious: every verify fails, no sends happen, rows age, alerts fire (§13). It cannot produce a <i>wrong</i> send, only delayed ones, because verification fails closed.</p>
+<h3>12.8 Read-only and past-due tenants</h3>
+<p>Doc 05 resolved OQ-36: settlement generation continues while a tenant is past due or read-only; approval, statement delivery and mark-paid pause in read-only mode and resume on reactivation. This layer follows that decision mechanically. While a tenant is read-only, Django fires no new delivery webhooks for it and the sweeps skip it; its rows wait in <code>PENDING</code>. A callback already in flight when the tenant became read-only is still applied — it records a fact about an email that was already sent, and dropping it would falsify the delivery record. On reactivation, the sweeps pick the waiting rows up in the normal way. Report delivery follows the same rule: Doc 04 §11 read-only mode blocks writes, and patient-facing delivery is a write-driven flow, so it pauses and resumes the same way.</p>
+<h3>12.9 Test plan</h3>
+<p>Forty scenarios, prefixed <code>AU-</code>. Each is one test with one expected outcome. “Row” means the <code>notification</code> or <code>report_delivery</code> row for the event under test.</p>
+<div class="box"><table><thead><tr><th>ID</th><th>Scenario</th><th>Expected</th></tr></thead><tbody>
+<tr><td>AU-01</td><td>Webhook with a valid HMAC signature and a fresh timestamp</td><td>Verify passes; the workflow acts; the callback applies; the row becomes <code>SENT</code></td></tr>
+<tr><td>AU-02</td><td>Webhook with a signature computed over a tampered body</td><td>Verify stops the workflow. No send, no callback. Rows stay <code>PENDING</code>; the sweep re-fires</td></tr>
+<tr><td>AU-03</td><td>Webhook with a <code>timestamp</code> 6 minutes old, valid signature</td><td>Rejected at verify as a replay. No side effect</td></tr>
+<tr><td>AU-04</td><td>Webhook with a <code>timestamp</code> 4 minutes old, valid signature</td><td>Accepted. The delivery proceeds</td></tr>
+<tr><td>AU-05</td><td>The same webhook delivered twice (same key, fresh re-stamp)</td><td>One email sent. The second delivery ends at dedupe: no send, no second callback</td></tr>
+<tr><td>AU-06</td><td>The same <code>SENT</code> callback delivered twice</td><td>First applies. Second returns <code>200</code> with the current state and changes nothing</td></tr>
+<tr><td>AU-07</td><td>Callback arrives before the delivery rows are visible</td><td><code>409 row_not_ready</code>. No row created. The retried callback then applies normally</td></tr>
+<tr><td>AU-08</td><td>Callback body <code>tenant_slug</code> does not match the host's tenant</td><td><code>403 tenant_slug_mismatch</code>. No state change in either tenant</td></tr>
+<tr><td>AU-09</td><td>Callback with a wrong <code>X-LabFlow-Callback-Key</code></td><td><code>401 unauthorized_callback</code>. No state change</td></tr>
+<tr><td>AU-10</td><td>Callback with the key header missing</td><td><code>401 unauthorized_callback</code></td></tr>
+<tr><td>AU-11</td><td>Callback POST to an unknown path under <code>/api/v1/webhooks/n8n/</code></td><td><code>404 not_found</code></td></tr>
+<tr><td>AU-12</td><td>Request bearing the callback key to a staff endpoint, no session</td><td><code>404</code>. The key grants nothing outside §10</td></tr>
+<tr><td>AU-13</td><td>Callback reports <code>SENT</code> for a row already final as hard-bounced</td><td><code>409 state_conflict</code>. The row keeps its final state</td></tr>
+<tr><td>AU-14</td><td><code>settlement.approved</code> happy path</td><td>The email's attachment decodes from <code>data.pdf_base64</code>, is named by <code>data.pdf_filename</code>, and its bytes hash-match the stored statement PDF</td></tr>
+<tr><td>AU-15</td><td><code>pdf_base64</code> corrupted in transit</td><td>HMAC verification fails (the bytes are signed) — or, if the payload was built corrupt, the workflow fails before sending. Either way: <code>FAILED</code> path, row <code>FAILED</code>, sweep re-fires the stored payload</td></tr>
+<tr><td>AU-16</td><td><code>report.ready</code> email leg</td><td>The email contains the signed link and the verify URL, and <b>no attachment</b></td></tr>
+<tr><td>AU-17</td><td>Soft bounce on a statement: SMTP <code>452 4.2.2</code></td><td>Notification <code>FAILED</code>, <code>attempts</code> +1, <code>next_attempt_at</code> set, <code>last_error</code> without the <code>hard_bounce:</code> prefix. Settlement stays <code>APPROVED</code></td></tr>
+<tr><td>AU-18</td><td>Hard bounce on a statement: SMTP <code>550 5.1.1</code></td><td>Notification <code>FAILED</code>, <code>last_error</code> = <code>hard_bounce:550 5.1.1 …</code>, <code>next_attempt_at = NULL</code>. The sweep skips the row on every later run. Settlement stays <code>APPROVED</code>; Owner alerted</td></tr>
+<tr><td>AU-19</td><td>Hard bounce on a report email</td><td><code>report_delivery</code> becomes <code>BOUNCED</code>, terminal, with the <code>hard_bounce:</code> text kept in <code>last_error</code>. It lists on the report screen</td></tr>
+<tr><td>AU-20</td><td>Soft failure on a report email, then success on retry</td><td>Row <code>FAILED</code> → sweep re-fires → <code>SENT</code>. One row, <code>attempts</code> reflects both tries</td></tr>
+<tr><td>AU-21</td><td>Soft failures on every attempt until the retry cap</td><td>Row stays <code>FAILED</code>, <code>next_attempt_at = NULL</code> after the cap. Sentry records it. No further sweep re-fires</td></tr>
+<tr><td>AU-22</td><td>n8n down when the webhook fires; n8n returns 20 minutes later</td><td><code>webhook_delivery</code> stays <code>PENDING</code>, the sweep re-fires after recovery, exactly one email is sent</td></tr>
+<tr><td>AU-23</td><td>n8n crashes after the SMTP send, before the callback</td><td>Row stays <code>PENDING</code>. Sweep re-fires; dedupe on the key prevents a second send; the callback then applies</td></tr>
+<tr><td>AU-24</td><td>n8n replies 2xx to the webhook POST, then the send fails</td><td><code>webhook_delivery</code> is <code>SENT</code> (received) and the callback marks the row <code>FAILED</code> — the two facts are distinguishable from the rows alone</td></tr>
+<tr><td>AU-25</td><td>Key rotation, end to end</td><td>During the window, callbacks with the old key and with <code>_NEXT</code> both return <code>200</code>. After promotion, the old key returns <code>401</code> and <code>_NEXT</code> (now current) returns <code>200</code>. <code>401</code> rate stays zero during the window</td></tr>
+<tr><td>AU-26</td><td>WhatsApp hand-off for a report</td><td>The callback stores <code>whatsapp_url</code> on the row and marks it <code>SENT</code>. n8n sent no WhatsApp message and no email. The URL opens a <code>wa.me</code> chat with the rendered text</td></tr>
+<tr><td>AU-27</td><td>Patient opens the report link; separately, a callback claims <code>OPENED</code></td><td>Link access sets <code>OPENED</code> (Doc 03 §6.8). The callback claiming <code>OPENED</code> is not applied — callbacks carry <code>SENT</code> or <code>FAILED</code> only</td></tr>
+<tr><td>AU-28</td><td>A report is amended</td><td>No delivery webhook fires and no new <code>report_delivery</code> row is created by the amendment. A staff re-send then creates fresh rows and travels as <code>report.ready</code> with <code>template_key = report_link_resend</code></td></tr>
+<tr><td>AU-29</td><td>Sample rejected: (a) tenant permits patient notices, contact exists; (b) tenant does not permit; (c) no patient contact</td><td>(a) Branch notice and patient notice are both created and sent; the patient body has no result values and no clinical detail. (b) and (c): branch notice only. The branch notice is created in all three cases</td></tr>
+<tr><td>AU-30</td><td>A result is approved with <code>flag = critical</code>; no <code>critical_notification</code> is recorded</td><td>No webhook is emitted and no email is sent by this layer. After 30 minutes the result appears on the Doc 03 §11 exceptions list. Recording the notification removes it</td></tr>
+<tr><td>AU-31</td><td>Tenant is read-only (past due) during a settlement cycle</td><td>Settlement generation continues (Doc 05, OQ-36). Approval and delivery pause: no <code>settlement.approved</code> webhook fires while read-only. On reactivation, the delivery proceeds from the waiting rows</td></tr>
+<tr><td>AU-32</td><td>Django and n8n clocks differ by 3 minutes, then by 6 minutes</td><td>At 3 minutes: webhooks verify and deliver. At 6 minutes: verify rejects, rows age, the §13 signals fire</td></tr>
+<tr><td>AU-33</td><td>Body re-serialised with different whitespace after signing</td><td>HMAC verification fails. Only the exact signed bytes verify</td></tr>
+<tr><td>AU-34</td><td><code>SENT</code> callback for a settlement delivered twice</td><td>The settlement moves <code>APPROVED → SENT</code> exactly once. The second callback returns <code>200</code> with <code>settlement_status: "SENT"</code> and writes nothing</td></tr>
+<tr><td>AU-35</td><td>Owner re-sends a statement after a hard bounce, partner email corrected</td><td>A fresh <code>notification</code> row with a new key is created and delivered. The hard-bounced row is unchanged and still <code>FAILED</code> with its sentinel (Doc 05 DL-6)</td></tr>
+<tr><td>AU-36</td><td><code>sample.collected</code> email fails permanently</td><td>The <code>notification</code> row ends <code>FAILED</code>. Sample creation, labels and the collection response were never blocked and are unaffected</td></tr>
+<tr><td>AU-37</td><td>Inspect every event payload in §6</td><td>No payload carries a money figure. The settlement payload carries identifiers, the period, rendered text and the PDF — the figures exist only inside the PDF</td></tr>
+<tr><td>AU-38</td><td>WhatsApp leg callback for a <code>sample.collected</code> event</td><td>The callback carries the built <code>whatsapp_url</code>; no message was sent by n8n; the row records the hand-off as <code>SENT</code></td></tr>
+<tr><td>AU-39</td><td>Sweep runs with two tenants having due rows</td><td>Beat fans out one child task per tenant (Doc 04 §13.2). Each task enters its own tenant context and touches only its own rows; tenant A's sweep never reads or writes tenant B's rows</td></tr>
+<tr><td>AU-40</td><td>Sweep runs over a hard-bounced row whose <code>next_attempt_at</code> was left set by a bug</td><td>The sweep still skips it: the <code>hard_bounce:</code> prefix check is independent of <code>next_attempt_at</code>, so the sentinel alone stops retries</td></tr>
+</tbody></table></div>
+
+<h2 id="s13">13. Observability</h2>
+<p>One signal per row: what it watches, and the alert it raises. Delivery health is read from the Doc 02 rows — the rows are the record, so they are also the metrics. n8n-side signals come from n8n's own execution log, aggregated to Sentry, the platform's one error surface (Doc 01 §15).</p>
+<div class="box"><table><thead><tr><th>Signal</th><th>What it watches</th><th>Alert</th></tr></thead><tbody>
+<tr><td>Stuck webhooks</td><td><code>webhook_delivery</code> rows <code>PENDING</code> for more than 15 minutes</td><td>Platform alert. n8n is down, unreachable, or rejecting signatures (§12.1, §12.5)</td></tr>
+<tr><td>Stuck notifications</td><td><code>notification</code> rows <code>PENDING</code> older than 30 minutes</td><td>Platform alert. The callback path is broken — sends may be happening with no state returning (§12.3)</td></tr>
+<tr><td>Bounced report deliveries</td><td><code>report_delivery</code> rows <code>BOUNCED</code></td><td>Listed on the report screen for staff. Owner alert if the tenant enables it. A bounce usually means a wrong patient email — a data fix, then a re-send</td></tr>
+<tr><td>Settlement delivery failures</td><td><code>notification</code> rows for settlements <code>FAILED</code> after retries (including hard bounces)</td><td>Owner alert (Doc 05 §12.8). Money documents do not fail silently; the Owner re-sends (Doc 05 DL-6)</td></tr>
+<tr><td>Callback authentication failures</td><td>Rate of <code>401 unauthorized_callback</code> and <code>403 tenant_slug_mismatch</code> on the §10 endpoints</td><td>Alert if non-zero. In normal operation the rate is zero; any occurrence is a rotation in progress gone wrong or a configuration bug (§5.5, CB-2)</td></tr>
+<tr><td>Signature verification failures</td><td>Verify-step failures in n8n's execution log, per workflow</td><td>Aggregated to Sentry; platform alert on any burst. The usual cause is a secret rotated on one side only (§12.5)</td></tr>
+<tr><td>Workflow error rate</td><td>Errored executions per workflow (<code>WF-*</code>, §7), from n8n's own monitoring</td><td>Aggregated to Sentry with the workflow name. A rising rate on one workflow with healthy rows elsewhere points at that workflow, not the platform</td></tr>
+<tr><td>Hard bounces</td><td><code>notification</code> and <code>report_delivery</code> rows whose <code>last_error</code> starts with <code>hard_bounce:</code></td><td>Counted per tenant. A rising count is a data-quality signal — wrong addresses being recorded — and is shown to the Owner with the settlement and report signals above</td></tr>
+</tbody></table></div>
+
+<h2 id="s14">14. Resolved and open questions</h2>
+<h3>14.1 Resolved here</h3>
+<div class="box"><table><thead><tr><th>ID</th><th>Question</th><th>Answer</th></tr></thead><tbody>
+<tr><td>OQ-42</td><td>From Doc 05 §13.2: what are the exact n8n workflow internals for the settlement email — PDF attachment handling, and what happens when a partner's mailbox bounces or is full?</td><td><b>Resolved.</b> The workflow is <code>WF-EMAIL-SETTLEMENT</code> (§7). The PDF travels <b>base64-encoded inside the signed payload</b> (<code>data.pdf_base64</code>, <code>data.pdf_filename</code>); the email node decodes it into the attachment; nothing is fetched and no URL exists to leak (§8, PDF-1 to PDF-5). Bounces are classified by SMTP reply class: <code>4xx</code> (mailbox full, temporary) is a soft failure — <code>FAILED</code>, <code>attempts</code> +1, <code>next_attempt_at</code> set, 15-minute Beat sweep retries; <code>5xx</code> (mailbox does not exist) is a hard failure — <code>FAILED</code> with the <code>hard_bounce:</code> sentinel in <code>last_error</code> and <code>next_attempt_at = NULL</code>, so retries stop (§9, DO-1 to DO-8). On every failure path the settlement stays <code>APPROVED</code>; only a <code>SENT</code> callback moves it to <code>SENT</code>. The Owner recovers by correcting the partner email and re-sending, which creates a fresh notification row (Doc 05 DL-6).</td></tr>
+<tr><td>OQ-28</td><td>From Doc 03 §13.2: what is the critical-notification channel, and what escalation fires if no <code>critical_notification</code> is recorded in 30 minutes?</td><td><b>Resolved: no automated reminder in v1.</b> The channel is the in-SPA exceptions list (Doc 03 §11), with its 30-minute rule unchanged, and <code>results.notify_critical</code> prompting staff inside LabFlow (Doc 03 §8.5). No email reminder fires — not to the pathologist, not to the owner, not to anyone. The defence: a <code>critical_notification</code> record means a human phoned the result through and, where required, got a read-back (Doc 03 §8.5). An email cannot create that record, cannot confirm a human heard the value, and must not create the false assurance that the escalation “was handled” because a message left the building. The people an email would reach are the same staff already watching the exceptions list in the SPA where they work; the list is in front of them, live, and cannot be filtered into a spam folder. And an n8n email would add a failure mode — a down n8n, a bounced mailbox, a full inbox — to a patient-safety path that today depends on nothing outside LabFlow. Consequences, all stated where they belong: <code>result.critical</code> has no n8n delivery (§6), <code>WF-EMAIL-CRITICAL-ESCALATION</code> is not built (§7), the critical-escalation callback route is not built (§10), workflow diagram 6 is not drawn (§11), and no template key is proposed for a reminder (§15).</td></tr>
+</tbody></table></div>
+<h3>14.2 New open questions</h3>
+<div class="box"><table><thead><tr><th>ID</th><th>Question</th><th>Owner doc</th><th>Needed by</th></tr></thead><tbody>
+<tr><td>OQ-45</td><td>What is the exact Beat clock entry for the <code>webhook_delivery</code> sweep? <b>Stated here as a rule:</b> the sweep runs every 15 minutes (Doc 01 §13), as its own task distinct from the <code>notification</code>/<code>report_delivery</code> retry sweep, fanned out one child task per active tenant (Doc 04 §13.2), re-firing rows that are <code>PENDING</code> or due, skipping <code>hard_bounce:</code> rows. Only the exact crontab entry (minute offsets against the other 15-minute sweeps, so they do not collide) is left open.</td><td>Doc 10</td><td>Doc 10</td></tr>
+<tr><td>OQ-46</td><td>Which SMTP provider sends LabFlow email in v1? Doc 01 §15 budgets “Email provider SMTP / free tier” and §13 fixes the mechanics; the provider's identity changes no rule in this document, so the choice is deferred rather than guessed here.</td><td>Doc 10</td><td>Doc 10</td></tr>
+<tr><td>OQ-47</td><td>What are the sending limits of the chosen provider's free tier, and what happens operationally when a growing tenant base approaches them? The limits decide when the platform must move tiers; the delivery design (rows, sweeps, alerts) is unaffected, because a provider-side throttle presents as soft failures and ageing rows — both already visible (§13).</td><td>Doc 10</td><td>Doc 10</td></tr>
+<tr><td>OQ-48</td><td>What exactly is <code>message_id</code> in a callback? <b>Interim rule, fixed here:</b> the field is optional; when the SMTP provider returns a Message-ID, n8n includes it and Django logs it with the callback; when the provider exposes none, the field is omitted — never invented, never required, and not persisted on the row in v1 (§1.4). What remains open is only the final confirmation against the provider chosen under OQ-46.</td><td>Doc 10</td><td>Doc 10</td></tr>
+</tbody></table></div>
+
+<h2 id="s15">15. Proposed amendments</h2>
+<p>Two amendments. Both are <b>Proposed</b>: they take effect only when the owning document accepts them. Everything else this document needs already exists in Doc 02 v1.3 — in particular, the hard-bounce sentinel (§9, DO-6) needs <b>no</b> amendment: it is a prefix convention on the existing <code>last_error</code> text column plus <code>next_attempt_at</code>, both already on <code>notification</code> and <code>report_delivery</code>. No critical-escalation template key is proposed, because OQ-28's answer makes one unnecessary (§14).</p>
+<div class="box"><table><thead><tr><th>ID</th><th>Amendment</th><th>Why</th><th>Status</th></tr></thead><tbody>
+<tr><td>A-19</td><td><b>New callback route namespace</b> (for Doc 03 §6's route list): <code>POST /api/v1/webhooks/n8n/notification</code>, <code>POST /api/v1/webhooks/n8n/report-delivery</code>, <code>POST /api/v1/webhooks/n8n/settlement-delivery</code> — specified in §10 and built in v1. A fourth route in the same namespace, <code>POST /api/v1/webhooks/n8n/critical-escalation</code>, is specified as <b>not built</b> (§10) so the namespace is complete. No table, column, or status value changes.</td><td>Doc 01 §13 defines the callback concept but no paths; Doc 03 §6 defines staff-facing routes only. The paths n8n calls must exist in exactly one place, and the route list is Doc 03's to own.</td><td>Proposed</td></tr>
+<tr><td>A-20</td><td><b>New <code>notification_template</code> seed key</b> (for Doc 02 §5.9 / §16): <code>sample_rejected</code>, seeded in <code>en</code> and <code>ur</code>, for the email channel — used by the branch and patient rejection notices (§6, EV-3 to EV-5). Context: <code>accession_id</code>, <code>reason_code</code>, <code>branch_phone</code> (patient leg). No schema change; a seed addition only.</td><td>Doc 03 §5.4 renders the rejection notice from <code>notification_template</code>, but Doc 02 seeds only <code>sample_collected</code>, <code>report_ready</code>, <code>report_link_resend</code> and <code>settlement_ready</code>. The other three events in §6 use those seeded keys; the rejection notice is the one message with no key. Inventing the key silently would break the “Doc 02 is the source of truth” rule, so it is proposed, and named once, here.</td><td>Proposed</td></tr>
+</tbody></table></div>
+
+<h2 id="s16">16. What is NOT built in v1</h2>
+<ul>
+<li><b>No inbound n8n-created data.</b> n8n originates nothing: no patient records, no results, no rows of any kind. Its only writes are outcome reports through §10.</li>
+<li><b>No direct n8n writes to tenant tables.</b> Ever, for any workflow (§4). The callback endpoints are the only doors.</li>
+<li><b>No WhatsApp unattended sending.</b> WhatsApp in v1 is a staff-clicked <code>wa.me</code> link (§7). No message leaves WhatsApp without a human clicking.</li>
+<li><b>No WhatsApp Cloud API.</b> It is the upgrade path (Doc 01 §13), with per-message pricing to check first (F-6, Unverified). Not built, not stubbed.</li>
+<li><b>No SMS channel.</b> No Doc 01–05 section defines one. Email and the WhatsApp hand-off are the channels.</li>
+<li><b>No partner portal, no partner login</b> (Doc 01 OQ-07, Doc 05 §15). Partners receive a statement by email and nothing else.</li>
+<li><b>No in-n8n PDF rendering.</b> WeasyPrint in Django renders every PDF (Doc 03 §9, Doc 05 §8). n8n transports bytes (§8).</li>
+<li><b>No two-way sync with any external system.</b> The flow is one instruction out, one outcome back. Nothing polls, imports, or reconciles an outside system.</li>
+<li><b>No custom dead-letter queue</b> (Doc 01 §13). Exhausted deliveries are <code>FAILED</code> rows. That is the end state, by design (AP-5).</li>
+<li><b>No per-tenant n8n instance.</b> One n8n serves all tenants (§4, AP-7).</li>
+<li><b>No n8n queue mode.</b> The single instance runs in regular mode (F-7). Scaling topology is a Doc 10 decision.</li>
+<li><b>No critical-escalation automation</b> (OQ-28): no workflow, no event delivery, no callback route, no reminder template (§7, §10, §14).</li>
+<li><b>No automatic re-delivery on report amendment</b> (EV-1). Staff re-send is the mechanism.</li>
+<li><b>No email open-tracking.</b> <code>OPENED</code> means “the patient used the report link” (Doc 03 §6.8), nothing more (DO-10). No tracking pixels, no per-message open receipts for settlements.</li>
+<li><b>No asynchronous bounce (DSN) processing.</b> v1 classifies a bounce from the SMTP reply at send time (§9). Parsing later bounce emails from a mailbox is not built; a mailbox that accepts a message and bounces it afterwards shows as <code>SENT</code> until staff learn otherwise — a known, accepted limit of send-time classification.</li>
+</ul>
+
+<h2 id="s17">17. Interview talking points</h2>
+<ul>
+<li><b>Why HMAC + timestamp + idempotency key, and not just a shared secret in a header?</b> A bare secret in a header proves the caller knew the secret once; it does not prove the body was not altered, and a captured request can be replayed forever. The three parts do three different jobs: the HMAC binds the signature to the exact bytes, so tampering fails; the timestamp bounds a capture's useful life to 5 minutes; the idempotency key makes the retries — which this design relies on everywhere — safe. Remove any one and a specific attack or a specific double-send becomes possible (§5, F-1, F-3).</li>
+<li><b>Why can n8n not reach the database?</b> Because it is a trust-boundary decision enforced by the network, not a convenience. Doc 01 §15 puts n8n on networks from which postgres is unreachable. n8n is a general tool with a broad plugin surface, operated outside Django's permission system; the moment it held a database credential, all tenant isolation would rest on its security. Instead it gets two capabilities — receive a signed instruction, report an outcome — and the callback endpoint checks key, host, slug and row before it applies anything. A fully compromised n8n can send spam until the credential is revoked; it cannot read a single patient's record (§4).</li>
+<li><b>Why does the callback return 409 when the row does not exist yet?</b> Because the alternatives are worse. Creating a row to match the callback would let an external caller mint LabFlow records. Guessing — applying the outcome to “the latest delivery for this report” — can mark the wrong attempt. The 409 says one true thing: “not yet; ask again”. The caller retries, the row appears, the outcome applies, and at no point did the system invent state. It costs one retry in a rare race and buys a callback endpoint that can never be tricked into writing fiction (§12.4).</li>
+<li><b>Why base64 for the statement PDF, not a pre-signed URL?</b> A pre-signed URL is a bearer credential for a financial document, and it would be written into n8n's execution logs on every send. Base64 inside the signed body creates nothing that outlives the request, needs no fetch endpoint and no TTL, and lets the HMAC vouch for the exact bytes attached. The price — about 33% size overhead and signing cost on a small monthly PDF — is trivial. Simplicity and leak surface both point the same way (§8).</li>
+<li><b>Why one n8n for all tenants?</b> Because n8n holds no tenant data, there is nothing per-tenant to isolate inside it. Isolation is enforced where the data lives: the callback lands on the tenant's own host, the body's slug must match that host's tenant, and the row it touches sits in that tenant's schema. A workflow bug cannot leak across tenants because the workflow has no cross-tenant state to leak — the worst a mix-up produces is a 403. Per-tenant instances would multiply the operations burden (Doc 09) to protect a boundary that is already enforced in Django (§4, AP-7).</li>
+<li><b>Why is settlement email email-only — and how does that connect to the trust boundary?</b> Doc 05 DL-4 decided it: a statement is a financial document that needs the PDF attached and a delivery record the lab can point to. WhatsApp in v1 is a human clicking a link, with no receipts — the lab could never prove a statement was delivered, and a doctor's personal WhatsApp is not a filing system. The same instinct runs through §4: the further a thing sits outside LabFlow's record-keeping, the less it may carry. Statements stay on the channel that produces a <code>notification</code> row, an SMTP outcome, and a callback — a complete, auditable trail (§9).</li>
+<li><b>Why is the 5-minute window a replay guard and not clock accuracy?</b> Because the two processes share one VPS clock source; if their clocks ever disagreed by 5 minutes, the host would be broken in ways that matter more than webhooks. The window exists to cap the value of a captured request: after 5 minutes, a replay is rejected on timestamp alone, and inside 5 minutes the idempotency key and the database UNIQUE constraint stop it. Stating the purpose matters operationally — a team that thinks the window measures clock health will widen it when alerts fire, and quietly disarm the guard (§5.2, §12.6).</li>
+<li><b>Why does a hard bounce stop retries, marked by a text prefix instead of a column?</b> Because “hard” is a fact about the error, not a state of the row. The row's state is <code>FAILED</code>, like every failure; what differs is whether a retry can help, and <code>next_attempt_at</code> already encodes the schedule — NULL means “not scheduled”. The <code>hard_bounce:</code> prefix on <code>last_error</code> records the reason in the column Doc 02 already provides, the sweep checks the prefix independently of the schedule (AU-40), and no schema change was needed for a distinction one sweep query expresses (§9, DO-6).</li>
+</ul>
+
+<h2 id="s18">18. Glossary</h2>
+<div class="box"><table><thead><tr><th>Term</th><th>Meaning</th></tr></thead><tbody>
+<tr><td>Webhook delivery</td><td>One Django → n8n webhook attempt, recorded as a <code>webhook_delivery</code> row (Doc 02 §5.10) before it is fired. <code>SENT</code> on the row means n8n accepted the webhook — not that the message was delivered.</td></tr>
+<tr><td>Callback</td><td>n8n's POST back to the payload's <code>callback_url</code> on the tenant host, reporting the outcome of one delivery. The only way n8n writes anything in LabFlow (§10).</td></tr>
+<tr><td>Callback key</td><td><code>N8N_CALLBACK_KEY</code>: the platform secret n8n presents in the <code>X-LabFlow-Callback-Key</code> header. Env only; <code>_NEXT</code> is its rotation slot (§5.5).</td></tr>
+<tr><td>Idempotency key</td><td>The UUID that names one logical delivery end to end: generated by LabFlow, UNIQUE on <code>webhook_delivery</code> and <code>notification</code>, de-duplicated by n8n, and carried back by the callback (§5.3).</td></tr>
+<tr><td>Replay guard</td><td>The 5-minute <code>timestamp</code> rule (§5.2): a captured webhook older than 5 minutes is rejected, so a capture quickly becomes worthless.</td></tr>
+<tr><td>Dedupe</td><td>n8n's check, before any side effect, that an <code>idempotency_key</code> has not already been processed. Prevents a second send when the sweep re-fires a webhook (§7, IK-2).</td></tr>
+<tr><td>Soft failure</td><td>A temporary delivery failure (SMTP <code>4xx</code>): the row becomes <code>FAILED</code> with <code>next_attempt_at</code> set, and the sweep retries (§9.2).</td></tr>
+<tr><td>Hard bounce</td><td>A permanent delivery failure (SMTP <code>5xx</code>, for example <code>550 5.1.1</code>): retrying cannot help, so retries stop (§9.3).</td></tr>
+<tr><td><code>hard_bounce:</code> sentinel</td><td>The exact prefix written at the start of <code>last_error</code> on a hard failure. The sweep skips any row whose <code>last_error</code> starts with it. A convention on an existing column — no schema change (DO-6).</td></tr>
+<tr><td>Beat sweep</td><td>The 15-minute Celery Beat retry pass (Doc 01 §13): one child task per tenant (Doc 04 §13.2) re-fires due <code>webhook_delivery</code>, <code>notification</code> and <code>report_delivery</code> rows.</td></tr>
+<tr><td>WhatsApp hand-off</td><td>The v1 WhatsApp pattern: n8n builds a <code>wa.me</code> URL and returns it; a staff member clicks it and sends from their own WhatsApp. No unattended sending exists (§7).</td></tr>
+<tr><td>Trust boundary</td><td>The line n8n sits outside of (§4): inside it, LabFlow data and decisions; outside it, a transport that receives signed instructions and reports outcomes, with no database path.</td></tr>
+<tr><td>Cutover</td><td>The moment in key rotation when n8n starts presenting the <code>_NEXT</code> callback key (§5.5). Before it, only the old key is in use; after it, both are accepted until promotion.</td></tr>
+<tr><td>Re-send</td><td>A staff-initiated new delivery: fresh rows, fresh idempotency key (EV-2). Distinct from a <i>retry</i>, which re-fires the same rows with the same key.</td></tr>
+</tbody></table></div>
+<p class="meta">End of Doc 06. Next: Doc 07 — Frontend Architecture, which owns the report screen's delivery display and the exceptions list UI referenced here. Doc 06 stops here for review; no later document is started.</p>
+</main>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
+<script>
+(function () {
+  if (!window.mermaid) return;
+  mermaid.initialize({ startOnLoad: true, theme: "dark", securityLevel: "strict", themeVariables: { primaryColor: "#1c2128", primaryBorderColor: "#4a5561", primaryTextColor: "#e6edf3", secondaryColor: "#2a313a", tertiaryColor: "#161b22", lineColor: "#4a5561", textColor: "#e6edf3", actorBkg: "#1c2128", actorBorder: "#4a5561", actorTextColor: "#e6edf3", actorLineColor: "#9aa7b4", signalColor: "#9aa7b4", signalTextColor: "#e6edf3", noteBkgColor: "#2a313a", noteTextColor: "#e6edf3", noteBorderColor: "#4a5561", labelTextColor: "#e6edf3" } });
+})();
+</script>
+</body>
+</html>

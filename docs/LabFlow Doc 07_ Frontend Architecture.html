@@ -1,0 +1,801 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<link rel="icon" href="data:," />
+<title>LabFlow Doc 07: Frontend Architecture</title>
+<style>
+:root{--bg:#0d1117;--fg:#e6edf3;--mut:#9aa7b4;--line:#30363d;--card:#161b22;--card2:#21262d;--acc:#e8a33d;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:dark}
+*,*::before,*::after{box-sizing:border-box}
+html{height:100%;scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--fg);font:15.5px/1.65 system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+.wrap{max-width:740px;margin:0 auto;padding:40px 24px 88px}
+nav.toc{margin:0 0 10px;padding:0 0 20px;border-bottom:1px solid var(--line)}
+nav.toc .th{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--mut);margin:0 0 10px}
+nav.toc a{display:block;color:#f0c476;text-decoration:none;font-size:13.5px;line-height:1.5;padding:2.5px 0}
+nav.toc a.sub{padding-left:16px;font-size:13px}
+main{min-width:0}
+h1{font-size:27px;line-height:1.25;margin:0 0 10px;font-weight:700;letter-spacing:-.01em}
+h2{font-size:19px;line-height:1.35;margin:42px 0 12px;padding-top:28px;border-top:1px solid var(--line);font-weight:700}
+h2:first-of-type{margin-top:32px}
+h3{font-size:15.5px;margin:24px 0 6px;font-weight:700}
+h4{font-size:14.5px;margin:18px 0 4px;font-weight:700}
+p{margin:8px 0}
+.meta{color:var(--mut);font-size:13.5px;line-height:1.6}
+.tag{display:inline-block;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:1px 9px;font-size:12px;margin:0 6px 4px 0;color:var(--fg);white-space:nowrap}
+.box{margin:14px 0;overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:13.6px;line-height:1.5}
+th,td{border:1px solid var(--line);padding:7px 10px;text-align:left;vertical-align:top;overflow-wrap:break-word}
+th{background:var(--card2);font-weight:600;color:var(--fg)}
+tbody tr:nth-child(even) td,tr:nth-child(even) td{background:#12161c}
+code{font:12.8px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:var(--card2);border-radius:5px;padding:1.5px 5px;overflow-wrap:anywhere;color:#f0c476}
+pre{font:12.6px/1.55 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:14px 16px;margin:14px 0;white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word;color:#dbe4ee}
+.diagram{background:#11161d;border:1px solid var(--line);border-radius:8px;padding:16px 12px;margin:14px 0;overflow-x:auto}
+.diagram svg{display:block;width:100%;height:auto;min-width:520px}
+pre.mermaid{background:transparent;border:none;margin:0;padding:4px;text-align:center;color:#dbe4ee}
+.dcap{color:var(--mut);font-size:12.5px;text-align:center;margin-top:8px}
+.note{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:12px 14px;margin:14px 0;font-size:14.5px;line-height:1.6}
+.spec{border:1px solid var(--line);border-radius:8px;padding:4px 14px 10px;margin:16px 0;background:#10141a}
+.spec h4{color:#f0c476}
+ul,ol{padding-left:24px;margin:8px 0}li{margin:4px 0}
+a{color:#f0c476;overflow-wrap:anywhere}
+.kv{font-size:13.8px}
+.pass{font-weight:700}
+.sw{display:inline-block;width:11px;height:11px;border-radius:3px;border:1px solid var(--line);vertical-align:-1px;margin-right:6px}
+@media(max-width:600px){.wrap{padding:28px 18px 64px}h1{font-size:24px}h2{font-size:17.5px;margin-top:36px;padding-top:22px}table{font-size:12.8px}th,td{padding:6px 7px}pre{padding:12px;font-size:12px}.diagram svg{min-width:480px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<nav class="toc" aria-label="Table of contents">
+<p class="th">Doc 07 · Frontend Architecture</p>
+<a href="#s1">1. Purpose, scope, inputs, consistency check</a>
+<a href="#s2">2. Research findings</a>
+<a href="#s3">3. Design principles</a>
+<a href="#s3-1" class="sub">3.1 Design tokens — colors</a>
+<a href="#s4">4. The app shell and routing</a>
+<a href="#s5">5. Auth flow</a>
+<a href="#s6">6. Tenant and role gates</a>
+<a href="#s7">7. The data layer</a>
+<a href="#s8">8. Screen inventory</a>
+<a href="#s9">9. i18n and RTL</a>
+<a href="#s10">10. Formatting</a>
+<a href="#s11">11. Barcode label printing</a>
+<a href="#s12">12. PDF access</a>
+<a href="#s13">13. SPA notifications and empty states</a>
+<a href="#s14">14. Key workflows</a>
+<a href="#s15">15. Failure handling and test plan</a>
+<a href="#s16">16. Resolved and open questions</a>
+<a href="#s17">17. Proposed amendments</a>
+<a href="#s18">18. What is NOT built in v1</a>
+<a href="#s19">19. Interview talking points</a>
+<a href="#s20">20. Glossary</a>
+</nav>
+<main>
+<h1>LabFlow — Doc 07: Frontend Architecture</h1>
+<p class="meta"><span class="tag">Doc 07 of 10</span><span class="tag">v1.1</span><span class="tag">2026-10-20</span><span class="tag">Depends on Doc 01 v2.2, Doc 02 v1.3, Doc 03 v1.3</span><span class="tag">Doc 04 v1.1, Doc 05 v1.0, Doc 06 v1.0</span></p>
+<p class="meta">The React 18 + TypeScript + Vite single-page app: the app shell, auth flow, tenant and role gates, the data layer, every screen and what it calls, i18n and RTL, formatting, barcode label printing, PDF access, SPA notifications, and the Playwright test plan.<br>Audience: the developer building LabFlow v1. Stack comes from Doc 01, the schema from Doc 02, module behaviour and API contracts from Docs 03–06 — none is re-decided here.</p>
+<p class="meta"><b>Changes in v1.1 (2026-10-20).</b> §6.4: read-only mode is now known at cold load from the <code>tenant-status</code> <code>mode</code> field (A-24, Proposed); the lazy <code>403</code> path remains as the mid-session backstop. §17 gains A-24; §1.4 records it as gap 4. §6.2: the cancellation/expiry sentence corrected to match Doc 04 §11.2 — read-only mode at once, not suspension. §3.1: dark-mode tokens enumerated in a second table. §8.4: the approval note requirement now names the NULL-flag case explicitly (RS-7, RS-10). Nothing else changed; no decision re-opened.</p>
+
+<h2 id="s1">1. Purpose, scope, inputs, consistency check</h2>
+<h3>1.1 Purpose</h3>
+<p>Docs 01–06 fixed everything behind the API. This document fixes everything in front of it: the single-page application (SPA) that lab staff use all day, and the one public page a patient ever sees.</p>
+<p>After reading it, a developer should be able to build the SPA without inventing rules: what screens exist, what each screen shows and calls, what state each screen holds, how auth flows, how English and Urdu (RTL) work, how errors surface, how labels print, and how PDFs open. Anything this document needs that Docs 01–06 do not have is marked <b>Proposed</b> and listed in §17.</p>
+<div class="note"><p><b>The SPA is a display surface, not a second brain.</b> Every rule — money, state transitions, permissions, share percentages — is decided and enforced by the API. The SPA renders what the API returns, sends what the staff member did, and explains what the API answered. Where the SPA and the API disagree, the API is right and the SPA has a bug.</p></div>
+<h3>1.2 Scope</h3>
+<div class="box"><table><thead><tr><th>In scope here</th><th>Owned elsewhere</th></tr></thead><tbody>
+<tr><td>App shell, route tree, route guards (§4)</td><td>API contracts and endpoint behaviour (Doc 03 §6, Doc 04 §15, Doc 05 §10, Doc 06 §10)</td></tr>
+<tr><td>Auth flow in the browser: token in memory, refresh, logout (§5)</td><td>Auth design, token policy, threat model (Doc 08; Doc 03 §6.1 defers the mechanism there)</td></tr>
+<tr><td>Tenant and role gates as the user sees them (§6)</td><td>Tenant lifecycle and subscription states (Doc 04 §4, §11)</td></tr>
+<tr><td>Data layer: TanStack Query, Zod, forms, error mapping (§7)</td><td>Tables, columns, status values (Doc 02)</td></tr>
+<tr><td>Screen inventory (§8), i18n/RTL (§9), formatting (§10)</td><td>Business rules behind every screen (Docs 03–05)</td></tr>
+<tr><td>Barcode rendering choice and label print layout (§11)</td><td>Label data and its rules — SM-4 (Doc 03 §5.4, §6.5)</td></tr>
+<tr><td>How PDFs open in the browser (§12)</td><td>PDF content and layout (Doc 03 §9, Doc 05 §8); generation (Doc 03 §5.6, Doc 05 §7)</td></tr>
+<tr><td>The meaning of “SPA notification”: toast + badge (§13)</td><td>Email and WhatsApp delivery (Doc 06); the drafts-ready ruling (Doc 06 §1.4)</td></tr>
+<tr><td>Playwright E2E test plan (§15)</td><td>Coding standards and CI shape (Doc 09); launch and capacity (Doc 10)</td></tr>
+</tbody></table></div>
+<h3>1.3 Inputs</h3>
+<p><b>Doc 01 — Architecture Overview v2.2.</b> §6 (confirmed stack: React 18, TypeScript, Vite; TanStack Query for server state, Zustand for UI state only; React Hook Form + Zod; Tailwind CSS + shadcn/ui; i18next with English + Urdu RTL); §15 (build output served by Caddy as static files; SPA and API share one origin in production — no CORS); §16 (Playwright for E2E); ADR-005 (JWT access token in memory only; refresh token an httpOnly, Secure, SameSite=Lax cookie scoped to <code>/api/v1/auth/</code>; on <code>401</code> with <code>code = token_expired</code>, call <code>POST /api/v1/auth/refresh</code> and retry the original request once); §14 (access token 15 minutes, rotating refresh cookie 7 days; TOTP 2FA required for Owner, Manager, Pathologist, Super Admin; the public verify endpoint returns nothing sensitive); §12 Flow A (label printing), Flow B (report delivery), Flow C (settlement delivery); goal G6 (patient reaches the PDF in ≤ 2 clicks).</p>
+<p><b>Doc 02 — Database Schema v1.3.</b> The only source of truth for tables, columns and status values. §9 (ID formats: MRN is <code>MRN-{branch_code:3}-{seq:06d}</code>; accession IDs are per-tenant sequences; report link TTL 7 days). Every status value the UI shows is a Doc 02 value, checked in §1.4.</p>
+<p><b>Doc 03 — Core Lab Modules v1.3.</b> §4.1 (role codes O, M, R, T, P), §4.3 (permission matrix by endpoint group), §5.4 SM-4 (labels printed from stored data; no free-text label endpoint), §6.1 (API conventions: money is a Decimal string such as <code>"1250.00"</code>; times ISO 8601 with <code>+05:00</code>; dates <code>YYYY-MM-DD</code>; errors are <code>application/problem+json</code> with a machine-stable <code>code</code> — clients branch on <code>code</code>, never on <code>detail</code>; <code>If-Match</code> versioning with <code>409 version_conflict</code>; cursor pagination), §6.2–§6.8 (endpoint groups, the worklist, patient report access), §8.2 (age and reference ranges), §8.5 (critical notification record), §8.6 (delta check), §11 (the exceptions list: critical results unrecorded after 30 minutes; transfers open over 24 hours).</p>
+<p><b>Doc 04 — Multi-Branch and Tenancy v1.1.</b> §6.1 (tenant resolved from the host; the SPA sends no tenant header, query param or path segment — <code>window.location.hostname</code> is the only tenant selector on the client), §6.3 (<code>GET /api/v1/tenant-status</code> returns <code>{slug, name, status}</code>, unauthenticated, the only tenant-host endpoint usable pre-auth), §10.2 (settings registry, incl. <code>report_default_language</code> and <code>report_link_validity_days</code>), §11.2 (read-only mode: all GETs work, writes return <code>403 subscription_read_only</code>, with patient report access and the Owner export exempt), §15 (platform and tenant endpoint lists).</p>
+<p><b>Doc 05 — Revenue-Share Module v1.0.</b> §4 (roles: Owner everything; Manager read-only settlements and statement download; Receptionist, Technician, Pathologist no access), §10 (partner, ledger and settlement endpoints; settlement actions require <code>If-Match</code>), §13 (OQ-31 resolved: Manager refunds alone up to <code>refund_owner_approval_threshold_pkr</code>, default 5000, above it Owner only with <code>403 owner_approval_required</code>; OQ-36 resolved: settlement generation continues in read-only mode, approval, delivery and mark-paid pause).</p>
+<p><b>Doc 06 — Automation Layer (n8n) v1.0.</b> §9 (delivery outcomes; the <code>hard_bounce:</code> prefix in <code>last_error</code> plus <code>next_attempt_at = NULL</code> marks a hard bounce), §1.4 (drafts-ready is an in-SPA item only — no event, no template key, no email), §14 (OQ-28 resolved: no automated critical-result reminder; the in-SPA exceptions list is the mechanism; OQ-42 resolved: statement PDFs travel base64 in the payload — the SPA is not involved), §10 (the n8n callback endpoints — the SPA never calls them).</p>
+<h3>1.4 Consistency check against Docs 01, 02, 03, 04, 05 and 06</h3>
+<p class="pass">Result: PASS. No conflict with Docs 01–06.</p>
+<p>Every screen in §8 was checked against the endpoint lists of Doc 03 §6, Doc 04 §15 and Doc 05 §10. Every status value the UI shows was checked against Doc 02. The ground-truth values are:</p>
+<div class="box"><table><thead><tr><th>Field (Doc 02)</th><th>Values the UI may show</th></tr></thead><tbody>
+<tr><td><code>sample.status</code></td><td><code>collected | received | in_process | ready | rejected | cancelled</code></td></tr>
+<tr><td><code>sample_transfer.status</code></td><td><code>open | received | cancelled | lost</code> (application-enforced, Doc 02 v1.3 §5.5)</td></tr>
+<tr><td><code>result.status</code></td><td><code>entered | approved | rejected | amended | withdrawn</code></td></tr>
+<tr><td><code>result.flag</code></td><td><code>low | high | critical</code>, or NULL (no auto flag)</td></tr>
+<tr><td><code>invoice.status</code></td><td><code>unpaid | partial | paid | refunded | cancelled</code> (derived, Doc 03 BL-6)</td></tr>
+<tr><td><code>report.status</code></td><td><code>draft | final | amended | void</code></td></tr>
+<tr><td><code>report_delivery.status</code></td><td><code>PENDING | SENT | FAILED | BOUNCED | OPENED</code></td></tr>
+<tr><td><code>settlement.status</code></td><td><code>DRAFT | APPROVED | SENT | PAID | CANCELLED</code></td></tr>
+<tr><td><code>tenant.status</code> (public schema)</td><td><code>provisioning | active | suspended | deleted</code></td></tr>
+<tr><td><code>subscription.status</code> (public schema)</td><td><code>active | past_due | cancelled | expired</code> — the SPA sees its effect (<code>subscription_read_only</code>), not the row</td></tr>
+</tbody></table></div>
+<p>Four gaps found. All four are small. All four are listed as Proposed amendments in §17, with interim behaviour stated there. None blocks the design of any other screen.</p>
+<div class="box"><table><thead><tr><th>#</th><th>Gap</th><th>Amendment</th></tr></thead><tbody>
+<tr><td>1</td><td>Only one auth route is defined in Docs 01–06: <code>POST /api/v1/auth/refresh</code> (Doc 01 ADR-005). The login, logout and TOTP verify routes are not specified anywhere; Doc 03 §6.1 defers the auth mechanism to Doc 08, and Doc 04 §1.2 assigns auth design to Doc 08.</td><td>A-21 (Proposed): the three routes, in the existing <code>/api/v1/auth/</code> namespace, with the shapes §5 states</td></tr>
+<tr><td>2</td><td>Doc 04 §15.2 defines <code>GET / PUT /api/v1/staff/{id}/branches</code> but no staff list endpoint. The staff screen (§8) needs a roster to assign branches to.</td><td>A-22 (Proposed): <code>GET /api/v1/staff</code> (list)</td></tr>
+<tr><td>3</td><td>The critical half of the exceptions list (§8, §14 workflow 8) cannot be composed from existing endpoints. <code>GET /api/v1/worklist</code> lists work with no approved result — not approved critical results with no notification record. <code>GET /api/v1/transfers/exceptions</code> covers transfers only. No endpoint returns the Doc 03 §11 patient-safety exception list.</td><td>A-23 (Proposed): <code>GET /api/v1/exceptions/critical-results</code> (read-only)</td></tr>
+<tr><td>4</td><td>Doc 04 §6.3 defines <code>tenant-status</code> as <code>{slug, name, status}</code>. Nothing tells the SPA at cold load whether the tenant is read-only, so an Owner signing in to a past-due lab sees a fully functional-looking app until the first write fails with <code>403 subscription_read_only</code> (§6.4).</td><td>A-24 (Proposed): <code>tenant-status</code> gains <code>mode: "full" | "read_only"</code></td></tr>
+</tbody></table></div>
+<p>Three things that look like gaps and are not.</p>
+<p><b>Drafts-ready needs no endpoint.</b> The settlements nav badge is a count of <code>GET /api/v1/settlements?status=DRAFT</code> — a call the SPA already makes for the settlements list (Doc 05 §10). No notification row, no email, no new call (Doc 06 §1.4; §13).</p>
+<p><b>The exceptions screen needs no composite endpoint.</b> It composes existing queries — transfers from <code>GET /api/v1/transfers/exceptions</code> (Doc 04 §15.2), drafts from the settlements list, pending counts from the worklist — plus the one list that cannot be composed (gap 3). A single composite endpoint would hide four different staleness and permission profiles behind one response. §17 records this as considered and rejected, apart from A-23.</p>
+<p><b>The label has an endpoint, and it is not a text endpoint.</b> <code>GET /api/v1/samples/{id}/label</code> (Doc 03 §6.5) returns stored label data — accession ID, patient name, MRN, date of birth, <code>collected_at</code>, collector name, symbology <code>code128</code>. The SPA renders the barcode from that data (§11). What does not exist, and is not proposed, is a free-text label endpoint: nobody can type a label into existence (SM-4).</p>
+<h3>1.5 Assumptions</h3>
+<p><b>AS-1.</b> One SPA build serves every host. On a tenant host it runs in tenant mode; on the apex host <code>labflow.app</code> it runs in platform mode (§4.4). The build is identical; the host decides.</p>
+<p><b>AS-2.</b> Staff work on desktop browsers at branch counters and benches. The layout targets desktop first and must not break at narrow widths, but there is no tablet-specific or phone-specific design in v1 (§18).</p>
+<p><b>AS-3.</b> Every staff browser can reach the API on the same origin. There is no offline-first requirement in v1 (Doc 01 §5's patchy-connectivity case is handled by R3, §16).</p>
+<p><b>AS-4.</b> The lab's printers are ordinary office printers plus label printers driven by the browser's print dialog. There is no print server (§18).</p>
+<p><b>AS-5.</b> Sentry is wired into the SPA build the same way Doc 01 §14 wires it into the API: patient fields are stripped before an error leaves the browser.</p>
+
+<h2 id="s2">2. Research findings</h2>
+<p>Each finding states what was found, the source, and what it changes here. One finding could not be sourced in this pass and is marked Unverified.</p>
+<div class="box"><table><thead><tr><th>#</th><th>Finding</th><th>Effect here</th></tr></thead><tbody>
+<tr><td>F-1</td><td><b>TanStack Query's defaults are aggressive, and two of them are wrong for a lab.</b> Out of the box: cached data is stale immediately (<code>staleTime</code> 0), stale queries refetch on mount, window focus and reconnect; inactive queries are garbage-collected after 5 minutes (<code>gcTime</code>); failed queries retry 3 times with exponential backoff before the UI sees an error. Source: TanStack Query docs — <i>Important Defaults</i> (<a href="https://tanstack.com/query/latest/docs/framework/vue/guides/important-defaults">tanstack.com/query — Important Defaults</a>; the React guide states the same defaults).</td><td>§7 sets explicit values instead of inheriting silently: a non-zero <code>staleTime</code> per resource class, and a retry function that never retries a 4xx — retrying a <code>403</code> or a <code>409</code> three times only delays the explanation the user needs. Mutations never retry (§7.1, R3).</td></tr>
+<tr><td>F-2</td><td><b>JsBarcode is a small, dependency-free Code128 renderer under the MIT licence.</b> It renders to SVG, canvas or <code>img</code>, supports CODE128 with automatic mode switching, has no browser dependencies, and the CODE128-only build is about 6.2 kB gzipped. It is a plain imperative library — call it with a DOM node and a value — so it works inside React 18 from a <code>useEffect</code> / ref with no wrapper package to go stale. Sources: JsBarcode project documentation (lindell/JsBarcode) and package records — <a href="https://socket.dev/npm/package/jsbarcode/overview/3.7.0">socket.dev — jsbarcode</a>.</td><td>R1 (§16): JsBarcode renders every label, into an <code>&lt;svg&gt;</code> element, so the printed barcode is vector-sharp at any printer resolution (§11).</td></tr>
+<tr><td>F-3</td><td><b>bwip-js is the heavier, broader alternative — also MIT.</b> It is a port of Barcode Writer in Pure PostScript, supports 100+ symbologies, and ships browser, Node and React Native builds. The breadth is real and, for LabFlow, useless: v1 prints exactly one symbology. Sources: bwip-js project documentation — <a href="https://deepwiki.com/metafloor/bwip-js/7.3-license">bwip-js licence (MIT)</a>, <a href="https://deepwiki.com/metafloor/bwip-js">bwip-js overview</a>.</td><td>Considered and rejected in R1. If a future symbology (for example a 2D code on labels) is ever required, bwip-js is the named upgrade path — a swap inside one component (§11), not a redesign.</td></tr>
+<tr><td>F-4</td><td><b>i18next knows each language's direction; the app must apply it at the root.</b> <code>i18n.dir()</code> returns <code>"rtl"</code> or <code>"ltr"</code> for the current language, and the standard pattern is to set <code>dir</code> and <code>lang</code> on the <code>&lt;html&gt;</code> element on <code>languageChanged</code>, letting CSS logical properties flip the layout. Sources: i18next / react-i18next practice as documented in the i18n frontend guideline — <a href="https://memo.d.foundation/research/topics/frontend/i18n-frontend-guideline/">memo.d.foundation — I18n frontend guideline</a>.</td><td>§9: Urdu sets <code>dir="rtl"</code> at <code>&lt;html&gt;</code>; all spacing uses Tailwind logical utilities (<code>ms-</code>, <code>me-</code>, <code>ps-</code>, <code>pe-</code>, <code>start-</code>, <code>end-</code>), never <code>margin-left</code> and friends.</td></tr>
+<tr><td>F-5</td><td><b>shadcn/ui is not a component library; it is components you copy in and own.</b> The components are built on Radix UI primitives (keyboard navigation, focus management, ARIA) styled with Tailwind, added per-component by CLI, MIT-licensed, and thereafter maintained as the project's own code. Sources: shadcn/ui project documentation, summarised at <a href="https://ssojet.com/blog/what-is-shadcn-ui">ssojet.com — What is shadcn/ui?</a></td><td>§16 lists the exact v1 component set. Because the code is owned, the design tokens in §3.1 are applied inside the components, and no component is imported that v1 does not use.</td></tr>
+<tr><td>F-6</td><td><b>Playwright runs one suite across browser engines through projects.</b> A <code>projects</code> array in the config runs the same tests on Chromium, Firefox and WebKit (and emulated devices). Doc 01 §16 already requires Playwright; this confirms the cross-browser shape costs no second framework. Source: Playwright documentation — <i>Projects</i>, via <a href="https://www.docs4dev.com/docs/en/playwright/latest/test-projects.html">docs4dev — Playwright test projects</a>.</td><td>§15: the FE suite runs on Chromium in CI for every change, and on Chromium + Firefox + WebKit nightly. Print and PDF flows (FE-02, FE-07) are Chromium-first because print behaviour differs most by engine.</td></tr>
+<tr><td>F-7</td><td><b>WCAG 2.2 sets the two colour rules this document already needs.</b> Criterion 1.4.1 (Level A): colour must not be the only visual means of conveying information. Criterion 1.4.3 (Level AA): normal text needs a contrast ratio of at least 4.5:1. Source: WCAG 2.2, summarised at <a href="https://getwcag.com/en/contrast-checker">getwcag.com — WCAG 2.2 contrast requirements</a>.</td><td>§3.1 hard rule 2 (every status pairs colour with a letter or word) is 1.4.1 applied. §16 adopts a WCAG AA baseline for form labels, focus visibility and contrast, and defers the full audit (OQ-50).</td></tr>
+<tr><td>F-8</td><td><b>React 18 Suspense is not needed for data in v1 — Unverified.</b> This pass did not re-verify the current react.dev guidance on Suspense for data fetching. The decision here does not depend on it: TanStack Query exposes loading state per query, and §7 renders skeletons from that state. <code>React.lazy</code> is used for route-level code splitting only, with a skeleton fallback.</td><td>No data-fetching Suspense in v1 (§18). If Doc 09's standards work wants Suspense boundaries later, they wrap routes, not queries.</td></tr>
+</tbody></table></div>
+
+<h2 id="s3">3. Design principles</h2>
+<p>Doc 03's principles P-1 to P-10 govern the lab modules, and P-1 (patient safety first) still outranks everything here. These govern the frontend.</p>
+<div class="box"><table><thead><tr><th>#</th><th>Principle</th><th>What it means here</th></tr></thead><tbody>
+<tr><td>FP-1</td><td><b>The API is the source of truth.</b></td><td>The SPA never derives a status, a total, or a permission. If the API did not say it, the screen does not show it. Derived-looking numbers on dashboards are counts of rows the API returned, labelled as such.</td></tr>
+<tr><td>FP-2</td><td><b>The access token lives in memory only.</b></td><td>Never <code>localStorage</code>, never <code>sessionStorage</code>, never a JavaScript-readable cookie (Doc 01 ADR-005). A page reload loses the token; the refresh cookie silently restores the session (§5). That trade is deliberate: a reloaded tab costs one refresh call, a stolen stored token costs a tenant.</td></tr>
+<tr><td>FP-3</td><td><b>No patient data in browser storage. Ever.</b></td><td>No patient, sample, result, invoice or partner data is written to <code>localStorage</code>, <code>sessionStorage</code> or IndexedDB — not as a cache, not as a draft, not “temporarily”. The TanStack Query cache lives in memory and dies with the tab. The only values persisted are UI preferences with no patient content: language and theme (§9).</td></tr>
+<tr><td>FP-4</td><td><b>Branch on <code>code</code>, never on text.</b></td><td>Every error decision in the SPA reads the problem+json <code>code</code> field (Doc 03 §6.1). <code>detail</code> is for humans and may be shown; it is never parsed, matched or translated by the client.</td></tr>
+<tr><td>FP-5</td><td><b>Money is display-only text.</b></td><td>Money arrives as a string and is shown as that string. The SPA does no money arithmetic — no sums, no balances, no “remaining” figures computed in the browser (R2, §16). If a screen needs a total, the API already sent it.</td></tr>
+<tr><td>FP-6</td><td><b>Hidden by role, enforced by the API.</b></td><td>Buttons and nav items a role may not use are not rendered. That is a usability rule, not a security rule: the API re-checks every call and answers <code>403</code> regardless (§6, §15).</td></tr>
+<tr><td>FP-7</td><td><b>The host is the tenant.</b></td><td>The SPA reads <code>window.location.hostname</code> once at startup and never sends a tenant identifier anywhere (Doc 04 §6.1). There is no tenant switcher. A staff member who works at two labs opens two hosts.</td></tr>
+<tr><td>FP-8</td><td><b>Skeletons, not spinners.</b></td><td>Lists and detail screens render skeleton shapes while loading, so the page does not jump when data lands. A spinner appears only inside a button whose mutation is in flight.</td></tr>
+<tr><td>FP-9</td><td><b>No silent failure.</b></td><td>Every failed call ends in one of the §7.4 surfaces: inline field error, toast, modal, banner, or the screen boundary. A button that does nothing on failure is a defect (§15).</td></tr>
+<tr><td>FP-10</td><td><b>The SPA talks to the API, and only the API.</b></td><td>The SPA never calls n8n, never calls the Doc 06 §10 callback endpoints, never calls storage directly. PDFs open through API redirects (§12). Delivery state is read from API responses, never from the automation layer.</td></tr>
+</tbody></table></div>
+
+<h3 id="s3-1">3.1 Design tokens — colors</h3>
+<p>The app has its own palette. It is not the palette of these HTML documents: Docs 01–06 use a forced-dark amber scheme for reading; the app scheme below is what staff and patients see. Light is the default; dark is an OS-following variant using the same token names, enumerated in the second table below. Tokens are Tailwind names so the palette is code, not a picture of code.</p>
+<div class="box"><table><thead><tr><th>Token</th><th>Value</th><th>Used for</th></tr></thead><tbody>
+<tr><td>Primary</td><td><span class="sw" style="background:#0d9488"></span>teal-600 <code>#0d9488</code> (hover teal-700 <code>#0f766e</code>)</td><td>Primary call-to-action buttons, links, active nav, focus rings</td></tr>
+<tr><td>Accent</td><td><span class="sw" style="background:#e8a33d"></span><code>#e8a33d</code> (the docs' amber, continued)</td><td>Reference-range highlights and review badges only. <b>Never</b> primary CTAs. <b>Never</b> money.</td></tr>
+<tr><td>Neutrals</td><td>slate 50–900</td><td>Backgrounds, borders, text. Body text slate-900 on white; muted text slate-600 (see rule 3)</td></tr>
+<tr><td>Success</td><td><span class="sw" style="background:#16a34a"></span>green-600</td><td>Confirmations, completed states — always with a word</td></tr>
+<tr><td>Warning</td><td><span class="sw" style="background:#ea580c"></span>orange-600</td><td>Needs attention, soft failures</td></tr>
+<tr><td>Danger</td><td><span class="sw" style="background:#dc2626"></span>red-600</td><td>Errors, destructive actions, critical flags</td></tr>
+<tr><td>Info</td><td><span class="sw" style="background:#2563eb"></span>blue-600</td><td>Informational states, sent deliveries</td></tr>
+</tbody></table></div>
+<p><b>Dark variant.</b> Same token names; only the values change. Surfaces move to the dark end of the slate scale, status colours step one shade brighter (the 500 step) so they keep contrast on dark backgrounds, and the critical flag's pale background becomes the darkest red. Every rule below the light table — flags pair colour with a letter, delivery states render their word, money is never green or red — applies unchanged.</p>
+<div class="box"><table><thead><tr><th>Token</th><th>Dark value</th><th>Used for</th></tr></thead><tbody>
+<tr><td>Primary</td><td><span class="sw" style="background:#14b8a6"></span>teal-500 <code>#14b8a6</code> (hover teal-400 <code>#2dd4bf</code>)</td><td>Primary call-to-action buttons, links, active nav, focus rings</td></tr>
+<tr><td>Accent</td><td><span class="sw" style="background:#e8a33d"></span><code>#e8a33d</code> (unchanged)</td><td>Reference-range highlights and review badges only. <b>Never</b> primary CTAs. <b>Never</b> money.</td></tr>
+<tr><td>Neutrals</td><td>slate-900 page background · slate-800 surfaces · slate-700 borders · slate-100 body text · slate-400 muted text</td><td>Backgrounds, borders, text. Urdu muted text steps one darker still, to slate-300 (rule 3)</td></tr>
+<tr><td>Success</td><td><span class="sw" style="background:#22c55e"></span>green-500</td><td>Confirmations, completed states — always with a word</td></tr>
+<tr><td>Warning</td><td><span class="sw" style="background:#f97316"></span>orange-500</td><td>Needs attention, soft failures</td></tr>
+<tr><td>Danger</td><td><span class="sw" style="background:#ef4444"></span>red-500</td><td>Errors, destructive actions, critical flags</td></tr>
+<tr><td>Info</td><td><span class="sw" style="background:#3b82f6"></span>blue-500</td><td>Informational states, sent deliveries</td></tr>
+<tr><td>Result flags</td><td>Low blue-500, letter <code>L</code> · High orange-500, letter <code>H</code> · Critical red-500 bold on red-950, word <code>CRITICAL</code></td><td>Same letters and words as light; normal stays plain text; a NULL flag still shows “no auto flag”</td></tr>
+<tr><td>Delivery states</td><td><code>PENDING</code> slate-400 · <code>SENT</code> blue-500 · <code>FAILED</code> orange-500 · <code>BOUNCED</code> red-500 · <code>OPENED</code> green-500</td><td>The word always renders next to the colour</td></tr>
+<tr><td>Money</td><td>slate-100 text on slate-800</td><td>Rule 1 unchanged: never green, never red</td></tr>
+</tbody></table></div>
+<p><b>Result flags</b> (Doc 02 <code>result.flag</code>). Normal: plain text, no colour. Low: blue-600, letter <code>L</code>. High: orange-600, letter <code>H</code>. Critical: red-600 bold on a red-50 background, word <code>CRITICAL</code>. A NULL flag shows the text “no auto flag” (Doc 03 RS-10).</p>
+<p><b>Delivery states</b> (Doc 02 <code>report_delivery.status</code>). <code>PENDING</code> slate-500 · <code>SENT</code> blue-600 · <code>FAILED</code> orange-600 · <code>BOUNCED</code> red-600 · <code>OPENED</code> green-600. The word always renders next to the colour (§13.1).</p>
+<h4>Three hard rules</h4>
+<ol>
+<li><b>Money is never green or red.</b> In a lab app, green and red already mean “normal” and “critical” in staff minds. Money is black text on slate-50, always. A paid invoice is not “green money”; it is the word <code>paid</code> beside a black figure.</li>
+<li><b>Colour is never the only signal.</b> Every status pairs its colour with a letter or a word, per WCAG 1.4.1 (F-7). A flag is <code>H</code> in orange, never orange alone. A delivery state is its full word, never a coloured dot alone.</li>
+<li><b>Urdu uses the same palette, one step darker for muted text.</b> Small Urdu (Nastaliq) text at muted weights is hard to read in slate-500, so muted text on Urdu pages is slate-600. Nothing else changes. Latin digits and IDs stay LTR inside RTL blocks (§9, §10).</li>
+</ol>
+<p><b>Print surfaces are stricter than screens.</b> PDF documents (Doc 03 §9, Doc 05 §8) are print-safe: black on white, flags as the letters <code>L</code> / <code>H</code> / <code>CRITICAL</code>, one amber accent line under the header. Barcode labels (§11) are black on white only. The SPA does not restyle either document; it only opens and prints them.</p>
+
+<h2 id="s4">4. The app shell and routing</h2>
+<h3>4.1 The shell</h3>
+<p>Every authenticated screen renders inside one shell. The shell has four parts:</p>
+<ul>
+<li><b>Header.</b> Lab name (from <code>tenant-status</code>, §6), the current branch context for branch-scoped roles, the language switcher (§9), and the user menu (name, role, logout).</li>
+<li><b>Sidebar.</b> Role-filtered navigation (§6.3) with count badges (§13.2). Items a role may not see are not rendered (FP-6).</li>
+<li><b>Main.</b> The routed screen. One screen, one scroll region.</li>
+<li><b>Toast container.</b> Fixed at the bottom inline-end corner, above everything except modals (§13.1). Banners (offline, read-only) render at the top of main, below the header, and are not dismissible while their condition holds.</li>
+</ul>
+<p>Public screens (§4.3) render without the shell: no sidebar, no header, no badges — a patient holding a report link must never see staff chrome.</p>
+<h3>4.2 Route tree</h3>
+<div class="box"><table><thead><tr><th>Route</th><th>Screen</th><th>Guard</th></tr></thead><tbody>
+<tr><td><code>/login</code></td><td>Login, then the TOTP step when required (§5)</td><td>Public; redirects to <code>/</code> when a session is already live</td></tr>
+<tr><td><code>/</code></td><td>Home dashboard — content varies by role (§8.1)</td><td>Auth</td></tr>
+<tr><td><code>/patients</code>, <code>/patients/new</code>, <code>/patients/:id</code>, <code>/patients/:id/edit</code>, <code>/patients/:id/history</code></td><td>Patient list, create, detail, edit, history</td><td>Auth + role (Doc 03 §4.3)</td></tr>
+<tr><td><code>/invoices</code>, <code>/invoices/new</code>, <code>/invoices/:id</code></td><td>Invoice list, create, detail (payment and refund entry are panels on detail)</td><td>Auth + role</td></tr>
+<tr><td><code>/samples</code>, <code>/samples/new</code>, <code>/samples/:id</code>, <code>/samples/:id/label</code></td><td>Sample list, create (collect), detail with event timeline, label print</td><td>Auth + role</td></tr>
+<tr><td><code>/worklist</code></td><td>The bench worklist, FIFO (Doc 03 §6.6)</td><td>Auth + role</td></tr>
+<tr><td><code>/results/entry/:sampleId</code>, <code>/results/approvals</code>, <code>/results/:id</code>, <code>/results/:id/amend</code></td><td>Batch result entry, approvals queue, result detail (approve, reject, withdraw, critical notification), amend</td><td>Auth + role</td></tr>
+<tr><td><code>/reports</code>, <code>/reports/:id</code></td><td>Report list, report detail with deliveries</td><td>Auth + role</td></tr>
+<tr><td><code>/exceptions</code></td><td>Exceptions list (§8.5, §13)</td><td>Auth + role per section</td></tr>
+<tr><td><code>/partners</code>, <code>/partners/:id</code>, <code>/partners/:id/rules</code>, <code>/partners/ledger</code>, <code>/partners/:id/dashboard</code></td><td>Partners, partner detail, rules, share ledger, partner dashboard</td><td>Auth + Owner only (Doc 05 §4)</td></tr>
+<tr><td><code>/settlements</code>, <code>/settlements/:id</code></td><td>Settlement list, settlement detail with line items</td><td>Auth + Owner, or Manager read-only</td></tr>
+<tr><td><code>/settings/tests</code>, <code>/settings/tests/:id</code>, <code>/settings/panels</code></td><td>Catalog: tests, prices and reference ranges, panels</td><td>Auth + role (writes Owner; ranges also Pathologist)</td></tr>
+<tr><td><code>/settings/branches</code>, <code>/settings/staff</code>, <code>/settings/tenant</code>, <code>/settings/exports</code></td><td>Branches, staff and branch assignment, tenant settings, owner export (Doc 04 §15.2)</td><td>Auth + Owner (staff roster read also Manager, own branches)</td></tr>
+<tr><td><code>/report-access/:token</code></td><td>Patient report access (§12.2)</td><td><b>Public</b> — no session, no shell</td></tr>
+<tr><td><code>/link-expired</code></td><td>Link expired page (Doc 03 RP-9)</td><td><b>Public</b> — no session, no shell</td></tr>
+<tr><td><code>/platform/tenants</code>, <code>/platform/tenants/:id</code></td><td>Platform admin (apex host only, §4.4)</td><td>Auth + Super Admin</td></tr>
+</tbody></table></div>
+<h3>4.3 Guards</h3>
+<p><b>Tenant gate (runs first, once).</b> At startup the SPA reads <code>window.location.hostname</code> and calls <code>GET /api/v1/tenant-status</code> (§6.1). Until that call answers, the SPA shows a plain loading screen — never a login form for a tenant that may not exist. Provisioning and suspended states replace the whole app (§6.2).</p>
+<p><b>Auth gate.</b> Every non-public route requires a live session. On a cold load there is no token in memory (FP-2), so the gate first attempts one silent refresh (§5.3). If the refresh succeeds, the user lands where they asked. If it fails, the SPA redirects to <code>/login?returnTo=&lt;path&gt;</code>; after login it returns to that path. The public routes never trigger a refresh attempt and never redirect to login.</p>
+<p><b>Role gate.</b> Each route names its roles (§8). A signed-in user who opens a route their role excludes is redirected to <code>/</code> with a toast (“That screen is not part of your role”). The redirect is a courtesy; the API would answer <code>403</code> anyway (FP-6).</p>
+<p><b>Read-only gate.</b> When the tenant is in read-only mode (§6.4), write controls across the app are disabled in place. Routes still load; reads still work.</p>
+<h3>4.4 Platform mode (apex host)</h3>
+<p>On <code>labflow.app</code> the same build runs in platform mode for the Super Admin: tenant list and tenant detail, backed by <code>GET /api/v1/platform/tenants</code> and <code>GET /api/v1/platform/tenants/{id}</code> (Doc 04 §15.1). Platform mode has no patient data, no branch context and no settlements. Tenant-mode routes do not exist on the apex, and platform routes do not exist on a tenant host — matching the API, which answers them with <code>404</code> (Doc 04 §6.2). The Super Admin never impersonates a tenant user (Doc 04 §12); there is no “view as lab” in the SPA.</p>
+
+<h2 id="s5">5. Auth flow</h2>
+<h3>5.1 The login screen</h3>
+<p>One screen, two steps. Step 1: email and password. Step 2, only when the account requires it: a six-digit TOTP code. Owner, Manager, Pathologist and Super Admin accounts always require TOTP (Doc 01 §14). Receptionist and Technician accounts sign in at step 1 unless the tenant has enabled TOTP for them — the SPA does not decide this; the login response says whether a TOTP step follows.</p>
+<p>The screen shows the lab name from <code>tenant-status</code> so staff can see which lab they are signing in to. It shows no other tenant data. A failed login shows one message — “Email, password or code is not correct” — for every failure kind. The SPA never reveals which part failed.</p>
+<p><b>The routes are Proposed (A-21).</b> The SPA calls <code>POST /api/v1/auth/login</code> with <code>{email, password}</code>. The response is either a session (<code>{access, expires_in, user}</code>) or <code>{totp_required: true}</code>, in which case the SPA calls <code>POST /api/v1/auth/totp/verify</code> with the code and receives the session. Only the refresh route exists in Docs 01–06 today (§1.4, gap 1); Doc 08 owns the final auth contract and may rename these — the SPA's auth module is one file, so a rename is one edit.</p>
+<h3>5.2 Where the token lives</h3>
+<p>The access token (15 minutes, Doc 01 §14) lives in a Zustand store, in memory, in a module that is never persisted:</p>
+<pre>authStore = {
+  accessToken: string | null,   // memory only — no persist middleware, ever
+  user: { id, name, role, branch_ids } | null,
+  setSession(access, user), clear()
+}</pre>
+<p>The refresh token is never visible to the SPA at all: it is the httpOnly cookie the API set at login, scoped to <code>/api/v1/auth/</code> (ADR-005). The browser sends it only to auth endpoints, which is exactly the set of calls that need it.</p>
+<p>Logout clears the store, clears the TanStack Query cache (it holds tenant data in memory; FP-3 means it must not outlive the session), and calls <code>POST /api/v1/auth/logout</code> (Proposed, A-21) so the API invalidates the refresh cookie server-side. Clearing only the client would leave a live cookie behind on a shared counter PC — the server call is the logout; the client clear is tidiness.</p>
+<h3>5.3 The interceptor: refresh and retry once</h3>
+<p>Every API call goes through one fetch wrapper. No screen calls <code>fetch</code> directly. The wrapper:</p>
+<ol>
+<li>Attaches <code>Authorization: Bearer &lt;accessToken&gt;</code> when a token exists, and <code>If-Match</code> when the caller supplies one (§7.4).</li>
+<li>On a <code>401</code> whose problem+json <code>code</code> is <code>token_expired</code>: starts — or joins — the single in-flight refresh: <code>POST /api/v1/auth/refresh</code> (the browser sends the cookie; the SPA sends no body). “Single-flight” means ten simultaneous <code>401</code>s cause one refresh call, not ten.</li>
+<li>On refresh success: stores the new access token and retries the original request <b>once</b>, with its original body and headers. If the retry also returns <code>401</code>, the wrapper does not loop — it ends the session (step 4).</li>
+<li>On refresh failure: clears the auth store and the query cache, and redirects to <code>/login?returnTo=&lt;current path&gt;</code>.</li>
+<li>Any other <code>401</code> (no token, revoked token, wrong host) goes straight to step 4 without a refresh attempt. A <code>401</code> from the login or TOTP calls themselves is returned to the login form — the interceptor never intercepts auth endpoints.</li>
+</ol>
+<p>§14 workflow 1 draws this dance in full.</p>
+<h3>5.4 Session expiry and unsaved work</h3>
+<p>Forms hold unsaved work; a session must not eat it. Two rules:</p>
+<p><b>Warn first, when the SPA can.</b> Navigation away from a dirty form — by link, by the logout button, by the browser back button — opens a confirm modal (“You have unsaved changes”). Logout is behind the same modal plus an explicit confirm (§8.1).</p>
+<p><b>Keep the draft in memory, when it cannot.</b> A hard session end (refresh failed) cannot ask permission. Before redirecting, the wrapper copies any dirty form's values into the same in-memory Zustand store — memory only, gone when the tab closes, never written to browser storage (FP-3). After the user signs in again and the <code>returnTo</code> route loads, the form restores its values and shows a notice: “Restored what you had typed. Nothing was saved.” Result-entry screens (§8.4) use the same mechanism; a half-typed batch of results is the most expensive thing to lose in a lab.</p>
+
+<h2 id="s6">6. Tenant and role gates</h2>
+<h3>6.1 What the SPA learns at startup</h3>
+<p>One call: <code>GET /api/v1/tenant-status</code> — the only tenant-host endpoint usable before auth (Doc 04 §6.3). It returns <code>{slug, name, status}</code> today. A-24 (Proposed, §17) adds one field — <code>mode: "full" | "read_only"</code> — so the SPA knows on cold load, before login, whether writes will be accepted (§6.4). Nothing else is returned. The SPA uses <code>name</code> in the header and on the login screen, and <code>status</code> to pick one of three whole-app states:</p>
+<div class="box"><table><thead><tr><th>Tenant status</th><th>SPA behaviour</th></tr></thead><tbody>
+<tr><td><code>active</code></td><td>The app runs. Login, then the role's home screen.</td></tr>
+<tr><td><code>provisioning</code></td><td>A “setting up” page: the lab name and a plain explanation. Staff API calls answer <code>503 tenant_provisioning</code> (Doc 04 §4.2), so the SPA does not offer a login form. The page re-checks <code>tenant-status</code> every 30 seconds and moves on by itself when the tenant turns <code>active</code>.</td></tr>
+<tr><td><code>suspended</code></td><td>A suspension notice with the platform contact (Doc 04 §4.2). Staff API calls answer <code>403 tenant_suspended</code> before auth, so there is no login form and no session work. Patient report links are unaffected — they do not pass through this gate (Doc 04 TP-8).</td></tr>
+</tbody></table></div>
+<p>A host that is not a tenant at all never reaches the SPA's API: Caddy and the ask endpoint answer first (Doc 04 §6.4). If <code>tenant-status</code> itself fails with a network error, the SPA shows the offline surface (§15), not a tenant error.</p>
+<h3>6.2 Subscription states the SPA can see</h3>
+<p>The SPA never reads the <code>subscription</code> row. It sees two effects. In grace (<code>past_due</code>, Doc 04 §11.1): full access with a banner telling the Owner the account is past due — the banner is Owner-only, because only the Owner can act on it. In read-only mode (§6.4 below): the <code>subscription_read_only</code> behaviour. Cancellation and expiry are platform actions the SPA only experiences as read-only mode or non-resolution.</p>
+<h3>6.3 Navigation and buttons per role</h3>
+<p>Roles are Doc 03 §4.1's: <b>O</b> Owner, <b>M</b> Branch Manager, <b>R</b> Receptionist, <b>T</b> Technician, <b>P</b> Pathologist. The matrix below is the union of Doc 03 §4.3, Doc 04 §15 and Doc 05 §4, expressed as navigation. Where the three disagree, the stricter cell wins — and §1.4 records that none did.</p>
+<div class="box"><table><thead><tr><th>Nav area</th><th>O</th><th>M</th><th>R</th><th>T</th><th>P</th></tr></thead><tbody>
+<tr><td>Patients</td><td>Full</td><td>Full</td><td>Full</td><td>Read</td><td>Read</td></tr>
+<tr><td>Invoices &amp; payments</td><td>Full</td><td>Full</td><td>Create, read, payments — no refunds</td><td>Read</td><td>Read</td></tr>
+<tr><td>Samples</td><td>Full</td><td>Full</td><td>Collect, label, transfer</td><td>Receive, process, reject, transfer</td><td>Read</td></tr>
+<tr><td>Worklist</td><td>Read</td><td>Read</td><td>—</td><td>Full</td><td>Full</td></tr>
+<tr><td>Results: entry</td><td>Read</td><td>—</td><td>—</td><td>Enter</td><td>Enter</td></tr>
+<tr><td>Results: approvals</td><td>Read</td><td>—</td><td>—</td><td>—</td><td>Approve, reject, amend, withdraw</td></tr>
+<tr><td>Critical notifications</td><td>Read</td><td>Record</td><td>—</td><td>—</td><td>Record</td></tr>
+<tr><td>Reports</td><td>Full incl. void</td><td>Read, regenerate, deliver</td><td>Read, deliver</td><td>Read</td><td>Full incl. void</td></tr>
+<tr><td>Exceptions</td><td>Full</td><td>Full</td><td>—</td><td>—</td><td>Critical section</td></tr>
+<tr><td>Partners &amp; share ledger</td><td>Full</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td>Settlements</td><td>Full</td><td>Read + statement download</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td>Catalog</td><td>Full</td><td>Read</td><td>Read (no prices)</td><td>Read (no prices)</td><td>Read; ranges create/update</td></tr>
+<tr><td>Branches, staff, settings, export</td><td>Full</td><td>Roster of own branches, read</td><td>—</td><td>—</td><td>—</td></tr>
+</tbody></table></div>
+<p>Branch scope sits under every cell (Doc 03 BS-1 to BS-6, Doc 04 §8): a branch-scoped role sees only its <code>staff_branch</code> branches, and an out-of-scope record answers <code>404</code> from the API. The SPA does not grey out other branches' records — it never receives them. The one deliberate widening is patient search: exact phone or MRN search shows identifiers only (name, MRN, sex, year of birth) for out-of-branch matches, to stop duplicate registrations (BS-4; §14 workflow 2).</p>
+<p><b>Home screens differ by role</b> (§8.1): the Owner sees a business summary; the Manager a branch summary; the Receptionist the patient queue; the Technician the worklist; the Pathologist the approvals queue. Same route (<code>/</code>), five bodies.</p>
+<h3>6.4 Read-only mode in the SPA (the frontend half of Doc 04 §11.2)</h3>
+<p>Read-only mode is known at cold load, not discovered by a failed write. The startup <code>tenant-status</code> call (§6.1) carries <code>mode</code> (A-24, Proposed): when it answers <code>"read_only"</code>, the SPA sets the read-only flag in Zustand before the login screen renders, and the app opens already read-only — banner up, write controls disabled, no first click wasted on a <code>403</code>. An Owner signing in to a past-due lab never sees a fully functional-looking app that is not.</p>
+<p>The <code>403</code> path remains as the backstop, for a tenant that turns read-only mid-session: the first <code>403</code> with <code>code = subscription_read_only</code> — from any write — flips the same flag, and from then on the SPA behaves as read-only without waiting to be told again. Until A-24 is accepted, this backstop is the only path; §6.4 otherwise reads the same, only the moment of discovery differs.</p>
+<ul>
+<li><b>Banner.</b> A persistent banner under the header, visible to the Owner: the account is read-only, why, and what to do. Other roles see a shorter form: “This lab is read-only. You can look, but not change anything.”</li>
+<li><b>Writes disabled in place.</b> Create, edit and action buttons render disabled with the reason in a tooltip. Reads are untouched: every list and detail screen works (§15, FE-14).</li>
+<li><b>What still works.</b> All GET endpoints; the patient report-access page (it is exempt server-side and is not part of the staff SPA anyway); the Owner's data export (<code>POST /api/v1/exports</code>, Doc 04 §15.2 — leaving with your data is not a tenant write).</li>
+<li><b>Settlement pause.</b> Settlement drafts may exist — generation continues server-side (OQ-36, Doc 05 §13) — but Approve, Send and Mark-paid are disabled with the banner's reason; Cancel likewise waits, because it is a write. The drafts badge (§13.2) keeps counting.</li>
+<li><b>Recovery.</b> The flag clears when the evidence changes: a fresh <code>tenant-status</code> answers <code>mode: "full"</code> (A-24), or a write succeeds again (the API stops answering <code>subscription_read_only</code>). The banner goes with it. The SPA does not poll for this; the next cold load, the next write, or the next login discovers it.</li>
+</ul>
+<p>This is R5, recorded in §16.</p>
+
+<h2 id="s7">7. The data layer</h2>
+<h3>7.1 TanStack Query setup</h3>
+<p>All server state goes through TanStack Query. Zustand holds UI state only: the auth store (§5.2), the read-only flag (§6.4), badge overrides, and in-memory form drafts (§5.4). No server data lives in Zustand, and no UI state lives in the query cache.</p>
+<div class="box"><table><thead><tr><th>Setting</th><th>Value</th><th>Why</th></tr></thead><tbody>
+<tr><td><code>staleTime</code> (global default)</td><td>30 s</td><td>The F-1 default of 0 refetches on every mount and focus. 30 s keeps a counter workflow calm without hiding a colleague's work for long.</td></tr>
+<tr><td><code>gcTime</code></td><td>5 min (library default, kept)</td><td>Inactive data stays in memory briefly for back-navigation, then is collected. Memory only — nothing persists (FP-3).</td></tr>
+<tr><td><code>retry</code> (queries)</td><td>Custom: never on 4xx; up to 2 retries with backoff on network errors and 5xx</td><td>A <code>403</code> will still be a <code>403</code> in 2 seconds. A dropped connection may not be (F-1).</td></tr>
+<tr><td><code>retry</code> (mutations)</td><td>0</td><td>Writes are never retried blindly. Creates carry the <code>Idempotency-Key</code> the API contracts define (Doc 03 §6), and the user — not the library — decides whether to send again, with the server's answer in front of them.</td></tr>
+<tr><td><code>refetchOnReconnect</code></td><td><code>true</code></td><td>The offline story (R3): on reconnect, stale queries refetch and the banner clears.</td></tr>
+<tr><td><code>refetchOnWindowFocus</code></td><td><code>true</code> (stale queries only)</td><td>A pathologist who tabs back to the approvals queue sees the current queue, not the one from lunch.</td></tr>
+<tr><td><code>refetchInterval</code></td><td>60 s, only for badge counts and the exceptions screen, only while the tab is visible</td><td>Pending-work counts (§13.2) stay honest without polling every screen.</td></tr>
+</tbody></table></div>
+<p><b>Staleness per resource class.</b> Queues and worklists: <code>staleTime</code> 15 s — they are the screens where a colleague's action changes your next click. Detail records (patient, sample, result, report, settlement): 30 s global default. Catalog and settings: 5 min — they change rarely and only through the Owner. <code>tenant-status</code>: fetched once at startup outside the query cache, plus its own 30 s recheck while provisioning (§6.1).</p>
+<p><b>Query keys.</b> One convention: <code>[resource, scope, filters]</code> — for example <code>["patients", { branch_id, q, cursor }]</code>, <code>["samples", id]</code>, <code>["worklist", { branch_id, status }]</code>, <code>["settlements", { status: "DRAFT" }]</code>. Lists use cursor pagination through <code>useInfiniteQuery</code> with the response's <code>next_cursor</code> (Doc 03 §6.1); there is no offset pagination anywhere. A mutation invalidates by resource prefix — a payment invalidates <code>["invoices", id]</code> and <code>["samples"]</code> counts, never the whole cache.</p>
+<p><b>Loading and empty.</b> First load of a list or detail: skeletons (FP-8). Refetch with data already on screen: the data stays, a slim progress line shows at the top of main — never a blank page. Empty results render the §13.3 empty states, which are content, not errors.</p>
+<h3>7.2 Zod schemas at the boundary</h3>
+<p>Every API response is parsed through a Zod schema that mirrors its contract (Doc 03 §6.1 conventions; endpoint shapes from Doc 03 §6, Doc 04 §15, Doc 05 §10). The schemas are types first: the TypeScript type of a screen's data is inferred from its schema, so the screen cannot drift from the contract without a compile error. A response that fails parsing is treated as a server error (§7.4, last row): the screen shows the error surface and Sentry receives the mismatch — a schema failure means the API and SPA have drifted, which is a bug to fix, not a state to render.</p>
+<p>Request bodies are validated by the same schemas' input twins before sending, so a malformed request fails in the form, not at the API. The SPA never calls Doc 06 §10's endpoints — those are n8n's callbacks into Django (FP-10) — so no Zod schema exists for them.</p>
+<h3>7.3 Forms: React Hook Form + Zod</h3>
+<p>Create and edit flows use React Hook Form with the Zod resolver sharing the §7.2 schemas: one definition drives the form's client validation and the request body. Client validation is a courtesy layer (fast feedback, no round trip); the API re-validates everything, and its answer wins. Field rules come from the owning documents — for example patient fields follow Doc 03 PT-V1 (name 2–120 chars, phone normalised to 10–15 digits, sex <code>M | F</code>, date of birth not in the future) — the SPA mirrors them in the schema and shows the same messages the API would, in the user's language (§9).</p>
+<p>Server field errors land back on the form (§7.4): the problem+json <code>errors</code> object maps field name to messages, and the form sets each one on its field. A form-level code (for example <code>refund_exceeds_payments</code>, Doc 03 BL-7) shows as a form-level alert above the submit button, in words, not as a toast behind the modal.</p>
+<h3>7.4 The problem+json error map</h3>
+<p>One table governs every error surface in the app. Screens do not invent their own handling.</p>
+<div class="box"><table><thead><tr><th>Code / failure</th><th>Surface</th><th>Behaviour</th></tr></thead><tbody>
+<tr><td><code>validation_error</code> (422), and per-field codes</td><td>Inline form errors</td><td><code>errors</code> map onto fields (§7.3); focus moves to the first bad field; nothing is toasted.</td></tr>
+<tr><td><code>forbidden</code> / <code>branch_scope_denied</code> (403)</td><td>Toast</td><td>“You do not have access to that.” The screen re-renders from fresh data — the control that led here should already have been hidden (FP-6), so a <code>403</code> also files a Sentry note: the role map and the API disagree somewhere.</td></tr>
+<tr><td><code>owner_approval_required</code> (403)</td><td>Modal on the refund form</td><td>Names the ceiling and the way through: “Refunds above PKR 5,000 need the Owner.” (Doc 05 §13, OQ-31; the amount shown is the server's figure from the response, never a typed constant.)</td></tr>
+<tr><td><code>subscription_read_only</code> (403)</td><td>Banner + disabled writes</td><td>§6.4. Normally already known from <code>tenant-status</code> at cold load (A-24); this response is the mid-session backstop. The attempted write is not queued or retried.</td></tr>
+<tr><td><code>tenant_suspended</code> (403) / <code>tenant_provisioning</code> (503)</td><td>Whole-app page</td><td>§6.1. Session ends; no retry inside the app.</td></tr>
+<tr><td><code>version_conflict</code> (409)</td><td>Modal</td><td>R4 (§16): “Someone else changed this.” Shows the current version's key fields, offers Reload. No auto-merge, no blind retry, and the user's typed input stays visible behind the modal so it can be copied.</td></tr>
+<tr><td><code>invalid_state_transition</code> (409)</td><td>Toast with the winning state</td><td>“This sample was already received.” The screen refetches and shows the record as it now is. The state machine moved; the toast says who won.</td></tr>
+<tr><td><code>possible_duplicate</code> (409)</td><td>Modal</td><td>Lists the candidate patients (identifiers only, BS-4) with “Register anyway” and “Use this patient” (§14 workflow 2). Never auto-merges (Doc 03 PT-3).</td></tr>
+<tr><td><code>result_already_entered</code> (409)</td><td>Inline on result entry</td><td>The conflicting row is highlighted; the whole batch is unsaved (all-or-nothing, RS-V2) and the screen says so (§14 workflow 3).</td></tr>
+<tr><td><code>sample_not_here</code> / <code>transfer_already_open</code> (409)</td><td>Toast</td><td>Names the current holder or the open transfer, with a link to the record.</td></tr>
+<tr><td><code>rule_overlap</code> (422)</td><td>Inline on the rule form</td><td>Names the existing rule the new one collides with (Doc 05 §5).</td></tr>
+<tr><td><code>not_found</code> (404)</td><td>Screen-level empty state</td><td>“This record does not exist, or is outside your branches.” One message for both — out-of-scope and non-existent are the same answer (Doc 04 §8).</td></tr>
+<tr><td>PDF <code>404</code> (not rendered yet)</td><td>Inline message</td><td>§12.1: “The PDF is not ready yet.” No polling; the staff member re-checks.</td></tr>
+<tr><td>Network failure (no response)</td><td>Offline banner / retry prompt</td><td>§15: cached data stays on screen, writes are blocked with a toast, queries retry on reconnect (R3).</td></tr>
+<tr><td><code>500</code> and anything unmapped</td><td>Error panel with a support reference</td><td>Shows the response's correlation ID (<code>X-Request-ID</code>, Doc 01 §11) as “Quote this reference if you contact support”, a Retry button, and nothing technical. The same ID is in Sentry.</td></tr>
+</tbody></table></div>
+<p><b>The error boundary.</b> A render crash must not white-screen a counter PC. A route-level boundary component (<code>ScreenBoundary</code>) wraps every routed screen: on a crash it shows a panel — what happened in plain words, a Reload button, the Sentry event reference — while the shell, header and nav stay alive, so the user can navigate away instead of restarting the browser. A second boundary at the root covers the shell itself. This decision is recorded in §16.</p>
+
+<h2 id="s8">8. Screen inventory</h2>
+<p>One row per screen. Columns: route · roles that can see it · what it shows · what it calls (primary query → primary mutation) · what happens on save, action or error. Generic error behaviour is §7.4; a row names only what is special about that screen. Role codes are Doc 03 §4.1's. Every call below exists in Doc 03 §6, Doc 04 §15 or Doc 05 §10, except the three Proposed routes of §17, which are marked where used.</p>
+<h3>8.1 Auth and home</h3>
+<div class="box"><table><thead><tr><th>Screen (route)</th><th>Roles</th><th>Shows</th><th>Calls</th><th>On save / action / error</th></tr></thead><tbody>
+<tr><td>Login (<code>/login</code>)</td><td>Public</td><td>Lab name; email and password fields</td><td><code>GET /tenant-status</code> (startup) → <code>POST /auth/login</code> <i>(Proposed A-21)</i></td><td>Success → the session lands in the auth store; go to <code>returnTo</code> or <code>/</code>. Any failure → the one generic message (§5.1). <code>totp_required</code> → step 2 on the same screen.</td></tr>
+<tr><td>TOTP prompt (<code>/login</code>, step 2)</td><td>O M P SA accounts</td><td>Six-digit code field; which account is signing in</td><td>→ <code>POST /auth/totp/verify</code> <i>(Proposed A-21)</i></td><td>Success → as login. Wrong code → generic message, code field cleared, no counter shown to the user (attempt limits are the API's).</td></tr>
+<tr><td>Logout confirmation (modal, any screen)</td><td>All staff</td><td>Confirm text; unsaved-changes warning when a form is dirty</td><td>→ <code>POST /auth/logout</code> <i>(Proposed A-21)</i></td><td>Confirm → store and query cache cleared (§5.2), go to <code>/login</code>. If the logout call itself fails (offline), the client still clears and leaves — a local logout never waits on the network.</td></tr>
+<tr><td>Home — Owner (<code>/</code>)</td><td>O</td><td>Business summary: today's invoices and collections (server totals, verbatim), samples by status, pending approvals count, DRAFT settlements count, exceptions count</td><td>Composed: <code>GET /invoices</code>, <code>GET /samples</code>, <code>GET /worklist</code>, <code>GET /settlements?status=DRAFT</code>, <code>GET /transfers/exceptions</code></td><td>Read-only screen. A failed panel shows its own error tile; the rest of the dashboard still renders.</td></tr>
+<tr><td>Home — Manager (<code>/</code>)</td><td>M</td><td>Branch summary for own branches: samples by status, open transfers, late transfers, settlements awaiting approval (read-only)</td><td>Composed: <code>GET /samples</code>, <code>GET /transfers/exceptions</code>, <code>GET /settlements</code></td><td>As Owner home. No partner figures anywhere on this screen (Doc 05 §4).</td></tr>
+<tr><td>Home — Receptionist (<code>/</code>)</td><td>R</td><td>Patient queue: today's registrations, unpaid invoices, samples awaiting collection labels</td><td>Composed: <code>GET /patients</code>, <code>GET /invoices</code>, <code>GET /samples</code></td><td>As Owner home. “New patient” and “New invoice” are the primary actions.</td></tr>
+<tr><td>Home — Technician (<code>/</code>)</td><td>T</td><td>The worklist, oldest first (§8.4)</td><td><code>GET /worklist</code></td><td>The dashboard <i>is</i> the worklist screen, embedded; the nav item opens the same screen full-size.</td></tr>
+<tr><td>Home — Pathologist (<code>/</code>)</td><td>P</td><td>Approvals queue: entered results awaiting a decision, critical results first, with age of the oldest</td><td><code>GET /worklist</code> (filtered to tests with an <code>entered</code> result, per Doc 03 §6.6)</td><td>As Technician home. A critical result in the queue carries the §3.1 critical treatment.</td></tr>
+</tbody></table></div>
+<h3>8.2 Patients and billing</h3>
+<div class="box"><table><thead><tr><th>Screen (route)</th><th>Roles</th><th>Shows</th><th>Calls</th><th>On save / action / error</th></tr></thead><tbody>
+<tr><td>Patient list (<code>/patients</code>)</td><td>O M R T P</td><td>Search by name / phone / MRN; cursor pages; out-of-branch matches as identifiers only</td><td><code>GET /patients?q=</code></td><td>Read-only. Cross-branch hits are logged server-side; the row shows a lock note instead of actions.</td></tr>
+<tr><td>Patient create (<code>/patients/new</code>)</td><td>O M R</td><td>Registration form (PT-V1 fields), contact and consent fields (PT-7)</td><td>→ <code>POST /patients</code></td><td><code>409 possible_duplicate</code> → the §7.4 modal (§14 workflow 2); confirming re-sends with the API's confirm flag. Success → toast, go to patient detail.</td></tr>
+<tr><td>Patient detail (<code>/patients/:id</code>)</td><td>O M R T P (scope)</td><td>Identity, contacts, consents; their invoices, samples and reports in summary</td><td><code>GET /patients/{id}</code></td><td><code>404</code> → §7.4 not-found state. This GET is audited server-side (Doc 03 §6.1); the SPA says nothing about that.</td></tr>
+<tr><td>Patient edit (<code>/patients/:id/edit</code>)</td><td>O M R</td><td>The registration form, pre-filled; identity fields locked to O M after the first finalised report (PT-4)</td><td><code>GET /patients/{id}</code> → <code>PATCH /patients/{id}</code> with <code>If-Match</code></td><td><code>409 version_conflict</code> → §7.4 modal (R4). Soft delete (<code>DELETE /patients/{id}</code>) sits here, behind an alert-dialog, O only per §4.3 CRUD.</td></tr>
+<tr><td>Patient history (<code>/patients/:id/history</code>)</td><td>O M R T P (scope)</td><td>Past visits: invoices, samples, reports over time</td><td><code>GET /patients/{id}/history</code></td><td>Read-only. Branch-scoped per BS-3 — the screen shows only what the caller's scope returns.</td></tr>
+<tr><td>Invoice list (<code>/invoices</code>)</td><td>O M R T P</td><td>Invoices by status and date; money columns verbatim (§10)</td><td><code>GET /invoices</code></td><td>Read-only. Filters with unknown values → <code>422</code> handled as §7.4 validation.</td></tr>
+<tr><td>Invoice create (<code>/invoices/new</code>)</td><td>O M R</td><td>Patient picker; test / panel picker with server prices; referral partner picker (optional); totals exactly as the API prices them</td><td><code>GET /tests</code>, <code>GET /panels</code>, <code>GET /referral-partners</code> (O) → <code>POST /invoices</code> with <code>Idempotency-Key</code></td><td>The SPA never totals the bill itself: line prices and the total are the API's response, shown verbatim (FP-5). A double-click or a retried submit with the same key returns the same invoice (Doc 03 §6.4).</td></tr>
+<tr><td>Invoice detail (<code>/invoices/:id</code>)</td><td>O M R T P</td><td>Lines with price snapshots, discount with reason, payment rows, derived status (§3.1 word + colour), balance as the API states it</td><td><code>GET /invoices/{id}</code> → <code>POST /invoices/{id}/cancel</code> (O M R, unpaid only)</td><td>Cancel sits behind an alert-dialog and is refused by the API once money exists (BL-7 path is refund, §below).</td></tr>
+<tr><td>Payment entry (panel on invoice detail)</td><td>O M R</td><td>Amount, method, reference note (required for non-cash, BL-10)</td><td>→ <code>POST /invoices/{id}/payments</code> with <code>kind = payment</code> and <code>Idempotency-Key</code></td><td>Success → toast “Payment recorded”, invoice refetched, new status shown. The share-ledger effect is Doc 05's and invisible here except as the new invoice state.</td></tr>
+<tr><td>Refund entry (panel on invoice detail)</td><td>O M</td><td>Amount, method, reason note; the payments total it is capped by</td><td>→ <code>POST /invoices/{id}/payments</code> with <code>kind = refund</code></td><td><code>403 owner_approval_required</code> (above the Doc 05 ceiling) → §7.4 modal; a Manager stops there — there is no request-approval queue in v1 (OQ-31). <code>422 refund_exceeds_payments</code> → form-level alert (§7.3).</td></tr>
+</tbody></table></div>
+<h3>8.3 Samples and transfers</h3>
+<div class="box"><table><thead><tr><th>Screen (route)</th><th>Roles</th><th>Shows</th><th>Calls</th><th>On save / action / error</th></tr></thead><tbody>
+<tr><td>Sample list (<code>/samples</code>)</td><td>O M R T P (scope)</td><td>Samples by status, branch, age; accession IDs monospace (§10)</td><td><code>GET /samples</code></td><td>Read-only. Batch label print is offered from selected rows (§11).</td></tr>
+<tr><td>Sample create / collect (<code>/samples/new</code>)</td><td>O M R</td><td>Invoice or patient picker; tests from the invoice; collection details</td><td><code>GET /invoices/{id}</code> → <code>POST /samples</code></td><td>Success → straight to the label screen (§11) — printing the label is the next physical act, so it is the next screen (Doc 01 Flow A). A billing hold, when the tenant enables it (Doc 03 BL-9), surfaces as the API's refusal, in words.</td></tr>
+<tr><td>Sample label print (<code>/samples/:id/label</code>)</td><td>O M R T</td><td>The label exactly as it will print (§11), one per accession</td><td><code>GET /samples/{id}/label</code></td><td>Print → browser print dialog with the §11 print stylesheet. Reprint is the same screen and the same call; prints and reprints are audit-logged server-side (Doc 03 §6.5).</td></tr>
+<tr><td>Sample detail (<code>/samples/:id</code>)</td><td>O M R T P (scope)</td><td>Status, patient, tests, custody; the event timeline (every <code>sample_event</code>, oldest first); open transfer if any</td><td><code>GET /samples/{id}</code>, <code>GET /samples/{id}/events</code> → actions below</td><td>The timeline is read-only and complete — it is what staff quote when a patient or a branch asks “where is my sample”.</td></tr>
+<tr><td>Sample receive (action on detail)</td><td>O M T</td><td>Confirm panel</td><td>→ <code>POST /samples/{id}/receive</code></td><td><code>409 sample_not_here</code> → toast naming the holding branch; <code>403 result_entry_disabled_at_branch</code> never applies here — receiving is not result entry (Doc 04 §8.1).</td></tr>
+<tr><td>Sample reject (action on detail)</td><td>O M R T</td><td>Coded reason (Doc 02 A-2 list) + note; what happens next, in words</td><td>→ <code>POST /samples/{id}/reject</code></td><td>Success → status <code>rejected</code>, toast, and the recollect action appears. The patient notice is Doc 06's workflow, in the tenant default language (Doc 03 §5.4, Doc 04 A-16) — nothing for the SPA to send.</td></tr>
+<tr><td>Sample recollect (action on detail)</td><td>O M R</td><td>Confirm panel linked to the rejected sample</td><td>→ <code>POST /samples/{id}/recollect</code></td><td>Success → new sample, straight to its label screen, as at collection.</td></tr>
+<tr><td>Sample transfer (action on detail)</td><td>O M R T</td><td>Destination branch picker (open branches only); dispatch is immediate — <code>dispatched_at</code> is set at creation (Doc 02 A-9)</td><td>→ <code>POST /samples/{id}/transfer</code></td><td><code>409 transfer_already_open</code> → toast naming the open transfer. Transfer is refused from <code>in_process</code> by the API (Doc 03 SM-7); the button is disabled in that state with the reason.</td></tr>
+<tr><td>Transfer receive (action on detail, destination branch)</td><td>O M T</td><td>Confirm panel showing the sending branch and dispatch time</td><td>→ <code>POST /transfers/{id}/receive</code></td><td>Success → transfer <code>received</code>, sample status unchanged by the transfer itself (§9.2 of Doc 04). A stale screen's attempt → <code>409 invalid_state_transition</code> toast.</td></tr>
+<tr><td>Transfer cancel (action on detail, sending branch)</td><td>O M</td><td>Confirm panel</td><td>→ <code>POST /transfers/{id}/cancel</code></td><td>Success → transfer <code>cancelled</code>; the sample stays where it physically is — the sending branch. Covered by test FE-16's sibling scenario in Doc 03 (T-50 lineage).</td></tr>
+<tr><td>Transfer mark-lost (action on detail, sending branch)</td><td>O M</td><td>Required note field; plain warning that this is terminal for the transfer, not for the sample</td><td>→ <code>POST /transfers/{id}/mark-lost</code></td><td>Success → transfer <code>lost</code>; <b>sample status does not change</b> (Doc 04 §9.2). The follow-on human path — reject (SM-8) and recollect (SM-9) — is offered as the next actions on the same screen.</td></tr>
+</tbody></table></div>
+
+<h3>8.4 Results and reports</h3>
+<div class="box"><table><thead><tr><th>Screen (route)</th><th>Roles</th><th>Shows</th><th>Calls</th><th>On save / action / error</th></tr></thead><tbody>
+<tr><td>Worklist (<code>/worklist</code>)</td><td>O M T P</td><td>Pending <code>sample_test</code> rows, oldest collection first (FIFO, Doc 03 §6.6); filters: branch, sample status, test</td><td><code>GET /worklist</code></td><td>Read-only list; a row opens result entry (T P) or the sample (O M). Ordering is the API's — the SPA never re-sorts a worklist.</td></tr>
+<tr><td>Result entry (<code>/results/entry/:sampleId</code>)</td><td>T P</td><td>One row per ordered test: value, unit; the matched range shown beside each numeric test; collection-centre warning state when RS-3 applies</td><td><code>GET /samples/{id}</code>, <code>GET /samples/{id}/results</code> → <code>POST /samples/{id}/results</code></td><td>Batch save is all-or-nothing (RS-V2): one bad row saves nothing, the row is highlighted, the rest of the typing survives (§14 workflow 3). <code>403 result_entry_disabled_at_branch</code> → a full-screen explanation, not a toast: the branch is a collection centre with entry off (Doc 04 §8.1).</td></tr>
+<tr><td>Approvals queue (<code>/results/approvals</code>)</td><td>P (O M read)</td><td>Entered results awaiting decision, critical first, delta warnings flagged</td><td><code>GET /worklist</code> filtered to <code>entered</code></td><td>Read-only list; a row opens result detail.</td></tr>
+<tr><td>Result detail — approve / reject (<code>/results/:id</code>)</td><td>P</td><td>Value, unit, computed flag (§3.1), matched range, the delta check against the previous approved result (Doc 03 §8.6), “no auto flag” marker when the flag is NULL (RS-10)</td><td><code>GET /results/{id}</code> → <code>POST /results/{id}/approve</code> with <code>{decision: approved | rejected}</code></td><td>Approving against the computed flag — or approving a numeric result whose flag is NULL — requires a note (RS-7, RS-10): the form refuses to submit without one and says why; the stored flag is never rewritten. Self-approval (RS-6): the API refuses; the SPA shows the refusal as a modal naming the single-pathologist exception path, which is an audited server action, not a client toggle. Reject returns the result to the entry path with the reason shown to the technician.</td></tr>
+<tr><td>Result withdraw (action on detail)</td><td>P</td><td>Confirm panel; only before any approval decision (RS-4)</td><td>→ <code>POST /results/{id}/withdraw</code></td><td>Success → status <code>withdrawn</code>; no <code>result_approval</code> row is implied and the SPA claims none (Doc 02 v1.2).</td></tr>
+<tr><td>Result amend (<code>/results/:id/amend</code>)</td><td>T P (entry), P (approve)</td><td>The approved value, read-only, beside the correction form; the amendment chain</td><td><code>GET /results/{id}</code> → <code>POST /results/{id}/amend</code></td><td>The original is never edited (RS-9). When the amendment is approved, the original becomes <code>amended</code> and, if a report was final, the report screen shows the amended version path (RP-4) — the SPA reflects both from refetched data.</td></tr>
+<tr><td>Critical notification record (panel on result detail)</td><td>M P</td><td>Form: who was notified (full name), when, read-back yes/no (Doc 03 §8.5); the elapsed time since approval, live</td><td>→ <code>POST /results/{id}/critical-notifications</code></td><td>Only on a <code>critical</code>-flagged result; the API answers <code>409</code> otherwise and the panel is not rendered. Success → the result leaves the exceptions list (§8.5) and the panel becomes the recorded entry, read-only (the table is append-only).</td></tr>
+<tr><td>Report list (<code>/reports</code>)</td><td>O M R T P</td><td>Reports by status, branch, patient; current version per report</td><td><code>GET /reports</code></td><td>Read-only.</td></tr>
+<tr><td>Report detail (<code>/reports/:id</code>)</td><td>O M R T P</td><td>Status, versions list, the delivery panel (§13.1: every <code>report_delivery</code> row with its state word and colour, the WhatsApp click-to-send link where the API provides one), token state — never the token or its hash (Doc 03 §6.7)</td><td><code>GET /reports/{id}</code> → actions below</td><td>A delivery whose <code>last_error</code> starts <code>hard_bounce:</code> shows “The email address bounced permanently — check the address with the patient”, with the prefix stripped (Doc 06 §9). FAILED deliveries offer the API's retry path via Deliver.</td></tr>
+<tr><td>Report deliver (action on detail)</td><td>O M R</td><td>Channel and contact picker, consent-aware (RP-6: no consent row, no send)</td><td>→ <code>POST /reports/{id}/deliver</code></td><td>Success → toast “Delivery queued”, delivery panel refetches. A billing hold (BL-9) refusal shows as the API's words. Delivery itself is Doc 06's; the SPA watches the rows change.</td></tr>
+<tr><td>Report regenerate (action on detail)</td><td>O M P</td><td>Confirm panel</td><td>→ <code>POST /reports/{id}/regenerate</code></td><td>Success → the versions list refetches; a generation failure shows on the report as the API's visible failure state (Doc 03 §5.6) with a Retry — never a partial PDF.</td></tr>
+<tr><td>Report void (action on detail)</td><td>O P</td><td>Alert-dialog with the reason field</td><td>→ <code>POST /reports/{id}/void</code></td><td>Success → status <code>void</code>. Patient links for a voided report resolve per Doc 03 RP-9 — the SPA's job is only to show the state.</td></tr>
+<tr><td>Report PDF download (action on detail)</td><td>O M R T P</td><td>One button per version: “Download PDF”</td><td><code>GET /reports/{id}/versions/{version}/pdf</code> (§12.1)</td><td><code>404</code> → “The PDF is not ready yet” inline. Success → the PDF opens in a new tab. This GET is audit-logged server-side.</td></tr>
+<tr><td>Report access token (actions on detail)</td><td>O M R</td><td>Issue / reissue and revoke controls; link state and expiry (from <code>report_link_validity_days</code>, Doc 04 §10.2)</td><td>→ <code>POST /reports/{id}/access-token</code>, <code>POST /reports/{id}/revoke-token</code></td><td>The plain token is shown once, at issue, as the patient link (§12.2) — the SPA never stores it (FP-3) and the detail screen thereafter shows state only.</td></tr>
+</tbody></table></div>
+<h3>8.5 Exceptions, catalog and tenant settings</h3>
+<div class="box"><table><thead><tr><th>Screen (route)</th><th>Roles</th><th>Shows</th><th>Calls</th><th>On save / action / error</th></tr></thead><tbody>
+<tr><td>Exceptions list (<code>/exceptions</code>)</td><td>O M (P: critical section)</td><td>Three sections: <b>critical results</b> approved over 30 minutes with no notification record (Doc 03 §8.5, §11); <b>transfers open over 24 hours</b> plus the lost list (Doc 04 §9.4); <b>settlement drafts awaiting approval</b> (the Doc 06 §1.4 SPA notification, §13.2)</td><td>Composed: <code>GET /exceptions/critical-results</code> <i>(Proposed A-23)</i>, <code>GET /transfers/exceptions</code>, <code>GET /settlements?status=DRAFT</code> — loaded together, §14 workflow 8</td><td>Each section fails alone: a failed section shows its own retry tile, the others still render. Recording a notification (M P) removes a critical row on refetch. Nothing on this screen sends anything to anyone — it is a list for humans (OQ-28).</td></tr>
+<tr><td>Catalog — tests (<code>/settings/tests</code>, <code>/settings/tests/:id</code>)</td><td>O (write); M R T P (read)</td><td>Test list and detail: code, name, type, active state</td><td><code>GET /tests</code> → <code>POST /tests</code>, <code>PATCH /tests/{id}</code></td><td>Writes are Owner-only; other roles see the same screens read-only with no disabled-button clutter — write controls are not rendered (FP-6).</td></tr>
+<tr><td>Catalog — panels (<code>/settings/panels</code>)</td><td>O (write); others read</td><td>Panels and their member tests</td><td><code>GET /panels</code> → <code>POST /panels</code>, <code>PATCH /panels/{id}</code></td><td>As tests.</td></tr>
+<tr><td>Catalog — prices (tab on test detail)</td><td>O (write); M P (read); R T hidden</td><td>Effective-dated prices per branch scope as the API returns them</td><td><code>GET /tests/{id}/prices</code> → <code>POST /tests/{id}/prices</code></td><td>Money is entered as text and sent as a Decimal string; the SPA validates shape (digits, one dot, 2 dp) but never converts to a float (FP-5).</td></tr>
+<tr><td>Catalog — reference ranges (tab on test detail)</td><td>O (full); P (create, update); M T (read); R hidden</td><td>Ranges with age bands in days (Doc 02 v1.2), sex, low / high, critical low / high</td><td><code>GET /tests/{id}/reference-ranges</code> → <code>POST /tests/{id}/reference-ranges</code>, <code>PATCH /reference-ranges/{id}</code></td><td>Every change is effective-dated and audited server-side (Doc 03 §4.3 note); the screen shows the effective-from date the API returns, and warns that existing report versions never change (P-8).</td></tr>
+<tr><td>Branches (<code>/settings/branches</code>)</td><td>O (write); M (read)</td><td>Branch list: code, name, collection-centre flag, <code>result_entry_enabled</code> state; close / reopen</td><td><code>GET /branches</code> → <code>POST /branches</code>, <code>PATCH /branches/{id}</code>, <code>POST /branches/{id}/close</code>, <code>POST /branches/{id}/reopen</code></td><td><code>409 plan_limit_reached</code> and <code>409 branch_has_open_work</code> → modals naming the blocker and its counts (the API supplies them). The branch code is shown locked once referenced (<code>422 branch_code_immutable</code>).</td></tr>
+<tr><td>Staff and branch assignment (<code>/settings/staff</code>)</td><td>O (write); M (read, own branches)</td><td>Staff roster: name, role, branches, primary branch, TOTP state as a word</td><td><code>GET /staff</code> <i>(Proposed A-22)</i>; <code>GET /staff/{id}/branches</code> → <code>PUT /staff/{id}/branches</code></td><td>Assignment saves are atomic (Doc 04 §15.2): the whole branch set validates or nothing changes; <code>422 staff_branch_required</code> and <code>422 tenant_wide_role</code> land as form-level alerts. Creating staff accounts and resetting credentials are Doc 08's auth surface, not this screen (§17, A-22 note).</td></tr>
+<tr><td>Tenant settings (<code>/settings/tenant</code>)</td><td>O</td><td>The Doc 04 §10.2 registry as a form: default language for patient messages, report link validity days, billing hold on/off, refund ceiling (A-17 in Doc 05, if accepted), each shown as stored value or default, marked which</td><td><code>GET /settings</code> → <code>PATCH /settings</code> (per-key)</td><td><code>422 unknown_setting_key</code> cannot happen from this form — the form is built from the registry the GET returns. Saves confirm with a toast naming the key in words.</td></tr>
+<tr><td>Owner export (<code>/settings/exports</code>)</td><td>O</td><td>Request export; export state; the signed download link when ready (7 days, Doc 04 §4.3)</td><td>→ <code>POST /exports</code>; <code>GET /exports/{id}</code></td><td>Works in read-only mode — it is exempt (Doc 04 §11.2), and the SPA does not disable it when the §6.4 flag is set. The manifest's exclusion list (Doc 04 §4.3) is shown so the Owner can see what was withheld and why.</td></tr>
+</tbody></table></div>
+<h3>8.6 Partners and settlements (Doc 05)</h3>
+<div class="box"><table><thead><tr><th>Screen (route)</th><th>Roles</th><th>Shows</th><th>Calls</th><th>On save / action / error</th></tr></thead><tbody>
+<tr><td>Partners list (<code>/partners</code>)</td><td>O only</td><td>Referral partners: name, contact, active state; no figures on the list</td><td><code>GET /referral-partners</code> → <code>POST /referral-partners</code></td><td>Every other role gets the route-gate redirect (§4.3) — partners are record-only businesses, and their data is Owner-only end to end (Doc 05 §4).</td></tr>
+<tr><td>Partner detail (<code>/partners/:id</code>)</td><td>O only</td><td>Partner record; this month's position in summary; recent ledger rows</td><td><code>GET /referral-partners/{id}</code> → <code>PATCH /referral-partners/{id}</code>, <code>DELETE /referral-partners/{id}</code></td><td><code>409 partner_has_ledger_entries</code> on delete → modal: the partner can be deactivated, not deleted; history stays.</td></tr>
+<tr><td>Partner rules (<code>/partners/:id/rules</code>)</td><td>O only</td><td>Revenue-share rules in specificity order (Doc 05 §5): branch + category, branch, category, partner-wide — the screen groups them in that order so the resolution order is visible</td><td><code>GET /referral-partners/{id}/rules</code> → <code>POST /referral-partners/{id}/rules</code>, <code>PATCH /revenue-share-rules/{id}</code></td><td><code>422 rule_overlap</code> → inline (§7.4). Percent is entered and sent as the API's Decimal string; the SPA does not compute what a percent means in money.</td></tr>
+<tr><td>Share ledger (<code>/partners/ledger</code>)</td><td>O only</td><td>Append-only ledger: entry per payment, reversals linked to their original entry, derived entry state (Doc 05 §6)</td><td><code>GET /share-ledger</code></td><td>Read-only by design — there is no edit call to make. Zero-amount entries do not exist (Doc 05 skips them), so the screen never explains a PKR 0.00 row.</td></tr>
+<tr><td>Partner dashboard (<code>/partners/:id/dashboard</code>)</td><td>O only</td><td>The partner's totals and trend exactly as the API computes them</td><td><code>GET /referral-partners/{id}/dashboard</code></td><td>Read-only. Every figure is a server figure, verbatim (FP-5) — the SPA adds no chart math of its own beyond placing the API's points.</td></tr>
+<tr><td>Settlements list (<code>/settlements</code>)</td><td>O; M read-only</td><td>Settlements by period and status; DRAFT rows carry the review badge (§3.1 accent)</td><td><code>GET /settlements</code></td><td>The DRAFT count on this query is the nav badge (§13.2) — one query, two uses, no extra call. Managers see no action buttons (FP-6).</td></tr>
+<tr><td>Settlement detail (<code>/settlements/:id</code>)</td><td>O; M read-only</td><td>Partner, period, line items ordered by payment date (Doc 05 AP-4), totals verbatim, status, delivery state</td><td><code>GET /settlements/{id}</code> → actions below, each with <code>If-Match</code></td><td>The screen holds the settlement's version token from the GET and sends it back on every action (§7.4). A stale token is workflow 7 (§14).</td></tr>
+<tr><td>Settlement approve / cancel / mark-paid / send (actions on detail)</td><td>O only</td><td>Four actions, each behind a confirm that names the consequence; Send shows the partner email it will use</td><td>→ <code>POST /settlements/{id}/approve</code>, <code>/cancel</code>, <code>/mark-paid</code>, <code>/send</code>, all <code>If-Match</code></td><td><code>409 version_conflict</code> → §7.4 modal (R4). <code>422 settlement_not_cancellable</code> → toast with the current status word. <code>422 partner_email_missing</code> on Send → inline: add the partner's email first, link to the partner. In read-only mode all four pause (§6.4). Mark-paid records confirmation only — the audit row is the record (Doc 05).</td></tr>
+<tr><td>Statement PDF download (action on detail)</td><td>O; M</td><td>“Download statement PDF”</td><td><code>GET /settlements/{id}/statement.pdf</code> (§12.1)</td><td>Works even when delivery has failed — delivery trouble never locks the lab out of its own document (Doc 05 §9). The PDF is English-only and states it is not a legal invoice (Doc 05 §8); the SPA adds nothing to it.</td></tr>
+</tbody></table></div>
+<h3>8.7 Public and platform</h3>
+<div class="box"><table><thead><tr><th>Screen (route)</th><th>Roles</th><th>Shows</th><th>Calls</th><th>On save / action / error</th></tr></thead><tbody>
+<tr><td>Patient report access (<code>/report-access/:token</code>)</td><td>Public — token is the credential</td><td>A brief “opening your report” state, then the PDF; a fallback button if the browser blocks the automatic step</td><td><code>GET /api/v1/report-access/{token}</code> — full browser navigation, <b>no credentials, no Authorization header, no session</b> (§12.2)</td><td><code>410</code> → <code>/link-expired</code>. <code>404</code> → the same expired page (the API draws no distinction the patient could use, Doc 03 §6.8). Success marks the delivery <code>OPENED</code> server-side — the page itself records nothing.</td></tr>
+<tr><td>Link expired (<code>/link-expired</code>)</td><td>Public</td><td>“This link has expired” in the tenant's default language where known, the lab name, and the lab phone number; what to do next (call the lab; staff can reissue)</td><td><code>GET /tenant-status</code> for the lab name; the phone number comes from the API's <code>410</code> contact response (Doc 03 RP-9)</td><td>Never a login wall, never a password field (Doc 03 §6.8). If the phone number is unavailable, the page shows the lab name and the same instructions without it — it never invents a number.</td></tr>
+<tr><td>Platform tenants (<code>/platform/tenants</code>, <code>/platform/tenants/:id</code>)</td><td>SA only, apex host</td><td>Tenant list by status; detail: domains, subscription, provisioning step or failure, schema size, migration state (Doc 04 §15.1)</td><td><code>GET /platform/tenants</code>, <code>GET /platform/tenants/{id}</code> → the §15.1 actions (suspend, reactivate, offboard, subscription, retry)</td><td>Every action is behind a confirm naming the tenant; offboarding shows the export-first order (Doc 04 §4.3) before it can start. No tenant data of any lab is reachable from here (§4.4).</td></tr>
+</tbody></table></div>
+
+<h2 id="s9">9. i18n and RTL</h2>
+<h3>9.1 Setup</h3>
+<p>i18next with react-i18next, initialised once at startup. Two locales in v1: <code>en</code> and <code>ur</code>. More languages are §18 — the structure below is what a third language would plug into, but none is built.</p>
+<p><b>Namespaces, one per feature:</b> <code>common</code> (buttons, states, errors), <code>auth</code>, <code>patients</code>, <code>billing</code>, <code>samples</code>, <code>results</code>, <code>reports</code>, <code>partners</code>, <code>settlements</code>, <code>settings</code>. <b>Files:</b> one JSON file per namespace per locale — <code>src/locales/en/patients.json</code>, <code>src/locales/ur/patients.json</code> — bundled with the build (no runtime fetching of translations; the SPA must render offline-cached screens in the right language, §15). Fallback language is <code>en</code>: a missing Urdu key shows English, never a raw key, and the build's i18n check fails CI when a key exists in one locale and not the other.</p>
+<p><b>Keys, not sentences.</b> Code asks for <code>results.approve.confirmTitle</code>, never for an English string. Error surfaces come from §7.4: the <code>code</code> selects the key; the API's <code>detail</code> is never displayed untranslated to a user who chose Urdu — server detail is a developer aid, the SPA's catalogue is the user text.</p>
+<h3>9.2 The RTL switch</h3>
+<p>On <code>languageChanged</code>, the SPA sets <code>document.documentElement.lang</code> and <code>document.documentElement.dir</code> from <code>i18n.dir()</code> (F-4): Urdu → <code>dir="rtl"</code>, English → <code>dir="ltr"</code>. The switch is at <code>&lt;html&gt;</code> level only — no per-component direction flags.</p>
+<p><b>CSS convention: logical properties only.</b> Spacing and positioning use Tailwind's logical utilities — <code>ms-*</code> / <code>me-*</code> (margin-inline), <code>ps-*</code> / <code>pe-*</code> (padding-inline), <code>start-*</code> / <code>end-*</code> (inset-inline), <code>text-start</code> / <code>text-end</code>. Physical utilities (<code>ml-</code>, <code>mr-</code>, <code>pl-</code>, <code>pr-</code>, <code>left-</code>, <code>right-</code>, <code>text-left</code>, <code>text-right</code>) are banned in app code; an ESLint rule fails the build on them. With that one rule, the RTL layout is the LTR layout mirrored by the browser — sidebar, tables and forms flip for free, and a screen that does not flip has a banned class in it, which the lint output names.</p>
+<p><b>What never flips.</b> Numbers, money, dates, and every ID — MRN, accession ID, phone — stay LTR with Latin digits, even inside Urdu text (§10). They render inside <code>dir="ltr"</code> spans (§7.2 schemas guarantee their shape). The barcode label (§11) never flips: it is a physical object, printed the same in both languages, from stored data whose patient name prints as recorded.</p>
+<p><b>Type.</b> Urdu renders in a Nastaliq web font (Noto Nastaliq Urdu), loaded with the build; English in the system sans stack. Muted Urdu text steps one contrast darker (§3.1 rule 3). Line-height for Urdu body text is looser than English (Nastaliq stacks tall); the token is per-locale, set once in the theme, not per screen.</p>
+<h3>9.3 The switcher, and what is remembered</h3>
+<p>The language switcher lives in the header, on every authenticated screen and on the login screen (a staff member chooses their language before signing in). It is a two-option control — English / اردو — never a dropdown of flags.</p>
+<p>The choice is remembered in <code>localStorage</code> under one key (<code>labflow.lang</code>), alongside the theme preference (<code>labflow.theme</code>) and nothing else. This is a UI preference, not auth and not patient data (FP-3): it holds no token, no tenant, no record. The API is never told the staff UI language — it is irrelevant to the server. The language patients receive messages in is a different thing entirely: the tenant's <code>report_default_language</code> setting (Doc 04 §10.2, A-16), chosen by the Owner in settings, applied by Django when it renders messages (Doc 06 AS-5). The SPA does not confuse the two, and neither may a developer: the switcher changes the staff member's screen; the setting changes the patient's message.</p>
+<h3>9.4 Testing both languages</h3>
+<p>Every screen is tested in English and in Urdu before it is done — not sampled, every screen: the §15 suite runs FE-06 for the switch itself, and each screen's own review includes an Urdu screenshot. Truncation is the expected failure: Urdu strings run longer and taller, so buttons and table headers are sized by content, never by fixed pixel widths.</p>
+
+<h2 id="s10">10. Formatting</h2>
+<p>One formatting module owns every function below. Screens never format inline. All inputs arrive in Doc 03 §6.1 wire shapes; all outputs follow these rules in both languages.</p>
+<div class="box"><table><thead><tr><th>Thing</th><th>Wire shape</th><th>Display rule</th></tr></thead><tbody>
+<tr><td>Money</td><td>Decimal string, <code>"1250.00"</code></td><td>The string, verbatim, prefixed: <code>PKR 1250.00</code> in English, <code>روپے 1250.00</code> in Urdu. No grouping separators added, no rounding, no re-formatting, no arithmetic (FP-5, R2). Digits stay Latin and LTR in Urdu. Colour: black on slate-50 (§3.1 rule 1).</td></tr>
+<tr><td>Dates</td><td><code>YYYY-MM-DD</code></td><td><code>DD MMM YYYY</code> — <code>20 Oct 2026</code> — in both languages, with Latin digits. Urdu month names are not used in v1: the date stays unambiguous to any staff member reading over a shoulder, and matches the printed report.</td></tr>
+<tr><td>Datetimes</td><td>ISO 8601 with <code>+05:00</code></td><td>Date as above plus <code>HH:mm</code> 24-hour, with the timezone stated once per screen (“times are PKT”) rather than repeated per row. The stored offset is honoured, never re-derived from the browser's clock or zone.</td></tr>
+<tr><td>Age (from date of birth)</td><td><code>YYYY-MM-DD</code>, may be NULL</td><td>Computed for display where Doc 03 §8.2's age matters: under 90 days → “<code>45 days</code>”; under 2 years → “<code>14 months</code>”; otherwise → “<code>34 years</code>”. NULL date of birth → “Age: not recorded” (Doc 03 PT-6) — never a guessed age. The API's range selection uses its own day-exact math; the SPA's rounded display never feeds it.</td></tr>
+<tr><td>Accession ID, MRN, phone</td><td>Doc 02 §9 formats</td><td>Monospace font, <code>dir="ltr"</code>, Latin digits, letter-spacing untouched. These are identifiers staff read aloud and type into other systems; proportional fonts and RTL reordering both cause misreads.</td></tr>
+<tr><td>Percent (share rules)</td><td>Decimal string (Doc 05)</td><td>The string plus <code>%</code>. Display only; the SPA never applies a percent to an amount (FP-5).</td></tr>
+<tr><td>Status values</td><td>Doc 02 values (§1.4)</td><td>Translated display words from the <code>common</code> namespace, keyed by the raw value. The raw value itself is never shown to users, and a value with no translation is a build failure (§9.1), not a fallback.</td></tr>
+</tbody></table></div>
+
+<h2 id="s11">11. Barcode label printing</h2>
+<h3>11.1 The rule the screen serves</h3>
+<p>Doc 03 SM-4 and Doc 01 Flow A: the label is printed client-side, from stored data, at collection and on reprint. The data comes from <code>GET /api/v1/samples/{id}/label</code>: accession ID, patient name, MRN, date of birth (nullable), <code>collected_at</code>, collector name, and symbology <code>code128</code> over the accession ID. There is no free-text label endpoint, and this screen has no editable field: what is stored is what prints (FP-1). If the stored data is wrong, the fix is to correct the record and reprint — the audit log holds every print and reprint (Doc 03 §6.5).</p>
+<h3>11.2 The library: JsBarcode</h3>
+<p>R1 (§16): <b>JsBarcode</b> (MIT, F-2) renders the Code128 into an <code>&lt;svg&gt;</code> in a <code>useEffect</code>, called with the accession ID and <code>format: "CODE128"</code>, <code>displayValue: true</code> so the human-readable accession prints under the bars. SVG, not canvas: the printed bars stay vector-sharp, and a cheap label printer cannot blur a raster it never receives. bwip-js (F-3) is the rejected alternative — broader, heavier, and pointless for one symbology; react-barcode-style wrappers were rejected with it, because a wrapper around an imperative one-call library adds a dependency whose only job is to go stale against React 18.</p>
+<h3>11.3 The label</h3>
+<p>One label per accession. The physical label is 100&nbsp;mm × 50&nbsp;mm label stock. Batch printing (from the sample list, §8.3) puts each label on its own page; where only A4 is available, the same markup flows two-across on an A4 sheet with each label kept whole. Layout, black on white only (§3.1):</p>
+<div class="spec"><h4>Label layout — 100 × 50 mm</h4>
+<p class="kv"><b>Line 1 (top):</b> lab name, small, from <code>tenant-status</code>.<br>
+<b>Centre:</b> the Code128 barcode of the accession ID (SVG), with the accession ID itself printed beneath the bars in monospace.<br>
+<b>Line under barcode:</b> patient name, bold, as recorded.<br>
+<b>Next line:</b> <code>MRN …</code> · <code>DOB …</code> (or “DOB not recorded”).<br>
+<b>Last line:</b> collected <code>DD MMM YYYY HH:mm</code> · collector name.</p>
+<p>Nothing else is on the label. No test names, no prices, no patient phone: a tube label is read at a bench and stuck on a tube, and every extra field is a chance to read the wrong one.</p></div>
+<h3>11.4 The print stylesheet</h3>
+<p>The label screen is a normal SPA screen — preview, sample summary, Print button — until print. A dedicated print stylesheet governs output:</p>
+<pre>@media print {
+  /* everything that is not the label sheet disappears */
+  body * { visibility: hidden; }
+  #label-sheet, #label-sheet * { visibility: visible; }
+  #label-sheet { position: absolute; inset: 0; }
+  .label { page-break-after: always; page-break-inside: avoid; }
+}
+@page { size: 100mm 50mm; margin: 0; }   /* label stock; A4 fallback keeps the same .label box */</pre>
+<p>Header, sidebar, buttons and the toast container are inside <code>body *</code> and never reach paper. One label, one page-break: a batch of eight accessions is eight pages of one label each, in the order the API returned them. The screen's Print button calls <code>window.print()</code> — v1 has no silent or direct printing (§18).</p>
+<h3>11.5 Print failures</h3>
+<p>A label that renders wrong is a patient-safety surface (Doc 03 R-3). Two guards: the preview on screen is the print DOM itself, not a mock of it, so what staff check is what prints; and a barcode that JsBarcode refuses (invalid input — which stored accession IDs cannot be, by construction) fails the screen loudly with the §7.4 error panel instead of printing a label with no bars. Test FE-07 (§15) prints through a real print dialog against a mocked label response and asserts the accession text and the field lines are on the page.</p>
+
+<h2 id="s12">12. PDF access</h2>
+<h3>12.1 Staff download</h3>
+<p>Two buttons, one pattern. On a report: “Download PDF” calls <code>GET /api/v1/reports/{id}/versions/{version}/pdf</code> (Doc 03 §6.7). On a settlement: “Download statement PDF” calls <code>GET /api/v1/settlements/{id}/statement.pdf</code> (Doc 05 §10).</p>
+<p>The call is an authenticated <code>fetch</code> through the §5.3 wrapper — not a bare link, because the endpoint requires the Bearer token and a plain navigation cannot send one. The API answers <code>302</code> to a pre-signed storage URL; <code>fetch</code> follows the redirect (the Authorization header is sent only to the API origin — browsers strip it on a cross-origin redirect), receives the PDF bytes, and the SPA opens them in a new tab via an object URL, revoking the URL once the tab has it. The SPA never stores the PDF, the pre-signed URL, or anything derived from them (FP-3, FP-10).</p>
+<p><b>Not rendered yet.</b> The endpoint answers <code>404</code> when the version's PDF does not exist yet. The SPA shows “The PDF is not ready yet — it is still being prepared” beside the button. There is no polling and no auto-retry: generation is fast (Doc 01 G1) and staff re-check with the button. A <code>404</code> that persists is a server problem and belongs in §15's failure handling, not in a spinner.</p>
+<h3>12.2 Patient access: two clicks, no session</h3>
+<p>The patient's link — from the delivery email or WhatsApp message, or the QR code on a printed report (Doc 03 §6.8) — opens the public page <code>/report-access/:token</code> on the lab's own host. The page holds no session and needs none. On load it navigates the browser, full-page, to <code>GET /api/v1/report-access/{token}</code>. That call sends <b>no credentials</b>: no Authorization header (there is no token in memory on a public page, by construction), no staff cookie involvement — the access token in the URL is the whole credential (Doc 03 §6.8).</p>
+<p>The API verifies the token and answers <code>302</code> to a pre-signed URL for the current version's PDF. That is the whole flow, and it is G6 counted honestly: click 1 opens the link from the message; the page's automatic navigation is not a click; the PDF is on screen. If a browser blocks the automatic step, the page shows one button — “Open my report” — which performs the same navigation as a real click (click 2). There is no third step, no login, no app install, no “verify yourself” detour: the public verify endpoint (Doc 01 §14) is a separate, minimal surface and returns nothing sensitive, and v1's patient page does not build a flow on it.</p>
+<p><b>Expired or revoked.</b> The API answers <code>410</code> (Doc 03 RP-9). The public page routes to <code>/link-expired</code> (§8.7): lab name, lab phone number from the API's contact response, plain instructions. Unknown tokens answer <code>404</code> and land on the same page — the patient cannot learn anything from the difference, and neither can anyone who found the link. Staff reissue from the report screen (§8.4), which mints a fresh token; the old one stays revoked.</p>
+<p><b>Suspended and read-only tenants.</b> The flow above is exempt from both gates (Doc 04 TP-8, §11.2): a billing dispute must not strand a patient holding a clinical result. The SPA's tenant gate (§4.3) does not run on public routes, by design.</p>
+
+<h2 id="s13">13. SPA notifications and empty states</h2>
+<h3>13.1 The definition</h3>
+<p>Doc 06 §1.4 ruled that some notices exist only inside the SPA. This section defines what that means. <b>An SPA notification is one of exactly two things:</b></p>
+<ul>
+<li><b>A toast.</b> A transient message in the toast container (§4.1). Confirmation and information toasts dismiss themselves after 5 seconds. Error toasts stay until dismissed — a failure a user must act on does not vanish on a timer. A toast is never the only record of anything: the underlying state is on its screen, from the API.</li>
+<li><b>A nav badge.</b> A count on a sidebar item, naming pending work. A badge persists while the work persists, and its number always comes from a real list query the SPA makes anyway (§7.1). Clicking the badge opens the list it counts.</li>
+</ul>
+<p>Nothing else is an SPA notification. There is no browser Notification API, no push, no service worker, no sound, no email, no <code>notification</code> row (Doc 06 §1.4). If a future document wants one of those, it amends this definition first.</p>
+<p><b>Delivery display is not a notification.</b> The report screen's delivery panel (§8.4) shows <code>report_delivery</code> rows as state — word and colour per §3.1, <code>hard_bounce:</code> rendered as readable words (§8.4) — because staff open that screen to answer “did the patient get it”. It is data on a screen, not a toast, and it is read from the report GET, never pushed.</p>
+<h3>13.2 Every toast and badge in v1</h3>
+<div class="box"><table><thead><tr><th>Toast (fires when)</th><th>Kind</th></tr></thead><tbody>
+<tr><td>Invoice created</td><td>Confirmation, 5 s</td></tr>
+<tr><td>Payment recorded · Refund recorded</td><td>Confirmation, 5 s</td></tr>
+<tr><td>Patient registered · Sample collected · Sample received</td><td>Confirmation, 5 s</td></tr>
+<tr><td>Results saved (batch) · Result approved · Result rejected · Result withdrawn</td><td>Confirmation, 5 s</td></tr>
+<tr><td>Report final (on the report screen after regeneration / finalisation is observed) · Delivery queued</td><td>Confirmation, 5 s</td></tr>
+<tr><td>Delivery failed (observed on the report screen when a delivery row turns <code>FAILED</code> or <code>BOUNCED</code>)</td><td>Error, until dismissed, with “Open the report” action</td></tr>
+<tr><td>Settlement approved · Settlement sent · Marked paid · Settlement cancelled</td><td>Confirmation, 5 s</td></tr>
+<tr><td>Critical notification recorded</td><td>Confirmation, 5 s</td></tr>
+<tr><td>Transfer dispatched · Transfer received · Settings saved · Export requested</td><td>Confirmation, 5 s</td></tr>
+<tr><td>Any §7.4 toast-class error (forbidden, state conflicts, offline write attempt)</td><td>Error, until dismissed</td></tr>
+</tbody></table></div>
+<p>Two §7.4 surfaces are deliberately <b>not</b> toasts, and are listed here so nobody “simplifies” them into one: <code>version_conflict</code> is a <b>modal</b> (work must stop until the user chooses), and <code>subscription_read_only</code> is a <b>banner</b> (it describes a continuing state, not an event).</p>
+<div class="box"><table><thead><tr><th>Nav badge</th><th>Count source (existing query)</th><th>Who sees it</th></tr></thead><tbody>
+<tr><td>Worklist</td><td><code>GET /worklist</code> in the caller's scope</td><td>O M T P</td></tr>
+<tr><td>Approvals</td><td>The same worklist query, filtered to <code>entered</code> results</td><td>P (O M on their home, not the nav)</td></tr>
+<tr><td>Settlements — drafts awaiting approval</td><td><code>GET /settlements?status=DRAFT</code></td><td>O; M sees the count read-only</td></tr>
+<tr><td>Exceptions</td><td>Critical list (A-23) + transfers-over-24 h list sizes</td><td>O M P</td></tr>
+</tbody></table></div>
+<p>The drafts badge is the whole of “drafts-ready notification” in v1 (Doc 06 §1.4, R6): a badge on the settlements nav item, lit by the list query the SPA already makes. No row, no email, no extra backend call.</p>
+<h3>13.3 Empty states</h3>
+<p>An empty list is a normal state with its own copy, an explanation, and — where the role may act — the action that fills it. Copy below is the English source text; Urdu strings live in the same keys (§9.1).</p>
+<div class="box"><table><thead><tr><th>List</th><th>Empty-state copy</th></tr></thead><tbody>
+<tr><td>Patients</td><td>“No patients yet. Register the first patient to start.” + Register button (O M R)</td></tr>
+<tr><td>Patient search, no match</td><td>“No patient matches that search. Check the phone number or MRN, or register a new patient.”</td></tr>
+<tr><td>Invoices</td><td>“No invoices for this period.”</td></tr>
+<tr><td>Samples</td><td>“No samples yet today.” (filtered: “No samples match these filters.”)</td></tr>
+<tr><td>Worklist</td><td>“Nothing pending. Every received sample has an approved result.”</td></tr>
+<tr><td>Approvals queue</td><td>“No results waiting for approval.”</td></tr>
+<tr><td>Reports</td><td>“No reports yet. Reports appear when results are approved.”</td></tr>
+<tr><td>Exceptions — all clear</td><td>“No exceptions. Nothing is overdue.” — shown as a positive state, green word <code>Clear</code>, never as a blank page.</td></tr>
+<tr><td>Partners</td><td>“No referral partners yet. Add the first partner to start tracking shares.”</td></tr>
+<tr><td>Share ledger</td><td>“No share entries yet. Entries appear when a referred patient's payment is recorded.”</td></tr>
+<tr><td>Settlements</td><td>“No settlements for this period.”</td></tr>
+<tr><td>Settlement drafts section (exceptions)</td><td>“No drafts awaiting approval.”</td></tr>
+<tr><td>Branches / staff</td><td>“One branch — yours — is set up. Add a branch when the lab opens a second site.” / “No staff yet beyond the owner account.”</td></tr>
+</tbody></table></div>
+
+<h2 id="s14">14. Key workflows</h2>
+<p>Eight workflows cover the auth dance, the money and clinical paths as the browser experiences them, printing, the patient link, and the one screen that aggregates. Each maps to screens in §8 and rules in §§5–13.</p>
+<h3>14.1 Workflow 1 — Login, and the refresh dance inside it</h3>
+<div class="diagram"><pre class="mermaid">sequenceDiagram
+  participant U as Staff browser (SPA)
+  participant API as LabFlow API
+  U->>API: GET /api/v1/tenant-status (no auth)
+  API-->>U: 200 {slug, name, status: active}
+  U->>API: POST /api/v1/auth/login {email, password} (A-21)
+  API-->>U: 200 {totp_required: true}
+  U->>API: POST /api/v1/auth/totp/verify {code} (A-21)
+  API-->>U: 200 {access, expires_in: 900, user} + Set-Cookie refresh (httpOnly)
+  Note over U: access token stored in memory only (Zustand, no persist)
+  U->>API: GET /api/v1/worklist (Bearer access)
+  API-->>U: 401 problem+json code=token_expired (15 min later)
+  U->>API: POST /api/v1/auth/refresh (cookie sent by browser, no body)
+  API-->>U: 200 {access, expires_in} + rotated refresh cookie
+  U->>API: GET /api/v1/worklist (Bearer new access) — retried once
+  API-->>U: 200 rows</pre>
+<p class="dcap">Workflow 1 — Login and silent refresh (§5). One refresh, one retry, however many requests raced the expiry (single-flight, §5.3). A failed refresh ends the session and redirects to /login?returnTo.</p></div>
+<h3>14.2 Workflow 2 — Patient registration with a duplicate</h3>
+<div class="diagram"><pre class="mermaid">sequenceDiagram
+  participant REC as Receptionist
+  participant U as SPA
+  participant API as LabFlow API
+  REC->>U: Fill registration form (name, phone, sex, DOB)
+  U->>U: RHF + Zod validation (PT-V1 mirror)
+  U->>API: POST /api/v1/patients
+  API-->>U: 409 problem+json code=possible_duplicate + candidates (identifiers only, BS-4)
+  U->>REC: Modal: "A patient with this phone exists" — candidates listed
+  alt REC chooses "Use this patient"
+    U->>API: GET /api/v1/patients/{candidate_id}
+    API-->>U: 200 patient
+  else REC chooses "Register anyway"
+    U->>API: POST /api/v1/patients (with API confirm flag)
+    API-->>U: 201 patient
+    U->>REC: Toast "Patient registered"
+  end</pre>
+<p class="dcap">Workflow 2 — Registration (§8.2). The duplicate is a question, never an automatic merge (Doc 03 PT-3). Out-of-branch candidates show identifiers only.</p></div>
+<h3>14.3 Workflow 3 — Result entry batch, one row conflicts</h3>
+<div class="diagram"><pre class="mermaid">sequenceDiagram
+  participant T as Technician
+  participant U as SPA
+  participant API as LabFlow API
+  T->>U: Enter values for all ordered tests of one sample
+  U->>API: POST /api/v1/samples/{id}/results {results: [...]} (one call, RS-V2)
+  API-->>U: 409 problem+json code=result_already_entered (one test already has a result)
+  Note over U,API: All-or-nothing: nothing from the batch was saved
+  U->>T: Conflicting row highlighted; banner "Nothing was saved"; other values kept on screen
+  T->>U: Correct the batch (drop or fix the conflicting test)
+  U->>API: POST /api/v1/samples/{id}/results {results: [...]}
+  API-->>U: 201 results with computed flags and matched ranges
+  U->>T: Toast "Results saved"; sample moves on per API state</pre>
+<p class="dcap">Workflow 3 — Batch entry (§8.4). A conflict rejects the whole batch — a half-saved batch would be a clinical hazard — but never the technician's typing (§5.4).</p></div>
+<h3>14.4 Workflow 4 — Approval with If-Match, conflict case</h3>
+<div class="diagram"><pre class="mermaid">sequenceDiagram
+  participant P as Pathologist
+  participant U as SPA
+  participant API as LabFlow API
+  U->>API: GET /api/v1/results/{id}
+  API-->>U: 200 result + version token (updated_at-derived, Doc 03 §6.1)
+  Note over U: Screen shows value, flag, range, delta check (§8.6 of Doc 03)
+  P->>U: Approve (with range-override note, RS-7, if against the flag)
+  U->>API: POST /api/v1/results/{id}/approve {decision: approved, note} + If-Match: token
+  API-->>U: 409 problem+json code=version_conflict
+  U->>P: Modal: "Someone else changed this result" — current version shown, Reload offered
+  P->>U: Reload
+  U->>API: GET /api/v1/results/{id}
+  API-->>U: 200 current result and its state
+  Note over U: No auto-merge, no blind retry (R4). If the result is already approved, the screen simply shows that.</pre>
+<p class="dcap">Workflow 4 — Approval (§8.4). The stale screen loses loudly and informatively; it never wins silently.</p></div>
+<h3>14.5 Workflow 5 — Label print</h3>
+<div class="diagram"><pre class="mermaid">sequenceDiagram
+  participant R as Receptionist
+  participant U as SPA (label screen)
+  participant API as LabFlow API
+  R->>U: Open label screen after collection (or Reprint from sample detail)
+  U->>API: GET /api/v1/samples/{id}/label
+  API-->>U: 200 {accession_id, patient name, mrn, dob, collected_at, collector, symbology: code128}
+  U->>U: JsBarcode renders Code128 of accession_id into SVG (client-side, §11)
+  U->>R: Preview = the exact print DOM
+  R->>U: Print
+  U->>U: window.print() with @media print stylesheet (shell hidden, one label per page)
+  Note over U,API: Print and reprint are audit-logged server-side. No text endpoint exists; nothing on this screen is editable.</pre>
+<p class="dcap">Workflow 5 — Label print (§11, SM-4). The barcode is rendered in the browser from stored data; the server never sees a label image.</p></div>
+<h3>14.6 Workflow 6 — Patient link open (public, 2 clicks)</h3>
+<div class="diagram"><pre class="mermaid">sequenceDiagram
+  participant PT as Patient (phone browser)
+  participant U as Public page /report-access/:token
+  participant API as LabFlow API
+  PT->>U: Tap the link in the email or message (click 1)
+  U->>API: Full navigation GET /api/v1/report-access/{token} — no credentials sent
+  alt Token valid
+    API-->>PT: 302 to pre-signed PDF URL (current version)
+    Note over PT: PDF on screen. Delivery marked OPENED server-side. No second click was needed.
+  else Token expired or revoked
+    API-->>U: 410
+    U->>PT: /link-expired — lab name, lab phone, what to do (RP-9)
+  end</pre>
+<p class="dcap">Workflow 6 — Patient access (§12.2, G6). Worst case is 2 clicks when a browser blocks the automatic step and the patient taps “Open my report”. Never a login wall.</p></div>
+<h3>14.7 Workflow 7 — Settlement approve with If-Match, conflict case</h3>
+<div class="diagram"><pre class="mermaid">sequenceDiagram
+  participant O as Owner
+  participant U as SPA
+  participant API as LabFlow API
+  U->>API: GET /api/v1/settlements/{id}
+  API-->>U: 200 settlement DRAFT + version token + line items
+  O->>U: Approve
+  U->>API: POST /api/v1/settlements/{id}/approve + If-Match: token
+  API-->>U: 409 problem+json code=version_conflict
+  U->>O: Modal: "This settlement changed since you opened it" — current state shown, Reload offered
+  O->>U: Reload
+  U->>API: GET /api/v1/settlements/{id}
+  API-->>U: 200 current settlement (perhaps already APPROVED by another session)
+  Note over U: Same R4 rule as results: refuse loudly, never merge money state.</pre>
+<p class="dcap">Workflow 7 — Settlement approval (§8.6, Doc 05 AP-2). Money approvals and clinical approvals share one conflict behaviour — staff learn it once.</p></div>
+<h3>14.8 Workflow 8 — The exceptions screen loading</h3>
+<div class="diagram"><pre class="mermaid">sequenceDiagram
+  participant M as Manager
+  participant U as SPA (/exceptions)
+  participant API as LabFlow API
+  M->>U: Open Exceptions
+  par Four queries, one screen
+    U->>API: GET /api/v1/exceptions/critical-results (A-23, Proposed)
+    API-->>U: Critical results, approved &gt; 30 min, no notification record
+  and
+    U->>API: GET /api/v1/transfers/exceptions
+    API-->>U: Transfers open &gt; 24 h; lost list
+  and
+    U->>API: GET /api/v1/settlements?status=DRAFT
+    API-->>U: Drafts awaiting approval (Owner approves; Manager reads)
+  and
+    U->>API: GET /api/v1/worklist
+    API-->>U: Pending counts for the nav badges
+  end
+  Note over U: Each section renders or fails alone (§8.5). Refetch every 60 s while visible (§7.1).</pre>
+<p class="dcap">Workflow 8 — Exceptions (§8.5). Composition, not a composite endpoint: four queries with four permission and staleness profiles, one screen.</p></div>
+
+<h2 id="s15">15. Failure handling and test plan</h2>
+<h3>15.1 Failure handling</h3>
+<div class="box"><table><thead><tr><th>Failure</th><th>SPA behaviour</th></tr></thead><tbody>
+<tr><td>Network offline mid-session</td><td>The browser's offline signal (and the first failed query) raises the offline banner. Screens keep showing the TanStack Query cache — the last known state, visibly labelled with its age once it is over 2 minutes old. Mutations are blocked at the button with a toast (“You are offline — this was not saved”); nothing is queued for later sending, because a queued clinical or money write that fires an hour later is a hazard, not a feature. On reconnect, <code>refetchOnReconnect</code> refreshes stale queries and the banner clears (R3).</td></tr>
+<tr><td><code>401 token_expired</code></td><td>Workflow 1 (§14): refresh once, retry once. Unrecoverable → §5.4 (draft preserved in memory, login with return-to).</td></tr>
+<tr><td><code>403 forbidden</code> on a click</td><td>The rule is <i>hidden first</i>: a control the role may not use is never rendered (FP-6). If a click still earns a <code>403</code> — a stale screen, a changed assignment — the toast shows (§7.4) and Sentry notes the disagreement. The API's refusal is the enforcement; the hiding is the courtesy. Both exist, on purpose.</td></tr>
+<tr><td><code>403 subscription_read_only</code></td><td>§6.4: banner, writes disabled in place, reads untouched, export still available, settlement actions paused.</td></tr>
+<tr><td><code>409 version_conflict</code></td><td>§7.4 modal (R4). The user's input is preserved behind the modal. Reload is the only way forward.</td></tr>
+<tr><td><code>409 invalid_state_transition</code></td><td>Toast naming the winning state; the screen refetches and shows the record as it now stands. Two staff racing one sample is a normal day (Doc 03 §10); the UI treats it as information, not as an error worth a modal.</td></tr>
+<tr><td><code>422 validation_error</code></td><td>Inline per-field errors from the <code>errors</code> map (§7.3); focus to the first bad field; the rest of the form untouched.</td></tr>
+<tr><td><code>500</code>, or any unmapped code</td><td>Error panel with Retry and the correlation ID shown as a support reference (§7.4). The ID is the <code>X-Request-ID</code> of Doc 01 §11 — the same ID Sentry and the server logs carry, so a phone call to support starts from one string.</td></tr>
+<tr><td>A screen crashes (render error)</td><td><code>ScreenBoundary</code> (§7.4): panel + Reload + Sentry reference; shell stays alive.</td></tr>
+<tr><td>Empty results</td><td>Not a failure. §13.3 copy renders.</td></tr>
+</tbody></table></div>
+<h3>15.2 Playwright E2E test plan</h3>
+<p>Playwright, against a seeded test tenant, mocked at the API boundary where a scenario says “mock”. Projects: Chromium on every CI run; Chromium + Firefox + WebKit nightly (F-6). Tests assert on <code>code</code> values and visible words, never on <code>detail</code> text (FP-4 applies to tests too).</p>
+<div class="box"><table><thead><tr><th>#</th><th>Scenario</th><th>Proves</th></tr></thead><tbody>
+<tr><td>FE-01</td><td>Happy path: register patient → invoice → cash payment → collect sample</td><td>§8.2, §8.3; server totals shown verbatim; label screen follows collection</td></tr>
+<tr><td>FE-02</td><td>Result entry → approve → PDF download twice: staff path, then patient path in a fresh context</td><td>§12.1, §12.2; G6 click count on the patient path</td></tr>
+<tr><td>FE-03</td><td>Mock a <code>FAILED</code> report_delivery (and a <code>hard_bounce:</code> last_error) on a report</td><td>§8.4 delivery panel: state word + colour; bounce prefix shown as readable words; error toast on the report screen</td></tr>
+<tr><td>FE-04</td><td>Mock a critical result unrecorded for 31 minutes and a transfer open 25 hours</td><td>§8.5: both appear on /exceptions; the exceptions badge counts them</td></tr>
+<tr><td>FE-05</td><td>Settlement approval race: two sessions, one approves first</td><td>§14 workflow 7: <code>version_conflict</code> modal; no double approval</td></tr>
+<tr><td>FE-06</td><td>Switch to Urdu mid-session</td><td>§9: <code>dir="rtl"</code> on <code>&lt;html&gt;</code>; layout mirrors; IDs, money and dates stay LTR with Latin digits; choice survives reload (localStorage)</td></tr>
+<tr><td>FE-07</td><td>Label print with mocked label response, real print dialog (print-to-PDF)</td><td>§11: accession text, patient name, MRN, DOB, collected time, collector on the page; shell and buttons absent; one label per page in a batch of three</td></tr>
+<tr><td>FE-08</td><td>Patient link open in a fresh browser context with no session; then an expired token</td><td>§12.2: PDF reached with no login anywhere; expired → /link-expired with lab name and phone; no login form rendered</td></tr>
+<tr><td>FE-09</td><td>Owner home dashboard renders its composed panels; one panel's query mocked to fail</td><td>§8.1: the failed panel shows its own error tile; the rest render</td></tr>
+<tr><td>FE-10</td><td>Manager home + settlements: list and detail readable, statement PDF downloads</td><td>Doc 05 §4: no approve / send / mark-paid controls rendered</td></tr>
+<tr><td>FE-11</td><td>Receptionist home (patient queue); TOTP-step accounts walk the §5.1 two-step login</td><td>§8.1, §5</td></tr>
+<tr><td>FE-12</td><td>Technician home = worklist; order asserted oldest-collection-first against seeded data</td><td>§8.4 FIFO; the SPA does not re-sort</td></tr>
+<tr><td>FE-13</td><td>Pathologist approvals: self-approval attempt refused; range override without a note cannot submit, with a note succeeds and the stored flag is unchanged</td><td>RS-6, RS-7 (§8.4)</td></tr>
+<tr><td>FE-14</td><td>Role redirect: a Technician opens /settlements by URL</td><td>§4.3: redirected to / with the role toast; a direct API call also returns 403 (asserted in the same test, defence in depth)</td></tr>
+<tr><td>FE-15</td><td>Read-only mode, both discovery paths: (a) <code>tenant-status</code> answers <code>mode = "read_only"</code> at cold load (A-24) — the app opens read-only before any write is attempted; (b) mid-session, mock <code>403 subscription_read_only</code> on a write</td><td>§6.4: banner appears, write controls disable, lists still load, Owner export still works, settlement actions paused</td></tr>
+<tr><td>FE-16</td><td>Duplicate patient flow end to end; then transfer receive at the destination branch, including a wrong-branch receive attempt (<code>sample_not_here</code>)</td><td>§14 workflow 2; §8.3</td></tr>
+<tr><td>FE-17</td><td>Amend an approved result on a finalised report</td><td>RS-9 / RP-4: original becomes <code>amended</code> after the amendment approves; report shows the new version; old version still downloadable by staff</td></tr>
+<tr><td>FE-18</td><td>Record a critical notification from the exceptions screen path</td><td>§8.4, §8.5: the row leaves the exceptions list on refetch; toast fires</td></tr>
+<tr><td>FE-19</td><td>Token expiry mid-session: force <code>401 token_expired</code> on a list call</td><td>§5.3: exactly one refresh call (asserted by request count), one retry, no login screen shown, no data loss</td></tr>
+<tr><td>FE-20</td><td>Offline: go offline with a loaded worklist; attempt a write; reconnect</td><td>R3: cached worklist stays visible; write blocked with the offline toast and never sent; reconnect refetches and clears the banner</td></tr>
+</tbody></table></div>
+
+<h2 id="s16">16. Resolved and open questions</h2>
+<h3>16.1 Resolved here</h3>
+<div class="box"><table><thead><tr><th>#</th><th>Question</th><th>Resolution</th></tr></thead><tbody>
+<tr><td>R1</td><td>Which library renders Code128 labels client-side?</td><td><b>JsBarcode</b> (MIT, F-2), rendering into SVG from a <code>useEffect</code>. Chosen over bwip-js (MIT, F-3 — 100+ symbologies LabFlow does not use, a larger and more complex port) and over react-barcode wrappers (an extra dependency wrapping one imperative call). Reliability in React 18: the library is framework-free DOM code, so there is no React version coupling; the label screen calls it on a ref after the label payload arrives. Label layout and print stylesheet: §11.3, §11.4.</td></tr>
+<tr><td>R2</td><td>How does the SPA represent money without recomputing it?</td><td><b>Option (a): display server strings verbatim; no arithmetic.</b> A Decimal library (option b) was rejected because it exists to do precisely what the SPA must not do — the moment <code>decimal.js</code> is in the bundle, someone sums invoice lines “just for display”, and the display and the ledger disagree by a rounding rule. Money arithmetic belongs on the server, where Doc 03's derived-status rules (BL-6) and Doc 05's rounding rules live. The SPA is a display surface (FP-5). Percentages and counts the SPA does show are API values, verbatim.</td></tr>
+<tr><td>R3</td><td>Offline and patchy connectivity (Doc 01 §5)?</td><td><b>Option (a): TanStack Query cache + offline banner + retry on reconnect.</b> Full offline-first with IndexedDB (option b) was rejected: it means storing patient data in the browser (forbidden, FP-3), queuing clinical and money writes for later replay (a hazard, §15.1), and building conflict resolution for a problem v1 does not have — branches work on a LAN-reachable server, and a short outage is a pause, not a second shift. Exact configuration: §7.1 (<code>staleTime</code> 30 s default / 15 s queues / 5 min catalog, <code>gcTime</code> 5 min, query retry never-on-4xx + 2 on network/5xx, mutation retry 0, <code>refetchOnReconnect: true</code>, <code>refetchOnWindowFocus: true</code>).</td></tr>
+<tr><td>R4</td><td><code>409 version_conflict</code> (stale If-Match)?</td><td><b>Modal, reload, no merge.</b> “Someone else changed this; here is the current version” — with the changed record's key fields shown, the user's own input preserved behind the modal, and Reload as the way forward (§7.4, workflows 4 and 7). Never auto-merge: the two writers may disagree about a clinical value, and software must not average them. Never retry blindly: a retried write with a fresh token is exactly the overwrite the version exists to prevent.</td></tr>
+<tr><td>R5</td><td><code>403 subscription_read_only</code> (Doc 04 §11.2)?</td><td>§6.4 is the frontend half: the mode is known at cold load from <code>tenant-status</code> (A-24, Proposed) and set as an in-memory flag before the login screen renders; a mid-session <code>403</code> sets the same flag as backstop. Owner sees an explanatory banner, all roles see writes disabled in place; reads are untouched. Still working: every GET screen, patient report access (exempt, and not part of the staff SPA), and the Owner export. Settlement approval, delivery and mark-paid stay paused until the API accepts writes again (OQ-36).</td></tr>
+<tr><td>R6</td><td>What is an “SPA notification”?</td><td>§13.1: exactly a <b>toast</b> (confirmation and information dismiss in 5 s; errors stay until dismissed) or a <b>nav badge</b> (a count of pending work, from a list query the SPA already makes). No browser Notification API, no push, no service worker in v1. Drafts-ready is the badge on Settlements, sourced from <code>GET /settlements?status=DRAFT</code> — no row, no email, no extra call (Doc 06 §1.4).</td></tr>
+<tr><td>D-1</td><td>Error boundary UX: crash to a reload screen, or degrade?</td><td><b>Degrade.</b> A route-level <code>ScreenBoundary</code> (§7.4) catches per screen: the shell, nav and other routes stay alive; the crashed screen shows a panel with Reload and the Sentry reference. A root boundary covers the shell itself. A lab counter PC mid-queue must never need a browser restart to keep working the queue.</td></tr>
+<tr><td>D-2</td><td>Accessibility scope in v1</td><td><b>Baseline now, audit later.</b> v1 commits to: every form field labelled (Radix primitives carry the ARIA, F-5), visible focus on every interactive element, keyboard navigation of every flow in §8, and the §3.1 colour rules (1.4.1 by construction, contrast per 1.4.3 for text tokens). A full WCAG 2.2 AA audit is deferred post-v1 — OQ-50 — because an audit against screens that are still changing certifies a moving target; the baseline above is the part that is expensive to retrofit, so it is not deferred.</td></tr>
+<tr><td>D-3</td><td>Which shadcn/ui components does v1 import?</td><td>Exactly these, copied in and owned (F-5): Alert, AlertDialog, Badge, Button, Card, Dialog, DropdownMenu, Form, Input, Label, Popover, Select, Separator, Skeleton, Table, Tabs, Textarea, Toast, Tooltip. Anything not on this list is not added ad hoc — it joins the list by amending this row, so the component surface stays reviewable. Toast behaviour in §13 is implemented on the Toast component; badges on Badge.</td></tr>
+</tbody></table></div>
+<h3>16.2 Open questions</h3>
+<div class="box"><table><thead><tr><th>#</th><th>Question</th><th>Owner</th><th>Needed by</th></tr></thead><tbody>
+<tr><td>OQ-49</td><td>Exact Playwright test IDs (<code>data-testid</code> naming) and final UI copy ownership: do the test-ID convention and the English copy sign-off live in Doc 09 (standards) or Doc 10 (launch)? §15's tests are written against roles and visible words until this is answered; no scenario depends on the answer.</td><td>Doc 09 or Doc 10 — to be assigned</td><td>FE suite hardening; not needed to start the build</td></tr>
+<tr><td>OQ-50</td><td>Full WCAG 2.2 AA audit: which release carries it, and against which assistive-technology matrix (screen readers, zoom levels)? D-2 fixes the v1 baseline; the audit itself is unscoped until a release owns it.</td><td>Doc 10</td><td>Launch readiness</td></tr>
+</tbody></table></div>
+<p>No other open questions are raised by this document. Earlier questions this document touched are already resolved where they were owned: OQ-28 and OQ-42 in Doc 06, OQ-31 and OQ-36 in Doc 05.</p>
+
+<h2 id="s17">17. Proposed amendments</h2>
+<p>These need endpoints Docs 03–06 do not define. All are <b>Proposed</b>: the screens that use them are specified in full in §8 and built as specified; acceptance folds each route into its owning document's endpoint list, the pattern Doc 06 used for A-19 and A-20.</p>
+<div class="box"><table><thead><tr><th>#</th><th>Amendment</th><th>Why it is needed</th><th>Interim behaviour</th></tr></thead><tbody>
+<tr><td>A-21</td><td><b>Auth routes</b> (Proposed — for Doc 08 / Doc 01's auth namespace): <code>POST /api/v1/auth/login</code> → session or <code>{totp_required: true}</code>; <code>POST /api/v1/auth/totp/verify</code> → session; <code>POST /api/v1/auth/logout</code> → invalidates the refresh cookie server-side. Session shape: <code>{access, expires_in, user {id, name, role, branch_ids}}</code>.</td><td>Only <code>POST /api/v1/auth/refresh</code> is defined in Docs 01–06 (ADR-005). The SPA cannot sign a user in, verify a TOTP code, or end a server session without these three. Doc 03 §6.1 defers the auth mechanism to Doc 08; this amendment gives Doc 08 the exact client contract to ratify or amend.</td><td>§5 is written against these shapes. Failure modes are §7.4's. If Doc 08 changes a shape, the change is confined to the SPA's single auth module.</td></tr>
+<tr><td>A-22</td><td><b>Staff list</b> (Proposed — for Doc 04 §15.2): <code>GET /api/v1/staff</code> → cursor page of staff summaries (id, name, email, role, TOTP state, branch count). Roles: O; M sees own branches' staff.</td><td>Doc 04 §15.2 defines branch assignment per staff member (<code>GET / PUT /staff/{id}/branches</code>) but no way to enumerate staff. The assignment screen (§8.5) cannot start from an ID it has no way to learn. No other field or route is proposed: staff account creation, credential resets and TOTP enrolment stay Doc 08's surface, and this document proposes nothing about them.</td><td>The staff screen ships against this shape. Without acceptance it can only render assignments for staff reached by direct link — which is to say, it waits for A-22.</td></tr>
+<tr><td>A-23</td><td><b>Critical exceptions list</b> (Proposed — for Doc 03 §6): <code>GET /api/v1/exceptions/critical-results</code> → approved results with <code>flag = critical</code>, approved more than 30 minutes ago, with no <code>critical_notification</code> row; each row carries the result, sample and patient identifiers and the approval time. Roles: O M P. Read-only.</td><td>The one part of the exceptions screen that cannot be composed (§1.4, gap 3). The worklist lists unapproved work; the critical list is by definition approved work. No existing endpoint can produce it, and no client-side filter can fix that — the data is not on any response the SPA receives. This is a query over two Doc 02 tables (<code>result</code>, <code>critical_notification</code>) with Doc 03 §8.5's own 30-minute rule; it invents no rule and stores nothing.</td><td>The exceptions screen ships with its transfers and drafts sections live; the critical section renders from this route as specified. Doc 06 already assigned the list's UI to this document; A-23 is the read it stands on.</td></tr>
+<tr><td>A-24</td><td><b>Tenant mode on tenant-status</b> (Proposed — for Doc 04 §6.3): the <code>GET /api/v1/tenant-status</code> response gains one field — <code>{slug, name, status, mode}</code>, where <code>mode</code> is <code>"read_only"</code> exactly when the tenant is in Doc 04 §11.2 read-only mode and <code>"full"</code> otherwise. No other field changes; the route stays the one pre-auth tenant call.</td><td>Without it, the SPA learns read-only mode only when the first write fails with <code>403 subscription_read_only</code>: an Owner signing in to a past-due lab sees a fully functional-looking app — every button clickable — until the first click fails. Doc 07 is where the SPA decides what to show on cold load, and this is the one field that decision needs. The alternative — a subscription-mode hint on the login response — was considered and not proposed: <code>tenant-status</code> is called before login, on every cold load, and already carries the tenant's public state; the login response is Doc 08's contract (A-21) and need not grow a second copy of the same fact.</td><td>§6.1 and §6.4 are written against this field. Until it is accepted, the lazy <code>403</code> path specified in §6.4 is the fallback: behaviour is identical once the flag is set — only the moment of discovery differs.</td></tr>
+</tbody></table></div>
+<p><b>Considered and not proposed.</b> A composite <code>GET /exceptions</code> endpoint: rejected — the sections differ in owner document, permission profile and refresh behaviour, and composition costs the SPA four parallel queries it mostly makes anyway (workflow 8). A client-side Decimal library: rejected in R2. Any backend column for UI state (read/unread badges, toast history, dashboard preferences): refused — badges are computed from list queries, toasts are ephemeral, and no UI preference in v1 is worth a column in a tenant schema.</p>
+
+<h2 id="s18">18. What is NOT built in v1</h2>
+<ul>
+<li><b>No browser push notifications, no Notification API, no service worker.</b> SPA notification means toast + badge (§13). A service worker would also be a second cache of patient-adjacent state to reason about (FP-3).</li>
+<li><b>No offline-first.</b> TanStack Query's in-memory cache and the offline banner are the whole offline story (R3). No IndexedDB, no queued writes, no background sync.</li>
+<li><b>No native mobile app.</b> The SPA is the only client. Staff phones are not a v1 target; patient phones get the public report page, which is a web page.</li>
+<li><b>No tablet-specific layout.</b> One responsive layout; narrow widths must not break, but no screen is designed for a tablet.</li>
+<li><b>No per-user theme customisation</b> beyond following the OS light/dark setting with the §3.1 tokens. No brand-colour picker, no density setting.</li>
+<li><b>No patient portal.</b> The patient surface is the report link and the expired page (Doc 01 OQ-07) — no accounts, no history, no inbox.</li>
+<li><b>No partner portal.</b> Partners are record-only in v1 (Doc 05 §15): no login, no dashboard of their own; the statement PDF is their interface.</li>
+<li><b>No languages beyond English and Urdu.</b> The namespace structure (§9) admits more later; none ships.</li>
+<li><b>No print server, no silent printing.</b> Labels print through the browser's print dialog (§11). No direct-to-printer path, no print queue.</li>
+<li><b>No CSV / Excel exports from the SPA.</b> Data leaves through the Owner export path (Doc 04 §4.3, §15.2) — one audited door, with the secrets exclusion list — not through per-screen download buttons.</li>
+<li><b>No optimistic updates on clinical or money writes.</b> A payment, a result, an approval: the screen waits for the server's answer and shows that. Optimistic UI on a ledger or a clinical state machine would eventually show a state that never existed.</li>
+<li><b>No data-fetching Suspense</b> (F-8). Route code-splitting with <code>React.lazy</code> and skeleton fallbacks only.</li>
+<li><b>No SPA-side PDF generation.</b> PDFs are the server's documents (Doc 03 §9, Doc 05 §8); the SPA opens them (§12) and prints labels (§11), nothing more.</li>
+</ul>
+
+<h2 id="s19">19. Interview talking points</h2>
+<p><b>JWT in memory, refresh in an httpOnly cookie — why not localStorage?</b> Because XSS is the realistic threat to a lab counter PC, and a token in <code>localStorage</code> is a token any script bug hands to an attacker, valid until it expires, usable from anywhere. In memory, the access token dies with the tab and cannot be read out of storage; the refresh token is httpOnly, so script cannot read it at all, and it is scoped to <code>/api/v1/auth/</code>, so it rides only the calls that need it. The cost is one silent refresh on reload. We pay it gladly (ADR-005, §5).</p>
+<p><b>One origin, no CORS — how much does it simplify?</b> Almost everything annoying about browser auth disappears: no preflight, no origin allow-lists to keep in sync, cookies behave, the refresh flow needs no cross-origin credential gymnastics, and a whole class of “works on staging, fails in production” bugs cannot exist. One Caddy, one origin, API and SPA — chosen in Doc 01 §15, cashed in here.</p>
+<p><b>Tenant from host — isolation that is structural.</b> The SPA cannot send the wrong tenant ID because it never sends a tenant ID. There is no header to forge, no query param to tamper with, no “lab switcher” to abuse: the host picks the schema before the SPA's first API call, and everything after is that tenant's world. Client-side, tenant safety is not a check we remember to write; it is a field that does not exist (§6.1).</p>
+<p><b>TanStack Query's cache is the offline mode — why no IndexedDB?</b> Because offline-first for clinical and money data is not a cache, it is a second database with a sync protocol and a conflict policy, storing patient data in a browser store we promised never to touch (FP-3). The actual v1 problem is smaller: a connection drops for ten minutes and the bench should keep seeing the worklist. An in-memory cache plus an honest banner plus blocked writes solves the real problem and refuses the fake one (R3).</p>
+<p><b>Money as strings, never recomputed — the class of bug it kills.</b> Every “the screen said 1,249.99 but the invoice says 1,250.00” bug ever written comes from two pieces of code doing the same arithmetic slightly differently. If the browser does no money arithmetic, that bug class has one member left — the server's — and the server has Doc 03's derived-status rules and tests guarding it. A display surface that cannot compute cannot disagree (R2).</p>
+<p><b>Barcode client-side, no label endpoint — the barcode is the record.</b> A label endpoint that accepted text would let anyone print a tube label for anything — a sample that does not exist, a name typed from memory. By rendering only from <code>GET /samples/{id}/label</code>, the printed barcode is guaranteed to be the stored accession of a real sample, and every print is auditable against the record. The barcode is not a picture of the data; it is the data, encoded (§11).</p>
+<p><b>Version conflict as a modal, not an auto-merge.</b> Auto-merge is a promise that two people's edits to a clinical result can be woven together by software. They cannot — not safely. A modal that stops the work, shows the current version, and makes a human re-decide is friction in exactly the right place: stale writes to results and settlements fail loudly, once, in front of the person who can resolve them (R4).</p>
+<p><b>SPA notification = toast + badge — why no push?</b> Push needs a service worker, a permission prompt, a subscription store, and a delivery guarantee story — four systems to tell a pathologist something the approvals badge already tells her when she looks at the screen she works in all day. Drafts-ready as a badge (Doc 06 §1.4) is the pattern at its best: the signal lives where the work is done, costs no infrastructure, and cannot fire at 3 a.m. When a notice truly must leave the building, that is email — Doc 06's job, with rows and retries — not a browser API (§13).</p>
+
+<h2 id="s20">20. Glossary</h2>
+<p class="kv"><b>SPA notification</b> a toast or a nav badge, and nothing else (§13.1) · <b>Toast</b> a transient message in the shell's toast container; confirmations dismiss in 5 s, errors stay until dismissed · <b>Badge</b> a pending-work count on a nav item, sourced from a list query · <b>Return-to</b> the path stored in <code>/login?returnTo=</code> so a session interruption lands the user back where they were · <b>Single-flight refresh</b> the rule that any number of simultaneous <code>401</code>s share one refresh call (§5.3) · <b>Screen boundary</b> the route-level error boundary component that turns a screen crash into a panel with a Reload (§7.4) · <b>Skeleton</b> a grey placeholder shaped like the content it precedes, shown while a query loads · <b>Verbatim money</b> a money string displayed exactly as the API sent it, prefix added, nothing recomputed (§10) · <b>Logical property</b> a direction-relative CSS property (<code>margin-inline-start</code>, Tailwind <code>ms-*</code>) that mirrors automatically under RTL (§9.2) · <b>Label payload</b> the stored fields <code>GET /samples/{id}/label</code> returns, from which the label is rendered (§11) · <b>Read-only flag</b> the in-memory SPA state set at cold load from <code>tenant-status</code> <code>mode</code> (A-24), or by the first <code>subscription_read_only</code> response mid-session, driving the banner and disabled writes (§6.4) · <b>Design token</b> a named colour or style value from §3.1, shared by every component · <b>Platform mode</b> the same SPA build running on the apex host for the Super Admin (§4.4) · <b>Proposed</b> anything beyond Docs 01–06 as written — listed in §17, not yet ground truth.</p>
+<p class="meta">End of Doc 07. Next: Doc 08 — Security, Auth and Retention, which owns the final auth contract behind A-21 and the retention answers (OQ-32, OQ-43) the frontend displays but does not decide.</p>
+</main>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
+<script>
+(function () {
+  if (!window.mermaid) return;
+  mermaid.initialize({ startOnLoad: true, theme: "dark", securityLevel: "strict", themeVariables: { primaryColor: "#1c2128", primaryBorderColor: "#4a5561", primaryTextColor: "#e6edf3", secondaryColor: "#2a313a", tertiaryColor: "#161b22", lineColor: "#4a5561", textColor: "#e6edf3", actorBkg: "#1c2128", actorBorder: "#4a5561", actorTextColor: "#e6edf3", actorLineColor: "#9aa7b4", signalColor: "#9aa7b4", signalTextColor: "#e6edf3", noteBkgColor: "#2a313a", noteTextColor: "#e6edf3", noteBorderColor: "#4a5561", labelTextColor: "#e6edf3" } });
+})();
+</script>
+</body>
+</html>

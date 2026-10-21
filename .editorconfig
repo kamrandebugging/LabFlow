@@ -1,0 +1,26 @@
+# http://editorconfig.org
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+indent_style = space
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# Python (Doc 09 §5.1, PEP 8: 4 spaces)
+[*.py]
+indent_size = 4
+
+# TypeScript, JavaScript, JSON, CSS, HTML (Doc 09 §6.1: 2 spaces)
+[*.{js,jsx,ts,tsx,json,css,scss,html}]
+indent_size = 2
+
+# YAML, Markdown, Configs
+[*.{yml,yaml,md}]
+indent_size = 2
+
+# Makefile requires tab indentation
+[Makefile]
+indent_style = tab
+

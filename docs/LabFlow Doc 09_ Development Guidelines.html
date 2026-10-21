@@ -1,0 +1,605 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="dark" />
+    <link rel="icon" href="data:," />
+    <title>LabFlow Doc 09: Development Guidelines</title>
+    <style>
+:root{--bg:#0d1117;--fg:#e6edf3;--mut:#9aa7b4;--line:#30363d;--card:#161b22;--card2:#21262d;--acc:#e8a33d;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:dark}
+*,*::before,*::after{box-sizing:border-box}
+html{height:100%;scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--fg);font:15.5px/1.65 system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+.wrap{max-width:740px;margin:0 auto;padding:40px 24px 88px}
+nav.toc{margin:0 0 10px;padding:0 0 20px;border-bottom:1px solid var(--line)}
+nav.toc .th{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--mut);margin:0 0 10px}
+nav.toc a{display:block;color:#f0c476;text-decoration:none;font-size:13.5px;line-height:1.5;padding:2.5px 0}
+nav.toc a.sub{padding-left:16px;font-size:13px}
+main{min-width:0}
+h1{font-size:27px;line-height:1.25;margin:0 0 10px;font-weight:700;letter-spacing:-.01em}
+h2{font-size:19px;line-height:1.35;margin:42px 0 12px;padding-top:28px;border-top:1px solid var(--line);font-weight:700}
+h2:first-of-type{margin-top:32px}
+h3{font-size:15.5px;margin:24px 0 6px;font-weight:700}
+h4{font-size:14.5px;margin:18px 0 4px;font-weight:700}
+p{margin:8px 0}
+.meta{color:var(--mut);font-size:13.5px;line-height:1.6}
+.tag{display:inline-block;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:1px 9px;font-size:12px;margin:0 6px 4px 0;color:var(--fg);white-space:nowrap}
+.box{margin:14px 0;overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:13.6px;line-height:1.5}
+th,td{border:1px solid var(--line);padding:7px 10px;text-align:left;vertical-align:top;overflow-wrap:break-word}
+th{background:var(--card2);font-weight:600;color:var(--fg)}
+tbody tr:nth-child(even) td,tr:nth-child(even) td{background:#12161c}
+code{font:12.8px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:var(--card2);border-radius:5px;padding:1.5px 5px;overflow-wrap:anywhere;color:#f0c476}
+pre{font:12.6px/1.55 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:14px 16px;margin:14px 0;white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word;color:#dbe4ee}
+.diagram{background:#11161d;border:1px solid var(--line);border-radius:8px;padding:16px 12px;margin:14px 0;overflow-x:auto}
+.diagram svg{display:block;width:100%;height:auto;min-width:520px}
+pre.mermaid{background:transparent;border:none;margin:0;padding:4px;text-align:center;color:#dbe4ee}
+.dcap{color:var(--mut);font-size:12.5px;text-align:center;margin-top:8px}
+.note{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:12px 14px;margin:14px 0;font-size:14.5px;line-height:1.6}
+.spec{border:1px solid var(--line);border-radius:8px;padding:4px 14px 10px;margin:16px 0;background:#10141a}
+.spec h4{color:#f0c476}
+ul,ol{padding-left:24px;margin:8px 0}li{margin:4px 0}
+a{color:#f0c476;overflow-wrap:anywhere}
+.kv{font-size:13.8px}
+.pass{font-weight:700}
+@media(max-width:600px){.wrap{padding:28px 18px 64px}h1{font-size:24px}h2{font-size:17.5px;margin-top:36px;padding-top:22px}table{font-size:12.8px}th,td{padding:6px 7px}pre{padding:12px;font-size:12px}.diagram svg{min-width:480px}}
+</style>
+  </head>
+  <body>
+<div class="wrap">
+<nav class="toc" aria-label="Table of contents">
+<p class="th">Doc 09 · Development Guidelines</p>
+<a href="#s1">1. Purpose, scope, inputs, consistency check</a>
+<a href="#s2">2. Research findings</a>
+<a href="#s3">3. Guiding principles</a>
+<a href="#s4">4. Repository layout and environments</a>
+<a href="#s5">5. Backend standards (Django / DRF)</a>
+<a href="#s6">6. Frontend standards (React / TypeScript)</a>
+<a href="#s7">7. Database and migration discipline</a>
+<a href="#s8">8. API development conventions</a>
+<a href="#s9">9. Testing strategy</a>
+<a href="#s10">10. Test IDs and UI copy (OQ-49)</a>
+<a href="#s11">11. Version control: branches, commits, pull requests</a>
+<a href="#s12">12. Continuous integration pipeline</a>
+<a href="#s13">13. Dependencies and supply chain</a>
+<a href="#s14">14. n8n workflow development</a>
+<a href="#s15">15. Documentation discipline</a>
+<a href="#s16">16. Local development and onboarding</a>
+<a href="#s17">17. Workflow and failure handling</a>
+<a href="#s18">18. Test plan</a>
+<a href="#s19">19. Resolved and open questions</a>
+<a href="#s20">20. Proposed amendments</a>
+<a href="#s21">21. What is NOT built in v1</a>
+<a href="#s22">22. Interview talking points</a>
+<a href="#s23">23. Glossary</a>
+</nav>
+<main>
+<h1>LabFlow — Doc 09: Development Guidelines</h1>
+<p class="meta"><span class="tag">Doc 09 of 10</span><span class="tag">v1.0</span><span class="tag">2026-10-20</span><span class="tag">Depends on Doc 01 v2.2, Doc 02 v1.3, Doc 03 v1.3, Doc 04 v1.1</span><span class="tag">Doc 05 v1.0, Doc 06 v1.0, Doc 07 v1.1, Doc 08 v1.1</span></p>
+<p class="meta">How LabFlow is written, reviewed, tested and shipped: repository layout, coding standards for the Django backend and the React frontend, migration discipline, the testing strategy that hosts every earlier doc's test plan, version control, the CI pipeline, dependency rules, n8n workflow development, and documentation discipline.<br>Audience: the developer building LabFlow v1. What the system does comes from Docs 01–08 — none of it is re-decided here. Doc 02 remains the only source of truth for tables, columns and status values.</p>
+<div class="note"><p><b>How this document treats earlier docs.</b> Docs 01–08 are ground truth. This document fixes <i>how</i> the code that implements them is produced: the standards, the checks, and the pipeline that keep the code equal to the documents. It answers the one question earlier docs left to it — OQ-49, Playwright test-ID naming and UI copy ownership, resolved in §10. Anything a guideline needs that contradicts an earlier doc would be a <b>Proposed amendment</b> in §20, never a silent override; §20 in fact proposes none, and §1.4 records why. Where an earlier doc already set a rule (money as server strings, no patient data in browser storage, audit on every non-GET), this document turns it into a checkable coding standard and a CI gate — it does not restate the decision as its own.</p></div>
+
+<h2 id="s1">1. Purpose, scope, inputs, consistency check</h2>
+<h3>1.1 Purpose</h3>
+<p>Docs 01–08 say what LabFlow is: the architecture, the schema, the module behaviour, the tenancy rules, the money rules, the automation protocol, the frontend, and the security layer. None of them says how the code is to be written and kept honest over time. That gap is where real projects drift: a service function that skips the audit row, a migration edited after it shipped, a UI string hard-coded in English only, a test suite nobody trusts. This document closes the gap. It fixes the repository shape, the coding standards for both codebases, the migration discipline that protects Doc 02's schema, the testing strategy that gives the six existing test plans (T, TN, RS, AU, FE, SE) one home, and the pipeline that runs all of it on every change.</p>
+<h3>1.2 Scope</h3>
+<div class="box"><table><thead><tr><th>In scope (this document)</th><th>Out of scope (owner document)</th></tr></thead><tbody>
+<tr><td>Coding standards, naming, formatting, lint and type rules for backend and frontend</td><td>Module behaviour, endpoints, status values (Docs 02–06)</td></tr>
+<tr><td>Migration discipline, seed and test-data rules</td><td>The schema itself (Doc 02 is the only source of truth)</td></tr>
+<tr><td>Testing strategy, test levels, coverage gates, flaky-test policy; test-ID naming and UI copy ownership (OQ-49)</td><td>The scenario lists themselves (Docs 03–08 own T, TN, RS, AU, FE, SE)</td></tr>
+<tr><td>Branching, commit and pull-request rules; CI pipeline stages and gates</td><td>Deployment topology, capacity, launch and pricing decisions (Doc 10)</td></tr>
+<tr><td>Dependency management and update cadence</td><td>The secrets inventory and header values (Doc 08 §6, §8)</td></tr>
+<tr><td>n8n workflow change process</td><td>The n8n protocol, events and payload shapes (Doc 06)</td></tr>
+<tr><td>Documentation discipline for the codebase and the doc series</td><td>Screen design, components and flows (Doc 07)</td></tr>
+</tbody></table></div>
+<h3>1.3 Inputs</h3>
+<ul>
+<li><b>Doc 01 — Architecture Overview v2.2.</b> The stack: Django 5 + DRF, React 18 + TypeScript + Vite, PostgreSQL 16 with django-tenants (schema-per-tenant), Redis + Celery, WeasyPrint for PDFs, Docker Compose on a single VPS, Caddy ingress, PKR only, English + Urdu UI. §11 logging with <code>request_id</code>; §15 environment and Compose layout.</li>
+<li><b>Doc 02 — Database Schema v1.3.</b> Every table, column, constraint and status value. §13 <code>audit_log</code>, §14 session/token storage, §16 seed rules (including the v1.3 fix: no tenant-level 0% revenue-share seed row).</li>
+<li><b>Doc 03 — Core Lab Modules v1.3.</b> Module boundaries and the service-layer shape its workflows assume; the 51-scenario test plan (T-01–T-51); the rule that every non-GET writes an audit row (§6.1).</li>
+<li><b>Doc 04 — Multi-Branch and Tenancy v1.1.</b> TN-01–TN-40; the shared-schema vs tenant-schema split the migration rules in §7 must respect; TP-4 (no platform feature reads a tenant table), which constrains test tooling as much as product code.</li>
+<li><b>Doc 05 — Revenue-Share Module v1.0.</b> RS-01–RS-42; the synchronous ledger rule and the idempotency key <code>share-ledger:{payment_id}</code> — the pattern §5.6 generalises for Celery tasks.</li>
+<li><b>Doc 06 — Automation Layer (n8n) v1.0.</b> AU-01–AU-40; the workflow IDs (WF-*) and the signed webhook protocol that §14's change process protects.</li>
+<li><b>Doc 07 — Frontend Architecture v1.1.</b> FE-01–FE-20 (Playwright); the fixed list of 19 shadcn/ui components (§3 / D-3); money displayed as server strings verbatim (R2); patient data never in browser storage (R3); OQ-49 (test-ID naming + UI copy ownership) left unassigned between Doc 09 and Doc 10.</li>
+<li><b>Doc 08 — Security and Cross-Cutting v1.1.</b> The test gates of its §15 test plan (SE-01–SE-40) and its §17 amendment conventions, both inherited here; the <code>before_send</code> scrubber (§11) that test data and fixtures must also respect; the env inventory (§6) that §4.4 codes against.</li>
+<li><b>Research for Doc 09</b> (2026-10-20): §2, with citations.</li>
+</ul>
+<h3>1.4 Consistency check against Docs 01–08</h3>
+<p>Result: <span class="pass">PASS — no conflicts.</span> Every guideline below was checked against the earlier docs. One open question (OQ-49) is resolved. No guideline needs a schema change, a new endpoint, or a UI change, so §20 proposes no amendments; the candidates that were considered are recorded there as considered-and-rejected.</p>
+<div class="box"><table><thead><tr><th>#</th><th>Item checked</th><th>Result</th><th>Where settled</th></tr></thead><tbody>
+<tr><td>1</td><td>Stack versions. Doc 01 fixes Django 5, React 18, TypeScript, Vite, PostgreSQL 16, Redis, Celery, WeasyPrint, Docker Compose, Caddy</td><td><b>Agree.</b> All tooling choices in §5, §6 and §12 target exactly that stack; no framework is added or swapped</td><td>§4, §5, §6</td></tr>
+<tr><td>2</td><td>Schema authority. Doc 02 is the only source of truth for tables, columns and status values</td><td><b>Agree, enforced.</b> §7 makes "the migration matches Doc 02, or the PR also amends Doc 02 first" a merge gate, and bans status strings that do not appear in Doc 02</td><td>§7.1, §7.5</td></tr>
+<tr><td>3</td><td>Test plans already exist: T-01–T-51 (Doc 03), TN-01–TN-40 (Doc 04), RS-01–RS-42 (Doc 05), AU-01–AU-40 (Doc 06), FE-01–FE-20 (Doc 07), SE-01–SE-40 (Doc 08)</td><td><b>Agree.</b> §9 gives each suite a level, a runner and a CI stage; no scenario is renumbered, dropped or re-decided. Doc 09 adds only its own DG suite (§18) for the guidelines themselves</td><td>§9.2</td></tr>
+<tr><td>4</td><td>OQ-49 (Playwright test-ID naming + UI copy ownership) was left "Doc 09 or 10 — unassigned"</td><td><b>Resolved here.</b> Test tooling is a development guideline, not a launch decision, so Doc 09 owns it. §10 fixes the <code>data-testid</code> grammar and copy ownership; Doc 10 inherits one less question</td><td>§10, §19.1</td></tr>
+<tr><td>5</td><td>Doc 07 design rules that code must honour: money as server strings verbatim (R2), no patient data in browser storage (R3), TanStack cache settings, 19 fixed shadcn/ui components</td><td><b>Agree, made checkable.</b> §6 turns each into a lint/review rule. Adding a 20th component is a Doc 07 change, not a coding choice — §6.4 routes it through the amendment convention instead of letting it happen in a PR</td><td>§6.3, §6.4</td></tr>
+<tr><td>6</td><td>Doc 08 security rules that code must honour: audit row on every non-GET in the same transaction, Sentry scrubbing, secrets in env only, Redis-only throttle/denylist state</td><td><b>Agree, made checkable.</b> §5.5, §5.7 and §13.3 convert them into service-layer structure, fixture rules and a secrets scan in CI. Doc 08 §15's test gates are inherited as CI gates in §12.2, as Doc 08's closing note directs</td><td>§5, §12.2</td></tr>
+<tr><td>7</td><td>n8n boundary. Doc 06: n8n never reaches postgres or redis; workflows are triggered by signed events and call back through <code>/api/v1/webhooks/n8n/*</code></td><td><b>Agree.</b> §14's change process keeps workflow exports credential-free and forbids direct database access from a workflow — a process rule that protects Doc 06's protocol without changing it</td><td>§14</td></tr>
+<tr><td>8</td><td>Bilingual UI. Doc 01: English + Urdu. Doc 04 §10.2 / A-16: <code>report_default_language</code> governs all patient-facing messages</td><td><b>Agree.</b> §6.5 and §10.3 require every user-visible string to exist as an i18n key in both languages before merge; patient-facing copy follows the tenant language rule, staff copy defaults to English with Urdu available</td><td>§6.5, §10.3</td></tr>
+<tr><td>9</td><td>Money. PKR only (Doc 01); amounts stored per Doc 02; the PKR 5,000 refund threshold and share percentages per Doc 05</td><td><b>Agree.</b> §5.4 and §6.3 ban float money and client-side money arithmetic outright; no guideline introduces a second currency or a rounding rule of its own</td><td>§5.4, §6.3</td></tr>
+<tr><td>10</td><td>Amendment conventions. Doc 08 §17: anything beyond Docs 01–07 is Proposed, listed, and never silently assumed</td><td><b>Agree.</b> §20 follows the same convention and proposes nothing: every rule here is either a restatement of an earlier decision as a checkable standard, or a choice inside territory no earlier doc claimed (tooling, branching, CI)</td><td>§20</td></tr>
+</tbody></table></div>
+<h3>1.5 Assumptions</h3>
+<ul>
+<li><b>AS-1.</b> The developer is one person — the same solo developer and platform operator Docs 01–08 assume. Every process rule here (review, CI, release) is written to work for a team of one today and a small team later, without a rewrite. Where a rule normally needs a second person (code review), §11.4 states the solo form honestly.</li>
+<li><b>AS-2.</b> Code lives in one Git repository (a monorepo) hosted on GitHub, following the GitHub connection already in use for this project. CI is GitHub Actions. If the host changes, §11 and §12 port directly — the rules are host-shaped, not host-owned. The hosting-cost question is Doc 10's (OQ-54, §19.2).</li>
+<li><b>AS-3.</b> Local development runs the same Docker Compose stack as production (Doc 01 §15), with test tenants and synthetic data only. No developer machine ever holds a copy of a real tenant schema (§16.3).</li>
+<li><b>AS-4.</b> Tool versions named in §5, §6 and §12 (Ruff, mypy, ESLint, Prettier, pytest, Vitest, Playwright) are the current stable releases at build time; §13's update cadence, not this document, keeps them current.</li>
+</ul>
+
+<h2 id="s2">2. Research findings</h2>
+<p>Eight findings, each from a real source checked on 2026-10-20. Anything that could not be sourced is marked <b>Unverified</b> where it is used.</p>
+<div class="box"><table><thead><tr><th>#</th><th>Finding</th><th>Source</th><th>Where used</th></tr></thead><tbody>
+<tr><td>F-1</td><td>Conventional Commits 1.0.0 is a lightweight convention on top of commit messages: <code>&lt;type&gt;[optional scope]: &lt;description&gt;</code>, where <code>feat</code> correlates with a SemVer MINOR and <code>fix</code> with a PATCH, and a <code>BREAKING CHANGE</code> footer (or <code>!</code>) with a MAJOR. Because the format is machine-readable, changelogs and version bumps can be derived from history instead of reconstructed from memory.</td><td><a href="https://www.conventionalcommits.org/en/v1.0.0/?ref=tobru.ch">Conventional Commits 1.0.0</a></td><td>§11.2, §15.2</td></tr>
+<tr><td>F-2</td><td>The Twelve-Factor App methodology: one codebase tracked in version control with many deploys; dependencies explicitly declared and isolated; config stored in the environment; strict separation of build, release and run; dev/prod parity; logs as event streams; admin processes run as one-off processes in the same environment. Doc 01's architecture already follows most of it; this document codes the rest as rules.</td><td><a href="https://en.wikipedia.org/wiki/Twelve-Factor_App_methodology">Twelve-Factor App methodology (summary of the twelve factors)</a></td><td>§3 GP-2, §4.4, §16</td></tr>
+<tr><td>F-3</td><td>PEP 8 is Python's style guide: 4-space indentation, <code>snake_case</code> for functions and variables, <code>CapWords</code> for classes, <code>ALL_CAPS</code> for constants, two blank lines around top-level definitions, imports grouped and ordered. Its own framing is the one §5 adopts: consistency within a project matters more than any single rule, and a style guide is about making code readable for the next reader.</td><td><a href="https://usermanual.wiki/Document/PEP2082020Style20Guide20for20Python20Code2020Pythonorg.1366591798/help">PEP 8 — Style Guide for Python Code (full text)</a></td><td>§5.1</td></tr>
+<tr><td>F-4</td><td>Ruff is a single fast tool that replaces Flake8 (plus dozens of plugins), Black, isort, pydocstyle and pyupgrade: <code>ruff check</code> lints with 900+ rules mirroring the Flake8 rule-code system, and <code>ruff format</code> formats with near-identical output to Black (&gt;99.9% of lines on codebases like Django itself). One tool in <code>pyproject.toml</code> means one config file and one CI step for all Python style enforcement.</td><td><a href="https://docs.astral.sh/ruff/">Ruff documentation (Astral)</a></td><td>§5.1, §12</td></tr>
+<tr><td>F-5</td><td>Trunk-based development: all work lands on one shared trunk (<code>main</code>); feature branches, when used at all, live hours to at most a couple of days; CI runs on every integration; the trunk is always in a releasable state; incomplete work is hidden in the product (here: behind tenant settings and role checks that already exist), not parked on long-lived branches. It minimises merge divergence — the main cost centre of branching for a small team.</td><td><a href="https://www.getunleash.io/blog/how-to-implement-trunk-based-development-a-practical-guide">Trunk-based development: process, examples, strategy (Unleash)</a></td><td>§11.1</td></tr>
+<tr><td>F-6</td><td>Semantic Versioning 2.0.0: a version is <code>MAJOR.MINOR.PATCH</code>; MAJOR for incompatible API changes, MINOR for backwards-compatible functionality, PATCH for backwards-compatible fixes; once released, a version's contents never change — any modification is a new version. For LabFlow the "public API" the version speaks about is the deployed platform release: what tenants' staff and the n8n callbacks depend on.</td><td><a href="http://semver.org/spec/v2.0.0-rc.1.html">Semantic Versioning 2.0.0 (semver.org)</a></td><td>§11.5, §15.2</td></tr>
+<tr><td>F-7</td><td>Keep a Changelog: a changelog is for humans, not machines — a curated, versioned list of notable changes (Added, Changed, Deprecated, Removed, Fixed, Security), latest first, with an <code>Unreleased</code> section maintained continuously. A <code>git log</code> cannot substitute: commits document atomic steps of how the code evolved; a changelog documents the noteworthy differences between releases, and why.</td><td><a href="http://keepachangelog.com/en/0.3.0/">Keep a Changelog (keepachangelog.com)</a></td><td>§15.2</td></tr>
+<tr><td>F-8</td><td>Playwright locator guidance, as applied in practice: prefer role-based locators (<code>getByRole</code>) and labelled controls, which test what a user perceives and double as accessibility checks; use <code>data-testid</code> with <code>getByTestId</code> where role/text cannot identify an element stably — test IDs survive text changes and work identically across locales; never select by CSS class or positional XPath, which break on any restyle. Descriptive, consistent test IDs (<code>checkout-submit-button</code>, not <code>btn1</code>) are the convention.</td><td><a href="https://typescript.tv/hands-on/why-you-should-use-locators-instead-of-text-in-your-tests/">Why you should use locators instead of text in your tests (Playwright practice)</a></td><td>§10.1</td></tr>
+</tbody></table></div>
+
+<h2 id="s3">3. Guiding principles</h2>
+<div class="box"><table><thead><tr><th>#</th><th>Principle</th><th>What it means here</th></tr></thead><tbody>
+<tr><td>GP-1</td><td><b>The documents are the specification; the code is the implementation.</b></td><td>If code and a doc disagree, one of them is wrong and the PR must say which. Behaviour changes land as a doc amendment first or in the same PR (§15.3) — never as code that quietly re-decides a module.</td></tr>
+<tr><td>GP-2</td><td><b>One codebase, many deploys.</b></td><td>Twelve-factor factor I (F-2). One monorepo builds every deploy: local, CI, the VPS. There is no "production branch" and no code that exists only on the server.</td></tr>
+<tr><td>GP-3</td><td><b>Automate every rule that can be automated.</b></td><td>A rule a machine can check (format, lint, types, migration-vs-Doc 02 drift, hard-coded UI strings, secrets) is a CI gate, not a review comment. Human review is spent on behaviour, not on commas (§12).</td></tr>
+<tr><td>GP-4</td><td><b>Small changes, merged fast.</b></td><td>Trunk-based development (F-5): branches live at most two days, PRs stay reviewable in one sitting, <code>main</code> is always deployable. A change too big to review is split, not waved through.</td></tr>
+<tr><td>GP-5</td><td><b>Tests are part of the change, not a phase after it.</b></td><td>Every behaviour in Docs 03–08 has a scenario ID; the PR that implements it names the IDs it covers. A bug fix lands with the regression test that would have caught it (§9.5).</td></tr>
+<tr><td>GP-6</td><td><b>Synthetic data only, everywhere outside production.</b></td><td>Fixtures, seeds, screenshots and CI databases use invented patients with obviously fake identifiers. Real patient data never enters a dev, test or CI environment (Doc 08 §11's scrubbing rule applied to data, not just errors).</td></tr>
+<tr><td>GP-7</td><td><b>Boring tooling, pinned versions.</b></td><td>Mainstream tools, committed lockfiles, no unpinned installs. Exotic tooling is a cost the solo operator pays forever; §13's cadence keeps the boring tools current instead.</td></tr>
+<tr><td>GP-8</td><td><b>Leave the codebase tidier than you found it — inside the change's scope.</b></td><td>Fix the lint warning you touch; do not refactor the neighbouring module in the same PR. Opportunistic cleanup rides its own commit, so review and rollback stay clean.</td></tr>
+</tbody></table></div>
+
+<h2 id="s4">4. Repository layout and environments</h2>
+<h3>4.1 One repository</h3>
+<p>LabFlow is one Git repository. The backend, the frontend, the n8n workflow exports, the Compose files and these documents' sources live together, because every meaningful change crosses at least two of them (an endpoint and its screen; a schema migration and its Doc 02 update) and GP-2 wants those changes atomic and reviewable as one PR.</p>
+<pre>labflow/
+  backend/                 Django project (Doc 01 stack)
+    labflow/               settings, celery app, wsgi/asgi
+    apps/
+      core/                tenancy plumbing, audit, tenant_setting (Docs 02, 04)
+      accounts/            staff auth, TOTP, password tokens (Docs 02, 08)
+      patients/            patients, contacts, consents (Doc 03)
+      catalog/             tests, categories, prices, reference ranges (Doc 03)
+      samples/             samples, sample_tests, transfers (Doc 03)
+      results/             result entry, approval, flags (Doc 03)
+      billing/             invoices, payments, refunds (Doc 03)
+      reports/             report versions, signed links, PDFs (Doc 03)
+      partners/            referral partners, share ledger, settlements (Doc 05)
+      platform/            Super Admin surface (Doc 04 §12, §15)
+    templates/pdf/         WeasyPrint templates (report, statement, label)
+    tests/                 pytest suites, named by scenario ID (§9.2)
+  frontend/                React 18 + TypeScript + Vite (Doc 07)
+    src/
+    e2e/                   Playwright FE suite (§9.2, §10)
+  workflows/               n8n exports, one JSON per workflow (§14)
+  infra/
+    docker-compose.yml     the single-VPS stack (Doc 01 §15)
+    Caddyfile              ingress (Doc 01 §15 owns content)
+  docs/                    this series (Docs 01–10) and ADRs (§15)
+  CHANGELOG.md             release history (§15.2)
+  Makefile                 the commands of §16.2
+  .github/workflows/       CI (§12)</pre>
+<p><b>App boundaries mirror module boundaries.</b> A Django app maps to one doc module. Code reaches across apps only through the owning app's service layer (§5.2), never by importing another app's models into a view. This is what keeps a change to settlements (Doc 05) from silently becoming a change to billing (Doc 03).</p>
+<h3>4.2 What never enters the repository</h3>
+<ul>
+<li><b>No secrets.</b> No <code>.env</code> with real values, no keys, no tokens — a committed example file (<code>.env.example</code>) lists names only, matching Doc 08 §6's inventory. CI scans for secrets on every PR (§12.2).</li>
+<li><b>No real data.</b> No production dump, no real patient row, no screenshot of a real tenant — in code, fixtures, docs or screenshots (GP-6).</li>
+<li><b>No generated output.</b> No built frontend bundles, no <code>__pycache__</code>, no exported PDFs, no n8n exports containing credentials (§14.2).</li>
+</ul>
+<h3>4.3 Environments</h3>
+<div class="box"><table><thead><tr><th>Environment</th><th>What it is</th><th>Data</th><th>Who uses it</th></tr></thead><tbody>
+<tr><td><b>Local</b></td><td>Docker Compose on the developer machine, same images as production (§16)</td><td>Seeded demo tenant + synthetic patients (§16.3)</td><td>Development, debugging</td></tr>
+<tr><td><b>CI</b></td><td>Ephemeral runners per PR (§12); postgres and redis as service containers at production versions</td><td>Created fresh by the test suites; destroyed with the job</td><td>Every pull request and merge</td></tr>
+<tr><td><b>Production</b></td><td>The single VPS (Doc 01 §15)</td><td>Real tenant schemas — the only place they exist</td><td>Tenants</td></tr>
+</tbody></table></div>
+<p>There is deliberately <b>no staging environment in v1</b>: one VPS, one operator, and dev/prod parity (§4.4) carry the weight a staging box would. Whether a staging tenant or host joins the launch plan is a capacity question for Doc 10 (OQ-55, §19.2) — this document neither builds one nor pretends one exists.</p>
+<h3>4.4 Configuration and parity</h3>
+<p>Config comes from environment variables only (twelve-factor factor III, F-2), using exactly Doc 08 §6's inventory — code reads no config file that is not in the repo, and no setting has a hard-coded production default for a secret. The same container images run locally, in CI and in production; the Compose file differs per environment only in env values and published ports. Python and Node versions are pinned in the repo (<code>.python-version</code>, <code>.nvmrc</code>, and the Dockerfiles) so "works on my machine" is a version mismatch, not a mystery.</p>
+
+<h2 id="s5">5. Backend standards (Django / DRF)</h2>
+<h3>5.1 Style, lint, types</h3>
+<ul>
+<li><b>PEP 8 (F-3) as enforced by Ruff (F-4).</b> One <code>pyproject.toml</code> holds the Ruff configuration: <code>ruff format</code> (line length 88, double quotes) and <code>ruff check</code> with the rule families <code>E, F, I, UP, B, SIM, DJ</code> (pycodestyle, pyflakes, import order, pyupgrade, bugbear, simplify, Django). A rule is disabled per-line with a reason comment, or per-project in the config with a comment — never by lowering the gate for a whole file silently.</li>
+<li><b>Type annotations are required</b> on service functions and Celery tasks (parameters and return), and on view code where DRF does not already fix the shape. <code>mypy</code> runs in CI (§12) over <code>apps/</code>; models may rely on Django's typing without stubs gymnastics, but a service signature like <code>def record_payment(invoice, amount: Decimal, ...) -&gt; Payment</code> is the norm, not the exception.</li>
+<li><b>Naming.</b> Modules and functions <code>snake_case</code>, classes <code>CapWords</code>, constants <code>ALL_CAPS</code> (F-3). Names use Doc 02's vocabulary: a function that records a share entry is <code>partners.services.record_share_entry()</code> — the exact callable Doc 05 names — not a synonym invented in code.</li>
+</ul>
+<h3>5.2 Where logic lives: the service layer</h3>
+<div class="box"><table><thead><tr><th>Layer</th><th>May contain</th><th>May never contain</th></tr></thead><tbody>
+<tr><td><b>Views / serializers</b></td><td>Auth and permission checks (Docs 03 §4.3, 04 §15, 05 §4), request parsing, serializer shape, status codes, calling exactly one service function per write</td><td>Business rules, money maths, state transitions, cross-app queries</td></tr>
+<tr><td><b>Services</b> (<code>apps/&lt;app&gt;/services.py</code>)</td><td>The module's behaviour as Docs 03–06 specify it: state machines, the audit write (§5.5), event emission to n8n (Doc 06), idempotency (§5.6), transactions</td><td>HTTP objects (<code>request</code>, <code>Response</code>), status codes, anything that knows it was called by a view — Celery tasks and management commands call the same functions</td></tr>
+<tr><td><b>Models</b></td><td>Fields and constraints exactly as Doc 02 specifies, <code>__str__</code>, trivial derived properties (no queries)</td><td>Workflow logic, cross-app foreign keys Doc 02 does not define, signals used as hidden control flow</td></tr>
+<tr><td><b>Selectors / queries</b></td><td>Read queries with branch scope applied (Doc 04 §8.5), in the owning app</td><td>Writes of any kind</td></tr>
+</tbody></table></div>
+<p>The point of the split is testability and reuse: Doc 05's ledger entry is created synchronously inside the payment transaction by <code>partners.services.record_share_entry()</code>, and the hourly reconciliation sweep calls the same function from Celery. If the logic lived in the view, the sweep would need a second copy — and the two copies would drift.</p>
+<h3>5.3 State, status values, and Doc 02's vocabulary</h3>
+<p>Status values are Python <code>TextChoices</code> classes generated from Doc 02's definitions, one per status column, living with the model. Code never compares against a raw string literal (<code>status == "collected"</code> is a review defect; <code>status == Sample.Status.COLLECTED</code> is the standard). Ruff's rule set does not catch string literals, so this is one of the few style rules enforced by review (§11.4) — it exists because a typo'd status string fails silently in Python and loudly nowhere.</p>
+<h3>5.4 Money and numbers</h3>
+<ul>
+<li>Money is <code>Decimal</code> end to end (Doc 02 column types). A float touching a money value is a defect, in code or in a test.</li>
+<li><code>result.value</code> stays text, per OQ-25 as resolved in Doc 03 §8: parse to <code>Decimal</code> only for numeric range checks, and never guess a flag when parsing fails — the flag stays NULL.</li>
+<li>Rounding happens only where Doc 05 specifies it (share calculation). No other rounding is introduced by code; if a screen needs a formatted amount, the API sends the string (§6.3).</li>
+</ul>
+<h3>5.5 The audit rule, as code</h3>
+<p>Doc 08 §9 fixes the audit write contract: every non-GET writes one <code>audit_log</code> row in the same transaction, and an audit failure rolls the write back. The coding standard that makes this structural rather than remembered: <b>a service function that mutates state takes the actor and writes its audit row before returning, inside the caller's <code>transaction.atomic()</code></b>. Views never write audit rows directly. The DG test suite (§18) includes a contract test that walks every registered non-GET route and asserts an audit row exists after a successful call — a new endpoint that forgets its audit row fails CI, not a code review months later.</p>
+<h3>5.6 Celery tasks</h3>
+<ul>
+<li><b>Idempotent or not shipped.</b> Every task carries or derives an idempotency key, following Doc 05's pattern (<code>share-ledger:{payment_id}</code>); a task that runs twice must produce the same end state as a task that runs once. Doc 06's 15-minute Beat sweep and retry rules assume this.</li>
+<li><b>Thin tasks.</b> A task parses its arguments, loads the tenant context (schema switch per Doc 04), and calls a service function. No business logic in the task body.</li>
+<li><b>No patient payloads in task arguments beyond identifiers.</b> Tasks pass IDs, never names, phone numbers or result values — Redis is not a patient-data store (Doc 01 §15, Doc 08 AS-3), and task arguments sit in Redis.</li>
+<li><b>Failures are loud.</b> A task that exhausts retries raises; the Sentry scrubber (Doc 08 §11) governs what the error report may contain.</li>
+</ul>
+<h3>5.7 Errors and logging</h3>
+<p>API errors use the error envelope and codes the module docs define (<code>invalid_state_transition</code>, <code>rule_overlap</code>, <code>owner_approval_required</code>, and the rest); §8.2 governs how new codes are added. Code raises the module's typed exceptions; one exception handler renders them — views do not hand-build error responses. Logging is structured JSON with <code>request_id</code> (Doc 01 §11); log lines carry identifiers, never patient values, for the same reason Sentry events do not (Doc 08 SP-6).</p>
+<h3>5.8 PDF generation (WeasyPrint)</h3>
+<p>Report, statement and label PDFs render from the templates in <code>backend/templates/pdf/</code> (Doc 03 owns the report, Doc 05 the statement, Doc 07 §11 the 100×50&#8202;mm label). Templates receive a prepared context dict from a service function — no queries in templates. A template change ships with a golden-file test: the rendered PDF for the synthetic fixture patient is compared page-for-page in CI, so a CSS change that breaks a lab's report layout fails a test, not a tenant.</p>
+
+<h2 id="s6">6. Frontend standards (React / TypeScript)</h2>
+<h3>6.1 Style, lint, types</h3>
+<ul>
+<li><b>TypeScript in <code>strict</code> mode</b>, with <code>noUncheckedIndexedAccess</code> on. <code>any</code> requires a comment saying why; <code>@ts-ignore</code> is banned — <code>@ts-expect-error</code> with a reason is the only suppression, and it fails the build when the error disappears.</li>
+<li><b>ESLint + Prettier</b>, configured in the repo, run in CI (§12). Formatting is Prettier's decision alone — no PR discussion about quotes or semicolons (GP-3).</li>
+<li><b>API types come from the API.</b> Response types are generated from the backend's OpenAPI schema (§8.3) into <code>src/api/types.ts</code> and committed; a backend shape change that is not regenerated fails CI. Hand-written duplicate types for API payloads are a review defect — they are how the SPA and the API silently disagree.</li>
+</ul>
+<h3>6.2 Components and state</h3>
+<ul>
+<li>Server state lives in TanStack Query with Doc 07 R3's settings (staleTime 30s default, 15s queues, 5&#8202;min catalog, gcTime 5&#8202;min, mutation retry 0). Component-local state is <code>useState</code>; there is no second global store in v1.</li>
+<li>Screens sit behind Doc 07 D-1's route-level <code>ScreenBoundary</code>; a new screen that is not wrapped is incomplete by definition.</li>
+<li>Forms use the validation shape Doc 07 specifies; server validation errors render from the API's error codes (§8.2), mapped to i18n strings (§10.3) — never from raw server message text.</li>
+</ul>
+<h3>6.3 Money, dates, and patient data</h3>
+<ul>
+<li><b>Money is displayed as the server string, verbatim</b> (Doc 07 R2). The SPA does no money arithmetic, holds no <code>Decimal</code> library, and never reformats an amount. A total the screen needs is a field the API adds — requested via the module doc, not computed in the browser.</li>
+<li><b>Patient data is never written to browser storage</b> (Doc 07 R3): no patient names, results or identifiers in <code>localStorage</code>, <code>sessionStorage</code> or IndexedDB. The access token lives in memory only (Doc 08 §4.1). A PR that adds a storage write is reviewed against this rule first.</li>
+<li>Dates and times render in the tenant's timezone from server-supplied ISO values; the SPA never invents a timezone conversion the API did not imply.</li>
+</ul>
+<h3>6.4 The component library boundary</h3>
+<p>Doc 07 D-3 fixed the shadcn/ui list at 19 components. Code uses those 19. Needing a 20th is legitimate — but it is a <b>Doc 07 change</b>: the PR names the component, amends Doc 07's list (or files the amendment per §20's convention), and only then adds it. What this rule prevents is the slow drift where five PRs each add "just one small component" and the design system stops existing.</p>
+<h3>6.5 Strings and languages</h3>
+<p>Every user-visible string is an i18n key with both an English and an Urdu value, added in the same PR as the UI that uses it (§10.3 owns the naming and ownership). Hard-coded JSX text is a CI failure (§12.2), not a style preference: a hard-coded string is an Urdu screen that silently shows English. Urdu renders RTL where Doc 07 requires it; tests cover one RTL screen in the FE suite so a layout that breaks under RTL fails before a user sees it.</p>
+
+<h2 id="s7">7. Database and migration discipline</h2>
+<h3>7.1 The one rule</h3>
+<p><b>A migration implements Doc 02; it never invents schema.</b> If the schema a change needs is not in Doc 02 v1.3 (as amended), the work splits: first the Doc 02 amendment (reviewed, versioned, per the series' convention), then the migration. A PR whose migration adds a column Doc 02 does not name is not merged, however small the column. This is the enforcement half of "Doc 02 is the only source of truth" — the other half is §7.5's drift check.</p>
+<h3>7.2 Shared schema vs tenant schemas</h3>
+<p>django-tenants splits migrations exactly as Doc 04 fixes: <code>SHARED_APPS</code> migrations run once on the public schema (platform tables, Doc 02 §4); <code>TENANT_APPS</code> migrations run on every tenant schema. A model placed in the wrong list is a critical defect: it either leaks a tenant table into the public schema or denies tenants a table they need. New apps declare their side in the same PR that creates them, and the DG suite (§18) asserts every Doc 02 table is reachable in exactly the schemas Doc 04 assigns it to.</p>
+<h3>7.3 Writing migrations</h3>
+<ul>
+<li><b>Generated, then read.</b> <code>makemigrations</code> output is reviewed line by line in the PR — auto-generated does not mean auto-correct, especially renames, which Django guesses as drop-and-add. A rename is written as a rename.</li>
+<li><b>Named for the change</b>: <code>0042_sample_transfer_cancelled_status.py</code>, not <code>0042_auto_20261020.py</code>. The name states the Doc 02 section it implements.</li>
+<li><b>Data migrations are separate</b> from schema migrations, use <code>RunPython</code> with historical models, and are idempotent — a data migration runs against every existing tenant schema at deploy and against every future tenant at provisioning (Doc 04 §4), so it must be safe to run on a schema that already has the end state.</li>
+<li><b>Never edit a merged migration.</b> Once a migration is on <code>main</code>, it is history. Fixing it means a new migration. Editing it breaks every schema that already applied it — which, per-tenant, means some tenants migrate and some do not, the exact failure Doc 04's per-schema <code>pg_dump</code> discipline exists to recover from slowly.</li>
+<li><b>Backwards-compatible within a deploy.</b> The deploy order on the VPS is: new code and migrations roll together, but a rolling restart means old and new code briefly share the database. Additive changes (new nullable column, new table) are always safe; destructive changes (drop, rename, NOT NULL on existing data) split into two releases — add-and-backfill first, enforce-or-drop in the next (expand/contract). A one-release destructive migration needs the reason written in the PR.</li>
+</ul>
+<h3>7.4 Seeds</h3>
+<p>Seed data follows Doc 02 §16 as amended (including the v1.3 rule: no tenant-level 0% <code>revenue_share_rule</code> row — 0% comes from rule resolution, and the owner creates the first real rule per partner). Platform seeds (notification templates per Docs 02 §5.9 / 06, tenant_setting defaults) live in data migrations or fixtures owned by the module doc that defines them. Demo seed for local development is a separate, clearly-named command (§16.3) that only ever runs against the local demo tenant.</p>
+<h3>7.5 The drift check</h3>
+<p>CI runs <code>makemigrations --check --dry-run</code> on every PR: if the models and the committed migrations disagree, the build fails. A second CI step applies all migrations to a fresh database, creates one tenant schema, and runs the Doc 02 conformance assertions from the DG suite (table presence per §7.2, the <code>REVOKE</code> grants of Doc 02 §6, the seed invariants of §7.4). Schema drift between code, migrations and Doc 02 is therefore caught in minutes, on the PR that caused it.</p>
+
+<h2 id="s8">8. API development conventions</h2>
+<p>This section governs <i>how endpoints are built</i>. What the endpoints are — routes, shapes, error codes — belongs to Docs 03–06 and Doc 08 §4, and is not restated or extended here.</p>
+<h3>8.1 Building an endpoint, in order</h3>
+<ol>
+<li>Find the contract in the owning module doc. If it is not there, stop: the endpoint is an amendment (§20), not a coding task.</li>
+<li>Serializer first, with the exact field names the doc fixes. Money fields serialise to strings (§5.4, §6.3).</li>
+<li>Permission class and branch scoping per the module doc's matrix; the SPA hiding a button is courtesy, every check is server-side (Doc 08 §5, Doc 07 FP-6).</li>
+<li>One service call per write (§5.2), which brings the audit row (§5.5) and idempotency (§5.6) with it.</li>
+<li>Tests named for the scenario IDs the endpoint serves (§9.2), plus the audit contract test (§5.5) passing.</li>
+</ol>
+<h3>8.2 Error codes</h3>
+<p>Error codes are a registry, not a habit. Every code the API returns is defined in the owning module doc (<code>invalid_state_transition</code> in Doc 03, <code>rule_overlap</code> in Doc 05, <code>subscription_read_only</code> in Doc 04, <code>refresh_reuse_detected</code> in Doc 08). Adding a code means adding it to the doc in the same PR. Codes are <code>snake_case</code>, stable once shipped (the SPA maps them to i18n strings, §6.2), and never renamed to sound nicer — a rename is a breaking change for every client that branches on it.</p>
+<h3>8.3 The OpenAPI schema</h3>
+<p>The backend publishes its OpenAPI schema from the running serializers (drf-spectacular), and §6.1's generated frontend types derive from it. The schema is a build artifact of the code, checked in CI for drift against the committed copy. It is documentation of what shipped — it does not override the module docs, and where the two disagree the module doc wins and the code is fixed.</p>
+<h3>8.4 Pagination, filtering, ordering</h3>
+<p>List endpoints follow the shape the module docs already use: cursor or page pagination as the owning doc specifies, explicit ordering (never database-default order — tenant schemas grow at different rates and "usually insertion order" is not an ordering), and filter parameters named after the fields they filter. A list endpoint without a stated ordering is a review defect, because its tests will pass on a small fixture and its behaviour will wander on a real tenant.</p>
+
+<h2 id="s9">9. Testing strategy</h2>
+<h3>9.1 Levels</h3>
+<div class="box"><table><thead><tr><th>Level</th><th>Runner</th><th>What it proves</th><th>Runs</th></tr></thead><tbody>
+<tr><td><b>Unit</b></td><td>pytest (backend), Vitest (frontend)</td><td>One service function, one state machine, one formatter — no HTTP, no browser</td><td>Every PR (§12)</td></tr>
+<tr><td><b>API / integration</b></td><td>pytest + DRF test client, real PostgreSQL, real Redis</td><td>Endpoints against the contracts: permissions, branch scope, audit rows, idempotency, tenant isolation between two real schemas</td><td>Every PR</td></tr>
+<tr><td><b>Workflow</b></td><td>n8n test harness (§14.3)</td><td>Doc 06 events produce the right workflow runs and callbacks, with signed payloads</td><td>Every PR touching <code>workflows/</code> or event emission</td></tr>
+<tr><td><b>End-to-end</b></td><td>Playwright</td><td>The FE scenarios as a user lives them: login + TOTP, collect → result → approve → report link, settlement draft → approve</td><td>Every PR (smoke subset); nightly (full FE suite)</td></tr>
+<tr><td><b>PDF golden files</b></td><td>pytest (§5.8)</td><td>Report / statement / label layouts do not silently change</td><td>Every PR touching templates</td></tr>
+</tbody></table></div>
+<p>SQLite is never a test database: tenant isolation, <code>REVOKE</code> enforcement and <code>jsonb</code> behaviour are PostgreSQL facts, and a suite that passes on SQLite proves nothing about them. CI runs the same PostgreSQL 16 as production (§4.4).</p>
+<h3>9.2 The suites, and where each doc's plan lives</h3>
+<div class="box"><table><thead><tr><th>Suite</th><th>Owner</th><th>Level</th><th>Location</th></tr></thead><tbody>
+<tr><td>T-01–T-51</td><td>Doc 03 (core lab modules)</td><td>Unit + API</td><td><code>backend/tests/</code>, test names carry the ID: <code>test_t50_transfer_cancel_rejected_when_received</code></td></tr>
+<tr><td>TN-01–TN-40</td><td>Doc 04 (tenancy)</td><td>API, two-schema fixtures</td><td><code>backend/tests/tenancy/</code></td></tr>
+<tr><td>RS-01–RS-42</td><td>Doc 05 (revenue share)</td><td>Unit + API</td><td><code>backend/tests/partners/</code></td></tr>
+<tr><td>AU-01–AU-40</td><td>Doc 06 (n8n)</td><td>Workflow + API (webhook receivers)</td><td><code>backend/tests/automation/</code> + §14.3 harness</td></tr>
+<tr><td>FE-01–FE-20</td><td>Doc 07 (frontend)</td><td>Playwright E2E</td><td><code>frontend/e2e/</code></td></tr>
+<tr><td>SE-01–SE-40 (incl. SE-28b)</td><td>Doc 08 (security)</td><td>API + unit (scrubber)</td><td><code>backend/tests/security/</code>; these are also Doc 08 §15's CI gates (§12.2)</td></tr>
+<tr><td>DG-01–DG-24</td><td>Doc 09 (this document)</td><td>Meta: the guidelines themselves</td><td>§18; implemented across CI config and <code>backend/tests/meta/</code></td></tr>
+</tbody></table></div>
+<p><b>Traceability rule.</b> A scenario is "covered" when a test with its ID in the name exists and runs in CI. The coverage report §9.3 publishes is by scenario ID, not only by line: a release that cannot show T, TN, RS, AU, FE and SE all green does not ship (§11.5).</p>
+<h3>9.3 Coverage gates</h3>
+<ul>
+<li><b>Scenario coverage is the hard gate:</b> 100% of the scenario IDs in Docs 03–08 must map to a running test before v1 launch; after launch, a new scenario lands with its test in the same PR (GP-5).</li>
+<li><b>Line coverage is a ratchet, not a target:</b> CI fails if backend or frontend line coverage drops below the previous merge to <code>main</code>. No absolute percentage is fixed in v1 — a number chosen today would be gamed tomorrow; a ratchet only moves one way. (The absolute-floor question was considered and rejected, §20.)</li>
+<li><b>Money and state machines are exempt from the ratchet's mercy:</b> <code>billing</code>, <code>partners</code> services and every state transition function require branch coverage of every transition the owning doc's state machine names, asserted by tests named for them.</li>
+</ul>
+<h3>9.4 Test data</h3>
+<p>Factories (factory_boy on the backend, fixture builders on the frontend) generate synthetic tenants, staff, patients, samples and invoices. Names are obviously fake (<code>Test Patient 001</code>), phone numbers use reserved fake ranges, and no factory default resembles a real person. The two-schema tenancy fixture (one platform, two tenants, interleaved IDs) is shared test infrastructure — the TN suite and every isolation-sensitive test build on it rather than re-inventing it. Test data never leaves CI: no production data is copied down for debugging (GP-6); a production bug is reproduced from its audit rows and correlated hashes (Doc 08 §9), not from its patient rows.</p>
+<h3>9.5 Flaky tests and bug fixes</h3>
+<ul>
+<li>A flaky test is a bug with an owner. It is quarantined (marked, ticketed, excluded from the gate) within one working day of being identified as flaky — never retried-until-green in CI config, which trains everyone to ignore red builds.</li>
+<li>Quarantined tests are counted; the count is in the CI summary. A quarantine older than two weeks blocks non-urgent merges until it is fixed or the test is deleted with a reason. (§18 DG-19 tests this rule's reporting.)</li>
+<li>Every bug fix lands with its regression test first or in the same commit. "Fixed without a test" is an incomplete fix by definition (§17.3).</li>
+</ul>
+
+<h2 id="s10">10. Test IDs and UI copy (OQ-49)</h2>
+<p>Doc 07 left two frontend conventions unassigned: how Playwright test IDs are named, and who owns UI copy. Both are development-process questions, so this document resolves them (§19.1 records OQ-49 as resolved here).</p>
+<h3>10.1 Locator priority</h3>
+<p>Following F-8, FE tests locate elements in this order:</p>
+<ol>
+<li><b>Role + accessible name</b> (<code>getByRole</code>, <code>getByLabel</code>) — tests what the user perceives, and fails when the accessibility tree breaks, which Doc 07's WCAG AA baseline (D-2) wants caught.</li>
+<li><b><code>data-testid</code></b> (<code>getByTestId</code>) — where role/name cannot identify the element stably: repeated rows, icon-only controls, dynamic regions (toasts, badges, tables).</li>
+<li><b>Text</b> (<code>getByText</code>) — only for asserting that specific copy is shown, never as a handle to click through.</li>
+</ol>
+<p>CSS classes, generated class names and positional XPath are banned in the FE suite. A selector that breaks when a designer changes a class was never testing behaviour.</p>
+<h3>10.2 The test-ID grammar</h3>
+<pre>data-testid = &lt;screen&gt;-&lt;region&gt;-&lt;element&gt;[-&lt;qualifier&gt;]
+
+screen     the Doc 07 route/screen name, kebab-case:  login, sample-detail,
+           result-entry, settlements, report-view
+region     the area of the screen:  form, queue, table, banner, modal, toast
+element    what it is, by purpose not appearance:  submit, patient-name,
+           approve, balance-due, status-badge
+qualifier  only when the same element repeats:  the row's stable key
+           (e.g. accession suffix), never a row index</pre>
+<p>Examples: <code>login-form-submit</code>, <code>sample-detail-banner-status</code>, <code>result-entry-table-flag</code>, <code>settlements-queue-approve</code>, <code>report-view-toast-success</code>. Rules: kebab-case only; purpose, never appearance (<code>red-button</code> is a defect, <code>reject-button</code> is an ID); unique within a screen; stable across languages — the same ID in English and Urdu renders, which is why IDs are never derived from visible text; an ID, once an FE test uses it, changes only with the test in the same PR. A test ID is not a styling hook and carries no CSS.</p>
+<h3>10.3 UI copy ownership</h3>
+<ul>
+<li><b>Copy lives in the i18n resource files</b> (<code>frontend/src/i18n/en.json</code>, <code>ur.json</code>), keyed <code>screen.element.state</code> (<code>settlements.approve.confirm_title</code>). Components reference keys; they never contain the words (enforced in §12.2).</li>
+<li><b>The developer owns copy in v1</b> — the same solo developer who owns the docs. Every key is added with both languages in the same PR; an English-only key fails CI. Urdu wording follows the register the module docs use for patient-facing text; patient-facing messages additionally obey Doc 04 A-16 (the tenant's <code>report_default_language</code> decides which language a <i>delivered</i> message uses — that is runtime behaviour, separate from the copy existing in both).</li>
+<li><b>Copy changes are normal PRs</b>, reviewed like code, because a changed label can break an FE test's accessible-name locator — that failure is a feature: it forces the copy change and the test update into one reviewed change.</li>
+<li><b>Error-code copy is special:</b> the strings for API error codes (§8.2) live under <code>errors.*</code> keys and change only when the owning module doc's code list changes.</li>
+</ul>
+
+<h2 id="s11">11. Version control: branches, commits, pull requests</h2>
+<h3>11.1 Branching model: trunk-based</h3>
+<p>Per F-5: one long-lived branch, <code>main</code>, always deployable and always releasable. Work happens on short-lived branches named <code>&lt;type&gt;/&lt;short-scope&gt;</code> — <code>feat/settlement-mark-paid</code>, <code>fix/transfer-receive-409</code>, <code>docs/doc-09-guidelines</code> — using the same type vocabulary as commits (§11.2). A branch lives at most <b>two working days</b>; work that cannot land in two days is split into landable pieces (a migration, then the endpoint, then the screen), each green on its own. There are no <code>develop</code>, <code>staging</code> or release branches in v1 — releases are tags on <code>main</code> (§11.5), matching the single-VPS deploy (Doc 01 §15). Incomplete features merge behind the mechanisms the product already has (role checks, tenant settings) or do not merge.</p>
+<h3>11.2 Commit messages: Conventional Commits</h3>
+<pre>&lt;type&gt;(&lt;scope&gt;): &lt;description&gt;
+
+types   feat | fix | refactor | test | docs | chore | ci | perf | revert
+scope   the owning module: core, patients, samples, results, billing,
+        reports, partners, tenancy, platform, automation, frontend,
+        infra, docs
+rules   imperative mood, no trailing full stop, first line ≤ 72 chars;
+        body states WHY when the why is not obvious from the diff;
+        a breaking change carries a BREAKING CHANGE: footer (F-1)</pre>
+<p>Examples: <code>feat(partners): add POST /settlements/{id}/mark-paid</code> · <code>fix(samples): reject receive for a lost transfer with 409</code> · <code>test(security): SE-28b privileged-write marker behaviour</code>. The scope vocabulary mirrors the doc modules on purpose: <code>git log --grep</code> by scope is how the §15.2 changelog gets assembled, and how a reader finds when a module's behaviour changed.</p>
+<h3>11.3 Pull requests</h3>
+<ul>
+<li><b>One concern per PR.</b> A PR that changes a migration, an endpoint and a settings screen for three different reasons is three PRs. Size guide: reviewable in one sitting — roughly 400 changed lines; bigger needs the split explained up front.</li>
+<li><b>The PR description is a form</b>: what changed and why; the doc sections it implements (e.g. "Doc 05 §10, RS-31"); the scenario IDs covered; migration notes (§7) or "no migration"; screenshots for UI changes — of synthetic data only (GP-6).</li>
+<li><b>Squash-merge to <code>main</code></b>, with the squash commit following §11.2 (the PR title is the commit line, so PR titles follow it too). Branch deleted on merge. No merge commits, no direct pushes to <code>main</code> — branch protection enforces both, plus green CI (§12).</li>
+<li><b>Docs ride along.</b> If the PR changes behaviour a doc describes, the doc edit is in the same PR (§15.3). A PR that makes a doc false is not mergeable, even if the code is right.</li>
+</ul>
+<h3>11.4 Review</h3>
+<p>Review checks, in order: (1) does the code do what the cited doc section says — nothing more, nothing else; (2) the structural rules machines cannot check (§5.3 status strings, §5.2 layer boundaries, §6.3 storage writes, §7.3 migration content); (3) tests named for the scenarios claimed; (4) the §17.3 definition of done. <b>Solo form (AS-1):</b> while there is one developer, review is a self-review pass against this list, done after a break from writing the code, with the checklist pasted into the PR. That is weaker than a second pair of eyes and this document says so plainly — the compensating controls are the CI gates (§12) and the scenario suites (§9), which do not get tired. The moment a second developer joins, every PR needs their approval; nothing else in this section changes.</p>
+<h3>11.5 Releases and versioning</h3>
+<p>Production releases are SemVer tags on <code>main</code> (F-6): <code>v1.4.2</code>. MAJOR for a release that breaks the API contract or a callback integrators depend on, MINOR for new backwards-compatible capability, PATCH for fixes. A release is: tag → CI builds the images from that tag (§12.3) → deploy to the VPS (Doc 01 §15's Compose) → changelog section (§15.2) cut from <code>Unreleased</code>. There is no long-lived release branch to patch; a hotfix is a normal PR to <code>main</code>, a new PATCH tag, and — only if an older release must be patched in place, which v1's single deployment makes rare — a short-lived <code>hotfix/…</code> branch from the tag, deleted when the fix reaches <code>main</code>.</p>
+
+<h2 id="s12">12. Continuous integration pipeline</h2>
+<h3>12.1 Shape</h3>
+<div class="diagram"><pre class="mermaid">flowchart LR
+    A[PR opened or updated] --&gt; B[Lint and format<br/>Ruff · ESLint · Prettier]
+    B --&gt; C[Type checks<br/>mypy · tsc strict]
+    C --&gt; D[Unit tests<br/>pytest · Vitest]
+    D --&gt; E[API and integration<br/>pytest, real PostgreSQL 16 + Redis<br/>T · TN · RS · AU · SE suites]
+    E --&gt; F[E2E smoke<br/>Playwright FE subset]
+    F --&gt; G[Contract checks<br/>migration drift · OpenAPI drift<br/>audit coverage · i18n completeness]
+    G --&gt; H[Secrets and dependency scan]
+    H --&gt; I{All gates green?}
+    I --&gt;|yes| J[Mergeable]
+    I --&gt;|no| K[Blocked: fix on the branch]</pre><p class="dcap">Figure 12.1 — The pull-request pipeline. Stages run in order; a red stage stops the pipeline and the merge. The full Playwright suite runs nightly on <code>main</code>, the smoke subset on every PR.</p></div>
+<h3>12.2 The gates</h3>
+<div class="box"><table><thead><tr><th>Gate</th><th>Rule enforced</th><th>Origin</th></tr></thead><tbody>
+<tr><td>Format + lint clean (Ruff, ESLint, Prettier)</td><td>GP-3: style is the machine's job</td><td>§5.1, §6.1</td></tr>
+<tr><td>Type checks clean (mypy, <code>tsc --strict</code>)</td><td>No untyped service code, no <code>any</code> creep</td><td>§5.1, §6.1</td></tr>
+<tr><td>All unit + API suites green</td><td>Docs 03–06, 08 behaviour contracts</td><td>§9.2</td></tr>
+<tr><td><code>makemigrations --check</code> + fresh-schema conformance</td><td>Models, migrations and Doc 02 agree</td><td>§7.5</td></tr>
+<tr><td>Audit contract test</td><td>Every non-GET route writes an audit row</td><td>§5.5 (Doc 08 §9)</td></tr>
+<tr><td>i18n completeness</td><td>Every key exists in <code>en.json</code> and <code>ur.json</code>; no hard-coded JSX strings</td><td>§6.5, §10.3</td></tr>
+<tr><td>Test-ID lint</td><td>Every <code>data-testid</code> matches the §10.2 grammar; FE locators use no CSS/XPath selectors</td><td>§10</td></tr>
+<tr><td>OpenAPI drift</td><td>Committed schema == generated schema; frontend types regenerated</td><td>§6.1, §8.3</td></tr>
+<tr><td>Secrets scan</td><td>No secret-shaped strings in the diff</td><td>§4.2 (Doc 08 §6)</td></tr>
+<tr><td>Dependency vulnerability scan</td><td>No known critical/high CVE in pinned dependencies (§13.3)</td><td>§13</td></tr>
+<tr><td>Coverage ratchet</td><td>Line coverage does not fall vs <code>main</code></td><td>§9.3</td></tr>
+<tr><td>Doc 08 SE gates</td><td>The SE suite runs as part of the API stage — Doc 08 §15's test gates, inherited as directed by Doc 08's closing note</td><td>Doc 08 §15</td></tr>
+</tbody></table></div>
+<h3>12.3 Merge and release pipelines</h3>
+<p>On merge to <code>main</code>: the full PR pipeline re-runs, the full Playwright suite runs, and images are built and tagged with the commit SHA. On a version tag (§11.5): images are rebuilt from the tag, pushed to the registry, and the deploy step updates the VPS Compose stack and runs tenant migrations across schemas (Doc 04 §14's mechanics). A failed migration on any tenant schema stops the deploy and pages the operator — partial migration across tenants is the one deploy state v1 refuses to continue from (§17.2).</p>
+<h3>12.4 Pipeline hygiene</h3>
+<ul>
+<li>CI configuration lives in the repo (<code>.github/workflows/</code>) and is reviewed like code — a PR that weakens a gate is a §20-visible change, discussed as one.</li>
+<li>CI never holds production secrets. It uses its own throwaway keys (a CI-only Fernet key, CI-only JWT key); the secrets scan (§12.2) covers workflow files too.</li>
+<li>Target wall-clock for the PR pipeline is under 15 minutes. A pipeline that is slow gets split or cached — a slow gate is a gate developers route around, and a routed-around gate is worse than none because it looks like protection.</li>
+</ul>
+
+<h2 id="s13">13. Dependencies and supply chain</h2>
+<h3>13.1 Pinning</h3>
+<ul>
+<li>Python dependencies are pinned to exact versions in a committed lockfile (<code>requirements.txt</code> generated from <code>pyproject.toml</code>); Node dependencies are pinned by <code>package-lock.json</code>, committed. Dockerfiles name base images by tag <i>and</i> digest. Nothing in any build resolves "latest".</li>
+<li>Adding a dependency is a decision with a paragraph in the PR: what it does, why the standard library / existing stack cannot, its maintenance state, its licence. A dependency that duplicates an existing one is removed, not layered.</li>
+<li>The major framework versions are Doc 01's (Django 5, React 18) — upgrading a major framework version is a planned project with its own PR series, never a drive-by in a feature branch.</li>
+</ul>
+<h3>13.2 Update cadence</h3>
+<div class="box"><table><thead><tr><th>Class</th><th>Cadence</th><th>How</th></tr></thead><tbody>
+<tr><td>Security patches (any dependency)</td><td>Immediately on a critical/high advisory</td><td>Dedicated <code>fix(deps)</code> PR, expedited review, PATCH release if production-affecting</td></tr>
+<tr><td>Patch/minor updates</td><td>Monthly, batched</td><td>One <code>chore(deps)</code> PR per ecosystem per month; full pipeline must pass; rollback is reverting the PR</td></tr>
+<tr><td>Major updates (non-framework)</td><td>Quarterly review</td><td>Evaluated in the monthly PR; taken only with their changelog read and the affected suites named</td></tr>
+<tr><td>Framework majors (Django, React)</td><td>Planned, per §13.1</td><td>Own project; Doc 01's version references updated in the same series</td></tr>
+</tbody></table></div>
+<h3>13.3 Vulnerability handling</h3>
+<p>The dependency scan in CI (§12.2) fails the build on a new critical or high CVE in a pinned dependency. A CVE that appears in already-merged code opens a <code>fix(deps)</code> PR the same day it is triaged; if the vulnerable code path is reachable with patient data, the fix follows Doc 08 §14's incident order (contain, notify, document, review) rather than the routine cadence. Transitive dependencies count: the scan reads the full lockfile, not only direct dependencies.</p>
+
+<h2 id="s14">14. n8n workflow development</h2>
+<p>Doc 06 owns what the workflows do and the protocol they speak. This section owns how they are changed safely.</p>
+<h3>14.1 Workflows are code</h3>
+<p>Each of Doc 06's workflows (the WF-* set — WF-EMAIL-SETTLEMENT among them) is exported as JSON into <code>workflows/</code>, one file per workflow, named for its Doc 06 ID. The export in the repo is the source of truth: production n8n imports from it, and a change made only in the n8n UI is drift that the next import silently reverts — so UI edits are working copies, never the change itself. Workflow changes go through PRs like code, with the AU scenario IDs they affect (§9.2).</p>
+<h3>14.2 Credentials never travel</h3>
+<p>Exports are scrubbed before commit: credential objects are replaced by name references (the credential <i>name</i> in n8n, never its value), and webhook secrets (<code>N8N_WEBHOOK_SECRET</code>, <code>N8N_CALLBACK_KEY</code> — Doc 08 §6) exist only in the n8n instance's environment. The CI secrets scan (§12.2) runs over <code>workflows/</code> with the same rules as code. A workflow may call only the surfaces Doc 06 allows: Django's signed webhook/callback endpoints and the tenant's mail/WhatsApp providers — a workflow node that reaches for the database directly violates Doc 06's network rule and is a critical review defect.</p>
+<h3>14.3 Testing a workflow change</h3>
+<p>A workflow PR runs against the local stack (§16): the harness fires the Doc 06 event payloads (synthetic, from the AU fixtures) at a local n8n, and asserts the outgoing calls — the callback signatures, the rendered template in both languages where the template is patient-facing, and the attachment rule from Doc 06 (statement PDFs travel base64 in the payload; report emails carry the signed link and no PDF). Production workflow activation follows the release (§11.5): import, verify one synthetic event per changed workflow on the operator's own test tenant, then enable.</p>
+
+<h2 id="s15">15. Documentation discipline</h2>
+<h3>15.1 The series is the contract</h3>
+<p>Docs 01–10 are versioned documents with changelogs, exactly as the series has practised (Doc 02 v1.3, Doc 03 v1.3, Doc 04 v1.1, Doc 07 v1.1, Doc 08 v1.1). A doc's version bumps when its decisions change; a fix pass changes only what it names. Doc 02's special status is process, not courtesy: schema facts are edited in Doc 02 first (§7.1).</p>
+<h3>15.2 The project changelog</h3>
+<p><code>CHANGELOG.md</code> follows Keep a Changelog (F-7) with SemVer release headings (F-6): an <code>Unreleased</code> section maintained in the PR that makes the change (one line under Added / Changed / Fixed / Security, written for a lab owner, not a compiler), cut into a dated version section at each tag (§11.5). Commit history (F-1) is the raw material, never the substitute — the changelog is curated, the log is complete, and they serve different readers.</p>
+<h3>15.3 Code and docs in one motion</h3>
+<ul>
+<li>A behaviour change without its doc update is an incomplete PR (§11.3). An internal-only change (refactor, perf) that alters no documented behaviour says so in the PR description, which is itself the check.</li>
+<li>New architectural decisions get an ADR in <code>docs/adr/</code>, continuing Doc 01's ADR numbering, in the same PR that implements them. An ADR records the decision, the alternatives, and the cost accepted — like Doc 08 §15's threat entries, in miniature.</li>
+<li>Comments in code explain <i>why</i>, and cite the doc rule when the why is a rule (<code># Doc 05 §7: reversal copies percent_applied, never re-resolves</code>). Comments that restate the code are deleted in review; comments that cite a doc are how the next reader finds the specification.</li>
+<li>README files exist at repo root and in <code>backend/</code> and <code>frontend/</code>: how to run it, how to test it, where the docs live. A README that disagrees with §16 is a bug.</li>
+</ul>
+
+<h2 id="s16">16. Local development and onboarding</h2>
+<h3>16.1 One command up</h3>
+<p>A new checkout becomes a running LabFlow with: copy <code>.env.example</code> to <code>.env</code> (local-only dummy values), <code>make up</code> (Compose: postgres, redis, backend, celery, frontend, n8n, Caddy), <code>make seed</code> (§16.3), open the demo tenant's host. If that sequence needs a fourth manual step, the step is automated or the README is fixed — onboarding friction is a defect in the tooling, not a rite of passage. Dev/prod parity (§4.4) is what makes the local stack worth having: same images, same PostgreSQL 16, same Redis.</p>
+<h3>16.2 The Makefile is the interface</h3>
+<div class="box"><table><thead><tr><th>Command</th><th>Does</th></tr></thead><tbody>
+<tr><td><code>make up</code> / <code>make down</code></td><td>Start / stop the full local stack</td></tr>
+<tr><td><code>make seed</code></td><td>(Re)build the demo tenant with synthetic data (§16.3)</td></tr>
+<tr><td><code>make test</code></td><td>Backend + frontend unit and API suites (the PR pipeline minus E2E)</td></tr>
+<tr><td><code>make test-e2e</code></td><td>Playwright smoke suite against the local stack</td></tr>
+<tr><td><code>make lint</code></td><td>Ruff, mypy, ESLint, <code>tsc</code>, Prettier check — the §12.2 static gates</td></tr>
+<tr><td><code>make types</code></td><td>Regenerate OpenAPI schema and frontend API types (§6.1)</td></tr>
+<tr><td><code>make migrate</code></td><td>Apply migrations to all local schemas (public + demo tenants)</td></tr>
+</tbody></table></div>
+<p>Any command a developer runs weekly exists as a make target; nobody memorises a <code>docker compose exec</code> incantation.</p>
+<h3>16.3 Seed data</h3>
+<p>The demo seed creates: the platform operator, two demo tenants (so isolation bugs are visible locally), each with branches including one collection centre, staff in every role with TOTP-enrolled owner/manager/pathologist accounts (Doc 08 §4.4's required set), a test catalogue with reference ranges, referral partners with share rules at several specificities (Doc 05 §7), and a spread of synthetic patients and samples in every state the state machines name. All of it is invented, all of it is rebuildable from scratch, and none of it is ever a copy of production (GP-6, AS-3). The seeded TOTP secrets and passwords are printed by the seed command and exist only for the local demo tenants.</p>
+<h3>16.4 First-week checklist (for the second developer, when there is one)</h3>
+<ol>
+<li>Run §16.1 unaided; file a PR for anything that blocked you — you are the onboarding test.</li>
+<li>Read Docs 01, 02 and this document; skim 03–08 by module.</li>
+<li>Run each suite in §9.2 once, locally.</li>
+<li>Ship one small PR through the full §11–§12 path, including its changelog line.</li>
+</ol>
+
+<h2 id="s17">17. Workflow and failure handling</h2>
+<h3>17.1 The standard change, end to end</h3>
+<div class="diagram"><pre class="mermaid">sequenceDiagram
+    autonumber
+    participant D as Developer
+    participant G as Git (branch)
+    participant CI as CI pipeline
+    participant M as main
+    participant P as Production (VPS)
+    D-&gt;&gt;G: branch feat/… or fix/… from main (§11.1)
+    D-&gt;&gt;G: small commits, Conventional format (§11.2)
+    Note over D,G: doc edits ride in the same branch (§15.3)
+    D-&gt;&gt;CI: open PR (form description, §11.3)
+    CI--&gt;&gt;D: gates green or blocked (§12.2)
+    D-&gt;&gt;D: review pass against §11.4 checklist
+    D-&gt;&gt;M: squash-merge, branch deleted
+    CI-&gt;&gt;P: on version tag: build, migrate all tenant schemas, deploy
+    Note over CI,P: migration failure on any schema stops the deploy (§12.3)</pre><p class="dcap">Figure 17.1 — One change's path from branch to production. Every arrow is a rule in §11–§12, not a custom.</p></div>
+<h3>17.2 Failure handling</h3>
+<div class="box"><table><thead><tr><th>Failure</th><th>Response</th></tr></thead><tbody>
+<tr><td><b><code>main</code> goes red</b> (a merge broke the build)</td><td>Fixing <code>main</code> outranks all other work. The breaking change is reverted first and re-landed fixed — debugging on a red trunk blocks every other PR's signal. A trunk red for more than a working day is treated as an incident, with the same write-up habit as Doc 08 §14</td></tr>
+<tr><td><b>Deploy fails mid-migration</b></td><td>Deploy stops (§12.3). The failing tenant schema is restored from its pre-deploy per-schema dump (Doc 04 §14) while other tenants continue on the previous release; the migration is fixed forward in a new PR. Never hand-patch a production schema — a hand patch is schema drift with no Doc 02 trail</td></tr>
+<tr><td><b>A release misbehaves in production</b></td><td>Roll back to the previous tag's images first (they are immutable, §12.3); diagnose after. Data written by the bad release is handled by the module's own rules (audit rows and Doc 08 §13 retention mean rollback of code is not rollback of records)</td></tr>
+<tr><td><b>CI is down or a gate is wrong</b></td><td>No merging around a dead gate. If a gate is factually wrong, the fix is a PR to the gate with the reason stated (§12.4) — branch protection is never disabled "temporarily", because temporary disables are how gates die</td></tr>
+<tr><td><b>A dependency advisory lands</b></td><td>§13.3's same-day triage; the <code>fix(deps)</code> PR path, not the monthly batch</td></tr>
+<tr><td><b>A test is found flaky</b></td><td>§9.5: quarantine with an owner within a day; never retry-until-green</td></tr>
+</tbody></table></div>
+<h3>17.3 Definition of done</h3>
+<p>A change is done when all of these hold: the behaviour matches the cited doc sections; the scenario tests named in the PR exist and pass in CI; migrations (if any) satisfy §7; both i18n languages carry any new copy; test IDs follow §10.2; the changelog has its line; the doc edits ride along; CI is green without quarantine tricks; and the PR description's claims are all true. "It works on my machine" is not on the list, because §4.4 makes machines interchangeable.</p>
+
+<h2 id="s18">18. Test plan</h2>
+<p>The DG suite verifies the guidelines themselves — that the gates exist, bite, and report. Each scenario is a CI configuration test, a meta-test, or a scripted drill, run on the pipeline it describes.</p>
+<div class="box"><table><thead><tr><th>#</th><th>Scenario</th><th>Expected</th></tr></thead><tbody>
+<tr><td>DG-01</td><td>Open a PR with an unformatted Python file</td><td>Ruff format gate fails; merge blocked</td></tr>
+<tr><td>DG-02</td><td>Open a PR with an untyped service function</td><td>mypy gate fails with the function named</td></tr>
+<tr><td>DG-03</td><td>Add a model field without a migration</td><td><code>makemigrations --check</code> fails (§7.5)</td></tr>
+<tr><td>DG-04</td><td>Add a migration whose column is not in Doc 02</td><td>Caught at review (checklist item, §11.4); conformance assertions fail if the table set diverges from §7.2's assignment</td></tr>
+<tr><td>DG-05</td><td>Edit an already-merged migration file</td><td>CI hash check on merged migrations fails; the fix is a new migration</td></tr>
+<tr><td>DG-06</td><td>Add a non-GET endpoint with no audit write in its service</td><td>Audit contract test (§5.5) fails, naming the route</td></tr>
+<tr><td>DG-07</td><td>Add a UI string hard-coded in JSX</td><td>i18n lint fails; adding the key to <code>en.json</code> only still fails until <code>ur.json</code> has it (§10.3)</td></tr>
+<tr><td>DG-08</td><td>Add a <code>data-testid="blueBtn"</code></td><td>Test-ID lint fails (§10.2 grammar: kebab-case, purpose-named)</td></tr>
+<tr><td>DG-09</td><td>Write an FE test using a CSS-class locator</td><td>FE lint fails; role/testid locators pass (§10.1)</td></tr>
+<tr><td>DG-10</td><td>Commit a fake secret (canary token) in a code file and in a workflow export</td><td>Secrets scan fails both times (§12.2, §14.2)</td></tr>
+<tr><td>DG-11</td><td>Pin a dependency with a known critical CVE</td><td>Dependency scan fails the build (§13.3)</td></tr>
+<tr><td>DG-12</td><td>Delete a test so line coverage falls</td><td>Ratchet gate fails against <code>main</code> (§9.3)</td></tr>
+<tr><td>DG-13</td><td>Change an API response field without regenerating types</td><td>OpenAPI drift gate fails (§8.3)</td></tr>
+<tr><td>DG-14</td><td>Push directly to <code>main</code></td><td>Branch protection rejects the push (§11.3)</td></tr>
+<tr><td>DG-15</td><td>Open a PR with commit title <code>misc updates</code></td><td>Commit-message lint fails (§11.2 format)</td></tr>
+<tr><td>DG-16</td><td>Run the full pipeline on a clean PR</td><td>All §12.2 gates pass; wall-clock under 15 minutes (§12.4)</td></tr>
+<tr><td>DG-17</td><td>Fresh clone → <code>make up</code> → <code>make seed</code></td><td>Demo tenants usable, all roles login, TOTP-enrolled accounts per §16.3</td></tr>
+<tr><td>DG-18</td><td>Run a Celery task twice with the same idempotency key</td><td>End state identical to one run (§5.6)</td></tr>
+<tr><td>DG-19</td><td>Mark a test quarantined</td><td>CI summary reports the quarantine count and age (§9.5)</td></tr>
+<tr><td>DG-20</td><td>Change a PDF template's layout</td><td>Golden-file test fails with a page diff (§5.8)</td></tr>
+<tr><td>DG-21</td><td>Tag a release <code>v1.0.1</code> on <code>main</code></td><td>Images built from the tag; changelog <code>Unreleased</code> cut into the version section (§11.5, §15.2)</td></tr>
+<tr><td>DG-22</td><td>Simulate a migration failure on one tenant schema during deploy</td><td>Deploy halts; other tenants stay on the previous release; no schema is hand-patched (§17.2)</td></tr>
+<tr><td>DG-23</td><td>Export an n8n workflow containing a credential value</td><td>Secrets scan fails; name-reference exports pass (§14.2)</td></tr>
+<tr><td>DG-24</td><td>Write code that stores a patient name in <code>localStorage</code></td><td>Caught by ESLint rule / review checklist (§6.3); no merge</td></tr>
+</tbody></table></div>
+
+<h2 id="s19">19. Resolved and open questions</h2>
+<h3>19.1 Resolved here</h3>
+<div class="box"><table><thead><tr><th>#</th><th>Question</th><th>Resolution</th></tr></thead><tbody>
+<tr><td>OQ-49</td><td>Playwright test-ID naming convention and UI copy ownership (Doc 07, unassigned between Doc 09 and Doc 10)</td><td><b>RESOLVED in §10.</b> Test IDs: role-first locators, then <code>data-testid</code> under the <code>&lt;screen&gt;-&lt;region&gt;-&lt;element&gt;[-&lt;qualifier&gt;]</code> grammar — kebab-case, purpose-named, language-stable (§10.1–§10.2). UI copy: owned by the developer in v1, lives only in <code>en.json</code> / <code>ur.json</code> under <code>screen.element.state</code> keys, both languages in the same PR, enforced by CI (§10.3). Rationale: both are properties of how code is written and tested, which is this document's territory — Doc 10's launch and capacity questions do not depend on them</td></tr>
+</tbody></table></div>
+<h3>19.2 Open questions (owned by Doc 10)</h3>
+<div class="box"><table><thead><tr><th>#</th><th>Question</th><th>Owner / needed by</th></tr></thead><tbody>
+<tr><td>OQ-54</td><td>CI hosting economics: GitHub Actions minutes for the §12 pipeline (full suite on every merge plus nightly E2E) vs a self-hosted runner — and if self-hosted, it must not be the production VPS, since CI runs untrusted-adjacent code with throwaway secrets (§12.4) and the production box is Doc 08's trust boundary</td><td>Doc 10 — launch costing</td></tr>
+<tr><td>OQ-55</td><td>Does v1 launch add a staging environment (second host or an isolated staging tenant stack) for pre-release verification with tenants, or does dev/prod parity (§4.4) plus the nightly full suite carry launch as §4.3 assumes?</td><td>Doc 10 — launch plan</td></tr>
+</tbody></table></div>
+<p>Doc 10 also inherits, unchanged from earlier docs: OQ-45, OQ-46, OQ-47, OQ-48 (Doc 06 — webhook sweep crontab, SMTP provider, provider limits, <code>message_id</code> semantics), OQ-50 (Doc 07 — WCAG 2.2 AA audit timing), and OQ-51, OQ-52, OQ-53 (Doc 08 — CSP promotion, Sentry quota, operator succession). This document adds nothing to that list beyond OQ-54 and OQ-55, and opens no question about standards, branching, testing or copy — those are decided here.</p>
+
+<h2 id="s20">20. Proposed amendments</h2>
+<p><b>None.</b> Every rule in this document is either (a) an earlier doc's decision restated as a checkable coding standard or CI gate, or (b) a choice inside territory no earlier doc claimed — repository shape, tooling, branching, pipeline, copy process. Nothing here needs a new table, column, endpoint, status value or screen, so there is nothing to amend. Two candidates were considered and rejected:</p>
+<div class="box"><table><thead><tr><th>Candidate</th><th>Verdict</th></tr></thead><tbody>
+<tr><td>A <code>data-testid</code> column of record in Doc 07 (registering every test ID in the frontend doc)</td><td><b>Rejected.</b> OQ-49 asked for a naming convention and an owner, both fixed in §10. A registry in Doc 07 would duplicate the code and drift from it; the grammar plus the CI lint (§12.2) enforce the convention where it lives</td></tr>
+<tr><td>An absolute line-coverage floor (e.g. 80%) as a launch gate</td><td><b>Rejected for v1.</b> §9.3's ratchet plus 100% scenario-ID coverage is the gate. A floor percentage invites tests written to satisfy the number; the scenario suites are the coverage that means something, because each one is a behaviour a doc promised</td></tr>
+<tr><td>A database table or service for CI/release state</td><td><b>Rejected.</b> Release state is Git tags and the changelog (§11.5, §15.2); the platform gains no runtime component from this document</td></tr>
+</tbody></table></div>
+
+<h2 id="s21">21. What is NOT built in v1</h2>
+<ul>
+<li><b>No GitFlow</b> — no <code>develop</code>, release or long-lived staging branches (§11.1). Trunk-based only.</li>
+<li><b>No split repositories</b> — backend, frontend, workflows and infra stay in the one monorepo (§4.1); no per-module repos, no internal package publishing.</li>
+<li><b>No feature-flag platform</b> — incomplete work hides behind existing role checks and tenant settings (§11.1); no flag service, no flag SDK.</li>
+<li><b>No staging environment</b> (§4.3) — the question is Doc 10's (OQ-55), the default until then is parity + nightly suites.</li>
+<li><b>No remote devcontainers or cloud dev environments</b> — local Compose is the dev environment (§16.1).</li>
+<li><b>No mutation testing, no visual-regression service, no performance budget gates</b> — the DG suite and golden-file PDF tests (§5.8) are the v1 quality tooling beyond the scenario suites.</li>
+<li><b>No auto-merge bots or automatic dependency merging</b> — dependency PRs are batched and reviewed by a human (§13.2), including the solo developer's own.</li>
+<li><b>No code-generation from the docs</b> — the OpenAPI schema is generated from code (§8.3); the docs remain human-written specifications, and drift is caught by review and the §7.5 checks, not by a generator.</li>
+</ul>
+
+<h2 id="s22">22. Interview talking points</h2>
+<ul>
+<li><b>Why a monorepo for a solo developer?</b> Because the unit of change in this system is cross-cutting: one feature is a migration, an endpoint, a screen, two i18n files and a workflow. Split repos turn that into five coordinated PRs with version skew between them. One repo makes the change atomic, reviewable, and revertible as a unit — and the doc that specifies it rides in the same commit (§4.1, §15.3).</li>
+<li><b>Why trunk-based instead of GitFlow?</b> GitFlow's branches exist to stabilise releases for teams shipping versioned software to many environments. LabFlow ships one deployment from one trunk to one VPS (§11.1, §11.5). Long-lived branches would buy ceremony and pay for it in merge divergence — the exact cost F-5's model exists to avoid. Releases are tags; the trunk is always the truth.</li>
+<li><b>Why is "the migration must match Doc 02" a merge gate?</b> Because schema-per-tenant multiplies every schema mistake by the number of tenants, and un-multiplies it slowly — per-schema restores, tenant by tenant (§7.3, §17.2). Catching drift in CI costs minutes (§7.5). The rule converts "Doc 02 is the source of truth" from a slogan into something a machine checks.</li>
+<li><b>Why a coverage ratchet instead of an 80% target?</b> A fixed target is met by writing tests at the number, including worthless ones. The ratchet (§9.3) only forbids going backwards, and the real gate is scenario coverage: every behaviour Docs 03–08 promised has a named, running test. Lines are a proxy; scenarios are the contract.</li>
+<li><b>Why are Conventional Commits worth the fuss for one person?</b> Because history is the project's memory when the team is one person's future self — and the changelog, the scope-based archaeology (<code>git log</code> by module), and the release mechanics all derive from the format mechanically (F-1). The cost is one prefix per commit; the return is that "when did settlements change and why" is a query, not an excavation.</li>
+<li><b>Why role-first locators, test IDs second?</b> A <code>getByRole</code> test fails when the accessibility tree breaks — it is an accessibility test smuggled into the functional suite, which matters for Doc 07's WCAG AA baseline. Test IDs are the fallback for what roles cannot name, under a grammar (§10.2) that keeps them stable across the English/Urdu switch — a text-based locator would fail half the product's UI by design.</li>
+<li><b>Why does self-review count as review?</b> Honestly labelled, it barely does (§11.4) — which is why the system leans on gates that do not get tired: thirteen CI checks (§12.2), scenario suites by ID, and contract tests for the rules (audit, migrations, i18n) that reviews most often wave through. The checklist self-review is the human layer over an automated floor, and the document says which is which.</li>
+<li><b>Why are workflow JSON files in the repo the source of truth for n8n?</b> Because the alternative — workflows edited in a UI, existing only in a running instance — is unreviewable, unversioned configuration holding production behaviour (Doc 06's deliveries). Treating exports as code (§14.1) gives the automation layer the same review, test and rollback story as everything else, and §14.2 keeps the credentials out of the bargain.</li>
+</ul>
+
+<h2 id="s23">23. Glossary</h2>
+<p><b>Trunk</b> the single long-lived branch, <code>main</code>, always deployable (§11.1) · <b>Conventional Commit</b> the <code>type(scope): description</code> commit format of F-1 (§11.2) · <b>Squash-merge</b> collapsing a PR branch into one commit on the trunk, titled per §11.2 · <b>Scope (commit)</b> the owning module name in a commit or branch, mirroring the doc modules (§11.2) · <b>Service layer</b> the <code>services.py</code> home of module behaviour, called identically by views, tasks and commands (§5.2) · <b>Drift check</b> CI's proof that models, migrations and Doc 02 still agree (§7.5) · <b>Expand/contract</b> splitting a destructive schema change across two releases — add and backfill, then enforce or drop (§7.3) · <b>Scenario ID</b> a named test case owned by a module doc (T, TN, RS, AU, FE, SE) or by this document (DG) (§9.2) · <b>Ratchet</b> the coverage gate that forbids decrease versus <code>main</code> without fixing an absolute floor (§9.3) · <b>Quarantine</b> the owned, counted, time-boxed exclusion of a flaky test from the gate (§9.5) · <b>Golden file</b> the reference PDF a template must reproduce page-for-page in CI (§5.8) · <b>Test ID</b> a <code>data-testid</code> value under the §10.2 grammar — purpose-named, language-stable, never a styling hook · <b>Gate</b> a CI check whose failure blocks merge (§12.2) · <b>Hotfix branch</b> the short-lived exception of §11.5, cut from a release tag and deleted once the fix reaches <code>main</code> · <b>Proposed</b> anything beyond Docs 01–08 as written — §20 proposes nothing, and records what was considered instead.</p>
+<p class="meta">End of Doc 09. Next: Doc 10 — Delivery and Operations Plan, which inherits OQ-54 and OQ-55, plus OQ-45–OQ-48, OQ-50 and OQ-51–OQ-53 from Docs 06–08. Doc 09 stops here for review.</p>
+</main>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
+<script>
+(function () {
+  if (!window.mermaid) return;
+  mermaid.initialize({ startOnLoad: true, theme: "dark", securityLevel: "strict", themeVariables: { primaryColor: "#1c2128", primaryBorderColor: "#4a5561", primaryTextColor: "#e6edf3", secondaryColor: "#2a313a", tertiaryColor: "#161b22", lineColor: "#4a5561", textColor: "#e6edf3", actorBkg: "#1c2128", actorBorder: "#4a5561", actorTextColor: "#e6edf3", actorLineColor: "#9aa7b4", signalColor: "#9aa7b4", signalTextColor: "#e6edf3", noteBkgColor: "#2a313a", noteTextColor: "#e6edf3", noteBorderColor: "#4a5561", labelTextColor: "#e6edf3" } });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,976 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="dark" />
+    <link rel="icon" href="data:," />
+    <title>LabFlow Doc 03: Core Lab Modules</title>
+    <style>
+:root{--bg:#0d1117;--fg:#e6edf3;--mut:#9aa7b4;--line:#30363d;--card:#161b22;--card2:#21262d;--acc:#e8a33d;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:dark}
+*,*::before,*::after{box-sizing:border-box}
+html{height:100%;scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--fg);font:15.5px/1.65 system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+.wrap{max-width:740px;margin:0 auto;padding:40px 24px 88px}
+nav.toc{margin:0 0 10px;padding:0 0 20px;border-bottom:1px solid var(--line)}
+nav.toc .th{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--mut);margin:0 0 10px}
+nav.toc a{display:block;color:#f0c476;text-decoration:none;font-size:13.5px;line-height:1.5;padding:2.5px 0}
+nav.toc a.sub{padding-left:16px;font-size:13px}
+main{min-width:0}
+h1{font-size:27px;line-height:1.25;margin:0 0 10px;font-weight:700;letter-spacing:-.01em}
+h2{font-size:19px;line-height:1.35;margin:42px 0 12px;padding-top:28px;border-top:1px solid var(--line);font-weight:700}
+h2:first-of-type{margin-top:32px}
+h3{font-size:15.5px;margin:24px 0 6px;font-weight:700}
+h4{font-size:14.5px;margin:18px 0 4px;font-weight:700}
+p{margin:8px 0}
+.meta{color:var(--mut);font-size:13.5px;line-height:1.6}
+.tag{display:inline-block;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:1px 9px;font-size:12px;margin:0 6px 4px 0;color:var(--fg);white-space:nowrap}
+.box{margin:14px 0;overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:13.6px;line-height:1.5}
+th,td{border:1px solid var(--line);padding:7px 10px;text-align:left;vertical-align:top;overflow-wrap:break-word}
+th{background:var(--card2);font-weight:600;color:var(--fg)}
+tbody tr:nth-child(even) td,tr:nth-child(even) td{background:#12161c}
+code{font:12.8px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:var(--card2);border-radius:5px;padding:1.5px 5px;overflow-wrap:anywhere;color:#f0c476}
+pre{font:12.6px/1.55 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:14px 16px;margin:14px 0;white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word;color:#dbe4ee}
+.diagram{background:#11161d;border:1px solid var(--line);border-radius:8px;padding:16px 12px;margin:14px 0;overflow-x:auto}
+.diagram svg{display:block;width:100%;height:auto;min-width:520px}
+pre.mermaid{background:transparent;border:none;margin:0;padding:4px;text-align:center;color:#dbe4ee}
+.dcap{color:var(--mut);font-size:12.5px;text-align:center;margin-top:8px}
+.note{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:12px 14px;margin:14px 0;font-size:14.5px;line-height:1.6}
+.spec{border:1px solid var(--line);border-radius:8px;padding:4px 14px 10px;margin:16px 0;background:#10141a}
+.spec h4{color:#f0c476}
+ul,ol{padding-left:24px;margin:8px 0}li{margin:4px 0}
+a{color:#f0c476;overflow-wrap:anywhere}
+.kv{font-size:13.8px}
+.pass{font-weight:700}
+@media(max-width:600px){.wrap{padding:28px 18px 64px}h1{font-size:24px}h2{font-size:17.5px;margin-top:36px;padding-top:22px}table{font-size:12.8px}th,td{padding:6px 7px}pre{padding:12px;font-size:12px}.diagram svg{min-width:480px}}
+</style>
+  </head>
+  <body>
+<div class="wrap">
+<nav class="toc" aria-label="Table of contents">
+<p class="th">Doc 03 · Core Lab Modules</p>
+<a href="#s1">1. Purpose, scope, inputs and assumptions</a>
+<a href="#s2">2. Research findings</a>
+<a href="#s3">3. Design principles</a>
+<a href="#s4">4. Roles and permission matrix</a>
+<a href="#s5">5. Modules</a>
+<a href="#s51" class="sub">5.1 Patients</a>
+<a href="#s52" class="sub">5.2 Catalog</a>
+<a href="#s53" class="sub">5.3 Billing</a>
+<a href="#s54" class="sub">5.4 Samples</a>
+<a href="#s55" class="sub">5.5 Results</a>
+<a href="#s56" class="sub">5.6 Reports</a>
+<a href="#s6">6. API reference</a>
+<a href="#s7">7. Key workflows</a>
+<a href="#s8">8. Result engine rules</a>
+<a href="#s9">9. Report PDF specification</a>
+<a href="#s10">10. Concurrency and failure handling</a>
+<a href="#s11">11. Observability and TAT</a>
+<a href="#s12">12. Test plan</a>
+<a href="#s13">13. Resolved and open questions</a>
+<a href="#s14">14. Proposed amendments</a>
+<a href="#s15">15. What is NOT built in v1</a>
+<a href="#s16">16. Interview talking points</a>
+<a href="#s17">17. Glossary</a>
+</nav>
+<main>
+<h1>LabFlow — Doc 03: Core Lab Modules</h1>
+<p class="meta"><span class="tag">Doc 03 of 10</span><span class="tag">v1.3</span><span class="tag">2026-10-20</span><span class="tag">Depends on Doc 01 v2.1 and Doc 02 v1.3</span></p>
+<p class="meta">Modules: patients, catalog, billing, samples, results, reports — behaviour and API.<br>Audience: the developer building LabFlow v1. Stack and schema are not re-decided here; they come from Doc 01 and Doc 02.</p>
+<div class="note"><p><b>Changes in this version (v1.3)</b> — a small fix pass only. Six fixes; no other section was touched.</p><ul>
+<li><b>1 — Rejection-notice language (§5.4, Celery tasks).</b> <code>samples.notify_rejection</code> no longer uses "the patient's language". It now uses "the tenant default language — the <code>tenant_setting</code> key <code>report_default_language</code> (Doc 04 §10.2)", and states that Doc 02 has no per-patient language column, so the tenant default is used until a per-patient language exists (OQ-30, Doc 07). Same wording as §5.6 RP-6, so the two sections agree. This resolves the item flagged in the v1.2 changelog.</li>
+<li><b>2 — Workflow 3 caption (§7.3).</b> "Status stays collected while in transit" replaced with: "Status does not change while the transfer is open — a sample transferred from <code>received</code> stays <code>received</code> until the destination confirms receipt. Exactly one branch holds the sample at any time." The diagram body is unchanged. This resolves the second item flagged in the v1.2 changelog.</li>
+<li><b>3 — Inputs version (§1.3).</b> "Doc 01 — Architecture Overview v2" now reads "Doc 01 — Architecture Overview v2.1".</li>
+<li><b>4 — Reject endpoint error (§6.5).</b> <code>409 transfer_already_open</code> added to the <code>POST /api/v1/samples/{id}/reject</code> error list. SM-7 and §10 already said an open transfer blocks rejection.</li>
+<li><b>5 — Result-entry endpoint error (§6.6).</b> <code>409 transfer_already_open</code> added to the <code>POST /api/v1/samples/{id}/results</code> error list, for the same reason.</li>
+<li><b>6 — Transfer test scenarios (§12).</b> Two scenarios added: T-50 (transfer cancel) and T-51 (transfer mark-lost). The §12 intro count is updated from 49 to 51 named scenarios.</li>
+</ul>
+<p><b>Nothing else changed.</b> No other section was touched; the v1.2 changes are accepted and stay as written, including the v1.2 changelog below.</p></div>
+<div class="note"><p><b>Changes in this version (v1.2)</b> — this version syncs Doc 03 with Doc 02 v1.3, which accepted amendments A-7, A-8, A-9, A-10 and A-14 (revised) after v1.1 was written. OQ-25 is resolved in Doc 02 v1.3.</p><ul>
+<li><b>1 — Proposed labels removed (§1.4, §4.2 BS-5, §5.1, §5.2, §5.4, §5.6).</b> <code>sample_test</code>, <code>staff_branch</code>, <code>patient_contact</code>, <code>patient_consent</code>, <code>test_price</code> and <code>sample_transfer</code> are no longer marked "(Proposed in Doc 02)"; references now read "Doc 02 v1.3".</li>
+<li><b>2 — <code>sample_transfer</code> status and times (§2 R-6, §5.4 SM-7).</b> Rewritten to Doc 02 v1.3 (A-9): <code>status</code> is <code>open | received | cancelled | lost</code> (application-enforced); <code>dispatched_at</code> is set when the transfer is created — the moment the sending branch hands the sample to the courier; <code>received_at</code> is set at receipt. A lost transfer does <b>not</b> change <code>sample.status</code>: the sample is resolved through reject-sample (SM-8) and recollect (SM-9).</li>
+<li><b>3 — Transfer state rule (§5.4 SM-7, §5.4 state machine caption, §6.5).</b> Transfer is allowed only from <code>collected</code> or <code>received</code>. An <code>in_process</code> sample cannot transfer; the §6.5 transfer endpoint returns <code>409 invalid_state_transition</code>.</li>
+<li><b>4 — Delivery language (§5.6 RP-6).</b> The delivery message no longer uses "the patient's language" — Doc 02 has no patient language column. It uses the tenant default from the <code>tenant_setting</code> key <code>report_default_language</code> (Doc 04 §10.2) until a per-patient language exists (OQ-30, Doc 07).</li>
+<li><b>5 — Token validity from a setting (§5.6 RP-8).</b> New tokens take <code>expires_at</code> from the <code>tenant_setting</code> key <code>report_link_validity_days</code>, with the platform default of 7 days when the row is absent. Tokens already issued are unchanged: <code>expires_at</code> is stored per row in <code>report_access_token</code> (Doc 02 §5.7). The hard-coded <code>REPORT_LINK_TTL_DAYS = 7</code> sentence is removed.</li>
+<li><b>6 — Doc 04 transfer endpoints (§5 intro, §5.4 SM-7, §6.5).</b> <code>POST /api/v1/transfers/{id}/cancel</code> and <code>POST /api/v1/transfers/{id}/mark-lost</code> (Doc 04 §15.2) are added to the §6.5 Samples table with roles O M, sending-branch scope; SM-7 points to Doc 04 §9.2 for cancellation and loss. A note in §5 states that branch CRUD, <code>staff_branch</code>, tenant-status, settings and export endpoints live in Doc 04 §15.2, not in this document.</li>
+<li><b>7 — Result entry at collection centres (§5.5 RS-3).</b> Added: at a branch where <code>branch.is_collection_centre = true</code> and <code>branch.result_entry_enabled = false</code> (Doc 02 v1.3, A-8), result entry is refused with <code>403 result_entry_disabled_at_branch</code>, regardless of the sample state. RS-3's sample-state rule is unchanged.</li>
+<li><b>8 — Billing hold key named (§5.3 BL-9, §5.6 RP-7).</b> "Per-tenant setting" wording replaced with the concrete key: <code>tenant_setting</code> key <code>billing_hold_enabled</code> (Doc 04 §10.2), default <code>false</code>. No other change.</li>
+<li><b>9 — Resolved items recorded (§13.1).</b> The OQ-25 row now cross-references its resolution in Doc 02 v1.3 §20, and a note records that Doc 02 v1.3 accepted A-7, A-8, A-9, A-10 and A-14 — so A-4, A-5 and A-6 are the only Doc 03 amendments still Proposed.</li>
+<li><b>10 — Amendments register refreshed (§14).</b> Status column now states: A-1 to A-3 accepted in Doc 02 v1.2; A-7 to A-10 and A-14 (revised) accepted in Doc 02 v1.3; A-11, A-12, A-13 accepted in Doc 01 and this document. A-4, A-5, A-6 remain Proposed in Doc 03 only.</li>
+</ul>
+<p><b>Deliberately not changed, and why.</b></p><ul>
+<li>§8 (result engine), §9 (PDF spec), §10 (concurrency), §11 (TAT), §15 (NOT built), §16 (talking points) and §17 (glossary) are untouched — no numbered change names them. §12 (test plan) is also untouched: no change above names a §12 edit, so existing scenarios (for example T-24 on transfers) stand as written.</li>
+<li>§7 workflow diagrams and captions are untouched (§7 is not named above). Two captions are now shorthand rather than exact: workflow 3 says "status stays collected while in transit" (a sample transferred from <code>received</code> also stays in its state while in transit), and workflow 7 shows the token life as "7 days" (now the default from change 5, not a fixed value). Flagged here instead of silently rewritten.</li>
+<li>§5.4 (Celery tasks) still says the rejection notice uses "the patient's language". Change 4 names RP-6 only, and Doc 04 §10.2 defines <code>report_default_language</code> for delivery messages and the report summary block — not for rejection notices. The line is left as written and flagged for the author, rather than fixed by guessing a key.</li>
+</ul></div>
+
+<h2 id="s1">1. Purpose, scope, inputs and assumptions</h2>
+<h3>1.1 Purpose</h3>
+<p>Doc 01 fixed the architecture. Doc 02 fixed the data model. This document fixes the <b>behaviour</b> of the six core lab modules: what each module does, which rules it enforces, which API it exposes, which states it moves through, and what happens when something goes wrong. After reading it, a developer should be able to build these modules without inventing rules, and defend every rule in review.</p>
+<h3>1.2 Scope</h3>
+<div class="box"><table><thead><tr><th>In scope (this document)</th><th>Out of scope (owner document)</th></tr></thead><tbody>
+<tr><td>Patients: registration, search, duplicate handling, soft delete</td><td>Revenue share, partner statements (Doc 05)</td></tr>
+<tr><td>Catalog: tests, panels, prices, reference ranges</td><td>n8n workflow internals (Doc 06)</td></tr>
+<tr><td>Billing: invoices, payments, refunds, discounts, cancellation</td><td>Screen layouts and frontend behaviour (Doc 07)</td></tr>
+<tr><td>Samples: collection, labels, transfer, receipt, rejection, recollection</td><td>Auth design, token policy, threat model (Doc 08)</td></tr>
+<tr><td>Results: entry, flags, verification, approval, amendment</td><td>Multi-branch tenancy mechanics (Doc 04) — this document only states the branch rules the modules need</td></tr>
+<tr><td>Reports: PDF generation, versioning, delivery, patient access link</td><td>Platform (public schema) endpoints — out of scope except by reference</td></tr>
+</tbody></table></div>
+<h3>1.3 Inputs</h3>
+<ul>
+<li><b>Doc 01 — Architecture Overview v2.1.</b> Stack: Django 5 + DRF, PostgreSQL 16, django-tenants (schema-per-tenant), Redis + Celery, WeasyPrint with Noto Nastaliq, Caddy on-demand TLS. PKR only. English + Urdu UI. Flows in Doc 01 §12 (Flow A registration to sample, Flow B results to delivery, Flow C revenue share). Queues and retry policy in Doc 01 §13. Patient report link in Doc 01 §14. Goals G1 (PDF p95 ≤ 60 s after approval), G2 (delivery attempt p95 ≤ 2 min), G3 (common reads p95 ≤ 300 ms), G6 (patient opens report in ≤ 2 clicks).</li>
+<li><b>Doc 02 — Database Schema v1.3.</b> Ground truth for every table, column, status value and constraint named here. Where this document needs something Doc 02 does not have, it is marked <b>Proposed</b> and listed in §14. Nothing in Doc 01 or Doc 02 is silently changed.</li>
+<li><b>Research report for Doc 03</b> (2026-10-20): sourced findings on lab practice, standards and products, summarised in §2 with citations.</li>
+</ul>
+<h3>1.4 Consistency check against Doc 01 and Doc 02</h3>
+<p>Result: <span class="pass">PASS — no conflicts.</span> All required items were confirmed in Doc 02 before this document was written:</p>
+<div class="box"><table><thead><tr><th>#</th><th>Item checked</th><th>Result</th><th>Where in Doc 02</th></tr></thead><tbody>
+<tr><td>1</td><td>Partial unique index on settlement (partner, period) <code>WHERE status &lt;&gt; 'CANCELLED'</code></td><td class="pass">Present — <code>uq_settlement_partner_id_period</code> on <code>(referral_partner_id, period)</code></td><td>§5.8, §7, §18</td></tr>
+<tr><td>2</td><td><code>sample_test</code> table links a sample to its ordered tests</td><td class="pass">Present (Doc 02 v1.3) — <code>sample_id</code>, <code>invoice_item_id</code>, <code>test_id</code>; <code>UNIQUE (sample_id, test_id)</code>. A result is expected exactly when a <code>sample_test</code> row exists; pending results are <code>sample_test</code> rows with no approved result</td><td>§5.5, §20</td></tr>
+<tr><td>3</td><td><code>staff_branch</code> table for branch assignment</td><td class="pass">Present (Doc 02 v1.3) — composite PK <code>(staff_user_id, branch_id)</code>, pure join. Tenant-wide roles (<code>owner</code>, <code>pathologist</code>) have <code>branch_id</code> NULL on <code>staff_user</code> and no <code>staff_branch</code> requirement; branch-scoped roles (<code>manager</code>, <code>reception</code>, <code>technician</code>) need at least one <code>staff_branch</code> row</td><td>§5.1, §20</td></tr>
+<tr><td>4</td><td>Consistent table naming</td><td class="pass">Consistent — singular snake_case tables, singular columns, Django <code>Meta.db_table</code></td><td>§2</td></tr>
+<tr><td>5</td><td><code>share_ledger_entry</code> immutable, status derived</td><td class="pass">Confirmed — fully immutable (<code>REVOKE UPDATE/DELETE</code>), no <code>status</code> or <code>settlement_id</code> column; entry status is derived from <code>settlement_line → settlement.status</code></td><td>§5.8, §6 (OQ-22 resolved)</td></tr>
+<tr><td>6</td><td><code>payment.kind</code> separate from <code>payment.method</code></td><td class="pass">Confirmed — <code>kind</code> is <code>payment | refund</code> (CHECK), <code>method</code> is <code>cash | card | bank_transfer | easypaisa | jazzcash | other</code> (CHECK); <code>amount</code> is always positive, <code>kind</code> supplies the sign</td><td>§5.4, §12 (OQ-23 resolved)</td></tr>
+<tr><td>7</td><td>Complete seed data with component tests</td><td class="pass">Confirmed — idempotent seed (<code>get_or_create</code> on natural keys): roles; starter catalogue CBC, LFT, RFT, HbA1c, Lipid Profile, Blood Sugar, Urine R/E, TSH; four starter panels with component tests via <code>panel_test</code>; each component test has <code>reference_range</code> rows (at least adult-M and adult-F); <code>notification_template</code> rows in <code>en</code> and <code>ur</code></td><td>§16</td></tr>
+<tr><td>8</td><td>Known limitation: one report per sample</td><td class="pass">Confirmed as a stated limitation — one <code>report</code> row per sample; corrections are new <code>report_version</code> rows; several PDFs per visit are accepted for v1</td><td>§11 (OQ-15 resolved)</td></tr>
+</tbody></table></div>
+<h3>1.5 Assumptions</h3>
+<ul>
+<li><b>AS-1.</b> One tenant is one lab organisation; a branch is a physical site of that lab, including collection centres. A collection centre is a branch row with <code>is_collection_centre = true</code> that can collect and transfer, and cannot enter results unless the owner enables it (OQ-27 resolved, §13).</li>
+<li><b>AS-2 (Assumption).</b> A bilingual (English + Urdu) report is a product differentiator, not a verified legal requirement. No source found requires Urdu lab reports in Pakistan (§2, R-17). v1 ships English reports with an Urdu patient-summary block (§9); the legal position is <b>Unverified</b>.</li>
+<li><b>AS-3 (Unverified).</b> Punjab Healthcare Commission (PHC) MSDS wording: the MSDS text available to this project is the Khyber Pakhtunkhwa HCC edition, which states it adopts the PHC standards. It is used as a strong proxy. Verbatim Punjab wording must be confirmed from PHC before any compliance claim.</li>
+<li><b>AS-4.</b> CAP checklist item numbers cited in §2 come from 2019 CAP training material. They show the expected practice; they are not re-verified against the current CAP checklists.</li>
+<li><b>AS-5.</b> ISO 15189 report-content detail in §2 and §9 derives from an accreditation checklist based on the 2012 edition. ISO 15189:2022 is the current edition; its full text is paid and was not read. LabFlow does not claim ISO 15189 compliance.</li>
+<li><b>AS-6.</b> Healthwire's lab software feature set could not be verified beyond one marketing sentence (§2, R-16). It is treated as a marketplace channel, not a documented LIS competitor.</li>
+<li><b>AS-7.</b> Staff authenticate as <code>staff_user</code> rows; how login works is Doc 08. This document only states which roles may call which endpoints.</li>
+</ul>
+
+<h2 id="s2">2. Research findings</h2>
+<p>Each finding is paraphrased from the cited source. The last column states the design change it caused in this document. Items marked <b>Assumption</b> or <b>Unverified</b> are not treated as facts anywhere else in this document.</p>
+<div class="box"><table><thead><tr><th>#</th><th>Finding</th><th>Source</th><th>Design change in LabFlow v1</th></tr></thead><tbody>
+<tr><td>R-1</td><td>Standard specimen rejection reasons are consistent across sources: unlabelled, mislabelled, haemolysed, insufficient volume, wrong tube or container, clotted, lipemic, damaged or delayed transport, missing barcode. A 12-month study of 453,171 samples reported a 6% overall rejection rate, with fibrin clots and inadequate volume the most frequent causes for biochemistry tests.</td><td><a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC4622196/">Specimen rejection in laboratory medicine: Necessary for patient safety?</a> (PMC)</td><td>Rejection is a coded reason, not free text (§5.4). Reason codes follow this list. Rejection rate is a tracked quality metric (§11). The reason code is stored in <code>sample.rejection_reason_code</code> with <code>sample.rejection_note</code> (Doc 02 v1.2, amendment A-2 accepted, §14).</td></tr>
+<tr><td>R-2</td><td>WHO guidance: a lab must set rejection criteria and enforce them. On rejection it records the reason, informs the requester promptly, and requests recollection. The rejected specimen record is kept pending a final disposition decision — rejection is not deletion.</td><td><a href="https://extranet.who.int/hslp/who-hslp-download/package/501/material/179">WHO Laboratory Quality Management System, Module 5 — Sample Management</a></td><td><code>sample.status = rejected</code> is a terminal, auditable state (§5.4). A rejection fires a notification task, and a recollection action creates a new sample; the rejected row is never deleted.</td></tr>
+<tr><td>R-3</td><td>Patient identification uses at least two identifiers (for example full name plus date of birth, or name plus MRN). Room or bed number, initials and diagnosis are not acceptable identifiers. Containers are labelled at the time of collection, in the presence of the patient.</td><td><a href="https://www.hipaaexams.com/blog/patient-identifiers">Patient Identifiers Guide: The 2-Identifier Rule &amp; NPG Standards</a> (secondary summary of Joint Commission goals)</td><td>The sample label carries two identifiers (name + MRN, plus date of birth where known) (§7, workflow 2). Collection requires the patient record to exist first — no sample without a patient (§5.4).</td></tr>
+<tr><td>R-4</td><td>WHO label content for a sample: patient first and last name, a unique identification number, the test requested, date and time of collection, and the initials of the person collecting.</td><td><a href="https://extranet.who.int/hslp/who-hslp-download/package/501/material/179">WHO LQMS Module 5 — Sample Management</a></td><td>Label payload in §7 workflow 2: accession ID (Code128), patient name, MRN, collection date-time, collector. All are fields Doc 02 already stores (<code>accession_id</code>, <code>collected_at</code>, <code>collected_by</code>).</td></tr>
+<tr><td>R-5</td><td>PHC-origin MSDS for clinical laboratories: sample transport between sites must be recorded; collection centres linked to a lab must appear on its Registration Certificate / Licence; referral of specialised tests to another lab needs a signed MOU.</td><td><a href="https://hcc.kp.gov.pk/wp-content/uploads/2024/01/MSDS-for-Clinical-Laboratories.pdf">MSDS for Clinical Laboratories (PHC-origin, KP HCC edition — Punjab wording Unverified, AS-3)</a></td><td>Every inter-branch movement is a <code>sample_transfer</code> row plus <code>TRANSFERRED_OUT</code> / <code>TRANSFERRED_IN</code> events (§5.4). Chain of custody is reconstructable from <code>sample_event</code> alone.</td></tr>
+<tr><td>R-6</td><td>Transport must protect sample integrity: temperature control, time limits, sealed packaging. Full dangerous-goods packaging rules (triple packaging, UN categories) exist for infectious substances in transit.</td><td><a href="https://extranet.who.int/hslp/who-hslp-download/package/501/material/179">WHO LQMS Module 5 — Sample Management</a></td><td>v1 records dispatch and receipt times on <code>sample_transfer</code> (Doc 02 v1.3, A-9): <code>dispatched_at</code> is set when the transfer is created — the moment the sending branch hands the sample to the courier — and <code>received_at</code> is set at receipt; the row also carries <code>status</code> (<code>open | received | cancelled | lost</code>, application-enforced). Late receipt is flagged at the bench. Full transport-condition compliance (temperature logs, UN packaging) is NOT built in v1 (§15).</td></tr>
+<tr><td>R-7</td><td>Two-person verification is the established pattern: one person enters results, a second person validates them (OpenELIS logbook entry then supervisor validation; SENAITE moves a sample to "To be verified" and requires verification by someone other than the analyst).</td><td><a href="https://openelis-global.org/features-and-functionality/">Capabilities — OpenELIS Global</a>; <a href="https://www.senaite.com/">SENAITE — Open Source LIMS</a></td><td>Result entry and approval are separate endpoints with separate roles (§5.5, §6). Approval writes an append-only <code>result_approval</code> row. Self-approval is restricted by rule RS-6 (§5.5).</td></tr>
+<tr><td>R-8</td><td>Critical (panic) values need immediate notification of the responsible clinician, with the notification recorded: date, time, who notified, who was notified (a first name alone is not enough), and the result. Phone notification requires read-back, recorded. Electronic transmission with confirmed receipt needs no read-back.</td><td><a href="https://documents-cloud.cap.org/appsuite/learning/AP3/LMD/GoodLabDecisions/04_FrmtRsltRprts/story_content/external_files/Report%20Elements%20Part%202_2019_Proof.pdf">CAP — How to Properly Format Result Reports, Report Elements Part 2 (2019 training material, AS-4)</a> — items COM.30000, COM.30100</td><td>Critical values are real behaviour in Doc 02 v1.2 (amendments A-1 and A-3 accepted, §14): <code>reference_range</code> carries <code>critical_low</code> / <code>critical_high</code>, <code>result.flag</code> includes <code>critical</code>, and the notification is recorded in <code>critical_notification</code> with read-back (§8.5).</td></tr>
+<tr><td>R-9</td><td>A delta check compares a current result with the same patient's previous result to catch misidentification or interference. CLSI AUTO-10 / AUTO-15 frame it as one rule inside autoverification, with lab-set thresholds validated on local data.</td><td><a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC9344865/">Designing and validating an autoverification system (PMC)</a></td><td>v1 shows a delta warning to the pathologist at approval time, computed at read time from the previous approved result (§8.6). Full autoverification is NOT built in v1 (§15) — no result is ever auto-approved.</td></tr>
+<tr><td>R-10</td><td>Reference intervals vary by age and sex (for example haemoglobin and creatinine differ by sex; alkaline phosphatase shifts in adolescents). Accreditation checklists expect the interval quoted on the report to be relevant to the patient's age and sex.</td><td><a href="https://nata.com.au/files/2021/05/ISO-15189-Assessment-Worksheet-For-Laboratory-use.pdf">ISO 15189 Assessment Worksheet (NATA)</a></td><td>Range selection uses patient sex and age <i>at collection</i> against <code>reference_range</code> rows, exactly as Doc 02 §10 specifies (§8.2). The range actually used is printed on the report (§9).</td></tr>
+<tr><td>R-11</td><td>Results are quantitative (number + unit), semi-quantitative (trace, 1+, titre) or qualitative (positive / negative, narrative). Validation differs by type: range checks apply only to numeric results.</td><td><a href="https://nursekey.com/2-some-principles-of-laboratory-testing/">Some Principles of Laboratory Testing (NurseKey)</a></td><td><code>result.value</code> stays <code>text</code> (OQ-25 resolution, §8.1). The engine parses to Decimal only when the matched range is numeric; qualitative values are matched against an expected set (Proposed column, §14, A-4).</td></tr>
+<tr><td>R-12</td><td>Corrected reports must be identified as corrected, show original and corrected data in sequence, and the original must be retained (paper) or electronically linked. Errors are notified promptly to the ordering clinician. Multiple corrections are referenced in order.</td><td><a href="https://documents-cloud.cap.org/appsuite/learning/AP3/LMD/GoodLabDecisions/04_FrmtRsltRprts/story_content/external_files/Report%20Elements%20Part%202_2019_Proof.pdf">CAP Report Elements Part 2 (2019)</a> — items GEN.41307, GEN.41310, GEN.41312; also CLIA 42 CFR §493.1291(k)</td><td>Reports are never edited. An amended result produces a new <code>report_version</code>, <code>report.status = amended</code>, and the PDF carries an amended notice naming the changed test, the old value and the new value (§5.6, §9.4).</td></tr>
+<tr><td>R-13</td><td>Report content expected by ISO 15189 accreditation checklists: identification of the examination and method where appropriate; issuing lab; patient identification on every page; requester; date of primary sample collection; sample type; results with units; biological reference intervals; interpretation or comments where appropriate (including sample-quality caveats); and the person who reviewed and authorised release.</td><td><a href="https://formsphilippines.com/viewform/2764/checklist-for-iso-15189">LASF10 Checklist for ISO 15189 (checklist based on the 2012 edition, AS-5)</a>; current edition: <a href="https://www.iso.org/standard/15189?browse=ics">ISO 15189:2022 (ISO product page)</a></td><td>The PDF specification in §9 makes every one of these a printed field, including page X of Y and patient ID in every page footer.</td></tr>
+<tr><td>R-14</td><td>CAP report elements: lab name and address; patient name and ID number; ordering physician; collection date and time; report release date; specimen source where applicable; results with units; reference intervals; specimen conditions that limit adequacy; name and address of any referral laboratory used.</td><td><a href="https://documents-cloud.cap.org/appsuite/learning/AP3/LMD/Regulatory/01_Orientation/story_content/external_files/LMD_Resources.pdf">CAP — Regulatory and Accreditation Resources</a> — item GEN.41096</td><td>§9 header block includes lab name and branch address, ordering / referral partner where present, and a specimen-condition note when the sample carried a caveat. Referral-lab reporting is NOT built in v1 (§15) because v1 has no referral-out workflow.</td></tr>
+<tr><td>R-15</td><td>There is no single TAT definition: most labs measure receipt-to-report, physicians expect order-to-report. One published outpatient workflow timestamps sampling start/end, sorting, analyser scan, result entry, verification and reporting; the pre-analytical phase is the largest TAT contributor. SENAITE shows per-analysis due times with late analyses highlighted.</td><td><a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC6416806/">Factors Affecting Turnaround Time in the Clinical Laboratory (PMC)</a>; <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC9550964/">Strategies to shorten turnaround time in outpatient laboratory (PMC)</a></td><td>LabFlow records every milestone timestamp (<code>sample_event</code>, <code>report.finalised_at</code>) and defines v1 TAT explicitly as collected → finalised, with the definition stated wherever TAT is shown (§11). Per-test TAT targets are a Proposed amendment (§14, A-5).</td></tr>
+<tr><td>R-16</td><td>OpenELIS Global (MPL 2.0, Java/Spring + React, FHIR R4) is the closest open-source analogue: registration with duplicate prevention, barcode sample tracking, two-phase result entry/validation, TAT and rejection dashboards. Its costs are a Java stack and community support. SENAITE (GPLv2) enforces second-person verification but sits on the legacy Plone/Zope stack. Bahmni embeds OpenELIS inside a full hospital system — heavy for a standalone small lab. Healthwire (Pakistan) sells an H-Cloud "Laboratory Management Software", but only one marketing sentence about it is verifiable; its verifiable lab activity is a consumer test-booking marketplace with home sampling and cash / card / JazzCash payment. <b>Healthwire LIS features: Unverified.</b></td><td><a href="https://openelis-global.org/features-and-functionality/">Capabilities — OpenELIS Global</a>; <a href="https://www.senaite.com/">SENAITE</a>; <a href="https://www.bahmni.org/laboratory">Laboratory — Bahmni</a>; <a href="https://www.healthwireapp.com/home-page.html">Healthwire H-Cloud — More Efficiency, Better Care</a></td><td>Workflow ideas are borrowed (two-person verification, worklists, rejection KPI); the products are not. LabFlow stays a focused LIS on Django; no HIS features in v1 (§15). Healthwire is noted only as a possible future booking channel (Doc 06).</td></tr>
+<tr><td>R-17</td><td>PHC (Punjab Healthcare Commission Act 2010) registers and licenses labs against MSDS. PHC-origin MSDS indicators relevant here: every lab record has a unique ID; electronic patient records; only authorised persons make entries; every entry is dated, timed and attributable; a computerised reporting system; critical results and notifiable diseases are reported; a minimum reporting time per test is documented; patients access reports through a specific code. <b>No source found requires Urdu-language reports</b> (AS-2).</td><td><a href="https://hcc.kp.gov.pk/wp-content/uploads/2024/01/MSDS-for-Clinical-Laboratories.pdf">MSDS for Clinical Laboratories (PHC-origin, KP HCC edition)</a>; <a href="https://en.wikipedia.org/wiki/Punjab_Healthcare_Commission">Punjab Healthcare Commission (Wikipedia)</a></td><td>These indicators map to existing design: unique MRN and accession IDs (Doc 02 §9), append-only audit (§3, P-3), the 7-day patient access token (§5.6), per-test reporting-time targets (Proposed, A-5). LabFlow does not claim "PHC compliant" anywhere — compliance is assessed by inspection.</td></tr>
+<tr><td>R-18</td><td>Payment methods in routine use in Pakistan: cash (still the default at small labs), Easypaisa and JazzCash mobile wallets, bank transfer via 1LINK IBFT, and Raast — the State Bank of Pakistan's instant payment system, launched January 2021, where a Raast ID is typically the customer's mobile number. The "cash is dominant" claim comes from payments guides, not an official statistic.</td><td><a href="https://www.sbp.org.pk/our-subsidiaries/raast">Raast — State Bank of Pakistan</a>; <a href="https://wise.com/gb/hub/payment-methods/pakistan">Top payment methods in Pakistan (Wise)</a>; <a href="https://www.help2pay.com/article-pakistan-payment-guide.html">Pakistan Payment Guide: Raast, JazzCash &amp; Easypaisa (Help2Pay)</a></td><td>Doc 02's <code>payment.method</code> enum (<code>cash | card | bank_transfer | easypaisa | jazzcash | other</code>) already covers this; Raast payments are recorded as <code>bank_transfer</code> with the Raast ID in <code>payment.reference</code> (§5.3). No gateway integration in v1 (§15) — payments are recorded, not processed.</td></tr>
+</tbody></table></div>
+<p class="meta">Full research notes: internal research report for Doc 03, 2026-10-20 (25 sources). Caveats AS-2 to AS-6 apply to R-8, R-13, R-16, R-17 and R-18 wherever they are used later in this document.</p>
+
+<h2 id="s3">3. Design principles for these modules</h2>
+<p>Every rule in §5 and §6 traces back to one of these principles. When a new case is not covered by a rule, decide by the principles in this order — P-1 outranks all others.</p>
+<div class="box"><table><thead><tr><th>#</th><th>Principle</th><th>What it means in these modules</th></tr></thead><tbody>
+<tr><td>P-1</td><td><b>Patient safety first.</b></td><td>A wrong result on the wrong patient is the worst failure this system can produce. Two identifiers on labels (R-3), no sample without a patient, no flag ever guessed (§8.1), no silent merge of duplicate patients (§5.1). When safety and convenience conflict, safety wins and the friction is documented, not hidden.</td></tr>
+<tr><td>P-2</td><td><b>Nothing clinical is edited in place.</b></td><td>Results, approvals, payments, sample events and report versions are append-only or superseded by new rows. A correction creates a new row and moves the old row to a terminal state (<code>amended</code>). The database enforces this where Doc 02 says so (<code>REVOKE UPDATE/DELETE</code>); the API never exposes an update path for these rows.</td></tr>
+<tr><td>P-3</td><td><b>Every write is audited.</b></td><td>Every create, state change and sensitive read writes an <code>audit_log</code> row in the same transaction: actor, role, branch, action, object, before/after for state fields, timestamp. PHC-origin MSDS expects entries to be dated, timed and attributable (R-17); the audit log is how LabFlow answers "who did this, when".</td></tr>
+<tr><td>P-4</td><td><b>Every retryable action is idempotent.</b></td><td>Invoice creation and payment recording take an <code>Idempotency-Key</code>. Celery tasks are safe to run twice (§10). A retried request returns the original result; it never creates a second invoice, a second payment or a second PDF version.</td></tr>
+<tr><td>P-5</td><td><b>Money is Decimal, end to end.</b></td><td><code>Decimal</code> in Python, <code>numeric(12,2)</code> in PostgreSQL, strings on the wire (<code>"1250.00"</code>). Never float, anywhere. Invoice totals are recomputed on the server from stored rows, never trusted from the client.</td></tr>
+<tr><td>P-6</td><td><b>The server owns state transitions.</b></td><td>Clients request actions (<code>receive</code>, <code>reject</code>, <code>approve</code>); they never PATCH a <code>status</code> field directly. Each action checks the current state and returns <code>409 invalid_state_transition</code> when the move is not legal. State machines in §5 are the contract.</td></tr>
+<tr><td>P-7</td><td><b>Branch scope is enforced in the query, not the UI.</b></td><td>Every list and detail query for branch-scoped roles is filtered by the caller's <code>staff_branch</code> rows on the server. Hiding a button is not access control. A cross-branch object is indistinguishable from a missing one (<code>404</code>), except where §4 explicitly grants visibility.</td></tr>
+<tr><td>P-8</td><td><b>Snapshots over live references for anything printed or charged.</b></td><td>Invoice items snapshot <code>description</code> and <code>unit_price</code> at billing time. The PDF prints the reference range selected at approval time. Later catalog edits never change what a patient was charged or what a report said.</td></tr>
+<tr><td>P-9</td><td><b>Fail loud, recover by retry, never guess.</b></td><td>Unparseable result value → flag NULL + mandatory pathologist review, not a guessed flag (§8.1). PDF failure → visible failed state + retry, not a silent missing report (§10). Unknown reference range → flag NULL, not the nearest range.</td></tr>
+<tr><td>P-10</td><td><b>Boring technology, explicit trade-offs.</b></td><td>One PostgreSQL database, one Celery setup, server-rendered PDF. Each "NOT built" item in §15 names what was given up and why. If a rule cannot be explained in two sentences, it does not ship.</td></tr>
+</tbody></table></div>
+
+<h2 id="s4">4. Roles and permission matrix</h2>
+<h3>4.1 Roles</h3>
+<p>Roles are the <code>staff_user.role</code> values from Doc 02. Short codes are used in §5 and §6: <b>O</b> = Owner (<code>owner</code>), <b>M</b> = Branch Manager (<code>manager</code>), <b>R</b> = Receptionist (<code>reception</code>), <b>T</b> = Technician (<code>technician</code>), <b>P</b> = Pathologist (<code>pathologist</code>).</p>
+<div class="box"><table><thead><tr><th>Role</th><th>Scope</th><th>One-line job in these modules</th></tr></thead><tbody>
+<tr><td>Owner (O)</td><td>Tenant-wide</td><td>Owns the lab: catalog, prices, ranges, all branches, refunds, report voiding.</td></tr>
+<tr><td>Branch Manager (M)</td><td>Assigned branches (<code>staff_branch</code>)</td><td>Runs a branch day to day: discounts, refunds, sample oversight, delivery retries.</td></tr>
+<tr><td>Receptionist (R)</td><td>Assigned branches</td><td>Front desk: patient registration, billing, payments, sample collection, labels.</td></tr>
+<tr><td>Technician (T)</td><td>Assigned branches</td><td>Bench work: sample receipt and processing, result entry, sample rejection at the bench.</td></tr>
+<tr><td>Pathologist (P)</td><td>Tenant-wide</td><td>Clinical authority: result approval and rejection, amendments, range overrides, report sign-off.</td></tr>
+</tbody></table></div>
+<h3>4.2 Branch scoping rules</h3>
+<ul>
+<li><b>BS-1.</b> <code>owner</code> and <code>pathologist</code> are tenant-wide (Doc 02 §5.1): <code>branch_id</code> is NULL on their <code>staff_user</code> row and they need no <code>staff_branch</code> rows. They can read and act in every branch of the tenant.</li>
+<li><b>BS-2.</b> <code>manager</code>, <code>reception</code> and <code>technician</code> act only in branches where a <code>staff_branch</code> row exists for them. An account with zero <code>staff_branch</code> rows can log in but every branch query returns empty and every branch write returns <code>403 branch_scope_denied</code>.</li>
+<li><b>BS-3.</b> Object scope follows the object, not the caller: a patient is scoped by <code>patient.branch_id</code> (registering branch), an invoice by <code>invoice.branch_id</code>, a sample by its current holding branch (<code>sample.branch_id</code>, updated on transfer receipt). Results and reports inherit the scope of their sample.</li>
+<li><b>BS-4.</b> Patient search is the one deliberate exception: a receptionist may <i>search</i> patients across the tenant by exact phone or MRN to prevent duplicate registration, but the response shows only name, MRN, sex and year of birth for out-of-branch matches — no clinical or billing history. Full detail requires branch scope. (Duplicate prevention is a patient-safety feature, R-16; the data exposure is minimised to identifiers.) Managers get the same identifiers-only exception (OQ-26 resolved, §13).</li>
+<li><b>BS-5.</b> Catalog (tests, panels, prices, ranges) is tenant-wide reference data: readable per the matrix in §4.3, writable only by Owner, plus Pathologist for reference ranges. Prices live in <code>test_price</code> (Doc 02 v1.3) and are tenant-wide, so there is no per-branch price editing in v1.</li>
+<li><b>BS-6.</b> A transfer moves scope: after <code>TRANSFERRED_IN</code>, the sending branch keeps read access to the sample's history via <code>sample_event</code>, but only the receiving branch can act on it.</li>
+</ul>
+<h3>4.3 Permission matrix by endpoint group</h3>
+<p>Key: <b>C</b> create, <b>R</b> read, <b>U</b> update/action, <b>—</b> no access. Branch rules BS-1 to BS-6 apply on top of every cell.</p>
+<div class="box"><table><thead><tr><th>Endpoint group</th><th>O</th><th>M</th><th>R</th><th>T</th><th>P</th></tr></thead><tbody>
+<tr><td>Patients (register, search, edit, soft delete)</td><td>CRUD</td><td>CRU</td><td>CRU</td><td>R</td><td>R</td></tr>
+<tr><td>Catalog: tests and panels</td><td>CRUD</td><td>R</td><td>R</td><td>R</td><td>R</td></tr>
+<tr><td>Catalog: prices (<code>test_price</code>)</td><td>CRUD</td><td>R</td><td>R</td><td>—</td><td>R</td></tr>
+<tr><td>Catalog: reference ranges</td><td>CRUD</td><td>R</td><td>—</td><td>R</td><td>CRU</td></tr>
+<tr><td>Invoices (create, read, cancel)</td><td>CRUD</td><td>CRU</td><td>CRU</td><td>R</td><td>R</td></tr>
+<tr><td>Payments (<code>kind = payment</code>)</td><td>CR</td><td>CR</td><td>CR</td><td>—</td><td>—</td></tr>
+<tr><td>Refunds (<code>kind = refund</code>)</td><td>CR</td><td>CR</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td>Samples (collect, label)</td><td>CRU</td><td>CRU</td><td>CRU</td><td>R</td><td>R</td></tr>
+<tr><td>Samples (receive, start processing)</td><td>CRU</td><td>CRU</td><td>R</td><td>CRU</td><td>R</td></tr>
+<tr><td>Samples (transfer out / receive transfer)</td><td>CRU</td><td>CRU</td><td>CRU</td><td>CRU</td><td>R</td></tr>
+<tr><td>Samples (reject)</td><td>CRU</td><td>CRU</td><td>CRU</td><td>CRU</td><td>R</td></tr>
+<tr><td>Results (enter)</td><td>R</td><td>R</td><td>—</td><td>CRU</td><td>CR</td></tr>
+<tr><td>Results (approve / reject approval)</td><td>R</td><td>—</td><td>—</td><td>—</td><td>CRU</td></tr>
+<tr><td>Critical notifications (record)</td><td>—</td><td>C</td><td>—</td><td>—</td><td>C</td></tr>
+<tr><td>Results (amend)</td><td>R</td><td>—</td><td>—</td><td>C</td><td>CRU</td></tr>
+<tr><td>Reports (read, regenerate)</td><td>CRU</td><td>CRU</td><td>R</td><td>R</td><td>CRU</td></tr>
+<tr><td>Reports (deliver, issue / revoke access token)</td><td>CRU</td><td>CRU</td><td>CRU</td><td>—</td><td>R</td></tr>
+<tr><td>Reports (void)</td><td>CRU</td><td>—</td><td>—</td><td>—</td><td>CRU</td></tr>
+<tr><td>Patient report access (public link, no login)</td><td colspan="5">Token holder only — see §5.6 and §6.7. No staff role is involved.</td></tr>
+</tbody></table></div>
+<p class="meta">Three cells deserve a note. Reference ranges: the Pathologist can create and update ranges because ranges are a clinical decision (R-10); every range change is effective-dated and audited (P-3, P-8). Refunds: Receptionist is excluded — money leaving the till needs Manager or Owner, and the refund ceiling question is OQ-31 (§13). Critical notifications may be recorded only by a Pathologist or a Branch Manager — the two roles who own the clinician conversation (§8.5).</p>
+
+<h2 id="s5">5. Modules</h2>
+<p>Each module below follows the same shape: responsibility, tables used (Doc 02 only), business rules, validation rules, state machine where the module has states, events emitted, Celery tasks, audit points, and edge cases with the chosen behaviour. Rule IDs (for example <code>BL-3</code>) are stable references for code reviews and tests.</p>
+<p><b>Branch and tenant administration is not in this document.</b> Branch CRUD, <code>staff_branch</code> assignment, tenant-status, tenant settings and data-export endpoints live in Doc 04 §15.2. This document lists only the two transfer endpoints from Doc 04 §15.2 that the samples module depends on (§6.5).</p>
+
+<h3 id="s51">5.1 Patients</h3>
+<p><b>Responsibility.</b> One durable identity per real person per tenant: registration, identity fields, search, duplicate prevention, contact and consent records, soft delete. Every other module points at this identity; nothing else in the system stores patient name or phone.</p>
+<p><b>Tables used.</b> <code>patient</code>; <code>patient_contact</code> (Doc 02 v1.3); <code>patient_consent</code> (Doc 02 v1.3); reads <code>branch</code> for <code>branch_code</code> (MRN format, Doc 02 §9).</p>
+<h4>Business rules</h4>
+<ul>
+<li><b>PT-1.</b> MRN is assigned by the server at registration: <code>MRN-{branch_code:3}-{seq:06d}</code> (Doc 02 §9), unique per tenant, never reused, never editable. The registering branch is stored in <code>patient.branch_id</code>.</li>
+<li><b>PT-2.</b> A patient is identified by two identifiers wherever a human confirms identity: name + MRN, or name + date of birth (R-3). Phone alone is a search key, never proof of identity.</li>
+<li><b>PT-3.</b> Registration checks for duplicates before insert: exact phone match, or <code>pg_trgm</code> name similarity plus same date of birth. A possible duplicate returns <code>409 possible_duplicate</code> with the candidate list (identifiers only, per BS-4); the receptionist must explicitly confirm "register anyway" to proceed. The system never merges two patients automatically — a wrong merge is a patient-safety incident (P-1).</li>
+<li><b>PT-4.</b> Name, phone, sex and date of birth are editable while the patient has no finalised report. After the first finalised report, identity edits (name, sex, date of birth) require Owner or Manager and are written to <code>audit_log</code> with before/after values; already-issued PDFs are never regenerated to match — a wrong identity on an issued report is fixed by voiding and reissuing (§5.6).</li>
+<li><b>PT-5.</b> Delete is soft only: <code>deleted_at</code> is set. Soft-deleted patients disappear from search but their invoices, samples, results and reports remain readable by ID for audit. Hard delete does not exist in v1.</li>
+<li><b>PT-6.</b> <code>date_of_birth</code> may be NULL (patient does not know it). Age-dependent behaviour degrades explicitly: reference-range selection falls back per §8.2 and the report prints "Age: not recorded" instead of an age.</li>
+<li><b>PT-7.</b> Contacts and consents (WhatsApp number, report-delivery consent) live in <code>patient_contact</code> / <code>patient_consent</code> (both in Doc 02 v1.3). Delivery to a contact with no consent row is refused by the reports module (§5.6, RP-6).</li>
+</ul>
+<h4>Validation rules</h4>
+<ul>
+<li><b>PT-V1.</b> <code>name</code>: required, 2–120 characters after trim. <code>phone</code>: required, normalised to digits with country code stripped of spaces and dashes; must be 10–15 digits. <code>sex</code>: <code>M | F</code> only (Doc 02). <code>date_of_birth</code>: a valid date, not in the future, not more than 120 years ago.</li>
+<li><b>PT-V2.</b> A second patient with the same phone is allowed only through the PT-3 confirm path (families share phones).</li>
+</ul>
+<p><b>State machine.</b> None — a patient has no lifecycle states, only the <code>deleted_at</code> soft-delete marker.</p>
+<p><b>Events emitted.</b> <code>patient.registered</code>, <code>patient.updated</code>, <code>patient.soft_deleted</code>.</p>
+<p><b>Celery tasks.</b> None.</p>
+<p><b>Audit points.</b> Registration, every update (field-level before/after), duplicate-confirm override (with the candidate MRN shown), soft delete, and every cross-branch detail view under BS-4.</p>
+<h4>Edge cases</h4>
+<ul>
+<li><b>Same phone, different people (family).</b> PT-3 confirm path; both records keep the shared phone. Search by phone returns both.</li>
+<li><b>Patient registered at branch A presents at branch B.</b> BS-4 search finds the record; branch B can bill against it (the invoice carries branch B), but the patient row keeps <code>branch_id = A</code>. Patient detail history remains scoped per BS-3; managers get the same identifiers-only cross-branch search as BS-4 (OQ-26 resolved, §13).</li>
+<li><b>Newborn with no name yet.</b> Register under the mother's name plus "baby of" convention is a lab SOP matter, not a schema feature; the system requires a non-empty name (PT-V1). No special-case code in v1.</li>
+<li><b>Typo in MRN on a printed label.</b> MRN is server-generated (PT-1) and labels are printed from stored data (§7 workflow 2), so this cannot occur from manual typing.</li>
+</ul>
+
+<h3 id="s52">5.2 Catalog</h3>
+<p><b>Responsibility.</b> What the lab sells and how results are judged: tests, panels and their component tests, per-branch-effective prices, and reference ranges. The catalog is configuration, not clinical data — but it is snapshotted into billing and reports (P-8) so history never moves.</p>
+<p><b>Tables used.</b> <code>test</code>, <code>panel</code>, <code>panel_test</code>, <code>test_price</code> (Doc 02 v1.3), <code>reference_range</code>. Seeded per Doc 02 §16.</p>
+<h4>Business rules</h4>
+<ul>
+<li><b>CT-1.</b> A panel is a priced bundle of component tests (<code>panel_test</code>). Ordering a panel creates one <code>invoice_item</code> for the panel and, at sample creation, one <code>sample_test</code> row per component test. Panels never nest.</li>
+<li><b>CT-2.</b> Prices are effective-dated rows in <code>test_price</code>. The price charged is the row effective on the invoice date. Changing a price closes the old row and opens a new one; existing invoices are unaffected because <code>invoice_item.unit_price</code> is a snapshot (P-8).</li>
+<li><b>CT-3.</b> A test with no effective price cannot be added to an invoice: <code>422 test_not_priced</code>. The lab fixes its price list instead of billing 0.00 by accident.</li>
+<li><b>CT-4.</b> Reference ranges are effective-dated (<code>effective_from</code> / <code>effective_to</code>) and keyed by test, sex (<code>M | F | B</code>) and age band in days (<code>age_min_days</code> / <code>age_max_days</code>), per Doc 02 §10. Editing a range closes the current row and opens a new one; overlapping bands for the same test + sex are rejected (<code>422 overlapping_range</code>) so selection in §8.2 is deterministic.</li>
+<li><b>CT-5.</b> A test may be deactivated (not orderable) but never deleted once it appears on any <code>invoice_item</code> or <code>result</code>. Deactivation does not affect samples already in flight.</li>
+<li><b>CT-6.</b> Each test declares its result kind implicitly: a test is <i>numeric</i> if any effective <code>reference_range</code> row has <code>low</code> or <code>high</code> NOT NULL; otherwise it is <i>qualitative</i> (§8.4). There is no separate type flag to drift out of sync.</li>
+</ul>
+<h4>Validation rules</h4>
+<ul>
+<li><b>CT-V1.</b> Prices: Decimal string, <code>≥ 0</code>, at most 2 decimal places; a price of exactly 0 is allowed only with the test flagged free by Owner action and is still an explicit row (CT-3 still applies — the row must exist).</li>
+<li><b>CT-V2.</b> Ranges: <code>low &lt; high</code> when both are present; <code>unit</code> is required on every range row (Doc 02: <code>unit NOT NULL</code>); <code>age_min_days ≥ 0</code>; <code>age_max_days</code> NULL means "no upper bound". Adult bands start at 6570 days (18 years).</li>
+<li><b>CT-V3.</b> A panel must contain at least one component test and cannot contain a deactivated test at save time.</li>
+</ul>
+<p><b>State machine.</b> None. Tests and panels have an active/inactive flag only.</p>
+<p><b>Events emitted.</b> <code>catalog.test_created</code>, <code>catalog.price_changed</code>, <code>catalog.range_changed</code>, <code>catalog.panel_changed</code>.</p>
+<p><b>Celery tasks.</b> None.</p>
+<p><b>Audit points.</b> Every catalog write, with before/after for price and range rows (who changed a range, and when, is a clinical-governance question — R-10).</p>
+<h4>Edge cases</h4>
+<ul>
+<li><b>Price changes between billing and payment.</b> Irrelevant by design: the invoice holds snapshots (CT-2).</li>
+<li><b>Panel price vs sum of components.</b> The panel's own price is charged; component prices are not summed. If the panel price is missing, CT-3 blocks the panel too.</li>
+<li><b>A range row effective in the future.</b> Allowed (scheduled change). Selection in §8.2 uses the sample's collection date, so a future range never rewrites a past result's flag.</li>
+<li><b>Test in two panels.</b> Allowed. <code>sample_test</code> uniqueness is per sample + test, so ordering both panels for one sample produces one <code>sample_test</code> row per distinct test, linked to the first invoice item that introduced it; the second panel's overlapping component is billed (it was ordered) but tested once. This is stated behaviour, tested in §12 (T-14).</li>
+</ul>
+
+<h3 id="s53">5.3 Billing</h3>
+<p><b>Responsibility.</b> The money record of a visit: invoice creation with price snapshots, discounts, payments, refunds, cancellation, and the derived invoice status. Billing never touches clinical data; samples module reads the invoice to know what was ordered.</p>
+<p><b>Tables used.</b> <code>invoice</code>, <code>invoice_item</code>, <code>payment</code> (append-only); reads <code>patient</code>, <code>test</code>, <code>panel</code>, <code>test_price</code>, <code>referral_partner</code> (partner attribution only — share calculation is Doc 05).</p>
+<h4>Business rules</h4>
+<ul>
+<li><b>BL-1.</b> An invoice belongs to one patient and one branch. <code>referral_partner_id</code> is NULL for walk-ins. Items reference a <code>test_id</code> XOR a <code>panel_id</code>; <code>description</code> and <code>unit_price</code> are snapshots taken at creation (Doc 02, P-8).</li>
+<li><b>BL-2.</b> Totals are server-computed: <code>subtotal = Σ unit_price × qty</code>; <code>total = subtotal − discount_amount</code> (Doc 02). The client sends items and a discount, never totals. Any client-sent total is ignored.</li>
+<li><b>BL-3.</b> <code>discount_amount &gt; 0</code> requires <code>discount_reason</code> (Doc 02) and a Manager or Owner role. Receptionists cannot discount (<code>403 discount_not_permitted</code>).</li>
+<li><b>BL-4.</b> Invoice creation requires an <code>Idempotency-Key</code> header. The key is stored in <code>invoice.idempotency_key</code> (UNIQUE, partial — Doc 02). A replay with the same key and the same payload returns the original invoice with <code>200</code>; the same key with a different payload returns <code>409 idempotency_key_reused</code> (§10).</li>
+<li><b>BL-5.</b> Payments are append-only rows in <code>payment</code>. <code>kind</code> says whether money moved in (<code>payment</code>) or out (<code>refund</code>); <code>amount</code> is always positive; <code>kind</code> supplies the sign (Doc 02 §5.4, OQ-23 resolved). A payment row is never updated or deleted — a mistake is corrected by a compensating refund row.</li>
+<li><b>BL-6.</b> Invoice status is <i>derived</i>, never set directly: let <code>net = Σ payments − Σ refunds</code>. <code>net = 0</code> and no payment ever recorded → <code>unpaid</code>; <code>0 &lt; net &lt; total</code> → <code>partial</code>; <code>net = total</code> → <code>paid</code>; <code>net = 0</code> and at least one payment and one refund exist → <code>refunded</code>; <code>cancelled</code> is the only status set by an explicit action (BL-8). The stored <code>invoice.status</code> is updated in the same transaction as each payment insert, from this formula, so the two can never disagree.</li>
+<li><b>BL-7.</b> A payment is rejected when it would make <code>net &gt; total</code> (<code>422 overpayment</code>), and a refund is rejected when cumulative refunds would exceed cumulative payments (<code>422 refund_exceeds_payments</code>). Refunds also require <code>reference</code> or a reason note for non-cash methods, and Manager or Owner role (§4.3). A refund fires the revenue-share reversal hook for Doc 05 (an event, §7 workflow 8 — the ledger write itself is Doc 05's).</li>
+<li><b>BL-8.</b> Cancellation: an invoice may be cancelled only while <code>status = unpaid</code> and no sample has been collected against it. Cancelling is a status change with an audit row, not a delete. A paid or partial invoice is never cancelled — it is refunded (BL-7), which keeps the money trail complete.</li>
+<li><b>BL-9.</b> Sample collection is blocked while the invoice is <code>cancelled</code>. Collection against <code>unpaid</code> or <code>partial</code> invoices is allowed — labs routinely collect before full payment; the <i>report release</i> is what billing can hold (RP-7, §5.6). The hold is the <code>tenant_setting</code> key <code>billing_hold_enabled</code> (Doc 04 §10.2), default <code>false</code> (OQ-33 resolved, §13).</li>
+<li><b>BL-10.</b> Payment <code>method</code> is one of <code>cash | card | bank_transfer | easypaisa | jazzcash | other</code> (Doc 02). Raast transfers are recorded as <code>bank_transfer</code> with the Raast ID (sender mobile number) in <code>reference</code> (R-18). Easypaisa / JazzCash payments record the wallet transaction ID in <code>reference</code>; <code>reference</code> is required for every non-cash method (<code>422 reference_required</code>).</li>
+</ul>
+<h4>Validation rules</h4>
+<ul>
+<li><b>BL-V1.</b> Money fields are Decimal strings with at most 2 decimal places, <code>≥ "0.01"</code> for payments and refunds, <code>≥ "0.00"</code> for discounts. Floats in JSON are rejected by the serializer (<code>422 money_must_be_string</code>) — a JSON number for money is a bug, not input.</li>
+<li><b>BL-V2.</b> <code>qty</code> is an integer ≥ 1. Duplicate test or panel lines on one invoice are merged by summing <code>qty</code> only when they are the same item kind; a test and a panel containing that test may coexist (CT edge case, §5.2).</li>
+<li><b>BL-V3.</b> <code>received_by</code> is the authenticated staff user; it is never taken from the request body.</li>
+</ul>
+<h4>State machine — invoice</h4>
+<div class="diagram"><pre class="mermaid">stateDiagram-v2
+  [*] --&gt; unpaid: invoice created
+  unpaid --&gt; partial: part payment recorded
+  unpaid --&gt; paid: full payment recorded
+  partial --&gt; paid: balance recorded
+  unpaid --&gt; cancelled: cancelled before any payment
+  partial --&gt; refunded: refunds equal amount paid and total not reached
+  paid --&gt; refunded: refunds equal amount paid
+  paid --&gt; partial: partial refund recorded
+  partial --&gt; partial: partial refund recorded</pre>
+<p class="dcap">Invoice states (Doc 02 CHECK: unpaid, partial, paid, refunded, cancelled). All transitions except cancel are derived from payment rows by rule BL-6.</p></div>
+<p><b>Events emitted.</b> <code>invoice.created</code>, <code>invoice.cancelled</code>, <code>payment.recorded</code>, <code>payment.refunded</code>, <code>invoice.status_changed</code> (with from/to).</p>
+<p><b>Celery tasks.</b> None in this module. The refund event is consumed by Doc 05's share-reversal logic; the notification of a refund receipt, if the tenant enables it, is a Doc 06 workflow.</p>
+<p><b>Audit points.</b> Invoice create (including idempotency key), discount (with reason), every payment and refund row, cancellation, and every derived status change.</p>
+<h4>Edge cases</h4>
+<ul>
+<li><b>Double-tap "Pay" on a slow connection.</b> Same <code>Idempotency-Key</code> → the original payment is returned; no double charge (BL-4 pattern applied to payments, §6.4).</li>
+<li><b>Refund after the report was delivered.</b> Allowed. Money and clinical records are independent; the refund does not void the report. Doc 05 reverses the share.</li>
+<li><b>Partial refund then another partial refund.</b> Each is a new <code>payment</code> row with <code>kind = refund</code>; status recomputed by BL-6 after each.</li>
+<li><b>Invoice with a panel whose price changed after creation.</b> Snapshot wins (CT-2). The patient pays what was quoted.</li>
+<li><b>Zero-total invoice (full discount).</b> <code>total = "0.00"</code> with <code>discount_amount = subtotal</code> and a reason (BL-3). Status derivation: <code>net = 0 = total</code> and no payments — BL-6 is applied with the special case that a zero-total invoice is created directly in <code>paid</code> status, because there is nothing to collect. This exception is deliberate and tested (T-09, §12).</li>
+</ul>
+
+<h3 id="s54">5.4 Samples</h3>
+<p><b>Responsibility.</b> The physical specimen's digital twin: collection, accessioning, labelling, movement between branches, bench receipt, processing, rejection and recollection. If it happened to the tube, it is an event here.</p>
+<p><b>Tables used.</b> <code>sample</code>, <code>sample_test</code> (Doc 02 v1.3), <code>sample_event</code> (append-only), <code>sample_transfer</code> (Doc 02 v1.3); reads <code>invoice</code> / <code>invoice_item</code> (what was ordered), <code>patient</code> (label identity).</p>
+<h4>Business rules</h4>
+<ul>
+<li><b>SM-1.</b> One sample is created per collection event against one invoice. Creating the sample generates the accession ID server-side: <code>{tenant_prefix:3}{YYYYMMDD}{seq:06d}</code>, for example <code>CIT20261019000042</code> (Doc 02 §9). The client never supplies it.</li>
+<li><b>SM-2.</b> At creation, one <code>sample_test</code> row is inserted per distinct ordered test (panels expanded via <code>panel_test</code>, §5.2). <code>sample_test</code> is the worklist contract: a result is expected exactly when a row exists (Doc 02 §5.5).</li>
+<li><b>SM-3.</b> Collection records <code>collected_at</code> (server time, Asia/Karachi) and <code>collected_by</code> (authenticated user), sets <code>status = collected</code>, <code>branch_id</code> = collecting branch, and writes the first <code>sample_event</code> (<code>COLLECTED</code>) in the same transaction.</li>
+<li><b>SM-4.</b> The label is printed from stored data only: accession ID as Code128 barcode payload, patient name, MRN, date of birth if recorded, collection date-time, collector (R-4). Two identifiers are always on the label (R-3). There is no free-text label endpoint — a hand-typed label defeats the barcode.</li>
+<li><b>SM-5.</b> Every status change writes a <code>sample_event</code> row in the same transaction as the status update. <code>sample_event</code> is append-only; the pair (status, event) can never disagree. The timeline endpoint (§6.5) reads events only.</li>
+<li><b>SM-6.</b> Receipt at the bench (<code>collected → received</code>) is a deliberate scan or confirm action by Technician or Manager at the holding branch. Receipt checks are the rejection gate: identity matches the label, tube type correct, volume sufficient (R-1, R-2).</li>
+<li><b>SM-7.</b> Transfer: a sample may be transferred only while its status is <code>collected</code> or <code>received</code>. An <code>in_process</code> sample cannot be transferred — bench work has started on it, and receipt at the other branch would move it backwards to <code>received</code>. Transfer out creates a <code>sample_transfer</code> row (Doc 02 v1.3) with <code>status = open</code> and <code>dispatched_at</code> set — <code>dispatched_at</code> is the moment the sending branch hands the sample to the courier, and it is set when the transfer is created — plus a <code>TRANSFERRED_OUT</code> event; the sample's own status does not change while the transfer is open. Receipt at branch B sets the transfer's <code>status = received</code> and <code>received_at</code>, writes <code>TRANSFERRED_IN</code>, moves <code>sample.branch_id</code> to B, and sets the sample status to <code>received</code>. <code>sample_transfer.status</code> is one of <code>open | received | cancelled | lost</code>, enforced by the application (Doc 02 v1.3, A-9). A lost transfer does <b>not</b> change <code>sample.status</code>: marking a transfer lost closes the transfer only, and the sample is then resolved through reject-sample (SM-8) and recollect (SM-9) — a developer must not assume that lost auto-closes the sample. Cancellation and loss are Doc 04 §9.2 behaviour, exposed by the endpoints in §6.5. A sample with an open transfer cannot be transferred again, rejected, or resulted until the transfer is received or cancelled by the sender (§10). Custody is never ambiguous: exactly one branch holds the sample at any time (R-5).</li>
+<li><b>SM-8.</b> Rejection requires a reason code from the v1 list: <code>unlabelled</code>, <code>mislabelled</code>, <code>hemolyzed</code>, <code>insufficient_volume</code>, <code>wrong_tube</code>, <code>clotted</code>, <code>lipemic</code>, <code>damaged_transport</code>, <code>barcode_issue</code>, <code>other</code> (with a mandatory note). The code list follows R-1. The code is stored in <code>sample.rejection_reason_code</code> and the note in <code>sample.rejection_note</code> (Doc 02 v1.2, amendment A-2 accepted, §14), and is also carried in the <code>REJECTED</code> event payload and the audit row.</li>
+<li><b>SM-9.</b> Rejection is terminal for that sample but not for the order: a <i>recollect</i> action creates a new sample against the same invoice, copies the still-untested <code>sample_test</code> rows, and links the two samples in <code>audit_log</code> (old accession → new accession). The patient is not billed again for a lab-caused rejection; a patient-caused recollection (for example non-fasting for a fasting test) is a new invoice — that distinction is a Manager decision recorded in the audit note, not an automatic rule.</li>
+<li><b>SM-10.</b> A sample becomes <code>ready</code> automatically when every <code>sample_test</code> row has an approved result (§5.5). No user sets <code>ready</code> by hand. <code>ready</code> is the trigger for report generation (§5.6).</li>
+<li><b>SM-11.</b> Cancellation of a sample is allowed only from <code>collected</code> or <code>received</code>, by Manager or Owner, with a reason. Once any result exists (even <code>entered</code>), the sample cannot be cancelled — the clinical trail must be resolved through result rejection instead.</li>
+</ul>
+<h4>Validation rules</h4>
+<ul>
+<li><b>SM-V1.</b> The invoice must exist, belong to the caller's branch scope (or be tenant-visible to Owner), and not be <code>cancelled</code> (BL-9).</li>
+<li><b>SM-V2.</b> <code>collected_at</code> is server time. A client-supplied collection time (home sampling) is accepted only as a separate note field and never overwrites the server timestamp in v1 — backdating a collection time corrupts TAT (§11) and range ageing (§8.2). No backdating is allowed, and home collection is not built in v1 (OQ-34 resolved, §13).</li>
+<li><b>SM-V3.</b> Reject and cancel actions require a non-empty reason; reject requires a code from SM-8.</li>
+</ul>
+<h4>State machine — sample</h4>
+<div class="diagram"><pre class="mermaid">stateDiagram-v2
+  [*] --&gt; collected: sample collected and labelled
+  collected --&gt; received: received at bench
+  collected --&gt; rejected: rejected at collection point
+  received --&gt; in_process: analysis started
+  received --&gt; rejected: rejected on receipt checks
+  in_process --&gt; ready: all results approved
+  in_process --&gt; rejected: rejected during processing
+  collected --&gt; cancelled: order cancelled
+  received --&gt; cancelled: order cancelled</pre>
+<p class="dcap">Sample states (Doc 02 CHECK: collected, received, in_process, ready, rejected, cancelled). A transfer does not change the sample's status while it is open, and transfer is allowed only from collected or received — an in_process sample cannot transfer (SM-7). On receipt the sample becomes received at the destination branch.</p></div>
+<p><b>Events emitted.</b> <code>sample.collected</code>, <code>sample.received</code>, <code>sample.in_process</code>, <code>sample.transferred_out</code>, <code>sample.transferred_in</code>, <code>sample.rejected</code>, <code>sample.ready</code>, <code>sample.cancelled</code>, <code>sample.recollected</code>. Domain events mirror <code>sample_event</code> types one-to-one.</p>
+<p><b>Celery tasks.</b> <code>samples.notify_rejection</code> (notifications queue, Doc 01 §13) — tells the patient and the collecting branch that a recollection is needed, using <code>notification_template</code> in the tenant default language — the <code>tenant_setting</code> key <code>report_default_language</code> (Doc 04 §10.2). Doc 02 has no per-patient language column, so the tenant default is used until a per-patient language exists (OQ-30, Doc 07). No other tasks; state changes are synchronous.</p>
+<p><b>Audit points.</b> Collection, every event (the event row itself is the audit), transfer create and receive, rejection (actor, code, note), recollection link, cancellation.</p>
+<h4>Edge cases</h4>
+<ul>
+<li><b>Two samples for one invoice (split tubes).</b> Allowed: CBC and LFT drawn into two tubes is two sample rows, two accession IDs, each with its own <code>sample_test</code> subset. The create endpoint accepts an explicit list of invoice items per sample; without a list it takes all untested items.</li>
+<li><b>Sample scanned at the wrong branch.</b> Receipt by a branch that does not hold the sample returns <code>409 sample_not_here</code> with the holding branch named — a custody error is surfaced, not silently accepted (SM-7).</li>
+<li><b>Transfer never received (lost in transit).</b> The transfer stays open; the sample appears on the sender's "in transit over 24 h" exception list (§11). There is no auto-receive and no auto-loss state in v1 — a human resolves it, and the resolution is audited.</li>
+<li><b>Rejection after a result was entered.</b> Refused (<code>409 sample_has_results</code>). The entered result must be rejected through the results flow first; the sample record must not strand a live result (SM-11 logic).</li>
+<li><b>Barcode will not scan (damaged label).</b> Reprint from stored data (SM-4) — same accession ID, event <code>barcode_issue</code> noted in audit. A sample never gets a second accession ID for the same tube.</li>
+</ul>
+
+<h3 id="s55">5.5 Results</h3>
+<p><b>Responsibility.</b> The clinical record: entry of values against <code>sample_test</code> rows, flag computation, two-person verification, approval, rejection, and amendment. This module is where patient safety is won or lost, so its rules are the strictest in the document.</p>
+<p><b>Tables used.</b> <code>result</code>, <code>result_approval</code> (append-only), <code>critical_notification</code> (append-only, Doc 02 v1.2); reads <code>sample_test</code> (what is expected), <code>reference_range</code> (flag computation), <code>sample</code> and <code>patient</code> (age/sex at collection).</p>
+<h4>Business rules</h4>
+<ul>
+<li><b>RS-1.</b> A result can be created only for an existing <code>sample_test</code> row (sample + test). Entering a result for a test that was not ordered returns <code>422 test_not_ordered</code>. This is the guard against results appearing for work nobody billed or consented to.</li>
+<li><b>RS-2.</b> <code>result.value</code> is stored exactly as entered (<code>text</code>, Doc 02). The engine computes <code>flag</code> and stores the parsed form separately in the response, never by rewriting <code>value</code> (§8.1). <code>unit</code> defaults to the matched range's <code>unit</code> and is stored on the result.</li>
+<li><b>RS-3.</b> Entry requires the sample in <code>received</code> or <code>in_process</code>. The first entry moves <code>received</code> to <code>in_process</code> (with the <code>IN_PROCESS</code> event) — bench reality is that entry <i>is</i> the start of processing. One branch-level rule applies on top of this state rule: at a branch where <code>branch.is_collection_centre = true</code> and <code>branch.result_entry_enabled = false</code> (Doc 02 v1.3, A-8), result entry is refused with <code>403 result_entry_disabled_at_branch</code>, regardless of the sample state.</li>
+<li><b>RS-4.</b> A result in <code>entered</code> state may be corrected by its author only by superseding: the old row is marked <code>rejected</code> by a pathologist decision, or withdrawn by the author before any approval decision exists. Author withdrawal sets <code>result.status = withdrawn</code>, writes <b>no</b> <code>result_approval</code> row, and is recorded in <code>audit_log</code> only. There is no UPDATE of <code>value</code> on a saved result row (P-2).</li>
+<li><b>RS-5.</b> Approval is a separate act by a Pathologist, recorded as a <code>result_approval</code> row: <code>decision</code> (<code>approved | rejected</code>), <code>note</code>, <code>range_override</code> flag, pathologist, timestamp. Approval and rejection are the only ways out of <code>entered</code> besides RS-4 withdrawal. A rejected result returns the <code>sample_test</code> row to the pending worklist; the rejected result row is kept read-only.</li>
+<li><b>RS-6.</b> Self-approval: a Pathologist who entered a result may not approve it, <i>unless</i> the tenant has exactly one active pathologist account, in which case self-approval is permitted and the <code>result_approval</code> row records <code>range_override = false</code> plus the audit note <code>single_pathologist_self_approval</code>. Small labs are the market (R-7's two-person pattern assumes staff LabFlow's customers may not have). The exception is visible in audit, never silent.</li>
+<li><b>RS-7.</b> Range override: a Pathologist may approve a result whose computed flag they judge clinically misleading (for example a haemolysed sample known to skew potassium). That approval must set <code>range_override = true</code> and a non-empty <code>note</code> (<code>422 override_note_required</code> otherwise). The computed flag stays on the result; the override is shown on the internal view, and the report prints the flag with the pathologist's comment (§9).</li>
+<li><b>RS-8.</b> When every <code>sample_test</code> row of a sample has an approved result, the sample moves to <code>ready</code> (SM-10) and the reports module is triggered. Partial approval is a normal, stable state — the sample waits in <code>in_process</code> (§10).</li>
+<li><b>RS-9.</b> Amendment: an approved result is never changed. A correction creates a new <code>result</code> row for the same <code>sample_test</code> (status <code>entered</code>), and when the new row is approved, the old row's status becomes <code>amended</code> in the same transaction. If the sample already has a final report, the amendment triggers a new report version (§5.6, RP-4). The amendment requires a reason note on the new row's approval.</li>
+<li><b>RS-10.</b> Results with flag NULL (unparseable value, no matching range, qualitative) can be approved, but the approval screen marks them "no auto flag" and — for numeric tests with unparseable values — approval requires a note (P-9, §8.1).</li>
+</ul>
+<h4>Validation rules</h4>
+<ul>
+<li><b>RS-V1.</b> <code>value</code>: required, non-empty after trim, max 500 characters. Stored verbatim (only leading/trailing whitespace trimmed).</li>
+<li><b>RS-V2.</b> Batch entry (§6.6) is all-or-nothing per sample: if any row fails validation, no rows are saved and the error lists every failing test. A bench batch half-saved is a wrong-results incident waiting to happen.</li>
+<li><b>RS-V3.</b> <code>entered_by</code> is the authenticated user. A Technician entering results must have branch scope on the sample's holding branch (BS-3).</li>
+</ul>
+<h4>State machine — result</h4>
+<div class="diagram"><pre class="mermaid">stateDiagram-v2
+  [*] --&gt; entered: value saved by technician or pathologist
+  entered --&gt; approved: pathologist approves
+  entered --&gt; rejected: pathologist rejects
+  entered --&gt; withdrawn: author withdraws before any approval decision
+  approved --&gt; amended: superseded by an approved correction
+  rejected --&gt; [*]: kept read only, sample test returns to worklist
+  withdrawn --&gt; [*]: kept read only, no approval row, audit only</pre>
+<p class="dcap">Result states (Doc 02 v1.2 CHECK: entered, approved, rejected, amended, withdrawn). Withdrawal writes no <code>result_approval</code> row — audit only. A correction is always a new row; no state moves backwards.</p></div>
+<p><b>Events emitted.</b> <code>result.entered</code>, <code>result.approved</code>, <code>result.rejected</code>, <code>result.amended</code>, <code>result.withdrawn</code>, <code>result.critical_flagged</code> (fires when a result is flagged <code>critical</code>, §8.5), <code>sample.ready</code> (via samples module).</p>
+<p><b>Celery tasks.</b> <code>reports.generate_pdf</code> is enqueued when a sample becomes <code>ready</code> and when an amendment completes (§5.6). <code>results.notify_critical</code> (notifications queue) fires on approval of a critical-flagged result and prompts for the notification to be recorded in <code>critical_notification</code> (Doc 02 v1.2, §8.5); a Pathologist or a Branch Manager records it.</p>
+<p><b>Audit points.</b> Entry (author, value), every approval decision (pathologist, decision, note, override), withdrawal, amendment chain (old result ID → new result ID), and every approval of a flag-NULL result.</p>
+<h4>Edge cases</h4>
+<ul>
+<li><b>Two technicians enter the same test.</b> The second save finds an existing <code>entered</code> result for that <code>sample_test</code> and returns <code>409 result_already_entered</code> with the existing result ID and author. No silent overwrite (§10).</li>
+<li><b>Pathologist rejects a result the patient is waiting for.</b> Normal flow: the test returns to the worklist with the rejection note visible to technicians. The sample stays <code>in_process</code>; no patient-facing message is sent for an internal rejection.</li>
+<li><b>Result entered against the wrong sample.</b> Caught by RS-4/RS-5 (withdraw or reject before approval). If already approved, only the amendment path (RS-9) fixes it, and if a report was issued, RP-4's amended-report notice applies. There is no "move result to another sample" operation — that is exactly how wrong-patient results happen (P-1).</li>
+<li><b>Value with a comparator, for example "&lt;0.1".</b> Parsed per §8.1: the comparator is kept as a qualifier, the numeric part drives the flag.</li>
+<li><b>All results approved but one test was cancelled by the lab.</b> There is no per-test cancel in v1; the pathologist rejects the entered placeholder is not allowed either. Chosen behaviour: a <code>sample_test</code> row can only leave the pending set via an approved result or sample rejection. A test the lab cannot perform means the sample (or that tube) is rejected with reason <code>other</code> and a note, and billing issues a refund for the untested item (Manager action, BL-7). Resolved in OQ-35 (§13): v1 uses reject-sample plus refund; per-test cancel is post-v1.</li>
+</ul>
+
+<h3 id="s56">5.6 Reports</h3>
+<p><b>Responsibility.</b> The patient-facing artefact: turning approved results into a versioned PDF, delivering it, and controlling patient access to it. One report per sample in v1 (Doc 02 §11, known limitation).</p>
+<p><b>Tables used.</b> <code>report</code>, <code>report_version</code> (append-only), <code>report_delivery</code>, <code>report_access_token</code>; reads <code>sample</code>, <code>result</code>, <code>reference_range</code>, <code>patient</code>, <code>patient_contact</code> / <code>patient_consent</code> (Doc 02 v1.3), <code>notification_template</code>.</p>
+<h4>Business rules</h4>
+<ul>
+<li><b>RP-1.</b> A <code>report</code> row is created when a sample first becomes <code>ready</code>: <code>status = draft</code>, <code>current_version = 0</code>. PDF generation is a Celery task (<code>reports.generate_pdf</code>, reports queue — Doc 01 §13), never a synchronous request: G1 allows 60 s at p95 and the request must not wait for WeasyPrint.</li>
+<li><b>RP-2.</b> Successful generation inserts a <code>report_version</code> row (<code>version = current_version + 1</code>, <code>pdf_key = reports/{report_id}/{version}.pdf</code>), sets <code>report.current_version</code>, <code>status = final</code> (first version) and <code>finalised_at</code>. The PDF bytes are immutable once written; object storage versioning is not relied on — the key itself is versioned.</li>
+<li><b>RP-3.</b> The PDF content is frozen at generation time from approved results and the ranges selected for them (P-8). Later catalog or range edits never change an existing version.</li>
+<li><b>RP-4.</b> Amendment: when an approved result is amended (RS-9) on a sample whose report is <code>final</code>, a new version is generated; <code>report.status</code> becomes <code>amended</code> and the new PDF carries the amended notice (§9.4) listing each changed test with old and new values (R-12). The old version stays downloadable by staff; patient links always resolve to the <i>current</i> version (§5.6 RP-8), so a patient who reopens an old link sees the corrected report, with the notice explaining why it changed.</li>
+<li><b>RP-5.</b> Voiding (<code>status = void</code>) is Owner or Pathologist only, with a reason, and only makes sense before delivery or when the wrong patient was reported. Voiding revokes all access tokens immediately (RP-8) and blocks delivery. A voided report is never deleted; reissue means a new sample/report flow, not un-voiding.</li>
+<li><b>RP-6.</b> Delivery creates <code>report_delivery</code> rows per channel (<code>email | whatsapp</code>) with status <code>PENDING → SENT | FAILED | BOUNCED</code>, and <code>OPENED</code> when the patient link is first used. Sending is a Celery task (<code>reports.deliver</code>, notifications queue); failed deliveries retry via the Beat sweep every 15 minutes using <code>attempts</code> / <code>next_attempt_at</code> (Doc 02). WhatsApp delivery stores the <code>whatsapp_url</code> hand-off; the message body comes from <code>notification_template</code> in the tenant default language — the <code>tenant_setting</code> key <code>report_default_language</code> (Doc 04 §10.2). Doc 02 has no per-patient language column, so the tenant default is used until a per-patient language exists (OQ-30, Doc 07). No delivery without a consent row (PT-7).</li>
+<li><b>RP-7.</b> Billing hold (tenant setting, default off in v1): if enabled, delivery is blocked while the sample's invoice is not <code>paid</code>; the report still generates and staff can view it. The hold never blocks the pathologist or the PDF — only patient delivery. The setting is the <code>tenant_setting</code> key <code>billing_hold_enabled</code> (Doc 04 §10.2), default <code>false</code> (OQ-33 resolved, §13).</li>
+<li><b>RP-8.</b> Patient access: issuing a link creates a <code>report_access_token</code> row storing only <code>token_hash</code> (argon2 hash of 32 random bytes); the plain token exists once, inside the delivery message. For a new token, <code>expires_at</code> is counted from issue using the <code>tenant_setting</code> key <code>report_link_validity_days</code> (Doc 04 §10.2); when the tenant has no row for that key, the platform default of 7 days applies. <code>expires_at</code> is stored on each <code>report_access_token</code> row (Doc 02 §5.7), so changing the setting later never changes tokens already issued. Opening the link validates hash, expiry and <code>revoked_at</code>, sets <code>last_accessed_at</code>, marks delivery <code>OPENED</code>, and redirects (302) to a pre-signed storage URL for the current version's <code>pdf_key</code>, valid about 15 minutes (Doc 01 §14). The token is reusable inside its validity period (patients reopen reports; a one-time token would fail G6's two-click goal on the second open). Revocation is instant and per report.</li>
+<li><b>RP-9.</b> An expired or revoked token returns a plain "link expired" page (<code>410</code>) with the lab's phone number — never a login wall and never the PDF. Staff reissue from the report screen, which mints a fresh token row; old rows remain for audit.</li>
+</ul>
+<h4>Validation rules</h4>
+<ul>
+<li><b>RP-V1.</b> Generation requires at least one approved result and <code>report.status</code> in <code>draft | final | amended</code>. Generating against a <code>void</code> report returns <code>409 report_void</code>.</li>
+<li><b>RP-V2.</b> Delivery requires <code>report.status</code> in <code>final | amended</code> and <code>current_version ≥ 1</code>: no patient ever receives a draft (<code>409 report_not_final</code>).</li>
+<li><b>RP-V3.</b> The public access endpoint takes only the token. No patient ID, MRN or report ID is accepted as an alternative credential.</li>
+</ul>
+<h4>State machine — report</h4>
+<div class="diagram"><pre class="mermaid">stateDiagram-v2
+  [*] --&gt; draft: sample ready, report created
+  draft --&gt; final: first PDF version generated
+  final --&gt; amended: amended result approved, new version generated
+  amended --&gt; amended: further amendment, new version
+  final --&gt; void: voided by owner or pathologist
+  amended --&gt; void: voided by owner or pathologist
+  draft --&gt; void: voided before generation</pre>
+<p class="dcap">Report states (Doc 02: draft, final, amended, void). Versions only ever increase; a version number is never reused.</p></div>
+<p><b>Events emitted.</b> <code>report.created</code>, <code>report.version_generated</code>, <code>report.finalised</code>, <code>report.amended</code>, <code>report.voided</code>, <code>report.delivery_sent</code>, <code>report.delivery_failed</code>, <code>report.accessed</code>, <code>report.token_revoked</code>.</p>
+<p><b>Celery tasks.</b> <code>reports.generate_pdf</code> (reports queue: 5 retries, backoff 10 s–5 min, Doc 01 §13); <code>reports.deliver</code> (notifications queue: 5 retries, 30 s–30 min); <code>reports.retry_deliveries</code> Beat sweep every 15 minutes picking up <code>report_delivery</code> rows with <code>status = FAILED</code> and <code>next_attempt_at ≤ now</code> (Doc 02).</p>
+<p><b>Audit points.</b> Generation (trigger: automatic or named user for manual regenerate), every version, delivery attempts and outcomes, token issue/revoke, every patient access (token ID, time, IP — security detail in Doc 08), void with reason.</p>
+<h4>Edge cases</h4>
+<ul>
+<li><b>PDF generation keeps failing (bad template data).</b> After the queue's retries the report stays <code>draft</code> (or keeps its previous version) with a visible failure state on the report screen and an alert event; staff can retry manually. A failed generation never produces a partial <code>report_version</code> row (§10).</li>
+<li><b>Patient opens the link after an amendment.</b> They get the current (amended) version with the amended notice (RP-4). The token does not pin a version — pinning would let a patient keep acting on a wrong result (P-1).</li>
+<li><b>Two deliveries race (email + WhatsApp).</b> Independent <code>report_delivery</code> rows; <code>OPENED</code> is set by whichever link is used first; the second channel is not cancelled (patients lose messages).</li>
+<li><b>Report for a sample whose invoice was refunded.</b> The report stands (BL edge case). Delivery rules unchanged.</li>
+<li><b>Storage upload succeeds but the DB write fails.</b> The orphaned object is harmless: its key is deterministic and the retry overwrites the same key before inserting the version row (§10).</li>
+</ul>
+
+<h2 id="s6">6. API reference</h2>
+<h3>6.1 Conventions</h3>
+<ul>
+<li><b>Base path and tenancy.</b> All endpoints are under <code>/api/v1</code>. The tenant is resolved from the request host by django-tenants (Doc 01); no endpoint accepts a tenant identifier in the path or body. A request to the wrong tenant's host simply sees that tenant's data — schema isolation does the work (tested in §12).</li>
+<li><b>Authentication.</b> Staff endpoints require an authenticated <code>staff_user</code> (mechanism: Doc 08). Unauthenticated → <code>401</code>. The only unauthenticated endpoint is the patient report link (§6.8), which is authorised by the token itself.</li>
+<li><b>Role codes.</b> O, M, R, T, P as defined in §4.1. Branch scoping (BS-1 to BS-6) applies to every endpoint.</li>
+<li><b>Pagination.</b> Cursor pagination on every list: query params <code>cursor</code> (opaque, from the previous response) and <code>limit</code> (default 50, max 200). Response: <code>{ "results": [...], "next_cursor": "..." | null }</code>. Ordering is stable: <code>created_at DESC, id DESC</code> unless an endpoint says otherwise. Offset pagination is not offered — worklists change while staff page through them, and a cursor does not skip or repeat rows.</li>
+<li><b>Filtering.</b> Query parameters only, named after fields: <code>status</code>, <code>branch_id</code>, <code>patient_id</code>, <code>q</code> (search text where defined), <code>created_after</code> / <code>created_before</code> (ISO 8601). Unknown filter parameters are ignored; unknown <i>values</i> for enum filters return <code>422</code>.</li>
+<li><b>Errors.</b> All errors are <code>application/problem+json</code> (RFC 9457 shape):
+<pre>{
+  "type": "https://labflow.example/problems/invalid-state-transition",
+  "title": "Invalid state transition",
+  "status": 409,
+  "detail": "Sample is already received; it cannot be received again.",
+  "code": "invalid_state_transition",
+  "errors": { "status": ["already received"] }
+}</pre>
+<code>code</code> is the machine-stable field; clients branch on <code>code</code>, never on <code>detail</code>. Standard codes: <code>validation_error</code> (422), <code>not_found</code> (404), <code>forbidden</code> (403), <code>branch_scope_denied</code> (403), <code>invalid_state_transition</code> (409), <code>version_conflict</code> (409), <code>idempotency_key_reused</code> (409), plus the endpoint-specific codes named in the tables.</li>
+<li><b>Money.</b> Always strings with 2 decimal places: <code>"1250.00"</code>. Currency is PKR for every tenant in v1 (Doc 01) and is not repeated per field. JSON numbers for money are rejected (<code>422 money_must_be_string</code>, BL-V1).</li>
+<li><b>Times.</b> ISO 8601 with offset, Asia/Karachi: <code>"2026-10-20T11:46:59+05:00"</code>. Dates (date of birth, effective dates) are plain <code>YYYY-MM-DD</code>. The server stores UTC; the offset shown is always +05:00 in v1.</li>
+<li><b>Idempotency.</b> <code>POST /invoices</code> and <code>POST /invoices/{id}/payments</code> <i>require</i> an <code>Idempotency-Key</code> header (a client-generated UUID). All other action endpoints are naturally idempotent or state-guarded: repeating them returns the current state or <code>409 invalid_state_transition</code>, never a duplicate effect. Celery-triggering actions deduplicate per §10.</li>
+<li><b>Optimistic concurrency.</b> Detail responses carry <code>updated_at</code>. <code>PATCH</code> endpoints and action endpoints accept <code>If-Match: &lt;updated_at value&gt;</code>; if the row changed since, the response is <code>409 version_conflict</code> and nothing is written. This is how two staff editing one patient or one sample is resolved (§10) without locking anyone out of reads.</li>
+<li><b>Audit.</b> Every non-GET endpoint writes an <code>audit_log</code> row (P-3); the tables below name the audit action. Sensitive GETs (patient detail, report PDF download by staff) are audited too and say so.</li>
+</ul>
+<h3>6.2 Patients</h3>
+<div class="box"><table><thead><tr><th>Endpoint</th><th>Roles</th><th>Request → Response</th><th>Errors · Idempotency · Audit / Events</th></tr></thead><tbody>
+<tr><td><code>GET /api/v1/patients</code></td><td>O M R T P</td><td>Filters: <code>q</code> (name / phone trigram search), <code>branch_id</code>. → cursor page of patient summaries. Out-of-branch matches per BS-4 show identifiers only.</td><td>422 invalid filter. Read-only. Audit: none (search), except cross-branch hits logged.</td></tr>
+<tr><td><code>POST /api/v1/patients</code></td><td>O M R</td><td>Body: <code>name</code>, <code>phone</code>, <code>sex</code>, <code>date_of_birth</code> (nullable), <code>branch_id</code> (must be in caller scope). → <code>201</code> patient with server-assigned <code>mrn</code>.</td><td>422 validation (PT-V1); <code>409 possible_duplicate</code> with candidates (PT-3) unless body carries <code>confirm_duplicate: true</code>. Idempotency: duplicate check is the guard; no key required. Audit: <code>patient.registered</code>. Event: <code>patient.registered</code>.</td></tr>
+<tr><td><code>GET /api/v1/patients/{id}</code></td><td>O M R T P</td><td>→ patient detail + recent invoices/samples summary.</td><td>404 when out of branch scope (BS-3, P-7). Audit: detail view logged for cross-branch access.</td></tr>
+<tr><td><code>PATCH /api/v1/patients/{id}</code></td><td>O M R</td><td>Body: any of <code>name</code>, <code>phone</code>, <code>sex</code>, <code>date_of_birth</code>. Supports <code>If-Match</code>. → updated patient.</td><td>422 validation; <code>409 version_conflict</code>; identity fields after first final report require O or M (PT-4) else 403. Audit: field-level before/after. Event: <code>patient.updated</code>.</td></tr>
+<tr><td><code>DELETE /api/v1/patients/{id}</code></td><td>O M</td><td>Soft delete: sets <code>deleted_at</code>. → <code>204</code>.</td><td>409 if the patient has samples in flight (<code>collected | received | in_process</code>). Idempotent: second DELETE returns 204. Audit: <code>patient.soft_deleted</code>. Event: <code>patient.soft_deleted</code>.</td></tr>
+<tr><td><code>GET /api/v1/patients/{id}/history</code></td><td>O M R T P</td><td>→ chronological visits: invoices, samples (accession, status), reports (status, current version). Branch-scoped per BS-3.</td><td>404 out of scope. Read-only.</td></tr>
+</tbody></table></div>
+<h3>6.3 Catalog</h3>
+<div class="box"><table><thead><tr><th>Endpoint</th><th>Roles</th><th>Request → Response</th><th>Errors · Idempotency · Audit / Events</th></tr></thead><tbody>
+<tr><td><code>GET /api/v1/tests</code> · <code>GET /api/v1/panels</code></td><td>O M R T P</td><td>Filters: <code>q</code>, <code>active</code>. Panels include component test IDs. → cursor page.</td><td>Read-only reference data (BS-5).</td></tr>
+<tr><td><code>POST /api/v1/tests</code> · <code>PATCH /api/v1/tests/{id}</code></td><td>O</td><td>Body: <code>name</code>, <code>code</code>, <code>active</code>. → test.</td><td>422 validation; deactivation only once referenced (CT-5). Audit: all writes. Events: <code>catalog.test_created</code> / panel equivalents.</td></tr>
+<tr><td><code>POST /api/v1/panels</code> · <code>PATCH /api/v1/panels/{id}</code></td><td>O</td><td>Body: <code>name</code>, <code>test_ids</code> (component tests via <code>panel_test</code>). → panel with components.</td><td>422 <code>empty_panel</code>, <code>inactive_component</code> (CT-V3). Audit: all writes. Event: <code>catalog.panel_changed</code>.</td></tr>
+<tr><td><code>GET /api/v1/tests/{id}/prices</code> · <code>POST /api/v1/tests/{id}/prices</code></td><td>GET: O M R P · POST: O</td><td>POST body: <code>amount</code> (Decimal string), <code>effective_from</code> (date). Closes the current <code>test_price</code> row and opens the new one (CT-2). → price row. Panel prices use <code>/api/v1/panels/{id}/prices</code> with the same shape.</td><td>422 validation (CT-V1), <code>money_must_be_string</code>. Audit: before/after amount. Event: <code>catalog.price_changed</code>.</td></tr>
+<tr><td><code>GET /api/v1/tests/{id}/reference-ranges</code> · <code>POST /api/v1/tests/{id}/reference-ranges</code> · <code>PATCH /api/v1/reference-ranges/{id}</code></td><td>GET: O M T P · POST/PATCH: O P</td><td>Body: <code>sex</code> (<code>M | F | B</code>), <code>age_min_days</code>, <code>age_max_days</code> (nullable), <code>low</code>, <code>high</code> (numeric strings, nullable), <code>critical_low</code>, <code>critical_high</code> (numeric strings, nullable), <code>unit</code>, <code>effective_from</code>, <code>effective_to</code> (nullable). → range row.</td><td>422 <code>low_not_below_high</code>, <code>overlapping_range</code> (CT-4, CT-V2). Effective-dated: PATCH closes and reopens rather than rewriting history. Audit: full before/after. Event: <code>catalog.range_changed</code>.</td></tr>
+</tbody></table></div>
+<h3>6.4 Billing</h3>
+<div class="box"><table><thead><tr><th>Endpoint</th><th>Roles</th><th>Request → Response</th><th>Errors · Idempotency · Audit / Events</th></tr></thead><tbody>
+<tr><td><code>POST /api/v1/invoices</code></td><td>O M R</td><td>Header: <code>Idempotency-Key</code> (required). Body: <code>patient_id</code>, <code>branch_id</code>, <code>referral_partner_id</code> (nullable), <code>items</code> [{<code>test_id</code> XOR <code>panel_id</code>, <code>qty</code>}], <code>discount_amount</code>, <code>discount_reason</code>. → <code>201</code> invoice with snapshot items and server totals (BL-2).</td><td>422 <code>test_not_priced</code> (CT-3), <code>discount_reason_required</code>, validation; 403 <code>discount_not_permitted</code> (BL-3); <code>409 idempotency_key_reused</code>. Idempotency: key stored on the invoice; replay returns the original with 200 (BL-4). Audit: <code>invoice.created</code>. Event: <code>invoice.created</code>.</td></tr>
+<tr><td><code>GET /api/v1/invoices</code> · <code>GET /api/v1/invoices/{id}</code></td><td>O M R T P</td><td>Filters: <code>patient_id</code>, <code>status</code>, <code>branch_id</code>, dates. Detail includes items and all payment rows with a computed <code>net_paid</code>.</td><td>404 out of scope. Read-only.</td></tr>
+<tr><td><code>POST /api/v1/invoices/{id}/payments</code></td><td>O M R (refund: O M)</td><td>Header: <code>Idempotency-Key</code> (required). Body: <code>kind</code> (<code>payment | refund</code>), <code>method</code>, <code>amount</code> (positive Decimal string), <code>reference</code> (required for non-cash and for refunds, BL-10). → <code>201</code> payment row + updated invoice status (BL-6).</td><td>422 <code>overpayment</code>, <code>refund_exceeds_payments</code>, <code>reference_required</code>; 403 for refund by R; <code>409 idempotency_key_reused</code>. Idempotency: key stored on the payment row. Audit: <code>payment.recorded</code> / <code>payment.refunded</code>. Events: same names; refund also emits the Doc 05 reversal hook event.</td></tr>
+<tr><td><code>POST /api/v1/invoices/{id}/cancel</code></td><td>O M R</td><td>Body: <code>reason</code>. → invoice with <code>status = cancelled</code>.</td><td><code>409 invalid_state_transition</code> unless <code>unpaid</code> with no collected sample (BL-8). Idempotent by state guard: repeat returns 409, no double effect. Audit: <code>invoice.cancelled</code>. Event: <code>invoice.cancelled</code>.</td></tr>
+</tbody></table></div>
+<h3>6.5 Samples</h3>
+<div class="box"><table><thead><tr><th>Endpoint</th><th>Roles</th><th>Request → Response</th><th>Errors · Idempotency · Audit / Events</th></tr></thead><tbody>
+<tr><td><code>POST /api/v1/samples</code></td><td>O M R</td><td>Body: <code>invoice_id</code>, optional <code>invoice_item_ids</code> (subset for split tubes; default all untested items). → <code>201</code> sample with <code>accession_id</code>, <code>sample_test</code> rows, label payload.</td><td>422 <code>no_untested_items</code>; <code>409</code> invoice cancelled (BL-9). Idempotency: natural guard — items already on a live sample cannot be re-added; a retried create with the same items returns <code>409 items_already_collected</code> naming the existing accession. Audit: <code>sample.collected</code> + COLLECTED event row. Event: <code>sample.collected</code>.</td></tr>
+<tr><td><code>GET /api/v1/samples</code> · <code>GET /api/v1/samples/{id}</code></td><td>O M R T P</td><td>Filters: <code>status</code>, <code>branch_id</code>, <code>patient_id</code>, <code>accession_id</code> (exact, for barcode scan), dates. Detail includes <code>sample_test</code> rows with per-test result status.</td><td>404 out of scope. The accession filter is the scan path: exact match only, no partial search on accession.</td></tr>
+<tr><td><code>GET /api/v1/samples/{id}/label</code></td><td>O M R T</td><td>→ label payload: <code>accession_id</code>, patient name, <code>mrn</code>, date of birth (nullable), <code>collected_at</code>, collector name, barcode symbology <code>code128</code> over the accession ID (SM-4).</td><td>404 out of scope. Audit: label print and reprint are logged (reprints matter in mislabelling investigations, R-3).</td></tr>
+<tr><td><code>POST /api/v1/samples/{id}/receive</code></td><td>O M T</td><td>No body. → sample with <code>status = received</code>.</td><td><code>409 invalid_state_transition</code>; <code>409 sample_not_here</code> when the caller branch does not hold the sample (SM-7) — except the transfer-receive path below. Audit + RECEIVED event. Event: <code>sample.received</code>.</td></tr>
+<tr><td><code>POST /api/v1/samples/{id}/start-processing</code></td><td>O M T</td><td>No body. Moves <code>received → in_process</code> explicitly; result entry also does this implicitly (RS-3). → sample.</td><td>409 from any other state. Audit + IN_PROCESS event. Event: <code>sample.in_process</code>.</td></tr>
+<tr><td><code>POST /api/v1/samples/{id}/transfer</code></td><td>O M R T</td><td>Body: <code>to_branch_id</code>. Creates the <code>sample_transfer</code> row + TRANSFERRED_OUT event. → transfer row.</td><td><code>409 transfer_already_open</code>; <code>409 invalid_state_transition</code> from any state other than <code>collected | received</code> — an <code>in_process</code> sample cannot transfer (SM-7). Audit: transfer create. Event: <code>sample.transferred_out</code>.</td></tr>
+<tr><td><code>POST /api/v1/transfers/{id}/receive</code></td><td>O M R T</td><td>No body. Caller must be scoped to the destination branch. Sets TRANSFERRED_IN + RECEIVED events, moves <code>sample.branch_id</code>, <code>status = received</code> (SM-7). → sample.</td><td><code>409 invalid_state_transition</code> if already received or cancelled. Audit: transfer receive. Events: <code>sample.transferred_in</code>, <code>sample.received</code>.</td></tr>
+<tr><td><code>POST /api/v1/transfers/{id}/cancel</code></td><td>O M</td><td>Sending-branch scope only (Doc 04 §15.2). Cancels an open transfer; the sample stays at the sending branch (Doc 04 §9.2). → transfer with <code>status = cancelled</code>.</td><td><code>409 invalid_state_transition</code> if the transfer is already received or closed; 404 when the caller is not scoped to the sending branch. Audit + <code>TRANSFER_CANCELLED</code> event.</td></tr>
+<tr><td><code>POST /api/v1/transfers/{id}/mark-lost</code></td><td>O M</td><td>Sending-branch scope only (Doc 04 §15.2). Body: <code>note</code> (required). Declares an open transfer lost (Doc 04 §9.2). The transfer closes as <code>status = lost</code>; <code>sample.status</code> is <b>not</b> changed (SM-7) — the sample is resolved through reject (SM-8) and recollect (SM-9). → transfer row.</td><td><code>409 invalid_state_transition</code> if the transfer is already received or closed; 404 when the caller is not scoped to the sending branch. Audit + <code>TRANSFER_LOST</code> event.</td></tr>
+<tr><td><code>POST /api/v1/samples/{id}/reject</code></td><td>O M R T</td><td>Body: <code>reason_code</code> (SM-8 list), <code>note</code> (required when code is <code>other</code>). → sample <code>status = rejected</code>. Enqueues <code>samples.notify_rejection</code>.</td><td>409 from <code>ready | cancelled</code>; <code>409 sample_has_results</code> (§5.4 edge case); <code>409 transfer_already_open</code> when an open transfer exists (SM-7). Audit + REJECTED event with code. Event: <code>sample.rejected</code>.</td></tr>
+<tr><td><code>POST /api/v1/samples/{id}/recollect</code></td><td>O M R</td><td>Only on a <code>rejected</code> sample. Creates the replacement sample (SM-9). → <code>201</code> new sample with new accession ID.</td><td>409 from any other state. Audit: link old → new accession. Events: <code>sample.recollected</code>, <code>sample.collected</code>.</td></tr>
+<tr><td><code>POST /api/v1/samples/{id}/cancel</code></td><td>O M</td><td>Body: <code>reason</code>. → sample <code>status = cancelled</code>.</td><td>409 once any result exists (SM-11). Audit + CANCELLED event. Event: <code>sample.cancelled</code>.</td></tr>
+<tr><td><code>GET /api/v1/samples/{id}/events</code></td><td>O M R T P</td><td>→ full <code>sample_event</code> timeline: event type, actor, branch, timestamp, payload (rejection code, transfer branches). This is the chain-of-custody view (R-5).</td><td>404 out of scope. Read-only; events are append-only, no write endpoint exists.</td></tr>
+</tbody></table></div>
+<h3>6.6 Results</h3>
+<div class="box"><table><thead><tr><th>Endpoint</th><th>Roles</th><th>Request → Response</th><th>Errors · Idempotency · Audit / Events</th></tr></thead><tbody>
+<tr><td><code>GET /api/v1/worklist</code></td><td>O M T P</td><td>Pending work: <code>sample_test</code> rows with no approved result, for samples in caller scope. Filters: <code>branch_id</code>, <code>status</code> of sample, <code>test_id</code>. Ordered oldest collection first — the bench works FIFO so nothing ages silently (R-15). → rows with sample, patient identifiers, test, sample status.</td><td>Read-only. This is also the "pending verification" queue when filtered to tests having an <code>entered</code> result.</td></tr>
+<tr><td><code>POST /api/v1/samples/{id}/results</code></td><td>T P</td><td>Body: <code>results</code> [{<code>test_id</code>, <code>value</code>, <code>unit</code> (optional)}]. All-or-nothing per sample (RS-V2). → <code>201</code> created results, each with computed <code>flag</code>, matched range summary, and parse qualifier (§8).</td><td>422 <code>test_not_ordered</code> (RS-1), per-row validation errors; <code>409 result_already_entered</code> (§5.5); <code>409 transfer_already_open</code> when an open transfer exists (SM-7). Moves sample to <code>in_process</code> on first entry (RS-3). Audit: each result row's entry. Event: <code>result.entered</code> per row.</td></tr>
+<tr><td><code>GET /api/v1/results/{id}</code> · <code>GET /api/v1/samples/{id}/results</code></td><td>O M T P</td><td>→ result(s) with value as entered, flag, unit, status, approval history (<code>result_approval</code> rows), delta warning data (§8.6) for approvers.</td><td>404 out of scope. Read-only.</td></tr>
+<tr><td><code>POST /api/v1/results/{id}/approve</code></td><td>P</td><td>Body: <code>decision</code> (<code>approved | rejected</code>), <code>note</code> (required for rejection and for range override), <code>range_override</code> (bool). → result with new status; when this completes the sample, also <code>sample_status: ready</code> and the report trigger.</td><td>422 <code>override_note_required</code> (RS-7), <code>note_required_for_rejection</code>; <code>409 invalid_state_transition</code> when already decided — double approval is impossible (§10); 403 <code>self_approval_not_permitted</code> (RS-6 exception aside). Audit: full approval row. Events: <code>result.approved</code> / <code>result.rejected</code>; possibly <code>sample.ready</code> and report events.</td></tr>
+<tr><td><code>POST /api/v1/results/{id}/withdraw</code></td><td>T P (author only)</td><td>Withdraws an <code>entered</code> result before any approval decision (RS-4). → result <code>status = withdrawn</code>. Writes <b>no</b> <code>result_approval</code> row — audit only.</td><td>403 when the caller is not the author; 409 once an approval decision exists. Audit: withdrawal in <code>audit_log</code> only, no <code>result_approval</code> row. Event: <code>result.withdrawn</code>.</td></tr>
+<tr><td><code>POST /api/v1/results/{id}/amend</code></td><td>T P</td><td>Only on an <code>approved</code> result. Body: <code>value</code>, <code>unit</code> (optional), <code>reason</code> (required). Creates the new <code>entered</code> result for the same <code>sample_test</code> (RS-9); the old row becomes <code>amended</code> only when the new one is approved. → <code>201</code> new result.</td><td>409 from non-approved states; <code>409 amendment_already_pending</code> if an unapproved amendment exists for the same test. Audit: amendment chain. Event: <code>result.entered</code> (new row); <code>result.amended</code> fires at its approval.</td></tr>
+<tr><td><code>POST /api/v1/results/{id}/critical-notifications</code></td><td>M P</td><td>Only on a result flagged <code>critical</code>. Body: <code>notified_name</code>, <code>notified_at</code>, <code>read_back</code> (boolean). The caller is stored as <code>recorded_by</code>. → <code>201</code> <code>critical_notification</code> row (append-only, Doc 02 v1.2).</td><td>403 for any role other than Manager or Pathologist; 409 when the result is not flagged <code>critical</code>. Audit: notification recorded. Event: <code>result.critical_notified</code>.</td></tr>
+</tbody></table></div>
+<h3>6.7 Reports</h3>
+<div class="box"><table><thead><tr><th>Endpoint</th><th>Roles</th><th>Request → Response</th><th>Errors · Idempotency · Audit / Events</th></tr></thead><tbody>
+<tr><td><code>GET /api/v1/reports</code> · <code>GET /api/v1/reports/{id}</code></td><td>O M R T P</td><td>Filters: <code>status</code>, <code>branch_id</code> (via sample), <code>patient_id</code>. Detail: status, <code>current_version</code>, versions list, deliveries, token state (never the token or its hash).</td><td>404 out of scope. Read-only.</td></tr>
+<tr><td><code>POST /api/v1/reports/{id}/regenerate</code></td><td>O M P</td><td>Enqueues <code>reports.generate_pdf</code> for a new version from current approved results. → <code>202</code> with report state.</td><td><code>409 report_void</code>; <code>409 generation_already_running</code> when a task for this report is in flight (§10). Audit: named user as <code>generated_by</code> trigger. Event on completion: <code>report.version_generated</code>.</td></tr>
+<tr><td><code>POST /api/v1/reports/{id}/deliver</code></td><td>O M R</td><td>Body: <code>channel</code> (<code>email | whatsapp</code>), <code>contact_id</code> (a <code>patient_contact</code> row). Creates the <code>report_delivery</code> row, mints an access token (RP-8), enqueues <code>reports.deliver</code>. → <code>202</code> delivery row.</td><td><code>409 report_not_final</code> (RP-V2); 422 <code>no_consent</code> (PT-7); <code>409 billing_hold</code> when RP-7 hold is on. Idempotency: a second deliver call for the same channel + contact within 10 minutes returns the existing PENDING delivery instead of a duplicate message. Audit: delivery create. Event: <code>report.delivery_sent</code> on success (from the task).</td></tr>
+<tr><td><code>POST /api/v1/reports/{id}/access-token</code></td><td>O M R</td><td>Mints a fresh patient link without sending (for phone read-out or manual WhatsApp). → <code>201</code> with the plain link <b>once</b>; only the hash is stored (RP-8).</td><td><code>409 report_not_final</code>, <code>report_void</code>. Audit: token issue (token row ID, not the token). Event: none (the delivery/access events cover use).</td></tr>
+<tr><td><code>POST /api/v1/reports/{id}/revoke-token</code></td><td>O M</td><td>Body: <code>token_id</code> or <code>all: true</code>. Sets <code>revoked_at</code>. → <code>200</code>.</td><td>Idempotent: revoking twice returns 200. Audit: revocation. Event: <code>report.token_revoked</code>.</td></tr>
+<tr><td><code>GET /api/v1/reports/{id}/versions/{version}/pdf</code></td><td>O M R T P</td><td>Staff download of a specific version's PDF (pre-signed storage URL, short-lived). → <code>302</code> to storage.</td><td>404 unknown version. Audit: staff PDF access is logged (clinical document access is sensitive).</td></tr>
+<tr><td><code>POST /api/v1/reports/{id}/void</code></td><td>O P</td><td>Body: <code>reason</code> (required). Sets <code>status = void</code>, revokes all tokens (RP-5). → report.</td><td>409 if already void. Audit: void with reason. Event: <code>report.voided</code>.</td></tr>
+</tbody></table></div>
+<h3>6.8 Patient report access (public)</h3>
+<div class="box"><table><thead><tr><th>Endpoint</th><th>Auth</th><th>Behaviour</th><th>Errors · Audit</th></tr></thead><tbody>
+<tr><td><code>GET /api/v1/report-access/{token}</code></td><td>The token is the credential</td><td>Verifies the presented token against the stored <code>token_hash</code> (argon2); the plain token is never stored. On success: sets <code>last_accessed_at</code>, marks the delivery <code>OPENED</code>, and returns <code>302</code> to a pre-signed URL for the <i>current</i> version's PDF, valid about 15 minutes (RP-8, Doc 01 §14). This is the whole patient flow: tap link → PDF (G6, ≤ 2 clicks).</td><td>Unknown token → <code>404</code> (no distinction between unknown, expired and revoked beyond the response page); expired or revoked → <code>410</code> with the lab contact page (RP-9). Audit: every access attempt, success and failure. Event: <code>report.accessed</code> on success.</td></tr>
+</tbody></table></div>
+<p class="meta">QR codes on printed reports (§9.3) encode this same access URL, so the printed and the messaged link are one mechanism, not two.</p>
+
+<h2 id="s7">7. Key workflows</h2>
+<p>The eight workflows that cover a normal day and the painful days. Each maps to endpoints in §6 and rules in §5; Doc 01 §12 Flow A covers workflows 1–2, Flow B covers workflows 4, 6 and 7.</p>
+<h3>7.1 Register patient and bill</h3>
+<div class="diagram"><pre class="mermaid">sequenceDiagram
+  participant REC as Receptionist
+  participant API as LabFlow API
+  participant DB as PostgreSQL
+  REC-&gt;&gt;API: POST patients with name, phone, sex, date of birth
+  API-&gt;&gt;DB: duplicate check by phone and similar name
+  DB--&gt;&gt;API: no blocking duplicate
+  API-&gt;&gt;DB: insert patient with generated MRN
+  API--&gt;&gt;REC: 201 patient with MRN
+  REC-&gt;&gt;API: POST invoices with Idempotency-Key and item list
+  API-&gt;&gt;DB: read current test_price rows
+  API-&gt;&gt;DB: insert invoice and items with price snapshots
+  API--&gt;&gt;REC: 201 invoice with total as money string
+  REC-&gt;&gt;API: POST payment kind payment, method cash, with Idempotency-Key
+  API-&gt;&gt;DB: insert payment row, derive invoice status paid
+  API--&gt;&gt;REC: 201 payment and invoice status</pre>
+<p class="dcap">Workflow 1 — Registration, billing, payment (PT-1, PT-3, BL-2, BL-4, BL-6). If the duplicate check finds a candidate, the API returns 409 possible_duplicate and the flow stops until the receptionist confirms.</p></div>
+<h3>7.2 Collect sample and print Code128 label</h3>
+<div class="diagram"><pre class="mermaid">sequenceDiagram
+  participant REC as Receptionist
+  participant API as LabFlow API
+  participant DB as PostgreSQL
+  REC-&gt;&gt;API: POST samples with invoice id
+  API-&gt;&gt;DB: insert sample with generated accession id
+  API-&gt;&gt;DB: insert sample_test rows from invoice items, panels expanded
+  API-&gt;&gt;DB: insert sample_event COLLECTED
+  API--&gt;&gt;REC: 201 sample with accession id
+  REC-&gt;&gt;API: GET sample label
+  API--&gt;&gt;REC: label payload with name, MRN, accession id, collection time, collector
+  Note over REC: Label printed and applied to the tube at collection, in the presence of the patient</pre>
+<p class="dcap">Workflow 2 — Collection and labelling (SM-1 to SM-5, R-3, R-4). The barcode payload is the accession ID; nothing on the label is typed by hand.</p></div>
+<h3>7.3 Transfer sample between branches</h3>
+<div class="diagram"><pre class="mermaid">sequenceDiagram
+  participant SRC as Sending branch staff
+  participant API as LabFlow API
+  participant DB as PostgreSQL
+  participant DST as Receiving branch staff
+  SRC-&gt;&gt;API: POST sample transfer with destination branch id
+  API-&gt;&gt;DB: insert sample_transfer row, transfer open
+  API-&gt;&gt;DB: insert sample_event TRANSFERRED_OUT
+  API--&gt;&gt;SRC: 201 transfer
+  Note over SRC, DST: Physical transport happens outside the system and custody stays with the sender until receipt
+  DST-&gt;&gt;API: POST transfer receive
+  API-&gt;&gt;DB: close transfer, sample branch becomes destination
+  API-&gt;&gt;DB: insert sample_event TRANSFERRED_IN and RECEIVED
+  API--&gt;&gt;DST: 200 sample with status received</pre>
+<p class="dcap">Workflow 3 — Inter-branch transfer (SM-7, R-5). Status does not change while the transfer is open — a sample transferred from <code>received</code> stays <code>received</code> until the destination confirms receipt. Exactly one branch holds the sample at any time.</p></div>
+<h3>7.4 Result entry, verification and approval</h3>
+<div class="diagram"><pre class="mermaid">sequenceDiagram
+  participant TECH as Technician
+  participant API as LabFlow API
+  participant DB as PostgreSQL
+  participant PATH as Pathologist
+  participant CEL as Celery
+  TECH-&gt;&gt;API: GET worklist for holding branch
+  API--&gt;&gt;TECH: pending sample_test rows, oldest first
+  TECH-&gt;&gt;API: POST sample results with values for each test
+  API-&gt;&gt;DB: insert result rows status entered, flags computed
+  API--&gt;&gt;TECH: 201 results with flags and matched ranges
+  PATH-&gt;&gt;API: GET sample results pending approval
+  API--&gt;&gt;PATH: entered results with ranges, flags and delta warnings
+  PATH-&gt;&gt;API: POST result approve with decision approved
+  API-&gt;&gt;DB: insert result_approval row, result status approved
+  API-&gt;&gt;DB: when all tests approved, sample status ready
+  API-&gt;&gt;CEL: enqueue reports generate_pdf
+  API--&gt;&gt;PATH: 200 result approved, sample ready</pre>
+<p class="dcap">Workflow 4 — Two-person verification (RS-1 to RS-8, R-7). Entry and approval are different people and different endpoints; the approval row is the evidence.</p></div>
+<h3>7.5 Sample rejection and recollection</h3>
+<div class="diagram"><pre class="mermaid">sequenceDiagram
+  participant TECH as Technician
+  participant API as LabFlow API
+  participant DB as PostgreSQL
+  participant CEL as Celery
+  participant REC as Receptionist
+  TECH-&gt;&gt;API: POST sample reject with reason code hemolyzed and note
+  API-&gt;&gt;DB: sample status rejected
+  API-&gt;&gt;DB: insert sample_event REJECTED with reason code
+  API-&gt;&gt;CEL: enqueue samples notify_rejection
+  API--&gt;&gt;TECH: 200 sample rejected
+  CEL--&gt;&gt;REC: rejection notice for the collecting branch and patient
+  REC-&gt;&gt;API: POST sample recollect on the rejected sample
+  API-&gt;&gt;DB: insert new sample with new accession id, sample_test rows copied
+  API--&gt;&gt;REC: 201 new sample ready for collection</pre>
+<p class="dcap">Workflow 5 — Rejection and recollection (SM-8, SM-9, R-1, R-2). The rejected sample is kept and auditable; the recollection is a new sample against the same invoice, not a resurrection.</p></div>
+<h3>7.6 Amended result and new report version</h3>
+<div class="diagram"><pre class="mermaid">sequenceDiagram
+  participant PATH as Pathologist
+  participant API as LabFlow API
+  participant DB as PostgreSQL
+  participant CEL as Celery
+  PATH-&gt;&gt;API: POST result amend with corrected value and reason
+  API-&gt;&gt;DB: insert new result row status entered, linked to the approved original
+  API--&gt;&gt;PATH: 201 new result pending approval
+  PATH-&gt;&gt;API: POST result approve with decision approved and note
+  API-&gt;&gt;DB: insert result_approval row, new result approved
+  API-&gt;&gt;DB: original result status amended
+  API-&gt;&gt;CEL: enqueue reports generate_pdf for a new version
+  CEL-&gt;&gt;DB: insert report_version with next version number
+  CEL-&gt;&gt;DB: report status amended, current_version increased
+  API--&gt;&gt;PATH: 200 amendment complete</pre>
+<p class="dcap">Workflow 6 — Amendment (RS-9, RP-4, R-12). The patient link now serves the amended version, whose PDF shows the old and new values.</p></div>
+<h3>7.7 Report generation and patient link opening</h3>
+<div class="diagram"><pre class="mermaid">sequenceDiagram
+  participant CEL as Celery worker
+  participant API as LabFlow API
+  participant DB as PostgreSQL
+  participant STORE as Object storage
+  participant PAT as Patient
+  API-&gt;&gt;CEL: last result approved, generate_pdf enqueued
+  CEL-&gt;&gt;API: render report HTML and build PDF with WeasyPrint
+  CEL-&gt;&gt;STORE: upload PDF at the versioned pdf_key
+  CEL-&gt;&gt;DB: insert report_version, report final, finalised_at set
+  API-&gt;&gt;DB: insert report_delivery row and access token hash, expiry 7 days
+  API-&gt;&gt;CEL: enqueue reports deliver with the plain link, sent once
+  PAT-&gt;&gt;API: GET report-access with token from the message
+  API-&gt;&gt;DB: verify token hash, expiry and revoked status
+  API-&gt;&gt;STORE: create pre-signed URL for current version, valid 15 minutes
+  API--&gt;&gt;PAT: 302 redirect to the pre-signed URL</pre>
+<p class="dcap">Workflow 7 — Generation, delivery and patient access (RP-1, RP-2, RP-6, RP-8; G1, G2, G6). The token lives 7 days; the storage URL lives 15 minutes; the plain token is never stored.</p></div>
+<h3>7.8 Refund and its effect on billing</h3>
+<div class="diagram"><pre class="mermaid">sequenceDiagram
+  participant MGR as Branch Manager
+  participant API as LabFlow API
+  participant DB as PostgreSQL
+  participant CEL as Celery
+  MGR-&gt;&gt;API: POST invoice payment with kind refund, method cash, amount, Idempotency-Key
+  API-&gt;&gt;DB: sum payments and refunds, check refund does not exceed payments
+  API-&gt;&gt;DB: insert payment row kind refund, amount positive
+  API-&gt;&gt;DB: derive invoice status from net paid
+  API-&gt;&gt;CEL: emit revenue share reversal event for Doc 05
+  API--&gt;&gt;MGR: 201 refund row and new invoice status</pre>
+<p class="dcap">Workflow 8 — Refund (BL-5, BL-6, BL-7). The original payment row is untouched; the refund is a new row and the status is re-derived. The ledger reversal itself is Doc 05's job — this module only emits the event.</p></div>
+
+<h2 id="s8">8. Result engine rules</h2>
+<p>The result engine is the small pure function set that turns an entered <code>value</code> into a <code>flag</code>. It runs at entry time (§6.6) and its inputs are only: the value text, the patient, the sample, and the <code>reference_range</code> rows. It has no side effects. This section resolves Doc 02's OQ-25; the resolution is also recorded in §13.</p>
+<h3>8.1 Parsing <code>result.value</code> (OQ-25 resolution)</h3>
+<p><b>Decision: <code>result.value</code> stays <code>text</code>, stored exactly as entered.</b> Labs receive comparators ("&lt; 0.1"), semi-quantitative grades ("2+") and words ("Positive") from real benches; a numeric column would reject real results or force staff to lie to the form. Parsing happens at flag-computation time, by these rules, in this order:</p>
+<ol>
+<li><b>Trim</b> leading and trailing whitespace. The trimmed text is what is stored.</li>
+<li><b>Comparator:</b> if the text starts with <code>&lt;=</code>, <code>&gt;=</code>, <code>&lt;</code> or <code>&gt;</code>, that prefix is the <i>qualifier</i> and the rest is the <i>body</i>. The qualifier is not stored separately — it is part of <code>value</code> and is re-derived on every read, so display and flag logic can never disagree about it.</li>
+<li><b>Test kind:</b> find the matched range row (§8.2). If it has <code>low</code> or <code>high</code> NOT NULL, the result is treated as <i>numeric</i>. Otherwise it is <i>qualitative</i> (§8.4).</li>
+<li><b>Numeric parse:</b> for a numeric result, remove spaces and comma thousands separators from the body, then parse with <code>Decimal</code>. Scientific notation is not accepted. Success gives the numeric value <i>n</i>. Failure — empty body (a bare "&lt;"), letters, "trace", multiple decimal points — gives <b>no number</b>.</li>
+<li><b>Flag from a number:</b> <code>n &lt; low → low</code>; <code>n &gt; high → high</code>; otherwise <code>normal</code>. If the matched row defines <code>critical_low</code> / <code>critical_high</code> and <code>n</code> is beyond them, the flag is <code>critical</code> instead (§8.3, §8.5). Bounds are inclusive: a value exactly on <code>low</code> or <code>high</code> is <code>normal</code>. A missing bound is not checked (a range may define only <code>high</code>). The flag is computed from the numeric part; the qualifier is displayed beside the value ("&lt; 5.0") and the pathologist sees both at approval.</li>
+<li><b>No number:</b> if parsing fails for a numeric test, <code>flag = NULL</code> and the result is marked <code>needs_review</code> in API responses. It can still be approved, but only with a pathologist note (RS-10). <b>The engine never guesses a flag</b> (P-9): a guessed "normal" on an unparseable critical value is the exact failure this rule exists to prevent.</li>
+<li><b>No matched range:</b> if §8.2 selects no row, <code>flag = NULL</code>. The value, unit (as entered, may be NULL) and the absence of a flag are shown plainly; approval proceeds under RS-10.</li>
+</ol>
+<h3>8.2 Picking the reference range</h3>
+<p>Exactly the selection Doc 02 §10 specifies, made deterministic:</p>
+<ol>
+<li>Candidate rows: <code>reference_range.test_id</code> = the result's test, and the row is effective on the sample's collection date: <code>effective_from ≤ date(collected_at)</code> and (<code>effective_to</code> IS NULL or <code>effective_to ≥ date(collected_at)</code>). Collection date — not entry date, not today — so a range edited later never re-flags yesterday's sample.</li>
+<li>Sex: the row's <code>sex</code> equals the patient's <code>sex</code>, or the row's <code>sex = B</code> (both).</li>
+<li>Age: patient age in days at collection, from <code>patient.date_of_birth</code> and <code>sample.collected_at</code> (Doc 02 v1.2). The row matches when <code>age_min_days ≤ age_in_days</code> and (<code>age_max_days</code> IS NULL or <code>age_in_days ≤ age_max_days</code>). Adult bands start at 6570 days (18 years), so newborn and infant bands work. Age is shown to users in years, months or days, whichever fits the age — the stored and matched unit is always days.</li>
+<li>If <code>date_of_birth</code> is NULL, age is unknown: a row can be selected only if it is a catch-all band (<code>age_min_days = 0</code> and <code>age_max_days</code> IS NULL). If only age-banded rows exist, no row is selected and the flag is NULL (§8.1 step 7). The report prints "Age: not recorded" (PT-6).</li>
+<li>Tie-break: CT-4 forbids overlapping bands for the same test + sex, so at most one sex-specific row and one <code>B</code> row can match. The sex-specific row wins. The selection is a pure function of stored data, so the approval screen and the PDF always compute the same range (RP-3).</li>
+<li>Governance guard: the API rejects a range row whose <code>effective_from</code> is in the past (<code>422 effective_from_in_past</code>), except on the seed path. Retroactive ranges would silently re-flag history; ranges take effect today or later.</li>
+</ol>
+<h3>8.3 Flags in v1</h3>
+<div class="box"><table><thead><tr><th>Flag</th><th>Meaning</th><th>Set when</th></tr></thead><tbody>
+<tr><td><code>low</code></td><td>Below the reference interval</td><td>Parsed number &lt; matched <code>low</code></td></tr>
+<tr><td><code>normal</code></td><td>Inside the reference interval (bounds inclusive)</td><td>Parsed number within the matched bounds</td></tr>
+<tr><td><code>high</code></td><td>Above the reference interval</td><td>Parsed number &gt; matched <code>high</code></td></tr>
+<tr><td>NULL</td><td>No judgement made — not "normal"</td><td>Qualitative test, no matched range, unknown age with only banded rows, or unparseable value (§8.1)</td></tr>
+<tr><td><code>critical</code></td><td>Beyond a critical threshold; triggers the notification workflow (§8.5)</td><td>Parsed number beyond the matched row's <code>critical_low</code> / <code>critical_high</code> (Doc 02 v1.2)</td></tr>
+</tbody></table></div>
+<p>Doc 02 v1.2 defines <code>flag</code> as <code>low | normal | high | critical</code>, application-enforced. NULL is a first-class outcome, displayed as "—", never as "normal".</p>
+<h3>8.4 Qualitative results</h3>
+<ul>
+<li>A qualitative result always has <code>flag = NULL</code>. The engine does not map "Positive" to "high" or any other flag — words are not severities.</li>
+<li>If the test defines an expected value set (<b>Proposed</b> column <code>test.qualitative_values</code>, amendment A-4), the entered value is matched case-insensitively after trim ("positive", "POSITIVE" and " Positive " are the same value). A value outside the set is still saved (the bench may have a real, unusual finding) but is marked <code>needs_review</code> and needs a pathologist note at approval.</li>
+<li>If the test defines no set, the value is free text with no flag and no review mark. This is the v1 behaviour for every qualitative test until A-4 lands; the seeded Urine R/E components are the first candidates for defined sets (OQ-29, §13).</li>
+<li>Semi-quantitative values ("trace", "1+", "2+", a titre like "1:160") are qualitative text in v1 (R-11). They are never parsed as numbers, even when they start with a digit — §8.1 step 3 decides kind from the <i>range row</i>, not from the value's shape, so a "1+" on a qualitative test cannot be misread as the number 1.</li>
+</ul>
+<h3>8.5 Critical values</h3>
+<p>Research is unambiguous that critical values need immediate, recorded notification with read-back (R-8). Doc 02 v1.2 carries the schema for it — amendments A-1 and A-3 accepted (§14): <code>reference_range.critical_low</code> / <code>critical_high</code>, <code>result.flag</code> including <code>critical</code>, and the append-only <code>critical_notification</code> table. The behaviour is:</p>
+<ul>
+<li>At entry, a value beyond the matched row's critical bounds gets <code>flag = critical</code> (it replaces <code>low</code>/<code>high</code> for display; the direction is derivable from the value and bounds).</li>
+<li>At approval of a critical result, <code>results.notify_critical</code> fires immediately (notifications queue). The report is generated in parallel — notification never waits for the PDF, and the PDF never waits for the notification.</li>
+<li>A Pathologist or a Branch Manager records the notification — no other role may (§4.3, §6.6): full name of the person notified (<code>notified_name</code>), time (<code>notified_at</code>), result read back (<code>read_back</code>, yes/no), with the caller stored as <code>recorded_by</code>, into <code>critical_notification</code>. A critical result with no notification record after 30 minutes appears on the exceptions list (§11) until it is recorded. Read-back is required for phone notification; confirmed electronic receipt does not need it (R-8).</li>
+</ul>
+<p>A critical result is not complete at approval: it is complete when the notification is recorded. Until then it stays on the exceptions list (§11).</p>
+<h3>8.6 Delta check (display only in v1)</h3>
+<p>At approval time the API returns, beside each numeric result, the patient's most recent previous <i>approved</i> result for the same test (any earlier sample): its value, collection date, and the change (absolute and percentage) when both values parse as numbers. Rules: no previous result → nothing shown; either value unparseable or qualitative → no delta shown; the delta never blocks approval and never changes the flag in v1. Threshold-based holds and autoverification are post-v1 (R-9, §15): thresholds must be validated on a lab's own data before they may hold a result, and v1 has no such data yet.</p>
+<h3>8.7 Pathologist override</h3>
+<p>The computed flag is data, not a verdict. A pathologist may approve against it only via <code>range_override = true</code> with a note (RS-7). The stored flag is not rewritten — the override lives on the <code>result_approval</code> row, so a reviewer can always see what the engine said and what the pathologist decided. On the PDF, an overridden result prints its computed flag plus the pathologist's comment in the comments column (§9.1). Overrides are counted as a quality metric (§11): a test whose results are overridden often has a wrong range, and the catalog should be fixed, not the results.</p>
+
+<h2 id="s9">9. Report PDF specification</h2>
+<h3>9.1 Layout and sections</h3>
+<p>One PDF per report version, A4, generated by WeasyPrint from a fixed HTML template. Sections, in order:</p>
+<ol>
+<li><b>Header:</b> lab (tenant) name, branch name and address, lab phone. (CAP GEN.41096 lab identity, R-14.)</li>
+<li><b>Report meta line:</b> report ID, version ("Version 1" / "Version 2 — Amended report"), report status (<code>Final</code> / <code>Amended</code>), finalised date-time (Asia/Karachi).</li>
+<li><b>Patient block:</b> full name, MRN, age shown in years, months or days as fits the age (or "Age: not recorded", PT-6) and sex, date of birth when recorded. Two identifiers minimum (R-3, R-13).</li>
+<li><b>Order block:</b> referring partner / ordering clinician name when <code>invoice.referral_partner_id</code> is set (walk-in otherwise), invoice number.</li>
+<li><b>Sample block:</b> accession ID, collection date-time, receipt date-time (from <code>sample_event</code>), sample status notes — including any specimen-condition caveat recorded at receipt (R-14).</li>
+<li><b>Amended notice</b> (amended versions only — §9.4).</li>
+<li><b>Results table:</b> test name; result value exactly as entered, with unit; flag shown as <code>L</code> / <code>H</code> / <code>CRITICAL</code> beside abnormal values and blank for normal; the reference interval actually used, with its unit (§8.2); comments column carrying pathologist notes and override comments (§8.7). Panel components are grouped under the panel name.</li>
+<li><b>Signatory block:</b> "Verified and authorised by" — each approving pathologist's name once, with role and their approval date-time (from <code>result_approval</code>). A report with results approved by two pathologists names both (R-13: the person authorising release must be identifiable).</li>
+<li><b>Urdu patient summary</b> (§9.2).</li>
+<li><b>Footer on every page:</b> patient name + MRN, accession ID, "Page X of Y", report ID + version, and the verification QR (§9.3). Patient identification on every page is an ISO-checklist expectation (R-13), not decoration.</li>
+</ol>
+<h3>9.2 Bilingual layout and Urdu rules</h3>
+<ul>
+<li>English is the primary, clinical language of the report (AS-2: no verified rule requires Urdu reports; the Urdu block is a patient-usability feature).</li>
+<li>The Urdu block is a short patient summary only: lab name, patient name, accession ID, a fixed sentence that the report is ready, and the lab phone for questions. Strings come from the tenant's <code>notification_template</code>-style fixed texts (<code>ur</code>), never from free-typed clinical content.</li>
+<li>Typography: Noto Nastaliq Urdu (Doc 01), the block is a single <code>dir="rtl"</code> container, isolated so RTL cannot leak into the English layout. Accession IDs, MRN and phone numbers inside the Urdu block stay in Latin digits, wrapped so the bidi algorithm cannot reorder them into the Urdu text.</li>
+<li>No Urdu in the results table in v1: test names, values, units and ranges are English. Translating clinical terms without a verified glossary would risk patient harm, the opposite of P-1.</li>
+</ul>
+<h3>9.3 QR verification payload</h3>
+<p>The QR code encodes the report's patient access URL — the same <code>/api/v1/report-access/{token}</code> link that delivery sends (§6.8). One mechanism, not two. Scanning the printed report opens the current version's PDF. Consequences, chosen deliberately: the paper already contains the full results, so the QR grants no new exposure; and if the token is revoked (RP-5, RP-8), the printed QR stops working and returns the <code>410</code> page — a voided report's QR must not keep serving the PDF. The token printed is the token current at generation time; an amended version's PDF carries the then-current token.</p>
+<h3>9.4 Versioning and the amended-report notice</h3>
+<ul>
+<li>Every version is a separate immutable PDF at <code>reports/{report_id}/{version}.pdf</code> (RP-2). A reprint is the stored bytes, never a re-render (P-8) — a reprint of version 1 after version 2 exists still shows version 1, labelled as such.</li>
+<li>An amended version's notice box (before the results table) states: "Amended report — this version corrects version N." Then one line per changed test: test name, previous value with unit, corrected value with unit, amendment date, approving pathologist. Then a compact version history: every version with its status and finalised time, in order (R-12: original and corrected data identifiable, corrections referenced in sequence).</li>
+<li>The changed rows in the results table are marked with a dagger (†) pointing at the notice, so a reader who skips the box still sees which values moved.</li>
+</ul>
+<h3>9.5 WeasyPrint constraints</h3>
+<ul>
+<li>The template uses only what WeasyPrint renders deterministically: block layout and tables for structure, <code>@page</code> rules with margin boxes for the running footer, CSS counters for "Page X of Y". No JavaScript, no web fonts loaded at render time (fonts are installed with the app), no external images — the logo and QR are local assets, the QR generated server-side as a PNG.</li>
+<li>The results table header row repeats on every page (<code>thead</code>), and a result row never splits across pages (<code>break-inside: avoid</code>).</li>
+<li>Generation runs in the reports queue with the Doc 01 §13 retry policy and a task time limit sized to G1 (p95 ≤ 60 s). A render exception fails the task cleanly — no partial PDF object is kept (§10).</li>
+</ul>
+<h3>9.6 Page limits</h3>
+<p>Design target: a single-panel report fits 1 page; the full starter catalogue on one sample fits ≤ 3 pages. This is a layout budget verified by fixture tests (§12, T-38), not a runtime rule — a legitimately long report renders as many pages as it needs, with footer and repeated headers keeping every page identifiable.</p>
+
+<h2 id="s10">10. Concurrency and failure handling</h2>
+<p>Every failure below was chosen by asking "what does the second click, the retry, or the crash leave behind?" The answer must always be: a consistent state a human can see and fix.</p>
+<div class="box"><table><thead><tr><th>Scenario</th><th>Mechanism</th><th>Chosen behaviour</th></tr></thead><tbody>
+<tr><td>Duplicate invoice or payment submission (double click, client retry, network replay)</td><td><code>Idempotency-Key</code> stored in a UNIQUE partial index on <code>invoice.idempotency_key</code> / <code>payment.idempotency_key</code> (Doc 02)</td><td>Same key + same payload → the original row and response, <code>200</code>. The database index, not application goodwill, is the guarantee: even two simultaneous requests cannot both insert.</td></tr>
+<tr><td>Same idempotency key, different payload (client bug)</td><td>Payload hash compared on replay</td><td><code>409 idempotency_key_reused</code>. Never silently return an invoice for different items — that is how a patient gets billed for the wrong tests.</td></tr>
+<tr><td>Double approval (two pathologists open the same result; one approves, one rejects)</td><td>Approval runs in one transaction: <code>SELECT ... FOR UPDATE</code> on the <code>result</code> row, status checked inside the lock</td><td>First decision wins and is recorded. The second gets <code>409 invalid_state_transition</code> with the winning decision and pathologist named, so the loser phones a colleague instead of wondering. Exactly one live <code>result_approval</code> decision per result.</td></tr>
+<tr><td>Two staff editing one patient or one sample action race (receive vs reject)</td><td><code>If-Match</code> optimistic concurrency on PATCH (§6.1); state-machine actions check current status inside the write transaction</td><td>Stale writer gets <code>409 version_conflict</code> / <code>invalid_state_transition</code> and re-reads. Reads are never locked; only the losing write is refused.</td></tr>
+<tr><td>Two technicians enter a result for the same test</td><td>Existence check for a live (<code>entered</code>) result on that <code>sample_test</code> inside the entry transaction</td><td>Second save: <code>409 result_already_entered</code> with the existing result's author (§5.5). Enforced in the application transaction — Doc 02 defines no partial unique index for this, and §14 does not propose one; the transaction is the control, and T-28 (§12) tests it under concurrency.</td></tr>
+<tr><td>Result entry races a sample transfer</td><td>Both actions lock the <code>sample</code> row and check state + open transfer</td><td>Whoever commits first wins; the other gets <code>409</code> (<code>transfer_already_open</code> or <code>invalid_state_transition</code>). A sample in transit can never gain results at the branch it just left (SM-7).</td></tr>
+<tr><td>Celery task delivered twice (broker redelivery, worker restart)</td><td>Tasks are written idempotently and check before acting</td><td><code>generate_pdf</code>: deterministic <code>pdf_key</code> + existence check for the target version — a repeat run that finds the version row exits as success. <code>deliver</code>: claims the <code>report_delivery</code> row with a locked status check; a row already <code>SENT</code> is never re-sent. <code>notify_rejection</code>: keyed on the <code>REJECTED</code> event ID; a second run for the same event exits.</td></tr>
+<tr><td>PDF generation failure (WeasyPrint error, bad data)</td><td>Reports queue policy: 5 retries, backoff 10 s–5 min (Doc 01 §13)</td><td>No <code>report_version</code> row is written until the PDF object exists and its upload is confirmed; a failed attempt leaves the report at its previous state. After retries are exhausted the report screen shows a named failure state with the error, and a Manager/Owner/Pathologist can re-enqueue (§6.7). G1 is measured on successes (§11), failures are counted separately — a hidden retry loop must not launder the p95.</td></tr>
+<tr><td>Object storage failure during generation</td><td>Upload-then-insert ordering (RP-2)</td><td>Task fails before any DB write; retry uploads to the same deterministic key. Orphaned objects (upload succeeded, process died before insert) are overwritten by the retry at the same key — never served, because serving resolves through <code>report_version.pdf_key</code> rows only.</td></tr>
+<tr><td>Delivery provider failure (email/WhatsApp send fails)</td><td><code>report_delivery</code> row: <code>status = FAILED</code>, <code>attempts</code> incremented, <code>next_attempt_at</code> set, <code>last_error</code> kept (Doc 02)</td><td>Beat sweep retries every 15 minutes up to the queue policy. The patient link itself is unaffected — a patient with the link from another channel can still open the report. After final failure the delivery shows FAILED on the report screen; staff re-deliver manually. Nothing is silently dropped.</td></tr>
+<tr><td>Partial approvals (3 of 5 tests approved, pathologist goes home)</td><td>Derived state, not counters</td><td>Normal stable state: sample stays <code>in_process</code>, worklist shows the remaining <code>sample_test</code> rows as pending verification, TAT keeps running (§11). Any pathologist can pick it up — approvals belong to results, not to a session.</td></tr>
+<tr><td>Amendment while a PDF generation is in flight</td><td>Per-report generation guard (<code>409 generation_already_running</code> on manual regenerate; task-level check on enqueue)</td><td>The in-flight generation completes for the version it started; the amendment enqueues a follow-up generation for the next version. Versions are strictly sequential because each generation reads <code>current_version</code> under a row lock at insert time.</td></tr>
+<tr><td>Server clock and timezone errors</td><td>All timestamps from the database/server clock (UTC stored, +05:00 displayed); Celery Beat scheduled in Asia/Karachi (Doc 01 §13)</td><td>Clients never set clinical timestamps (SM-V2). A mis-set client clock can confuse a user; it cannot corrupt TAT, ageing or range selection.</td></tr>
+</tbody></table></div>
+
+<h2 id="s11">11. Observability and TAT</h2>
+<h3>11.1 What is recorded</h3>
+<p>Three layers, three jobs. <code>audit_log</code> answers "who did what" (P-3). <code>sample_event</code> answers "what happened to this specimen" (SM-5). Metrics answer "is the lab healthy today". No layer substitutes for another: metrics are never the audit trail, and the audit trail is never queried for dashboards.</p>
+<div class="box"><table><thead><tr><th>Signal</th><th>Source</th><th>Used for</th></tr></thead><tbody>
+<tr><td>API latency per endpoint, error counts by <code>code</code></td><td>Request middleware / structured logs</td><td>G3 (common reads p95 ≤ 300 ms); spotting a broken client release by <code>version_conflict</code> spikes</td></tr>
+<tr><td><code>generate_pdf</code> duration and failure count</td><td>Task start/finish events</td><td>G1 (PDF p95 ≤ 60 s after approval), measured from last-approval time to <code>report_version</code> insert, successes only (§10)</td></tr>
+<tr><td>Delivery attempt latency and outcome by channel</td><td><code>report_delivery</code> rows</td><td>G2 (delivery attempt p95 ≤ 2 min from enqueue); FAILED/BOUNCED rates per channel expose a bad provider early</td></tr>
+<tr><td>Queue depths: samples by status; pending-verification count and age of oldest unapproved result</td><td>Derived from <code>sample</code>, <code>sample_test</code>, <code>result</code></td><td>The bench and the pathologist see work ageing before patients phone to ask (R-15)</td></tr>
+<tr><td>Rejection count and rate by reason code and branch</td><td><code>sample_event</code> REJECTED payloads (SM-8)</td><td>Quality KPI (R-1, R-2): rate = rejected ÷ collected per branch per month; a spike in <code>hemolyzed</code> or <code>wrong_tube</code> at one collection point is a training problem, and now it is visible</td></tr>
+<tr><td>Range-override count per test</td><td><code>result_approval.range_override</code></td><td>Catalog governance (§8.7): frequent overrides mean a wrong range, not careless pathologists</td></tr>
+<tr><td>Critical notifications outstanding</td><td><code>critical_notification</code></td><td>Patient-safety exception list: critical result approved, no notification recorded after 30 minutes (§8.5)</td></tr>
+<tr><td>Transfers open over 24 h</td><td><code>sample_transfer</code></td><td>Lost-in-transit exception list (§5.4)</td></tr>
+<tr><td>Token issues, accesses, revocations</td><td><code>report_access_token</code>, audit</td><td>Delivery funnel (issued → opened) and abuse detection (Doc 08 owns thresholds)</td></tr>
+<tr><td>Idempotency replays and <code>409</code> counts</td><td>Audit + error logs</td><td>A rising replay rate means a client is retrying blindly; a rising <code>result_already_entered</code> rate means a worklist UX problem</td></tr>
+</tbody></table></div>
+<h3>11.2 TAT calculation</h3>
+<ul>
+<li><b>Definition (v1, stated wherever TAT is shown):</b> sample TAT = <code>report.finalised_at − sample.collected_at</code> for samples that reached a final report. Research shows labs and physicians define TAT differently (R-15), so LabFlow prints its definition next to every TAT figure instead of pretending there is one true number.</li>
+<li><b>Stage durations</b> (from <code>sample_event</code> timestamps): collection → receipt (transport and bench wait), receipt → in-process, in-process → ready (analysis plus verification wait), ready → finalised (PDF wait; the G1 window). The stage split exists because the fix for a slow stage depends on which stage is slow — pre-analytical delay is the largest contributor in the literature (R-15), and LabFlow's own data should confirm or refute that per tenant.</li>
+<li><b>Aggregates:</b> median and p90 per branch per week, and per sample overall. Per-<i>test</i> TAT targets and breach alerts need a target to breach against — that is Proposed amendment A-5 (<code>test.tat_target_minutes</code>, matching the MSDS expectation of a documented minimum reporting time per test, R-17). Until A-5 lands, LabFlow shows durations and ageing, and claims no breaches.</li>
+<li><b>Exclusions, stated on the report:</b> rejected and cancelled samples are excluded from TAT and counted separately. A recollected sample's TAT runs from the <i>replacement</i> sample's collection; the patient's full journey (first collection → final report, including the rejection delay) is reported as a second figure, so recollection cannot be used to launder a slow lab.</li>
+<li><b>Samples still in flight</b> are not in TAT at all — they appear as ageing work-in-progress, oldest first, which is the operationally honest view.</li>
+</ul>
+
+<h2 id="s12">12. Test plan</h2>
+<p>51 named scenarios. Every edge case in §5, every mechanism in §10 and both OQ resolutions in §13 map to at least one scenario. Types: <b>U</b> unit, <b>I</b> integration (API + database), <b>X</b> tenant/branch isolation, <b>E</b> end-to-end.</p>
+<div class="box"><table><thead><tr><th>ID</th><th>Scenario</th><th>Type</th><th>What it proves</th></tr></thead><tbody>
+<tr><td>T-01</td><td>Flag boundaries: below low → <code>low</code>; exactly on low and on high → <code>normal</code>; above high → <code>high</code></td><td>U</td><td>§8.1 step 5, inclusive bounds</td></tr>
+<tr><td>T-02</td><td>Comparator values: "&lt;0.1" parses to 0.1 with qualifier; a bare "&lt;" → flag NULL + needs_review</td><td>U</td><td>§8.1 steps 2, 4, 6</td></tr>
+<tr><td>T-03</td><td>Non-numeric text on a numeric test ("trace" for a chemistry test) → flag NULL, never guessed</td><td>U</td><td>P-9, §8.1 step 6</td></tr>
+<tr><td>T-04</td><td>Number cleanup: "1,200" and "1 200" parse to Decimal 1200; "1.2.3" does not parse</td><td>U</td><td>§8.1 step 4</td></tr>
+<tr><td>T-05</td><td>Semi-quantitative "1+" on a qualitative test is not parsed as the number 1</td><td>U</td><td>§8.4 — kind comes from the range row, not the value shape</td></tr>
+<tr><td>T-06</td><td>Qualitative matching is case-insensitive after trim; a value outside the expected set (Proposed A-4) is saved but marked needs_review</td><td>U</td><td>§8.4</td></tr>
+<tr><td>T-07</td><td>Range selection: sex-specific row beats the <code>B</code> row for the same band</td><td>U</td><td>§8.2 step 5</td></tr>
+<tr><td>T-08</td><td>Age is taken at collection: patient has a birthday between collection and entry; the collection-age band is used</td><td>U</td><td>§8.2 step 3 (Doc 02 §10)</td></tr>
+<tr><td>T-09</td><td>DOB unknown: catch-all band (<code>age_min_days = 0</code>, <code>age_max_days</code> NULL) is selected; banded-only ranges → no range, flag NULL, "Age: not recorded"</td><td>U</td><td>§8.2 step 4, PT-6</td></tr>
+<tr><td>T-10</td><td>A range row effective after the collection date is never selected for that sample; a past-dated range write via API → 422</td><td>U</td><td>§8.2 steps 1, 6</td></tr>
+<tr><td>T-11</td><td>Invoice math: items × qty − discount, all Decimal, totals as strings; a 0.10 + 0.20 case that breaks float arithmetic</td><td>U</td><td>BL-2, P-5</td></tr>
+<tr><td>T-12</td><td>Money input as a JSON number, or with 3 decimal places → 422 <code>money_must_be_string</code> / validation</td><td>U</td><td>BL-V1</td></tr>
+<tr><td>T-13</td><td>Status derivation across a scripted sequence: unpaid → partial → paid → partial refund → refunded; zero-total invoice starts <code>paid</code></td><td>U</td><td>BL-6 and its stated exception (§5.3)</td></tr>
+<tr><td>T-14</td><td>MRN matches <code>MRN-{branch:3}-{seq:06d}</code>; accession matches <code>{prefix:3}{YYYYMMDD}{seq:06d}</code> (Doc 02 §9)</td><td>U</td><td>PT-1, SM-1</td></tr>
+<tr><td>T-15</td><td>Two panels sharing a component test on one invoice → one <code>sample_test</code> row for the shared test, both panel items billed</td><td>I</td><td>§5.2 edge case, SM-2</td></tr>
+<tr><td>T-16</td><td>Invoice with an unpriced test → 422 <code>test_not_priced</code>; after pricing, the same request succeeds</td><td>I</td><td>CT-3</td></tr>
+<tr><td>T-17</td><td>Discount without reason → 422; discount attempted by Receptionist → 403; by Manager with reason → succeeds</td><td>I</td><td>BL-3</td></tr>
+<tr><td>T-18</td><td>Overpayment → 422 <code>overpayment</code>; refund above total payments → 422 <code>refund_exceeds_payments</code></td><td>I</td><td>BL-7</td></tr>
+<tr><td>T-19</td><td>Non-cash payment without <code>reference</code> → 422; Raast recorded as <code>bank_transfer</code> with the Raast ID in <code>reference</code></td><td>I</td><td>BL-10, R-18</td></tr>
+<tr><td>T-20</td><td>Invoice create replayed with same key + payload → same invoice, 200, one row; same key + changed items → 409 <code>idempotency_key_reused</code></td><td>I</td><td>BL-4, §10</td></tr>
+<tr><td>T-21</td><td>Payment submitted twice concurrently with one key → exactly one <code>payment</code> row, invoice status correct</td><td>I</td><td>§10 — database index is the guarantee</td></tr>
+<tr><td>T-22</td><td>Sample create expands panels into <code>sample_test</code> rows; a repeat create for the same items → 409 naming the existing accession</td><td>I</td><td>SM-1, SM-2, §6.5</td></tr>
+<tr><td>T-23</td><td>State guards: receive an already <code>ready</code> sample → 409; reject a sample that has results → 409 <code>sample_has_results</code>; cancel a sample with an entered result → 409</td><td>I</td><td>SM-11, §5.4</td></tr>
+<tr><td>T-24</td><td>Transfer: second transfer while one is open → 409; result entry while in transit → 409; receipt at the wrong branch → 409 <code>sample_not_here</code>; proper receipt moves branch + status and writes both events</td><td>I</td><td>SM-7, §10</td></tr>
+<tr><td>T-25</td><td>Reject with code <code>hemolyzed</code> → status rejected, event carries the code, notification task enqueued once; recollect → new accession, untested <code>sample_test</code> rows copied, old sample untouched</td><td>I</td><td>SM-8, SM-9</td></tr>
+<tr><td>T-26</td><td>Result for a test not on the sample → 422 <code>test_not_ordered</code></td><td>I</td><td>RS-1</td></tr>
+<tr><td>T-27</td><td>Batch entry with one invalid row → no rows saved at all, error lists the failing test</td><td>I</td><td>RS-V2</td></tr>
+<tr><td>T-28</td><td>Two technicians submit the same test concurrently → one 201, one 409 <code>result_already_entered</code>, one result row</td><td>I</td><td>§5.5, §10</td></tr>
+<tr><td>T-29</td><td>Approval by a Technician → 403; approval of own entered result by a Pathologist → 403; in a single-pathologist tenant → allowed, approval row + audit carry the self-approval marker</td><td>I</td><td>RS-5, RS-6</td></tr>
+<tr><td>T-30</td><td>Range override without note → 422; with note → approved, stored flag unchanged, override visible on the result</td><td>I</td><td>RS-7, §8.7</td></tr>
+<tr><td>T-31</td><td>Two pathologists decide the same result concurrently → exactly one decision recorded; the loser gets 409 naming the winner</td><td>I</td><td>§10 double approval</td></tr>
+<tr><td>T-32</td><td>Partial approval leaves the sample <code>in_process</code> and the report uncreated; approving the last pending test → sample <code>ready</code>, report created, exactly one <code>generate_pdf</code> enqueued even if the approval is retried</td><td>I</td><td>RS-8, SM-10, §10</td></tr>
+<tr><td>T-33</td><td>Amendment: amend an approved result → new row <code>entered</code>, original still <code>approved</code>; approve the amendment → original becomes <code>amended</code>, new report version generated with the change listed</td><td>I</td><td>RS-9, RP-4</td></tr>
+<tr><td>T-34</td><td>PDF failure (forced render error) → no <code>report_version</code> row, report stays <code>draft</code>, failure visible; regenerate while one is running → 409; manual retry after fixing data → version 1 generated</td><td>I</td><td>RP-1, RP-2, §10</td></tr>
+<tr><td>T-35</td><td>Delivery: no consent row → 422 <code>no_consent</code>; billing hold on + unpaid invoice → 409 <code>billing_hold</code>; a FAILED delivery is retried by the sweep only after <code>next_attempt_at</code></td><td>I</td><td>PT-7, RP-6, RP-7</td></tr>
+<tr><td>T-36</td><td>Access token: expired → 410; revoked → 410; unknown → 404; valid token after an amendment serves the <i>current</i> version; the database contains no plain token anywhere</td><td>I</td><td>RP-8, RP-9, §6.8</td></tr>
+<tr><td>T-37</td><td>Patient PATCH with a stale <code>If-Match</code> → 409 <code>version_conflict</code> and no write; with the current value → succeeds</td><td>I</td><td>§6.1, §10</td></tr>
+<tr><td>T-38</td><td>PDF fixtures: full starter-catalogue report renders ≤ 3 pages with header, two identifiers, ranges used, signatory, Urdu block and "Page X of Y" footer; amended fixture shows the notice box and dagger marks</td><td>I</td><td>§9.1, §9.4, §9.6</td></tr>
+<tr><td>T-39</td><td>Tenant isolation: tenant A's access token presented on tenant B's host → 404; tenant A's staff token never returns tenant B rows on any list endpoint</td><td>X</td><td>§6.1 — schema isolation (Doc 01)</td></tr>
+<tr><td>T-40</td><td>Numbering isolation: two tenants generate MRNs and accession IDs independently; identical accession strings in two tenants never collide in queries</td><td>X</td><td>Doc 02 §9 (per-tenant sequences)</td></tr>
+<tr><td>T-41</td><td>Branch scope: branch A receptionist gets 404 on a branch B patient detail, identifiers-only on BS-4 search, and an empty worklist for branch B; pathologist (tenant-wide) sees both</td><td>X</td><td>BS-1 to BS-4, P-7</td></tr>
+<tr><td>T-42</td><td>Happy path: register → invoice → cash payment → collect → label → receive → enter → approve → PDF → deliver → patient opens the link and reaches the PDF in 2 clicks</td><td>E</td><td>Workflows 1, 2, 4, 7; G6</td></tr>
+<tr><td>T-43</td><td>Rejection journey: collect → reject (<code>insufficient_volume</code>) → notification sent → recollect → process → report delivered</td><td>E</td><td>Workflow 5</td></tr>
+<tr><td>T-44</td><td>Amendment journey: final report delivered → result amended → version 2 PDF carries the amended notice → the patient's original link now serves version 2</td><td>E</td><td>Workflow 6, RP-4, R-12</td></tr>
+<tr><td>T-45</td><td>Refund journey: full payment → partial refund → status <code>partial</code> → remaining refund → status <code>refunded</code>; original payment row byte-identical throughout; reversal event emitted for Doc 05</td><td>E</td><td>Workflow 8, BL-5, BL-6</td></tr>
+<tr><td>T-46</td><td>Transfer journey: collect at branch A → transfer → receive at branch B → enter and approve at B → report shows collection at A, and the events endpoint shows the full custody chain</td><td>E</td><td>Workflow 3, R-5</td></tr>
+<tr><td>T-47</td><td>Critical path: value beyond <code>critical_low</code> / <code>critical_high</code> → <code>critical</code> flag; notification task fires at approval; a Pathologist or Manager records the notification in <code>critical_notification</code> with read-back; a Technician attempt → 403; a missing notification record appears on the exceptions list after 30 minutes</td><td>E</td><td>§8.5, §4.3, §6.6</td></tr>
+<tr><td>T-48</td><td>Urdu rendering: report PDF's Urdu block is RTL Nastaliq, the accession ID and phone digits appear unreversed, and the English results table is byte-identical to the no-Urdu fixture</td><td>E</td><td>§9.2</td></tr>
+<tr><td>T-49</td><td>Author withdrawal: the author withdraws an <code>entered</code> result before any approval decision → <code>status = withdrawn</code>, no <code>result_approval</code> row exists, one <code>audit_log</code> row records the withdrawal; withdrawal after an approval decision → 409; withdrawal by a non-author → 403</td><td>I</td><td>RS-4, §5.5 state machine, §6.6</td></tr>
+<tr><td>T-50</td><td>Transfer cancel: a sending-branch Manager cancels an open transfer → transfer <code>status = cancelled</code>, the sample stays at the sender in its prior status, a <code>TRANSFER_CANCELLED</code> event is written; a second cancel → 409; the receiver cannot cancel (404); the cancelled transfer is terminal — no receive, no mark-lost</td><td>I</td><td>SM-7, §6.5</td></tr>
+<tr><td>T-51</td><td>Transfer mark-lost: a Manager (sending branch) marks an open transfer lost with a note → transfer <code>status = lost</code>, <code>sample.status</code> unchanged, a <code>TRANSFER_LOST</code> event is written; subsequent reject + recollect succeed on the same invoice; the lost transfer is terminal — no cancel, no receive</td><td>I</td><td>SM-7, §6.5</td></tr>
+</tbody></table></div>
+
+<h2 id="s13">13. Resolved and open questions</h2>
+<h3>13.1 Resolved here</h3>
+<div class="box"><table><thead><tr><th>ID</th><th>Question</th><th>Resolution</th></tr></thead><tbody>
+<tr><td>OQ-23</td><td>How are refunds represented — a negative payment, a flag, or a separate kind? (from Doc 02)</td><td><b>Already resolved in Doc 02 §20; recorded here, not re-opened.</b> <code>payment.kind</code> is <code>payment | refund</code>, separate from <code>method</code>; <code>amount</code> is always positive and <code>kind</code> supplies the sign (Doc 02 §5.4). Doc 03 adds only the API behaviour: one endpoint (<code>POST /invoices/{id}/payments</code>) takes <code>kind</code> in the body, refunds are role-restricted (O/M), capped at total payments (BL-7), and invoice status is re-derived after each row (BL-6). See §5.3 and §6.4.</td></tr>
+<tr><td>OQ-25</td><td>How is <code>result.value</code> (text) interpreted — parsed, flagged, compared? (from Doc 02)</td><td><b>Resolved in §8.1.</b> <code>value</code> stays <code>text</code> and is stored as entered. A leading comparator is a qualifier; the body is Decimal-parsed only when the matched <code>reference_range</code> row is numeric; flags are <code>low | normal | high | critical</code> from the parsed number with inclusive bounds; unparseable values, missing ranges and unknown-age cases give flag NULL plus a review mark — never a guessed flag; qualitative tests get flag NULL and optional expected-set matching (§8.4). The critical tier follows §8.5: Doc 02 v1.2 defines <code>critical_low</code> / <code>critical_high</code> on <code>reference_range</code> and <code>critical</code> in <code>result.flag</code> (A-1 accepted). Doc 02 v1.3 §20 records OQ-25 as resolved on this basis, pointing to §8.1.</td></tr>
+<tr><td>OQ-26</td><td>Does the BS-4 cross-branch patient search exception extend to Managers?</td><td><b>Resolved.</b> Managers get identifiers-only cross-branch search — the same BS-4 exception as receptionists. Full patient detail still requires branch scope or a tenant-wide role (§4.2).</td></tr>
+<tr><td>OQ-27</td><td>Is a collection centre a full branch or a collection point under a branch?</td><td><b>Resolved.</b> A collection centre is a <code>branch</code> row with <code>is_collection_centre = true</code>. It can collect and transfer, and cannot enter results unless the owner enables it (§1.5, AS-1).</td></tr>
+<tr><td>OQ-33</td><td>Billing hold on report delivery (RP-7): default on or off for new tenants?</td><td><b>Resolved.</b> Default OFF. It is a per-tenant setting (§5.3 BL-9, §5.6 RP-7).</td></tr>
+<tr><td>OQ-34</td><td>How is the true collection time captured for home collection without allowing backdating?</td><td><b>Resolved.</b> No backdating. Home collection is not built in v1 (§5.4 SM-V2).</td></tr>
+<tr><td>OQ-35</td><td>Per-test cancellation in v1, or the reject-plus-refund workaround?</td><td><b>Resolved.</b> v1 uses reject-sample plus refund. Per-test cancel is post-v1 (§5.5, §15).</td></tr>
+</tbody></table></div>
+<p><b>Amendments accepted since v1.1.</b> Doc 02 v1.3 accepted A-7 (<code>tenant_setting</code> table), A-8 (<code>branch.result_entry_enabled</code>), A-9 (<code>sample_transfer.status</code> / <code>dispatched_at</code> / <code>received_at</code>), A-10 (0% <code>revenue_share_rule</code> seed removed) and A-14 revised (<code>password_reset_token.purpose</code>, no separate activation table). The Doc 03 amendments A-4, A-5 and A-6 are therefore the only ones still Proposed (§14).</p>
+<h3>13.2 New open questions</h3>
+<div class="box"><table><thead><tr><th>ID</th><th>Question</th><th>Owner doc</th><th>Needed by</th></tr></thead><tbody>
+<tr><td>OQ-28</td><td>With A-1/A-3: what is the critical-notification channel and escalation if no notification is recorded in 30 minutes — and who is "the person notified" when the referral partner has no recorded contact?</td><td>Doc 06</td><td>Doc 06</td></tr>
+<tr><td>OQ-29</td><td>Which seeded qualitative tests get expected value sets under A-4 (Urine R/E components first), and who signs the sets off clinically?</td><td>Doc 09</td><td>Catalog seed finalisation</td></tr>
+<tr><td>OQ-30</td><td>Is the Urdu patient-summary block on the PDF by default for every tenant, per-tenant setting, or per-patient language preference?</td><td>Doc 07</td><td>Doc 07</td></tr>
+<tr><td>OQ-31</td><td>Refund ceiling: may a Branch Manager refund any amount, or is Owner approval required above a PKR threshold?</td><td>Doc 05</td><td>Doc 05</td></tr>
+<tr><td>OQ-32</td><td>Retention periods: rejected sample records, superseded report versions, and audit_log rows — how long, and is archival (not deletion) the mechanism?</td><td>Doc 08</td><td>Doc 08</td></tr>
+</tbody></table></div>
+
+<h2 id="s14">14. Proposed amendments to Doc 01 and Doc 02</h2>
+<p>Amendments A-1, A-2 and A-3 were <b>accepted into Doc 02 v1.2</b> and are no longer Proposed — the behaviour that referenced them (§5.4, §5.5, §8.5, §11) is now built on Doc 02 v1.2 ground truth. Amendments A-7 to A-10 and A-14 (revised) were <b>accepted into Doc 02 v1.3</b>; A-11, A-12 and A-13 were accepted in Doc 01 and this document. Only A-4, A-5 and A-6 remain <b>Proposed</b>, in Doc 03 only: each is marked Proposed wherever it is used above, and until one is accepted into Doc 02, the interim behaviour stated in the referencing section is what gets built.</p>
+<div class="box"><table><thead><tr><th>ID</th><th>Status</th><th>Amendment</th><th>Reason</th><th>Affects</th></tr></thead><tbody>
+<tr><td>A-1</td><td><b>Accepted — Doc 02 v1.2</b></td><td>Add <code>critical_low</code> and <code>critical_high</code> (<code>numeric(10,3)</code>, NULL) to <code>reference_range</code>, and extend the application-enforced <code>result.flag</code> values with <code>critical</code></td><td>Critical-value practice (R-8) cannot be expressed with <code>low | normal | high</code> alone; thresholds belong on the range row, beside the bounds they extend</td><td>Doc 02 §5.6, §10 · Doc 03 §8.5</td></tr>
+<tr><td>A-2</td><td><b>Accepted — Doc 02 v1.2</b></td><td>Add <code>rejection_reason_code</code> and <code>rejection_note</code> to <code>sample</code>, mirroring the <code>REJECTED</code> event payload</td><td>Coded rejection reasons (R-1) and the rejection-rate KPI (§11) should not require parsing event payloads; the sample row is where staff look</td><td>Doc 02 §5.5 · Doc 03 §5.4, §11</td></tr>
+<tr><td>A-3</td><td><b>Accepted — Doc 02 v1.2</b></td><td>New table <code>critical_notification</code>: <code>result_id</code>, <code>notified_name</code>, <code>notified_at</code>, <code>read_back</code> (boolean), <code>recorded_by</code>, <code>created_at</code></td><td>Recorded notification with read-back is the auditable core of critical-value handling (R-8)</td><td>Doc 02 (new table) · Doc 03 §8.5, §11</td></tr>
+<tr><td>A-4</td><td><b>Proposed</b></td><td>Add <code>qualitative_values</code> (jsonb list of expected values) to <code>test</code></td><td>The qualitative half of the OQ-25 resolution (§8.4) needs a defined expected set per test; without a column there is nowhere governed to put it</td><td>Doc 02 §5.3 · Doc 03 §8.4</td></tr>
+<tr><td>A-5</td><td><b>Proposed</b></td><td>Add <code>tat_target_minutes</code> (int, NULL) to <code>test</code></td><td>MSDS expects a documented minimum reporting time per test (R-17); TAT breach reporting (§11) needs a stored target, and NULL honestly means "no target set"</td><td>Doc 02 §5.3 · Doc 03 §11</td></tr>
+<tr><td>A-6</td><td><b>Proposed</b></td><td>Add <code>template_version</code> to <code>report_version</code></td><td>When the PDF template changes, support must know which template produced a stored version; the version row is the only durable place to record it</td><td>Doc 02 §5.7 · Doc 03 §9</td></tr>
+<tr><td>A-7</td><td><b>Accepted — Doc 02 v1.3</b></td><td>New table <code>tenant_setting</code> (<code>key</code> UNIQUE, <code>value</code> text, <code>updated_by</code>)</td><td>OQ-33 made billing hold a per-tenant setting and no settings store existed in Doc 02; proposed in Doc 04 §10</td><td>Doc 02 §5.12 · Doc 03 §5.3 BL-9, §5.6 RP-7, RP-8 · Doc 04 §10</td></tr>
+<tr><td>A-8</td><td><b>Accepted — Doc 02 v1.3</b></td><td>Add <code>result_entry_enabled</code> (boolean NOT NULL DEFAULT false) to <code>branch</code></td><td>OQ-27 lets the owner enable result entry at a collection centre; the switch had no column</td><td>Doc 02 §5.1 · Doc 03 §5.5 RS-3 · Doc 04 §8</td></tr>
+<tr><td>A-9</td><td><b>Accepted — Doc 02 v1.3</b></td><td>Add <code>status</code> (<code>open | received | cancelled | lost</code>, application-enforced), <code>dispatched_at</code> and <code>received_at</code> to <code>sample_transfer</code></td><td>Transfer state and dispatch / receipt times were inferred from <code>received_by</code> and events; the custody rules need them stored on the row</td><td>Doc 02 §5.5 · Doc 03 §2 R-6, §5.4 SM-7 · Doc 04 §9.2</td></tr>
+<tr><td>A-10</td><td><b>Accepted — Doc 02 v1.3</b></td><td>Doc 02 §16: remove the tenant-level 0% <code>revenue_share_rule</code> seed row; the 0% default applies by rule resolution when no rule matches, and the owner creates the first real rule per partner</td><td>The seed row could not be inserted: <code>referral_partner_id</code> is NOT NULL and no partner exists at provisioning</td><td>Doc 02 §5.8, §16 · Doc 05 inherits</td></tr>
+<tr><td>A-11</td><td><b>Accepted — Doc 01 and this document</b></td><td>Doc 01 §9 ERDs: tenant status gains <code>deleted</code>; branch type becomes the <code>is_collection_centre</code> boolean</td><td>The Doc 01 diagrams lagged Doc 02</td><td>Doc 01 §9</td></tr>
+<tr><td>A-12</td><td><b>Accepted — Doc 01 and this document</b></td><td>Doc 01 §15 Caddyfile: add <code>interval</code> and <code>burst</code> to the <code>on_demand_tls</code> block</td><td>With <code>ask</code> configured, Caddy's built-in issuance limits do not apply (Doc 04 §2, F-8)</td><td>Doc 01 §15 · Doc 04 §6.4</td></tr>
+<tr><td>A-13</td><td><b>Accepted — Doc 01 and this document</b></td><td>Doc 03 §2 / §5.4: replace "(Proposed in Doc 02)" on transfer times with a reference to A-9</td><td>Done in this version (v1.2): R-6 and SM-7 now cite Doc 02 v1.3</td><td>Doc 03 §2, §5.4</td></tr>
+<tr><td>A-14</td><td><b>Accepted (revised) — Doc 02 v1.3</b></td><td>Add a <code>purpose</code> text column to <code>password_reset_token</code>: CHECK <code>purpose IN ('password_reset','email_verification','activation')</code>, default <code>'password_reset'</code>; the table name is kept and no new token table is created</td><td>Token rules (single-use, expiring, stored hashed — OWASP) are the same for every purpose; one table with a purpose column avoids a second table with duplicate cleanup logic</td><td>Doc 02 §5.11, §8, §14 · Doc 04 §5</td></tr>
+</tbody></table></div>
+<p class="meta">Doc 03 itself proposes no amendment to Doc 01: A-11 and A-12 above originated in Doc 04 and are recorded here as accepted in Doc 01, and Doc 01's flows (§12), queues (§13) and link design (§14) already carry everything these modules need.</p>
+
+<h2 id="s15">15. What is NOT built in v1 and why</h2>
+<div class="box"><table><thead><tr><th>Not built</th><th>Why not</th></tr></thead><tbody>
+<tr><td>Autoverification — no result is ever auto-approved</td><td>It is a rules engine that must be validated on a lab's own data (R-9). Shipping it unvalidated trades the core safety property (a human approved this) for speed v1 does not need.</td></tr>
+<tr><td>Analyser / instrument integration (ASTM, HL7 feeds)</td><td>OpenELIS and SENAITE do this well and it still takes them significant per-device work. v1's labs enter results manually; the result-entry API is shaped so an importer can call it later without schema change.</td></tr>
+<tr><td>EMR / FHIR integration (Bahmni-style order feeds)</td><td>v1 has no hospital customer. Clean module APIs now; an integration layer later (Doc 06 territory).</td></tr>
+<tr><td>Referral-out workflow (sending tests to an external lab, MOU tracking)</td><td>PHC-origin MSDS expects MOUs for referred tests (R-5), but v1's <code>referral_partner</code> is inbound (doctors who send patients in). Send-outs add a second custody chain; they wait until the internal chain is proven.</td></tr>
+<tr><td>Payment gateway processing (Easypaisa / JazzCash / Raast APIs, online checkout)</td><td>v1 records payments taken at the desk (R-18). Processing money online is a separate risk and compliance surface; the <code>payment.reference</code> field already anticipates gateway transaction IDs.</td></tr>
+<tr><td>Patient accounts or a patient portal</td><td>The 7-day link meets the actual need (G6: report in ≤ 2 clicks, no password to forget). Accounts are Doc 07+ scope if patients ever ask for history.</td></tr>
+<tr><td>One combined PDF per visit (all samples on one report)</td><td>Doc 02 §11 known limitation: one report per sample. Accepted for v1; the data model (one <code>report</code> per <code>sample</code>) is the constraint, and changing it is a Doc 02 decision, not a Doc 03 workaround.</td></tr>
+<tr><td>Delta-check thresholds that hold results</td><td>Display only in v1 (§8.6). Thresholds set without local data would hold good results and train pathologists to ignore the warning.</td></tr>
+<tr><td>Transport condition logging (temperature, packaging checks)</td><td>v1 records transfer times and custody (R-5); condition logging (R-6) is a quality-system feature for a later phase, once tenants actually run multi-site transport at volume.</td></tr>
+<tr><td>Per-test cancellation</td><td>Resolved in OQ-35 (§13): v1 uses reject-sample plus refund. A proper per-test cancel touches billing, worklists and reports at once; it is post-v1.</td></tr>
+<tr><td>Inventory, QC programmes (Westgard, Levey-Jennings), HR and rostering</td><td>Real LIS products carry these (R-16); LabFlow v1 is the order-to-report chain only. Depth in one chain beats breadth across five.</td></tr>
+<tr><td>SMS as a delivery channel</td><td>Doc 02 fixes <code>report_delivery.channel</code> as <code>email | whatsapp</code>. SMS would be a Doc 02 amendment, and WhatsApp coverage makes it low-value for v1.</td></tr>
+</tbody></table></div>
+
+<h2 id="s16">16. Interview talking points</h2>
+<p>The ten decisions in this document worth being able to defend out loud. Each states the decision, the defence, and the alternative that was rejected.</p>
+<ol>
+<li><b>Result values are stored as text, with strict parse rules (§8.1).</b> Real benches produce "&lt; 0.1", "2+" and "Positive"; a numeric column would reject true results or teach staff to falsify entries. So the value is stored verbatim and the <i>flag</i> is computed by explicit rules, with NULL — never a guess — when parsing fails. <i>Rejected:</i> a <code>numeric</code> value column with separate text column (two sources of truth), and free-text-with-no-parsing (no flags at all).</li>
+<li><b>Two-person verification, with an honest single-pathologist exception (RS-5, RS-6).</b> Entry and approval are different endpoints and different roles, matching OpenELIS and SENAITE practice, because the second pair of eyes is the cheapest error-catcher in the system. But the target customer may employ exactly one pathologist, so the exception exists — recorded in the approval row and audit, not smuggled in. <i>Rejected:</i> hard two-person rule (unusable for the smallest labs) and silent self-approval (destroys the audit story).</li>
+<li><b>Nothing clinical or financial is ever edited in place (P-2).</b> Corrections are new rows; the old row moves to <code>amended</code> or stays as the compensated payment. That is what makes "what did the report say on Tuesday?" answerable, and it is how CAP expects corrected reports to work. <i>Rejected:</i> in-place edits with an audit log of changes — the audit says a value changed, but no artefact can reproduce the old report.</li>
+<li><b>Idempotency is enforced by database unique indexes, not by careful code (BL-4, §10).</b> A double-clicked payment is a when, not an if. Storing the key on the invoice/payment row under a UNIQUE partial index means even racing requests cannot both succeed — the guarantee survives framework bugs. <i>Rejected:</i> client-side button disabling (theatrical) and a Redis dedupe cache (a second system that can be flushed).</li>
+<li><b>Invoice status is derived from payment rows, never set (BL-6).</b> Status is a pure function of the append-only money rows, recomputed in the same transaction as each insert, so the status can never disagree with the money. Refunds and partial refunds follow from that formula. The zero-total invoice does not: it is a deliberate exception to BL-6, created directly in <code>paid</code> status because there is nothing to collect (§5.3). <i>Rejected:</i> status set by endpoint handlers (five code paths, five chances to drift).</li>
+<li><b>Prices and ranges are snapshotted into anything charged or printed (P-8, CT-2, RP-3).</b> A price change next month must not alter last month's invoice, and a range change must not re-flag a reported result. Snapshots cost a few columns and buy total historical stability. <i>Rejected:</i> joining live catalog data at read time — the classic bug where old reports silently change.</li>
+<li><b>Reports are versioned PDFs; the patient link always serves the current version (RP-2, RP-4).</b> Amending a result mints a new immutable PDF with a notice showing old and new values, and old links upgrade automatically — a patient must never keep acting on a corrected result. <i>Rejected:</i> regenerating the same PDF in place (destroys the original) and pinning links to a version (strands the patient on wrong data).</li>
+<li><b>Patient access is a two-layer token design (RP-8).</b> A 7-day token that is stored only as an argon2 hash opens the door; a 15-minute pre-signed URL serves the file. Each layer's lifetime matches its exposure: links get forwarded and screenshotted, storage URLs should not outlive the tap. <i>Rejected:</i> a long-lived direct file URL (unrevocable) and patient accounts with passwords (fails the two-click goal and the support desk).</li>
+<li><b>Branch scope lives in the query layer, with one deliberate exception (BS-1 to BS-6).</b> Every query for a branch-scoped role is filtered by <code>staff_branch</code> on the server, and out-of-scope objects answer 404, so the API cannot leak existence. The single exception — identifiers-only cross-branch patient search — exists to stop duplicate registrations, a safety feature, and its narrowness is the point. <i>Rejected:</i> UI-level hiding (not access control) and tenant-wide patient visibility (convenient, and a privacy incident waiting for a date).</li>
+<li><b>Rejection is a coded, terminal, auditable state — never a delete (SM-8, SM-9).</b> WHO practice and the MSDS both treat rejection as a recorded event with a reason and a recollection path. Coding the reason turns a daily frustration into a quality metric that can show a branch its haemolysis rate. <i>Rejected:</i> deleting rejected samples (destroys the custody chain) and free-text reasons (unmeasurable).</li>
+</ol>
+
+<h2 id="s17">17. Glossary</h2>
+<p><b>Accession ID</b> the unique sample identifier, printed as a Code128 barcode; format in Doc 02 §9 · <b>MRN</b> medical record number, the patient's unique ID per tenant · <b>Worklist</b> the pending set: <code>sample_test</code> rows with no approved result · <b>Flag</b> the engine's judgement on a result (<code>low | normal | high | critical</code>, NULL = no judgement) · <b>Qualifier</b> a leading comparator in a result value (&lt;, &gt;, ≤, ≥) · <b>Range override</b> a pathologist approval recorded against the computed flag, with a mandatory note · <b>Delta check</b> comparison of a result with the patient's previous result for the same test · <b>Critical (panic) value</b> a result beyond a critical threshold requiring immediate, recorded notification · <b>Amended report</b> a new report version correcting an earlier one, showing old and new values · <b>Chain of custody</b> the reconstructable sequence of who held a sample, from <code>sample_event</code> · <b>Idempotency key</b> a client-generated key that makes a retried write return the original result instead of duplicating it · <b>Problem+json</b> the RFC 9457 error format used by every endpoint · <b>TAT</b> turnaround time; in v1, collection to final report, as defined in §11 · <b>Referral partner</b> a doctor or facility that sends patients to the lab (revenue share: Doc 05) · <b>Pre-signed URL</b> a short-lived storage URL minted after token validation · <b>Proposed</b> anything beyond Doc 01 / Doc 02 as written — listed in §14 and not yet ground truth.</p>
+<p class="meta">End of Doc 03. Next: Doc 04 — Multi-Branch and Tenancy, which implements the resolved OQ-26, OQ-27, OQ-33, OQ-34 and OQ-35 decisions from §13.</p>
+</main>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
+<script>
+(function () {
+  if (!window.mermaid) return;
+  mermaid.initialize({ startOnLoad: true, theme: "dark", securityLevel: "strict", themeVariables: { primaryColor: "#1c2128", primaryBorderColor: "#4a5561", primaryTextColor: "#e6edf3", secondaryColor: "#2a313a", tertiaryColor: "#161b22", lineColor: "#4a5561", textColor: "#e6edf3", actorBkg: "#1c2128", actorBorder: "#4a5561", actorTextColor: "#e6edf3", actorLineColor: "#9aa7b4", signalColor: "#9aa7b4", signalTextColor: "#e6edf3", noteBkgColor: "#2a313a", noteTextColor: "#e6edf3", noteBorderColor: "#4a5561", labelTextColor: "#e6edf3" } });
+})();
+</script>
+</body>
+</html>

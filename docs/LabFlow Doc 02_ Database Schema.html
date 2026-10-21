@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><title>LabFlow — Database Schema (Doc 02)</title>
+<link rel="icon" href="data:,">
+<style>
+:root{--bg:#0d1117;--fg:#e6edf3;--mut:#9aa7b4;--line:#30363d;--card:#161b22;--card2:#21262d;--acc:#e8a33d;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:dark}
+*,*::before,*::after{box-sizing:border-box}
+html{height:100%;scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--fg);font:15.5px/1.65 system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+main{max-width:740px;margin:0 auto;padding:40px 24px 88px}
+h1{font-size:27px;line-height:1.25;margin:0 0 10px;font-weight:700;letter-spacing:-.01em}
+h2{font-size:19px;line-height:1.35;margin:42px 0 12px;padding-top:28px;border-top:1px solid var(--line);font-weight:700}
+h3{font-size:15.5px;margin:24px 0 6px;font-weight:700}
+h4{font-size:14.5px;margin:18px 0 4px;font-weight:700}
+p{margin:8px 0}
+.meta{color:var(--mut);font-size:13.5px;line-height:1.6}
+.tag{display:inline-block;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:1px 9px;font-size:12px;margin:0 6px 4px 0;color:var(--fg);white-space:nowrap}
+.box{margin:14px 0;overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:13.6px;line-height:1.5}
+th,td{border:1px solid var(--line);padding:7px 10px;text-align:left;vertical-align:top;overflow-wrap:break-word}
+th{background:var(--card2);font-weight:600;color:var(--fg)}
+tbody tr:nth-child(even) td,tr:nth-child(even) td{background:#12161c}
+code{font:12.8px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:var(--card2);border-radius:5px;padding:1.5px 5px;overflow-wrap:anywhere;color:#f0c476}
+pre{font:12.6px/1.55 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:14px 16px;margin:14px 0;white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word;color:#dbe4ee}
+pre.mermaid{background:var(--card);text-align:left}
+.diagram{background:#11161d;border:1px solid var(--line);border-radius:8px;padding:16px 12px;margin:14px 0;overflow-x:auto}
+.diagram svg{display:block;width:100%;height:auto;min-width:520px}
+.dcap{color:var(--mut);font-size:12.5px;text-align:center;margin-top:8px}
+.note{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:12px 14px;margin:14px 0;font-size:14.5px;line-height:1.6}
+ul,ol{padding-left:24px;margin:8px 0}li{margin:4px 0}
+a{color:#f0c476}
+.spec{border:1px solid var(--line);border-radius:8px;padding:4px 14px 10px;margin:16px 0;background:#10141a}
+.spec h4{color:#f0c476}
+.kv{font-size:13.8px}
+@media(max-width:600px){main{padding:28px 18px 64px}h1{font-size:24px}h2{font-size:17.5px;margin-top:36px;padding-top:22px}table{font-size:12.8px}th,td{padding:6px 7px}pre{padding:12px;font-size:12px}.diagram svg{min-width:480px}}
+</style></head><body>
+<main>
+<h1>LabFlow — Database Schema</h1>
+<p class="meta"><span class="tag">Doc 02 of 10</span><span class="tag">Version 1.3 — Draft</span><span class="tag">2026-10-20</span><span class="tag">Supersedes: Version 1.2</span></p>
+<p class="meta">Audience: Solo developer, building with AI-assisted coding · PostgreSQL 16 · Django 5 + django-tenants (schema-per-tenant) · PKR only · No ML</p>
+<p>This is the authoritative data model for the entire LabFlow platform. Every subsequent document (03–10) treats this file as ground truth. Any later contradiction requires a formal amendment to this document, not a quiet edit. It formalises the two ERDs in Doc 01 §9, the module map in Doc 01 §7, and the flows in Doc 01 §12.</p>
+
+<h3>Changes in this version (v1.3)</h3>
+<ul>
+<li><b>A-10 accepted — §16 seed fix:</b> the tenant-level 0% <code>revenue_share_rule</code> seed row is removed. It could never be inserted: <code>referral_partner_id</code> is NOT NULL and no partner exists at provisioning. The 0% default is now applied by rule resolution when no rule matches, and the owner creates the first real rule per partner (§5.8, §16, §20).</li>
+<li><b>A-7 accepted — new table <code>tenant_setting</code>:</b> per-tenant key/value settings (<code>key</code> UNIQUE, <code>value</code> text, <code>updated_by</code>), proposed in Doc 04 §10 (§3, §5.12, §7, §17, §18, §19, §20).</li>
+<li><b>A-8 accepted — <code>branch.result_entry_enabled</code>:</b> boolean NOT NULL DEFAULT false; the switch that lets the owner enable result entry at a collection centre (Doc 03 OQ-27) (§5.1, §20).</li>
+<li><b>A-9 accepted — <code>sample_transfer</code> gains <code>status</code>, <code>dispatched_at</code>, <code>received_at</code>:</b> transfer state and dispatch / receipt times are now stored on the row instead of inferred (§5.5, §20).</li>
+<li><b>A-14 (revised) accepted — <code>password_reset_token.purpose</code>:</b> text NOT NULL DEFAULT 'password_reset', CHECK <code>purpose IN ('password_reset','email_verification','activation')</code>. No new token table is created; the table name is unchanged. One token table with a purpose column keeps the single-use, expiring, hashed-token rules in one place (§5.11, §8, §14, §20).</li>
+<li><b>OQ-25 resolved:</b> marked resolved in §20, pointing to Doc 03 §8.1.</li>
+<li><b>Nothing else changed:</b> no other table, column, status value, index, or rule was added, removed, or altered in this version.</li>
+</ul>
+
+<h2 id="toc">Contents</h2>
+<ol>
+<li><a href="#s1">Purpose and scope</a></li>
+<li><a href="#s2">Conventions</a></li>
+<li><a href="#s3">Schema layout</a></li>
+<li><a href="#s4">Public-schema tables</a></li>
+<li><a href="#s5">Tenant-schema tables</a></li>
+<li><a href="#s6">Append-only enforcement</a></li>
+<li><a href="#s7">Indexes</a></li>
+<li><a href="#s8">Constraints</a></li>
+<li><a href="#s9">Sequences and ID generation</a></li>
+<li><a href="#s10">Reference ranges</a></li>
+<li><a href="#s11">Report grouping — resolves OQ-15</a></li>
+<li><a href="#s12">Revenue share, partial payments, discounts, refunds — resolves OQ-16</a></li>
+<li><a href="#s13">Audit log</a></li>
+<li><a href="#s14">Session and token storage</a></li>
+<li><a href="#s15">Migrations</a></li>
+<li><a href="#s16">Seed data per tenant</a></li>
+<li><a href="#s17">Foreign key matrix</a></li>
+<li><a href="#s18">Complete index catalogue</a></li>
+<li><a href="#s19">Cross-references to Doc 01</a></li>
+<li><a href="#s20">Open Questions</a></li>
+<li><a href="#s21">Glossary of data terms</a></li>
+</ol>
+
+<h2 id="s1">1. Purpose and scope</h2>
+<p><b>What this document covers:</b> the complete data model — schemas, tables, columns, types, constraints, indexes, sequences, append-only enforcement, seed data, and the migration rules that keep multi-tenant deploys safe.</p>
+<p><b>What it does not cover:</b> behaviour and business workflows (Doc 03, Doc 05), API shapes (Doc 03), UI (Doc 07), and deployment (Doc 10). Where a decision here constrains those documents, the constraint is stated as a rule they inherit.</p>
+<p><b>How to use it as ground truth:</b> a table, column, status value, or index exists only if it is defined here. Additions beyond Doc 01 were marked <b>Proposed</b> at the table spec and listed in §20; as of v1.3 every one of them is accepted (§20), so no spec in this document carries a Proposed mark. Doc 01 references are cited by section throughout (for example, Doc 01 §8.5 step 3).</p>
+
+<h2 id="s2">2. Conventions</h2>
+<div class="box"><table><thead><tr><th>Area</th><th>Rule</th></tr></thead><tbody>
+<tr><td>Naming</td><td>snake_case. Tables singular (<code>patient</code>, <code>invoice</code>) — this matches every table spec, diagram and migration example in this document; columns singular (<code>patient_id</code>). Django models use <code>Meta.db_table</code> to get these short names instead of the <code>{app}_{model}</code> default.</td></tr>
+<tr><td>Primary key</td><td><code>id uuid PRIMARY KEY DEFAULT gen_random_uuid()</code> on every table. <code>gen_random_uuid()</code> is built into PostgreSQL 13 and later, so no extension is needed for it.</td></tr>
+<tr><td>Timestamps</td><td><code>timestamptz</code> everywhere, stored UTC, rendered in <code>Asia/Karachi</code> at the API layer. <code>created_at timestamptz NOT NULL DEFAULT now()</code> on every table; <code>updated_at</code> on mutable tables only, set by the <code>set_updated_at</code> trigger. <b>Append-only tables have only <code>created_at</code> — never an <code>updated_at</code>.</b></td></tr>
+<tr><td>Money &amp; percent</td><td>Money is <code>numeric(12,2)</code>; percentages are <code>numeric(5,2)</code>; other quantities declare their precision. <b>No bare <code>numeric</code>, no float, ever</b> (Doc 01 ADR-010). Python <code>Decimal</code>; strings on the wire.</td></tr>
+<tr><td>Enums</td><td>Django <code>TextChoices</code> in code — never Postgres <code>ENUM</code> types. A database <code>CHECK</code> constraint is added only on the highest-risk status columns: <code>invoice.status</code>, <code>sample.status</code>, <code>result.status</code>, <code>settlement.status</code>, <code>payment.method</code>, <code>payment.kind</code>. Every other status is application-enforced only and marked as such in its spec.</td></tr>
+<tr><td>Foreign keys</td><td>Column named <code>{referred_table_singular}_id</code>. <code>ON DELETE RESTRICT (Django PROTECT)</code> on financial and clinical facts; <code>CASCADE</code> only for pure join tables (<code>panel_test</code>, <code>staff_branch</code>) and token rows owned by a user. No foreign key ever crosses the public / tenant boundary.</td></tr>
+<tr><td>Soft delete</td><td><code>deleted_at timestamptz NULL</code>, indexed where set, only on tables where recovery matters (named per spec, with a reason). Never on financial, audit, or clinical fact tables. Never cascaded through FKs.</td></tr>
+<tr><td>Index naming</td><td><code>idx_{table}_{columns}</code>, <code>uq_{table}_{columns}</code>, <code>chk_{table}_{rule}</code>.</td></tr>
+<tr><td>Extensions</td><td>Only one: <code>pg_trgm</code> (patient name / phone search only). <code>pgcrypto</code> is <b>not</b> installed — <code>gen_random_uuid()</code> has been built into PostgreSQL since version 13. Anything else is rejected.</td></tr>
+<tr><td>JSONB</td><td>Only on <code>audit_log.before_jsonb</code> / <code>after_jsonb</code>, <code>platform_audit.before_jsonb</code> / <code>after_jsonb</code>, <code>notification_template.template_context_schema</code>, and <code>webhook_delivery.payload_jsonb</code>. Everything else is columns.</td></tr>
+<tr><td>Examples</td><td>No <code>SELECT *</code> in any example in this document set. Column names are always explicit.</td></tr>
+</tbody></table></div>
+<p><b>Deliberately not used:</b> Postgres RLS (schema isolation is enough), partitioning, materialized views, and sharding. Volumes are small (Doc 01 §5: up to ~50,000 patient rows per tenant); none of these earns its complexity in v1.</p>
+
+<h2 id="s3">3. Schema layout</h2>
+<p>LabFlow uses <code>django-tenants</code>, schema-per-tenant (Doc 01 ADR-003). The <code>public</code> schema holds the platform registry. Every tenant gets its own schema, <code>tenant_&lt;slug&gt;</code>, holding everything else.</p>
+<div class="box"><table><thead><tr><th>Schema</th><th>Tables</th></tr></thead><tbody>
+<tr><td><code>public</code></td><td><code>tenant</code>, <code>domain</code>, <code>plan</code>, <code>subscription</code>, <code>platform_user</code>, <code>platform_audit</code></td></tr>
+<tr><td><code>tenant_&lt;slug&gt;</code> (one per lab)</td><td>All tables in §5: branch, staff, patient, catalogue, billing, sample, result, report, referral partner and revenue share, notification, webhook, audit, tenant settings.</td></tr>
+</tbody></table></div>
+<ul>
+<li><b>Allocation and switching:</b> django-tenants creates the schema at provisioning (Doc 01 §8.5), sets <code>search_path</code> from the request host via <code>TenantMainMiddleware</code>, and runs tenant migrations per schema at deploy (Doc 01 §8.6). Celery workers enter <code>tenant_context(tenant_slug)</code> explicitly; a missing context raises an error.</li>
+<li><b>Tenancy rule:</b> tenant tables <b>never</b> carry a <code>tenant_id</code> column. Isolation is the schema itself. CI fails if a tenant-app model defines <code>tenant</code> or <code>tenant_id</code> (Doc 01 §8).</li>
+<li><b>Users:</b> <code>platform_user</code> lives only in <code>public</code>; <code>staff_user</code> lives only in each tenant schema. <b>No foreign key ever crosses the public / tenant boundary</b> — a tenant row that needs to name a platform actor stores the UUID as a plain column, not an FK.</li>
+<li><b>Sequences:</b> sequences live per schema (one set per tenant). Accession and MRN sequences are defined in §9.</li>
+<li><b>No shared mutable tables:</b> there are no cross-schema foreign keys and no table is written by two schemas.</li>
+</ul>
+
+<h2 id="s4">4. Public-schema tables</h2>
+<p>The public schema is the platform registry: which labs exist, where they resolve, what plan they are on, and who runs the platform. It contains no patient data.</p>
+
+<div class="diagram" role="img" aria-label="Public schema entity-relationship diagram: plan, tenant, domain, subscription, platform user and platform audit">
+<svg viewBox="0 0 700 470" xmlns="http://www.w3.org/2000/svg" font-family="system-ui,sans-serif">
+<defs><marker id="pa" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#9aa7b4"/></marker></defs>
+<g stroke="#9aa7b4" stroke-width="1.3" fill="none">
+<path d="M250,62 H450" marker-end="url(#pa)"/><path d="M350,92 V150" marker-end="url(#pa)"/><path d="M240,185 H120 V268" marker-end="url(#pa)"/><path d="M460,185 H580 V268" marker-end="url(#pa)"/><path d="M350,218 V330" stroke-dasharray="5 4"/>
+</g>
+<g font-size="11" fill="#e8a33d"><text x="330" y="54">1 — N</text><text x="358" y="126">1 — N</text><text x="150" y="176">1 — N</text><text x="500" y="176">1 — N</text><text x="358" y="280">actor_id (no FK)</text></g>
+<g>
+<rect x="40" y="30" width="210" height="62" rx="6" fill="#1c2128" stroke="#4a5561"/><rect x="40" y="30" width="210" height="24" rx="6" fill="#2a313a"/><text x="52" y="47" font-size="13" font-weight="700" fill="#e6edf3">plan</text><text x="52" y="70" font-size="11" fill="#9aa7b4">id PK · name UK · price numeric(12,2)</text><text x="52" y="85" font-size="11" fill="#9aa7b4">max_branches · is_active</text>
+<rect x="450" y="30" width="210" height="62" rx="6" fill="#1c2128" stroke="#4a5561"/><rect x="450" y="30" width="210" height="24" rx="6" fill="#2a313a"/><text x="462" y="47" font-size="13" font-weight="700" fill="#e6edf3">subscription</text><text x="462" y="70" font-size="11" fill="#9aa7b4">id PK · tenant_id FK · plan_id FK</text><text x="462" y="85" font-size="11" fill="#9aa7b4">status · starts_at · ends_at</text>
+<rect x="240" y="150" width="220" height="68" rx="6" fill="#242b34" stroke="#e8a33d"/><rect x="240" y="150" width="220" height="24" rx="6" fill="#333c47"/><text x="252" y="167" font-size="13" font-weight="700" fill="#e6edf3">tenant</text><text x="252" y="190" font-size="11" fill="#9aa7b4">id PK · slug UK · name · schema_name UK</text><text x="252" y="205" font-size="11" fill="#9aa7b4">status · plan via subscription (see §4.1)</text>
+<rect x="20" y="268" width="200" height="62" rx="6" fill="#1c2128" stroke="#4a5561"/><rect x="20" y="268" width="200" height="24" rx="6" fill="#2a313a"/><text x="32" y="285" font-size="13" font-weight="700" fill="#e6edf3">domain</text><text x="32" y="308" font-size="11" fill="#9aa7b4">id PK · tenant_id FK · domain UK</text><text x="32" y="323" font-size="11" fill="#9aa7b4">is_primary</text>
+<rect x="480" y="268" width="200" height="62" rx="6" fill="#1c2128" stroke="#4a5561"/><rect x="480" y="268" width="200" height="24" rx="6" fill="#2a313a"/><text x="492" y="285" font-size="13" font-weight="700" fill="#e6edf3">platform_user</text><text x="492" y="308" font-size="11" fill="#9aa7b4">id PK · email UK · password_hash</text><text x="492" y="323" font-size="11" fill="#9aa7b4">totp_enabled · is_active</text>
+<rect x="240" y="356" width="220" height="62" rx="6" fill="#1c2128" stroke="#4a5561"/><rect x="240" y="356" width="220" height="24" rx="6" fill="#2a313a"/><text x="252" y="373" font-size="13" font-weight="700" fill="#e6edf3">platform_audit (append-only)</text><text x="252" y="396" font-size="11" fill="#9aa7b4">id PK · actor_id · action · entity_type</text><text x="252" y="411" font-size="11" fill="#9aa7b4">before_jsonb · after_jsonb · at</text>
+</g></svg>
+<p class="dcap">Figure 4.1 — Public schema ERD. Plan is resolved through the active subscription; it is never stored on <code>tenant</code>. Provisioning is an audit event, not a foreign key — there is deliberately no <code>platform_user → tenant</code> FK.</p>
+</div>
+
+<pre class="mermaid">erDiagram
+    PLAN ||--o{ SUBSCRIPTION : "subscribed via"
+    TENANT ||--o{ SUBSCRIPTION : "has"
+    TENANT ||--o{ DOMAIN : "resolves at"
+    TENANT {
+        uuid id PK
+        string slug UK
+        string name
+        string schema_name UK
+        string status "provisioning | active | suspended | deleted"
+        string plan_via "resolved through SUBSCRIPTION"
+        timestamp created_at
+        timestamp updated_at
+    }
+    DOMAIN {
+        uuid id PK
+        uuid tenant_id FK
+        string domain UK
+        boolean is_primary
+    }
+    PLAN {
+        uuid id PK
+        string name UK
+        numeric price "numeric(12,2), PKR / month"
+        int max_branches "nullable = unlimited"
+        boolean is_active
+    }
+    SUBSCRIPTION {
+        uuid id PK
+        uuid tenant_id FK
+        uuid plan_id FK
+        string status "active | past_due | cancelled | expired"
+        timestamp starts_at
+        timestamp ends_at "nullable"
+    }
+    PLATFORM_USER {
+        uuid id PK
+        string email UK
+        string password_hash "argon2"
+        boolean totp_enabled
+        boolean is_active
+    }
+    PLATFORM_AUDIT {
+        uuid id PK
+        uuid actor_id "nullable, no FK"
+        string action
+        string entity_type
+        uuid entity_id
+        jsonb before_jsonb
+        jsonb after_jsonb
+        inet ip
+        string user_agent
+        timestamp at
+    }</pre>
+<p class="meta">Mermaid source for Figure 4.1 — the rendered diagram above is the same model. Types stay Mermaid-safe: precision lives in the comment string, never in the type slot.</p>
+
+<h3>4.1 Public table specifications</h3>
+
+<div class="spec"><h4><code>tenant</code></h4>
+<p class="kv"><b>Purpose:</b> one row per lab or lab chain on the platform. <b>Doc 01 ref:</b> §8 multi-tenancy, §9 public ERD.</p>
+<div class="box"><table><thead><tr><th>Column</th><th>Type</th><th>Constraints</th><th>Notes</th></tr></thead><tbody>
+<tr><td>id</td><td>uuid</td><td>PK, DEFAULT gen_random_uuid()</td><td></td></tr>
+<tr><td>slug</td><td>text</td><td>NOT NULL, UNIQUE (<code>uq_tenant_slug</code>)</td><td>Subdomain and schema suffix: <code>tenant_&lt;slug&gt;</code></td></tr>
+<tr><td>name</td><td>text</td><td>NOT NULL</td><td>Display name of the lab</td></tr>
+<tr><td>schema_name</td><td>text</td><td>NOT NULL, UNIQUE</td><td>Postgres schema, set at provisioning</td></tr>
+<tr><td>status</td><td>text</td><td>NOT NULL, DEFAULT 'provisioning'</td><td>Application-enforced only</td></tr>
+<tr><td>created_at / updated_at</td><td>timestamptz</td><td>NOT NULL, DEFAULT now()</td><td>updated_at via <code>set_updated_at</code> trigger</td></tr>
+</tbody></table></div>
+<p class="kv"><b>Statuses:</b> <code>provisioning | active | suspended | deleted</code> — application-enforced only. <b>Append-only:</b> no. <b>Soft delete:</b> no — <code>status = deleted</code> is the terminal state; the schema is dropped by an ops procedure, not a cascade. <b>Plan:</b> not a column. The current plan is resolved through the active <code>subscription</code> row, so nobody hunts for a <code>tenant.plan_id</code> that does not exist. <b>Referenced by:</b> <code>domain.tenant_id</code>, <code>subscription.tenant_id</code>.</p></div>
+
+<div class="spec"><h4><code>domain</code></h4>
+<p class="kv"><b>Purpose:</b> hostnames that resolve to a tenant; the Caddy on-demand TLS ask endpoint answers from this table. <b>Doc 01 ref:</b> §8 resolution and TLS.</p>
+<div class="box"><table><thead><tr><th>Column</th><th>Type</th><th>Constraints</th><th>Notes</th></tr></thead><tbody>
+<tr><td>id</td><td>uuid</td><td>PK, DEFAULT gen_random_uuid()</td><td></td></tr>
+<tr><td>tenant_id</td><td>uuid</td><td>NOT NULL, FK → tenant(id) ON DELETE CASCADE</td><td>A domain has no meaning without its tenant</td></tr>
+<tr><td>domain</td><td>text</td><td>NOT NULL, UNIQUE (<code>uq_domain_domain</code>)</td><td>e.g. <code>citylab.labflow.app</code></td></tr>
+<tr><td>is_primary</td><td>boolean</td><td>NOT NULL, DEFAULT false</td><td></td></tr>
+<tr><td>created_at / updated_at</td><td>timestamptz</td><td>NOT NULL, DEFAULT now()</td><td></td></tr>
+</tbody></table></div>
+<p class="kv"><b>Append-only:</b> no. <b>Soft delete:</b> no. <b>Indexes:</b> <code>uq_domain_domain</code>, <code>idx_domain_tenant_id</code>.</p></div>
+
+<div class="spec"><h4><code>plan</code></h4>
+<p class="kv"><b>Purpose:</b> a platform pricing tier a tenant subscribes to. <b>Doc 01 ref:</b> §7 module map (tenants, platform_admin).</p>
+<div class="box"><table><thead><tr><th>Column</th><th>Type</th><th>Constraints</th><th>Notes</th></tr></thead><tbody>
+<tr><td>id</td><td>uuid</td><td>PK, DEFAULT gen_random_uuid()</td><td></td></tr>
+<tr><td>name</td><td>text</td><td>NOT NULL, UNIQUE</td><td></td></tr>
+<tr><td>price</td><td>numeric(12,2)</td><td>NOT NULL, CHECK price &gt;= 0</td><td>PKR per month</td></tr>
+<tr><td>max_branches</td><td>int</td><td>NULL</td><td>NULL means unlimited; justified — a hard cap is a plan choice, not a schema rule</td></tr>
+<tr><td>is_active</td><td>boolean</td><td>NOT NULL, DEFAULT true</td><td>Retired plans stay for existing subscriptions</td></tr>
+<tr><td>created_at / updated_at</td><td>timestamptz</td><td>NOT NULL, DEFAULT now()</td><td></td></tr>
+</tbody></table></div>
+<p class="kv"><b>Append-only:</b> no. <b>Soft delete:</b> no — retire via <code>is_active</code>. <b>Referenced by:</b> <code>subscription.plan_id</code>.</p></div>
+
+<div class="spec"><h4><code>subscription</code></h4>
+<p class="kv"><b>Purpose:</b> a tenant's enrolment on a plan for a period. <b>Doc 01 ref:</b> §8, §9 public ERD.</p>
+<div class="box"><table><thead><tr><th>Column</th><th>Type</th><th>Constraints</th><th>Notes</th></tr></thead><tbody>
+<tr><td>id</td><td>uuid</td><td>PK, DEFAULT gen_random_uuid()</td><td></td></tr>
+<tr><td>tenant_id</td><td>uuid</td><td>NOT NULL, FK → tenant(id) ON DELETE RESTRICT (Django PROTECT)</td><td>Billing history is a platform fact</td></tr>
+<tr><td>plan_id</td><td>uuid</td><td>NOT NULL, FK → plan(id) ON DELETE RESTRICT (Django PROTECT)</td><td></td></tr>
+<tr><td>status</td><td>text</td><td>NOT NULL, DEFAULT 'active'</td><td>Application-enforced only</td></tr>
+<tr><td>starts_at</td><td>timestamptz</td><td>NOT NULL</td><td></td></tr>
+<tr><td>ends_at</td><td>timestamptz</td><td>NULL, CHECK ends_at &gt; starts_at</td><td>NULL while open-ended</td></tr>
+<tr><td>created_at / updated_at</td><td>timestamptz</td><td>NOT NULL, DEFAULT now()</td><td></td></tr>
+</tbody></table></div>
+<p class="kv"><b>Statuses:</b> <code>active | past_due | cancelled | expired</code> — application-enforced only. <b>Append-only:</b> no. <b>Soft delete:</b> no. <b>Indexes:</b> <code>idx_subscription_tenant_id</code>, <code>idx_subscription_plan_id</code>, and <code>uq_subscription_one_active_per_tenant</code> — a <b>partial unique index</b> on <code>tenant_id</code> WHERE <code>status = 'active'</code>: a tenant can have only one active subscription at a time; past_due, cancelled and expired rows never block a new active row.</p></div>
+
+<div class="spec"><h4><code>platform_user</code></h4>
+<p class="kv"><b>Purpose:</b> Super Admin accounts. Lives only in <code>public</code>; never sees tenant patient data (Doc 01 §4). <b>Doc 01 ref:</b> §4 roles, §7.</p>
+<div class="box"><table><thead><tr><th>Column</th><th>Type</th><th>Constraints</th><th>Notes</th></tr></thead><tbody>
+<tr><td>id</td><td>uuid</td><td>PK, DEFAULT gen_random_uuid()</td><td></td></tr>
+<tr><td>email</td><td>text</td><td>NOT NULL, UNIQUE</td><td>Login identifier</td></tr>
+<tr><td>password_hash</td><td>text</td><td>NOT NULL</td><td>argon2</td></tr>
+<tr><td>totp_secret_encrypted</td><td>text</td><td>NULL</td><td>NULL until 2FA enrolment; encrypted at rest with a key held in the server environment, never in the database (§14)</td></tr>
+<tr><td>totp_backup_codes_hash</td><td>text[]</td><td>NULL</td><td>argon2 hashes; array stored as a column type in Postgres — in ERDs the array-ness lives in this note, never in a Mermaid type slot</td></tr>
+<tr><td>totp_enabled</td><td>boolean</td><td>NOT NULL, DEFAULT false</td><td>TOTP required for Super Admin (Doc 01 §14)</td></tr>
+<tr><td>is_active</td><td>boolean</td><td>NOT NULL, DEFAULT true</td><td></td></tr>
+<tr><td>created_at / updated_at</td><td>timestamptz</td><td>NOT NULL, DEFAULT now()</td><td></td></tr>
+</tbody></table></div>
+<p class="kv"><b>Append-only:</b> no. <b>Soft delete:</b> no — deactivate via <code>is_active</code>.</p></div>
+
+<div class="spec"><h4><code>platform_audit</code></h4>
+<p class="kv"><b>Purpose:</b> append-only record of Super Admin actions (tenant created, suspended, plan changed). <b>Doc 01 ref:</b> §7, §14 audit.</p>
+<div class="box"><table><thead><tr><th>Column</th><th>Type</th><th>Constraints</th><th>Notes</th></tr></thead><tbody>
+<tr><td>id</td><td>uuid</td><td>PK, DEFAULT gen_random_uuid()</td><td></td></tr>
+<tr><td>actor_id</td><td>uuid</td><td>NULL, no FK</td><td>Plain UUID of the platform_user; NULL for system events. No FK so audit rows survive user removal</td></tr>
+<tr><td>action</td><td>text</td><td>NOT NULL</td><td>e.g. <code>tenant.suspended</code></td></tr>
+<tr><td>entity_type / entity_id</td><td>text / uuid</td><td>NOT NULL</td><td>Polymorphic by convention, no FK</td></tr>
+<tr><td>before_jsonb / after_jsonb</td><td>jsonb</td><td>NULL</td><td>Changed fields only (§13)</td></tr>
+<tr><td>ip</td><td>inet</td><td>NULL</td><td></td></tr>
+<tr><td>user_agent</td><td>text</td><td>NULL</td><td></td></tr>
+<tr><td>at</td><td>timestamptz</td><td>NOT NULL, DEFAULT now()</td><td>The table's only timestamp — it is <code>created_at</code> by another name</td></tr>
+</tbody></table></div>
+<p class="kv"><b>Append-only:</b> <b>yes</b> — <code>REVOKE UPDATE, DELETE ON platform_audit FROM labflow_app;</code> (§6). <b>Soft delete:</b> no. <b>Indexes:</b> <code>idx_platform_audit_at</code>, <code>idx_platform_audit_entity_type_entity_id</code>.</p></div>
+
+<h2 id="s5">5. Tenant-schema tables</h2>
+<p>Every table below exists once per tenant schema, identical in shape, isolated by the schema itself. Tables are ordered by dependency so the schema can be built top-down. Every table traces to Doc 01 §7 (module map) or §9 (tenant ERD); additions beyond Doc 01 carry their reason at the spec and are recorded as accepted in §20.</p>
+
+<div class="diagram" role="img" aria-label="Tenant schema ER diagram A: branch, staff user, patient, catalogue, invoice and payment">
+<svg viewBox="0 0 700 500" xmlns="http://www.w3.org/2000/svg" font-family="system-ui,sans-serif">
+<defs><marker id="ta" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#9aa7b4"/></marker></defs>
+<g stroke="#9aa7b4" stroke-width="1.3" fill="none">
+<path d="M230,60 H450" marker-end="url(#ta)"/><path d="M120,92 V150" marker-end="url(#ta)"/><path d="M560,92 V150" marker-end="url(#ta)"/><path d="M350,218 V272" marker-end="url(#ta)"/><path d="M240,300 H120 V356" marker-end="url(#ta)"/><path d="M460,300 H580 V356" marker-end="url(#ta)"/><path d="M350,388 V424" marker-end="url(#ta)"/>
+</g>
+<g font-size="11" fill="#e8a33d"><text x="318" y="52">1 — N</text><text x="128" y="126">1 — N</text><text x="568" y="126">1 — N</text><text x="358" y="250">catalogue</text><text x="150" y="292">1 — N</text><text x="490" y="292">priced by</text><text x="358" y="410">1 — N</text></g>
+<g>
+<rect x="20" y="28" width="210" height="64" rx="6" fill="#242b34" stroke="#e8a33d"/><rect x="20" y="28" width="210" height="24" rx="6" fill="#333c47"/><text x="32" y="45" font-size="13" font-weight="700" fill="#e6edf3">branch</text><text x="32" y="68" font-size="11" fill="#9aa7b4">id PK · code UK · name · is_collection_centre</text><text x="32" y="83" font-size="11" fill="#9aa7b4">deleted_at (soft)</text>
+<rect x="450" y="28" width="220" height="64" rx="6" fill="#1c2128" stroke="#4a5561"/><rect x="450" y="28" width="220" height="24" rx="6" fill="#2a313a"/><text x="462" y="45" font-size="13" font-weight="700" fill="#e6edf3">staff_user</text><text x="462" y="68" font-size="11" fill="#9aa7b4">id PK · email UK · role</text><text x="462" y="83" font-size="11" fill="#9aa7b4">home branch nullable · tenant-wide roles (§5.1)</text>
+<rect x="20" y="150" width="210" height="68" rx="6" fill="#1c2128" stroke="#4a5561"/><rect x="20" y="150" width="210" height="24" rx="6" fill="#2a313a"/><text x="32" y="167" font-size="13" font-weight="700" fill="#e6edf3">patient</text><text x="32" y="190" font-size="11" fill="#9aa7b4">id PK · mrn UK · name · phone</text><text x="32" y="205" font-size="11" fill="#9aa7b4">sex · date_of_birth · branch_id FK</text>
+<rect x="450" y="150" width="220" height="68" rx="6" fill="#1c2128" stroke="#4a5561"/><rect x="450" y="150" width="220" height="24" rx="6" fill="#2a313a"/><text x="462" y="167" font-size="13" font-weight="700" fill="#e6edf3">test / panel / test_price</text><text x="462" y="190" font-size="11" fill="#9aa7b4">test: code UK · name · panel via panel_test</text><text x="462" y="205" font-size="11" fill="#9aa7b4">test_price: numeric(12,2) per branch</text>
+<rect x="240" y="272" width="220" height="64" rx="6" fill="#1c2128" stroke="#4a5561"/><rect x="240" y="272" width="220" height="24" rx="6" fill="#2a313a"/><text x="252" y="289" font-size="13" font-weight="700" fill="#e6edf3">invoice</text><text x="252" y="312" font-size="11" fill="#9aa7b4">id PK · patient_id FK · branch_id FK</text><text x="252" y="327" font-size="11" fill="#9aa7b4">status · total · discount_amount numeric(12,2)</text>
+<rect x="20" y="356" width="210" height="62" rx="6" fill="#1c2128" stroke="#4a5561"/><rect x="20" y="356" width="210" height="24" rx="6" fill="#2a313a"/><text x="32" y="373" font-size="13" font-weight="700" fill="#e6edf3">invoice_item</text><text x="32" y="396" font-size="11" fill="#9aa7b4">invoice_id FK · test_id / panel_id</text><text x="32" y="411" font-size="11" fill="#9aa7b4">unit_price numeric(12,2) · qty</text>
+<rect x="470" y="356" width="210" height="62" rx="6" fill="#1c2128" stroke="#4a5561"/><rect x="470" y="356" width="210" height="24" rx="6" fill="#2a313a"/><text x="482" y="373" font-size="13" font-weight="700" fill="#e6edf3">payment (append-only)</text><text x="482" y="396" font-size="11" fill="#9aa7b4">invoice_id FK · method · amount</text><text x="482" y="411" font-size="11" fill="#9aa7b4">kind payment|refund · amount always positive</text>
+<rect x="240" y="424" width="220" height="56" rx="6" fill="#1c2128" stroke="#4a5561"/><rect x="240" y="424" width="220" height="24" rx="6" fill="#2a313a"/><text x="252" y="441" font-size="13" font-weight="700" fill="#e6edf3">reference_range</text><text x="252" y="464" font-size="11" fill="#9aa7b4">test_id FK · sex · age (days) · low · high · critical</text>
+</g></svg>
+<p class="dcap">Figure 5.1 — Tenant ERD A: people, catalogue and billing. A branch has many staff and patients; staff branch assignment is many-to-many via <code>staff_branch</code> (§5.1), and tenant-wide roles (Lab Owner, Pathologist) carry no branch. An invoice belongs to one patient and one branch, has many items, and is settled by append-only payments.</p>
+</div>
+
+<div class="diagram" role="img" aria-label="Tenant schema ER diagram B: sample, sample event, result, result approval, critical notification, report, report version, delivery and access token">
+<svg viewBox="0 0 700 470" xmlns="http://www.w3.org/2000/svg" font-family="system-ui,sans-serif">
+<defs><marker id="tb" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#9aa7b4"/></marker></defs>
+<g stroke="#9aa7b4" stroke-width="1.3" fill="none">
+<path d="M230,60 H450" marker-end="url(#tb)"/><path d="M350,92 V146" marker-end="url(#tb)"/><path d="M240,180 H120 V240" marker-end="url(#tb)"/><path d="M430,212 V271 H470" marker-end="url(#tb)"/><path d="M460,160 H470" marker-end="url(#tb)"/><path d="M350,272 V318" marker-end="url(#tb)"/><path d="M240,350 H120 V392" marker-end="url(#tb)"/><path d="M460,350 H580 V392" marker-end="url(#tb)"/>
+</g>
+<g font-size="11" fill="#e8a33d"><text x="318" y="52">1 — N</text><text x="358" y="122">1 — N events</text><text x="140" y="172">1 — N</text><text x="360" y="250">approved via</text><text x="466" y="140">1 — N</text><text x="358" y="298">1 — 0..1 (v1, per sample)</text><text x="140" y="342">1 — N versions</text><text x="480" y="342">1 — N</text></g>
+<g>
+<rect x="20" y="28" width="210" height="64" rx="6" fill="#242b34" stroke="#e8a33d"/><rect x="20" y="28" width="210" height="24" rx="6" fill="#333c47"/><text x="32" y="45" font-size="13" font-weight="700" fill="#e6edf3">sample</text><text x="32" y="68" font-size="11" fill="#9aa7b4">id PK · accession_id UK · invoice_id FK</text><text x="32" y="83" font-size="11" fill="#9aa7b4">branch_id FK · status</text>
+<rect x="450" y="28" width="220" height="64" rx="6" fill="#1c2128" stroke="#4a5561"/><rect x="450" y="28" width="220" height="24" rx="6" fill="#2a313a"/><text x="462" y="45" font-size="13" font-weight="700" fill="#e6edf3">sample_event (append-only)</text><text x="462" y="68" font-size="11" fill="#9aa7b4">sample_id FK · event · actor_id</text><text x="462" y="83" font-size="11" fill="#9aa7b4">COLLECTED · RECEIVED · READY …</text>
+<rect x="240" y="146" width="220" height="66" rx="6" fill="#1c2128" stroke="#4a5561"/><rect x="240" y="146" width="220" height="24" rx="6" fill="#2a313a"/><text x="252" y="163" font-size="13" font-weight="700" fill="#e6edf3">result</text><text x="252" y="186" font-size="11" fill="#9aa7b4">sample_id FK · test_id FK · value</text><text x="252" y="201" font-size="11" fill="#9aa7b4">status · entered_by FK</text>
+<rect x="20" y="240" width="210" height="62" rx="6" fill="#1c2128" stroke="#4a5561"/><rect x="20" y="240" width="210" height="24" rx="6" fill="#2a313a"/><text x="32" y="257" font-size="13" font-weight="700" fill="#e6edf3">result_approval</text><text x="32" y="280" font-size="11" fill="#9aa7b4">result_id FK · pathologist_id FK</text><text x="32" y="295" font-size="11" fill="#9aa7b4">decision · signed_at</text>
+<rect x="470" y="146" width="210" height="62" rx="6" fill="#1c2128" stroke="#4a5561"/><rect x="470" y="146" width="210" height="24" rx="6" fill="#2a313a"/><text x="482" y="163" font-size="13" font-weight="700" fill="#e6edf3">critical_notification</text><text x="482" y="186" font-size="11" fill="#9aa7b4">result_id FK · recorded_by FK</text><text x="482" y="201" font-size="11" fill="#9aa7b4">notified_name · notified_at · read_back</text>
+<rect x="470" y="240" width="210" height="62" rx="6" fill="#1c2128" stroke="#4a5561"/><rect x="470" y="240" width="210" height="24" rx="6" fill="#2a313a"/><text x="482" y="257" font-size="13" font-weight="700" fill="#e6edf3">sample_transfer</text><text x="482" y="280" font-size="11" fill="#9aa7b4">sample_id FK · from_branch · to_branch</text><text x="482" y="295" font-size="11" fill="#9aa7b4">status · dispatched_at · received_at</text>
+<rect x="240" y="318" width="220" height="64" rx="6" fill="#242b34" stroke="#e8a33d"/><rect x="240" y="318" width="220" height="24" rx="6" fill="#333c47"/><text x="252" y="335" font-size="13" font-weight="700" fill="#e6edf3">report</text><text x="252" y="358" font-size="11" fill="#9aa7b4">id PK · sample_id FK (0..1 current)</text><text x="252" y="373" font-size="11" fill="#9aa7b4">status: draft | final | amended | void</text>
+<rect x="20" y="392" width="210" height="62" rx="6" fill="#1c2128" stroke="#4a5561"/><rect x="20" y="392" width="210" height="24" rx="6" fill="#2a313a"/><text x="32" y="409" font-size="13" font-weight="700" fill="#e6edf3">report_version (append-only)</text><text x="32" y="432" font-size="11" fill="#9aa7b4">report_id FK · version · pdf_key UK</text><text x="32" y="447" font-size="11" fill="#9aa7b4">reports/{report_id}/{version}.pdf</text>
+<rect x="470" y="392" width="210" height="62" rx="6" fill="#1c2128" stroke="#4a5561"/><rect x="470" y="392" width="210" height="24" rx="6" fill="#2a313a"/><text x="482" y="409" font-size="13" font-weight="700" fill="#e6edf3">report_delivery / access_token</text><text x="482" y="432" font-size="11" fill="#9aa7b4">channel · status · whatsapp_url</text><text x="482" y="447" font-size="11" fill="#9aa7b4">token_hash UK (argon2) · 7-day TTL</text>
+</g></svg>
+<p class="dcap">Figure 5.2 — Tenant ERD B: the clinical chain. One report per sample in v1 (§11); corrections are new <code>report_version</code> rows, never edits. <code>sample_test</code> (§5.5) links each sample to its ordered invoice items and component tests — pending results are its rows with no approved result. A result flagged <code>critical</code> carries an append-only <code>critical_notification</code> record (§5.6).</p>
+</div>
+
+<div class="diagram" role="img" aria-label="Tenant schema ER diagram C: referral partner, revenue share rule, ledger, settlement, notification, webhook delivery and audit log">
+<svg viewBox="0 0 700 470" xmlns="http://www.w3.org/2000/svg" font-family="system-ui,sans-serif">
+<defs><marker id="tc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#9aa7b4"/></marker></defs>
+<g stroke="#9aa7b4" stroke-width="1.3" fill="none">
+<path d="M230,60 H450" marker-end="url(#tc)"/><path d="M350,92 V146" marker-end="url(#tc)"/><path d="M350,212 V258" marker-end="url(#tc)"/><path d="M240,290 H120 V330" marker-end="url(#tc)"/><path d="M460,290 H580 V330" marker-end="url(#tc)"/>
+</g>
+<g font-size="11" fill="#e8a33d"><text x="306" y="52">1 — N rules</text><text x="358" y="122">1 entry per payment (UQ)</text><text x="358" y="238">grouped monthly</text><text x="140" y="282">1 — N lines</text><text x="480" y="282">statement PDF</text></g>
+<g>
+<rect x="20" y="28" width="210" height="64" rx="6" fill="#242b34" stroke="#e8a33d"/><rect x="20" y="28" width="210" height="24" rx="6" fill="#333c47"/><text x="32" y="45" font-size="13" font-weight="700" fill="#e6edf3">referral_partner</text><text x="32" y="68" font-size="11" fill="#9aa7b4">id PK · name · phone · email</text><text x="32" y="83" font-size="11" fill="#9aa7b4">record only — no login in v1</text>
+<rect x="450" y="28" width="220" height="64" rx="6" fill="#1c2128" stroke="#4a5561"/><rect x="450" y="28" width="220" height="24" rx="6" fill="#2a313a"/><text x="462" y="45" font-size="13" font-weight="700" fill="#e6edf3">revenue_share_rule</text><text x="462" y="68" font-size="11" fill="#9aa7b4">partner_id FK · percent numeric(5,2)</text><text x="462" y="83" font-size="11" fill="#9aa7b4">effective_from / effective_to</text>
+<rect x="240" y="146" width="220" height="66" rx="6" fill="#1c2128" stroke="#4a5561"/><rect x="240" y="146" width="220" height="24" rx="6" fill="#2a313a"/><text x="252" y="163" font-size="13" font-weight="700" fill="#e6edf3">share_ledger_entry (append-only)</text><text x="252" y="186" font-size="11" fill="#9aa7b4">payment_id UQ · partner_id FK</text><text x="252" y="201" font-size="11" fill="#9aa7b4">amount numeric(12,2) · percent · period</text>
+<rect x="240" y="258" width="220" height="64" rx="6" fill="#242b34" stroke="#e8a33d"/><rect x="240" y="258" width="220" height="24" rx="6" fill="#333c47"/><text x="252" y="275" font-size="13" font-weight="700" fill="#e6edf3">settlement</text><text x="252" y="298" font-size="11" fill="#9aa7b4">partner_id FK · period YYYY-MM (partial UQ)</text><text x="252" y="313" font-size="11" fill="#9aa7b4">status · total numeric(12,2) · statement_pdf_key</text>
+<rect x="20" y="330" width="210" height="62" rx="6" fill="#1c2128" stroke="#4a5561"/><rect x="20" y="330" width="210" height="24" rx="6" fill="#2a313a"/><text x="32" y="347" font-size="13" font-weight="700" fill="#e6edf3">settlement_line</text><text x="32" y="370" font-size="11" fill="#9aa7b4">settlement_id FK · ledger_entry_id UQ</text><text x="32" y="385" font-size="11" fill="#9aa7b4">amount numeric(12,2)</text>
+<rect x="470" y="330" width="210" height="62" rx="6" fill="#1c2128" stroke="#4a5561"/><rect x="470" y="330" width="210" height="24" rx="6" fill="#2a313a"/><text x="482" y="347" font-size="13" font-weight="700" fill="#e6edf3">notification / webhook / audit</text><text x="482" y="370" font-size="11" fill="#9aa7b4">notification: status, next_attempt_at</text><text x="482" y="385" font-size="11" fill="#9aa7b4">audit_log: append-only, REVOKE</text>
+</g></svg>
+<p class="dcap">Figure 5.3 — Tenant ERD C: revenue share and cross-cutting tables. One ledger entry per payment is the idempotency guarantee (§12). The ledger is fully append-only (UPDATE and DELETE revoked, §6): it has no status or settlement column — status is derived from <code>settlement_line</code> → <code>settlement.status</code>. The settlement unique rule is partial (<code>WHERE status &lt;&gt; 'CANCELLED'</code>), so a cancelled settlement never blocks its re-draft.</p>
+</div>
+
+<pre class="mermaid">erDiagram
+    BRANCH ||--o{ STAFF_USER : "employs"
+    STAFF_USER ||--o{ STAFF_BRANCH : "assigned via"
+    BRANCH ||--o{ STAFF_BRANCH : "staffed via"
+    BRANCH ||--o{ PATIENT : "registers"
+    BRANCH ||--o{ INVOICE : "bills at"
+    PATIENT ||--o{ INVOICE : "is billed"
+    INVOICE ||--o{ INVOICE_ITEM : "contains"
+    INVOICE ||--o{ PAYMENT : "settled by"
+    INVOICE ||--o{ SAMPLE : "produces"
+    TEST ||--o{ PANEL_TEST : "in panels"
+    PANEL ||--o{ PANEL_TEST : "contains tests"
+    TEST ||--o{ TEST_PRICE : "priced"
+    TEST ||--o{ REFERENCE_RANGE : "ranged by"
+    SAMPLE ||--o{ SAMPLE_EVENT : "tracked by"
+    SAMPLE ||--o{ SAMPLE_TEST : "expects results for"
+    INVOICE_ITEM ||--o{ SAMPLE_TEST : "ordered as"
+    TEST ||--o{ SAMPLE_TEST : "expected on"
+    SAMPLE ||--o{ RESULT : "measured by"
+    RESULT ||--o{ RESULT_APPROVAL : "approved by"
+    RESULT ||--o{ CRITICAL_NOTIFICATION : "notified via"
+    SAMPLE ||--o| REPORT : "reported in (per sample, v1)"
+    REPORT ||--o{ REPORT_VERSION : "versioned as"
+    REPORT ||--o{ REPORT_DELIVERY : "delivered via"
+    REPORT ||--o{ REPORT_ACCESS_TOKEN : "opened by"
+    REFERRAL_PARTNER ||--o{ REVENUE_SHARE_RULE : "shared under"
+    PAYMENT ||--|| SHARE_LEDGER_ENTRY : "generates (unique)"
+    REFERRAL_PARTNER ||--o{ SHARE_LEDGER_ENTRY : "earns"
+    REFERRAL_PARTNER ||--o{ SETTLEMENT : "settled in"
+    SETTLEMENT ||--o{ SETTLEMENT_LINE : "itemises"
+    SHARE_LEDGER_ENTRY ||--o| SETTLEMENT_LINE : "included as"
+    STAFF_BRANCH {
+        uuid staff_user_id FK "composite PK"
+        uuid branch_id FK "composite PK"
+        boolean is_primary
+    }
+    SAMPLE_TEST {
+        uuid id PK
+        uuid sample_id FK
+        uuid invoice_item_id FK
+        uuid test_id FK "unique with sample_id"
+    }
+    BRANCH {
+        uuid id PK
+        string code UK
+        string name
+        boolean is_collection_centre
+        timestamp deleted_at "nullable, soft delete"
+    }
+    STAFF_USER {
+        uuid id PK
+        uuid branch_id FK "nullable home branch; NULL = tenant-wide"
+        string role "owner | manager | reception | technician | pathologist"
+        string email UK
+        string password_hash "argon2"
+        boolean totp_enabled
+        string totp_secret_encrypted "nullable, encrypted at rest"
+        string totp_backup_codes_hash "array; nullable; argon2 hashes"
+    }
+    PATIENT {
+        uuid id PK
+        uuid branch_id FK
+        string mrn UK
+        string name
+        string phone
+        string sex "M | F"
+        date date_of_birth "nullable"
+        timestamp deleted_at "nullable, soft delete"
+    }
+    INVOICE {
+        uuid id PK
+        uuid patient_id FK
+        uuid branch_id FK
+        uuid referral_partner_id FK "nullable"
+        string status "unpaid | partial | paid | refunded | cancelled, CHECK"
+        numeric total "numeric(12,2)"
+        numeric discount_amount "numeric(12,2), default 0"
+        string discount_reason "nullable"
+        string idempotency_key UK "nullable"
+    }
+    PAYMENT {
+        uuid id PK
+        uuid invoice_id FK
+        string kind "payment | refund, CHECK"
+        string method "cash | card | bank_transfer | easypaisa | jazzcash | other, CHECK"
+        numeric amount "numeric(12,2), always positive; kind supplies the sign"
+        string idempotency_key UK "nullable"
+        timestamp created_at "append-only, no updated_at"
+    }
+    SAMPLE {
+        uuid id PK
+        uuid invoice_id FK
+        uuid branch_id FK
+        string accession_id UK
+        string status "collected | received | in_process | ready | rejected | cancelled, CHECK"
+        timestamp collected_at
+    }
+    RESULT {
+        uuid id PK
+        uuid sample_id FK
+        uuid test_id FK
+        string value
+        string flag "low | normal | high | critical, nullable"
+        string status "entered | approved | rejected | amended | withdrawn, CHECK"
+        uuid entered_by FK
+    }
+    CRITICAL_NOTIFICATION {
+        uuid id PK
+        uuid result_id FK
+        string notified_name
+        timestamp notified_at
+        boolean read_back
+        uuid recorded_by FK
+        timestamp created_at "append-only, no updated_at"
+    }
+    REPORT {
+        uuid id PK
+        uuid sample_id FK
+        string status "draft | final | amended | void"
+        int current_version
+    }
+    SHARE_LEDGER_ENTRY {
+        uuid id PK
+        uuid payment_id FK "unique, idempotency"
+        uuid referral_partner_id FK
+        numeric amount "numeric(12,2)"
+        numeric percent_applied "numeric(5,2)"
+        string period "YYYY-MM of the payment"
+        timestamp created_at "append-only, no updated_at; status derived from SETTLEMENT_LINE"
+    }
+    SETTLEMENT {
+        uuid id PK
+        uuid referral_partner_id FK
+        string period "YYYY-MM, partial-unique with partner WHERE status is not CANCELLED"
+        string status "DRAFT | APPROVED | SENT | PAID | CANCELLED, CHECK"
+        numeric total "numeric(12,2)"
+        string statement_pdf_key "nullable"
+    }</pre>
+<p class="meta">Mermaid source for Figures 5.1–5.3 (core entities; the remaining tenant tables are specified in §5.1–§5.12 below). Mermaid-safe types only: no array notation and no <code>numeric(a,b)</code> in a type slot — precision is in the comment string.</p>
+
+<h3>5.1 Branch, staff, 2FA</h3>
+<div class="spec"><h4><code>branch</code></h4><p class="kv"><b>Purpose:</b> a lab branch or collection centre inside the tenant. <b>Doc 01 ref:</b> §4, §7, §9. <b>Columns:</b> <code>id</code> uuid PK · <code>code</code> text NOT NULL UNIQUE (3-char, used in MRNs, §9) · <code>name</code> text NOT NULL · <code>address</code> text NULL · <code>phone</code> text NULL · <code>is_collection_centre</code> boolean NOT NULL DEFAULT false · <code>result_entry_enabled</code> boolean NOT NULL DEFAULT false (A-8, §20 — the switch that lets the owner enable result entry at a collection centre, Doc 03 OQ-27; result entry stays off until the owner turns it on) · <code>created_at / updated_at</code>. <b>Append-only:</b> no. <b>Soft delete:</b> <b>yes</b> — <code>deleted_at</code>, because invoices and samples keep FKs to a closed branch and the row must stay recoverable. <b>Indexes:</b> <code>uq_branch_code</code>, <code>idx_branch_deleted_at</code>. <b>Referenced by:</b> staff_user, staff_branch, patient, test_price, invoice, sample, sample_transfer.</p></div>
+<div class="spec"><h4><code>staff_user</code></h4><p class="kv"><b>Purpose:</b> staff accounts inside this tenant only. <b>Doc 01 ref:</b> §4 roles, §9 (auth fields added by the Doc 01 fix list), §13/§14 in Doc 01. <b>Columns:</b> <code>id</code> uuid PK · <code>branch_id</code> uuid NULL FK → branch(id) RESTRICT (Django PROTECT) (home branch; NULL = tenant-wide — the Lab Owner and Pathologist work across the whole tenant, Doc 01 §4, and are not pinned to a single branch; branch assignments live in <code>staff_branch</code> below) · <code>role</code> text NOT NULL · <code>email</code> text NOT NULL UNIQUE per tenant (<code>uq_staff_user_email</code>) · <code>password_hash</code> text NOT NULL (argon2) · <code>totp_secret_encrypted</code> text NULL (NULL until enrolment; encrypted with the environment-held key in §14) · <code>totp_backup_codes_hash</code> text[] NULL (argon2 hashes, §14 decision: fields on staff_user in v1, a <code>totp_device</code> table is the v2 path — not created now) · <code>totp_enabled</code> boolean NOT NULL DEFAULT false · <code>is_active</code> boolean NOT NULL DEFAULT true · <code>created_at / updated_at</code>. <b>Statuses:</b> role <code>owner | manager | reception | technician | pathologist</code> — application-enforced only. <b>Append-only:</b> no. <b>Soft delete:</b> no — deactivate via <code>is_active</code> so audit actors stay resolvable.</p></div>
+<div class="spec"><h4><code>staff_branch</code></h4><p class="kv"><b>Purpose:</b> the branches a staff member is assigned to — the many-to-many link that replaces the old single-branch rule. <b>Accepted (OQ-24, §20):</b> Doc 01 §4 has the Lab Owner and Pathologist working across the whole tenant, which a single NOT NULL <code>branch_id</code> cannot express. <b>Columns:</b> <code>staff_user_id</code> uuid NOT NULL FK → staff_user(id) CASCADE · <code>branch_id</code> uuid NOT NULL FK → branch(id) CASCADE · <code>is_primary</code> boolean NOT NULL DEFAULT false · <code>created_at</code> only. Composite PK <code>(staff_user_id, branch_id)</code> (<code>uq_staff_branch_staff_user_id_branch_id</code>). <b>Rules:</b> branch-scoped roles (manager, reception, technician) need at least one row — application-enforced. Tenant-wide roles (owner, pathologist) may have <b>no</b> rows and a NULL home branch, which means access to every branch in the tenant. <b>Append-only:</b> no. <b>Soft delete:</b> no — removing an assignment deletes the join row only.</p></div>
+
+<h3>5.2 Patients</h3>
+<div class="spec"><h4><code>patient</code></h4><p class="kv"><b>Purpose:</b> a person registered for testing at this lab. <b>Doc 01 ref:</b> §7, §9, §12 Flow A. <b>Columns:</b> <code>id</code> uuid PK · <code>branch_id</code> uuid NOT NULL FK → branch(id) RESTRICT (Django PROTECT) (registering branch) · <code>mrn</code> text NOT NULL UNIQUE per tenant (<code>uq_patient_mrn</code>, format §9) · <code>name</code> text NOT NULL · <code>phone</code> text NOT NULL · <code>sex</code> text NOT NULL (<code>M | F</code>, application-enforced; drives reference-range selection §10) · <code>date_of_birth</code> date NULL (not always known at a collection centre) · <code>created_at / updated_at</code>. <b>Append-only:</b> no. <b>Soft delete:</b> <b>yes</b> — <code>deleted_at</code>, because a mistaken duplicate registration must be reversible without touching clinical facts. <b>Indexes:</b> <code>uq_patient_mrn</code>, <code>idx_patient_branch_id</code>, <code>idx_patient_name_trgm</code> (gin, <code>name gin_trgm_ops</code>), <code>idx_patient_phone_trgm</code> (gin, <code>phone gin_trgm_ops</code>), <code>idx_patient_deleted_at</code>.</p></div>
+<div class="spec"><h4><code>patient_contact</code></h4><p class="kv"><b>Purpose:</b> additional contact channels (email, alternate phone, WhatsApp number) without widening <code>patient</code>. <b>Accepted (OQ-24, §20):</b> report delivery needs an email distinct from the primary phone (Doc 01 §12 Flow B). <b>Columns:</b> <code>id</code> uuid PK · <code>patient_id</code> uuid NOT NULL FK → patient(id) RESTRICT (Django PROTECT) · <code>kind</code> text NOT NULL (<code>email | phone | whatsapp</code>, application-enforced) · <code>value</code> text NOT NULL · <code>is_primary</code> boolean NOT NULL DEFAULT false · <code>created_at / updated_at</code>. <b>Append-only:</b> no. <b>Soft delete:</b> no.</p></div>
+<div class="spec"><h4><code>patient_consent</code></h4><p class="kv"><b>Purpose:</b> record of consent for report delivery by email / WhatsApp link. <b>Accepted (OQ-24, §20):</b> patient data is treated as sensitive (Doc 01 §5); a consent record is the evidence. <b>Columns:</b> <code>id</code> uuid PK · <code>patient_id</code> uuid NOT NULL FK → patient(id) RESTRICT (Django PROTECT) · <code>channel</code> text NOT NULL · <code>granted_at</code> timestamptz NOT NULL · <code>granted_by</code> uuid NULL FK → staff_user(id) RESTRICT (Django PROTECT) · <code>revoked_at</code> timestamptz NULL · <code>created_at</code> only. <b>Append-only:</b> no (revocation is a timestamp update, not a fact rewrite). <b>Soft delete:</b> no.</p></div>
+
+<h3>5.3 Catalogue</h3>
+<div class="spec"><h4><code>test</code></h4><p class="kv"><b>Purpose:</b> one orderable laboratory test. <b>Doc 01 ref:</b> §7 catalog, §8.5 starter catalogue. <b>Columns:</b> <code>id</code> uuid PK · <code>code</code> text NOT NULL UNIQUE · <code>name</code> text NOT NULL · <code>category</code> text NULL · <code>unit</code> text NULL (default reporting unit; ranges carry their own, §10) · <code>is_active</code> boolean NOT NULL DEFAULT true · <code>created_at / updated_at</code>. <b>Append-only:</b> no. <b>Soft delete:</b> no — retire via <code>is_active</code>; results keep FKs.</p></div>
+<div class="spec"><h4><code>panel</code> · <code>panel_test</code></h4><p class="kv"><b>Purpose:</b> a panel is a named group of tests (e.g. LFT); <code>panel_test</code> is the pure join. <b>Doc 01 ref:</b> §9, §23 glossary. <b>Columns:</b> panel — <code>id</code>, <code>code</code> UNIQUE, <code>name</code>, <code>is_active</code>, timestamps. panel_test — <code>panel_id</code> FK → panel(id) CASCADE, <code>test_id</code> FK → test(id) CASCADE, composite PK <code>(panel_id, test_id)</code>. <b>Append-only:</b> no. <b>Soft delete:</b> no. CASCADE is permitted here only because panel_test is a pure join table (§2).</p></div>
+<div class="spec"><h4><code>test_price</code></h4><p class="kv"><b>Purpose:</b> the price of a test or panel at a branch, effective-dated. <b>Accepted (OQ-24, §20):</b> Doc 01 §7 gives the catalog module pricing and §4 gives the Lab Owner pricing control, but no price table appears in Doc 01 §9. <b>Columns:</b> <code>id</code> uuid PK · <code>branch_id</code> uuid NULL FK → branch(id) RESTRICT (Django PROTECT) (NULL = tenant-wide price) · <code>test_id</code> uuid NULL FK → test(id) RESTRICT (Django PROTECT) · <code>panel_id</code> uuid NULL FK → panel(id) RESTRICT (Django PROTECT) · <code>price</code> numeric(12,2) NOT NULL CHECK price &gt;= 0 · <code>effective_from</code> timestamptz NOT NULL · <code>effective_to</code> timestamptz NULL · <code>created_at / updated_at</code>. CHECK: exactly one of <code>test_id</code>, <code>panel_id</code> is set. <b>Append-only:</b> no — a price change closes one row (<code>effective_to</code>) and opens another, so history is preserved without edits to amounts already billed (invoice items snapshot the price, §5.4).</p></div>
+<div class="spec"><h4><code>reference_range</code></h4><p class="kv"><b>Purpose:</b> normal range for a test by sex and age band. Full decision in §10. <b>Columns:</b> <code>id</code> uuid PK · <code>test_id</code> uuid NOT NULL FK → test(id) RESTRICT (Django PROTECT) · <code>sex</code> text NOT NULL (<code>M | F | B</code> = both, application-enforced) · <code>age_min_days</code> int NOT NULL CHECK &gt;= 0 · <code>age_max_days</code> int NULL (NULL = no upper bound) · <code>low</code> numeric(10,3) NULL · <code>high</code> numeric(10,3) NULL · <code>critical_low</code> numeric(10,3) NULL · <code>critical_high</code> numeric(10,3) NULL · <code>unit</code> text NOT NULL · <code>effective_from</code> date NOT NULL · <code>effective_to</code> date NULL · <code>created_at / updated_at</code>. CHECKs: <code>low IS NULL OR high IS NULL OR low &lt;= high</code>; <code>critical_low IS NULL OR critical_high IS NULL OR critical_low &lt;= critical_high</code>; <code>age_max_days IS NULL OR age_max_days &gt;= age_min_days</code>. Age is stored in days so newborn and infant bands work; the critical bounds are the A-1 columns (§20) — a value outside them flags <code>critical</code> (§10). <b>Append-only:</b> no. <b>Soft delete:</b> no — supersede via <code>effective_to</code>.</p></div>
+
+<h3>5.4 Billing</h3>
+<div class="spec"><h4><code>invoice</code></h4><p class="kv"><b>Purpose:</b> a bill for one patient at one branch. <b>Doc 01 ref:</b> §12 Flow A, §12 Flow C (revenue basis). <b>Columns:</b> <code>id</code> uuid PK · <code>patient_id</code> uuid NOT NULL FK → patient(id) RESTRICT (Django PROTECT) · <code>branch_id</code> uuid NOT NULL FK → branch(id) RESTRICT (Django PROTECT) · <code>referral_partner_id</code> uuid NULL FK → referral_partner(id) RESTRICT (Django PROTECT) (NULL = walk-in; justified in §12) · <code>status</code> text NOT NULL DEFAULT 'unpaid', <b>CHECK</b> · <code>subtotal</code> numeric(12,2) NOT NULL DEFAULT 0 · <code>discount_amount</code> numeric(12,2) NOT NULL DEFAULT 0 · <code>discount_reason</code> text NULL (required by the application when discount_amount &gt; 0) · <code>total</code> numeric(12,2) NOT NULL DEFAULT 0, CHECK total = subtotal − discount_amount is application-maintained and CHECK total &gt;= 0 · <code>idempotency_key</code> text NULL UNIQUE (<code>uq_invoice_idempotency_key</code>, partial — §7) · <code>created_at / updated_at</code>. <b>Statuses:</b> <code>unpaid | partial | paid | refunded | cancelled</code> — <b>CHECK-constrained</b> (§2). <b>Append-only:</b> no. <b>Soft delete:</b> no — a wrong invoice is <code>cancelled</code>, never deleted. <b>Referenced by:</b> invoice_item, payment, sample.</p></div>
+<div class="spec"><h4><code>invoice_item</code></h4><p class="kv"><b>Purpose:</b> one billed line: a test or a panel at the price charged. <b>Columns:</b> <code>id</code> uuid PK · <code>invoice_id</code> uuid NOT NULL FK → invoice(id) RESTRICT (Django PROTECT) · <code>test_id</code> uuid NULL FK → test(id) RESTRICT (Django PROTECT) · <code>panel_id</code> uuid NULL FK → panel(id) RESTRICT (Django PROTECT) · <code>description</code> text NOT NULL (snapshot of the name at billing time) · <code>unit_price</code> numeric(12,2) NOT NULL CHECK &gt;= 0 (snapshot — later price changes never rewrite a bill) · <code>quantity</code> int NOT NULL DEFAULT 1 CHECK &gt; 0 · <code>line_total</code> numeric(12,2) NOT NULL · <code>created_at / updated_at</code>. CHECK: exactly one of <code>test_id</code>, <code>panel_id</code>. <b>Append-only:</b> no. <b>Soft delete:</b> no.</p></div>
+<div class="spec"><h4><code>payment</code></h4><p class="kv"><b>Purpose:</b> money received against an invoice — or returned. The revenue-share basis (§12). <b>Doc 01 ref:</b> §12 Flows A and C. <b>Columns:</b> <code>id</code> uuid PK · <code>invoice_id</code> uuid NOT NULL FK → invoice(id) RESTRICT (Django PROTECT) · <code>kind</code> text NOT NULL DEFAULT 'payment', <b>CHECK</b> (<code>payment | refund</code>) · <code>method</code> text NOT NULL, <b>CHECK</b> — the channel the money actually moved by · <code>amount</code> numeric(12,2) NOT NULL CHECK amount &gt; 0 (always positive; <code>kind</code> supplies the sign in every sum, §12) · <code>received_by</code> uuid NULL FK → staff_user(id) RESTRICT (Django PROTECT) · <code>reference</code> text NULL (gateway / bank reference) · <code>idempotency_key</code> text NULL UNIQUE (<code>uq_payment_idempotency_key</code>, partial) · <code>created_at</code> only. <b>Values:</b> kind <code>payment | refund</code> and method <code>cash | card | bank_transfer | easypaisa | jazzcash | other</code> — both <b>CHECK-constrained</b>. A refund is a <code>kind</code>, not a method: money returned in cash is <code>kind = refund, method = cash</code> (OQ-23, resolved in §20). <b>Append-only:</b> <b>yes</b> — REVOKE in §6. A correction is a new adjustment / refund row, never an edit. <b>Soft delete:</b> no (financial fact).</p></div>
+
+<h3>5.5 Samples</h3>
+<div class="spec"><h4><code>sample</code></h4><p class="kv"><b>Purpose:</b> one physical sample, identified by its Code128 accession ID. <b>Doc 01 ref:</b> §12 Flow A, §9. <b>Columns:</b> <code>id</code> uuid PK · <code>invoice_id</code> uuid NOT NULL FK → invoice(id) RESTRICT (Django PROTECT) · <code>branch_id</code> uuid NOT NULL FK → branch(id) RESTRICT (Django PROTECT) (collecting branch; current location follows transfers) · <code>accession_id</code> text NOT NULL UNIQUE (<code>uq_sample_accession_id</code>, format §9) · <code>status</code> text NOT NULL DEFAULT 'collected', <b>CHECK</b> · <code>collected_at</code> timestamptz NOT NULL · <code>collected_by</code> uuid NULL FK → staff_user(id) RESTRICT (Django PROTECT) · <code>rejection_reason_code</code> text NULL (application-enforced code, set when status = rejected — the A-2 columns, §20) · <code>rejection_note</code> text NULL (free-text detail recorded with a rejection) · <code>created_at / updated_at</code>. <b>Statuses:</b> <code>collected | received | in_process | ready | rejected | cancelled</code> — <b>CHECK-constrained</b>. <b>Append-only:</b> no. <b>Soft delete:</b> no — a sample is <code>cancelled</code>. <b>Indexes:</b> <code>uq_sample_accession_id</code>, <code>idx_sample_branch_id_status</code> (queue views), FK indexes.</p></div>
+<div class="spec"><h4><code>sample_test</code></h4><p class="kv"><b>Purpose:</b> the link from a sample to the tests that were ordered on it — <code>sample ↔ invoice_item</code>, expanded to component tests. Without it nothing can say which results are still pending or when a report is complete. <b>Accepted (OQ-24, §20):</b> no table in Doc 01 §9 connects a sample to its ordered tests. <b>Columns:</b> <code>id</code> uuid PK · <code>sample_id</code> uuid NOT NULL FK → sample(id) RESTRICT (Django PROTECT) · <code>invoice_item_id</code> uuid NOT NULL FK → invoice_item(id) RESTRICT (Django PROTECT) · <code>test_id</code> uuid NOT NULL FK → test(id) RESTRICT (Django PROTECT) (one row per expected component test: for a panel item, one row per <code>panel_test</code> component; for a single-test item, one row) · <code>created_at</code> only. UNIQUE <code>(sample_id, test_id)</code> (<code>uq_sample_test_sample_id_test_id</code>). <b>Rules:</b> rows are written in the sample-creation transaction from the invoice items. A <code>result</code> is expected exactly when a <code>sample_test</code> row exists for (sample, test) — pending results are <code>sample_test</code> rows with no approved result, and a report may go final only when none are pending (§11). <b>Append-only:</b> no, but rows are never updated by the application; a cancelled order line cancels the sample, not the link. <b>Soft delete:</b> no.</p></div>
+<div class="spec"><h4><code>sample_event</code></h4><p class="kv"><b>Purpose:</b> the append-only timeline of everything that happened to a sample. <b>Columns:</b> <code>id</code> uuid PK · <code>sample_id</code> uuid NOT NULL FK → sample(id) RESTRICT (Django PROTECT) · <code>event</code> text NOT NULL — <b>no CHECK</b>: event names evolve, so this column is application-enforced by design · <code>actor_id</code> uuid NULL FK → staff_user(id) RESTRICT (Django PROTECT) (NULL for system events) · <code>branch_id</code> uuid NULL FK → branch(id) RESTRICT (Django PROTECT) · <code>note</code> text NULL · <code>created_at</code> only. <b>Statuses:</b> event <code>COLLECTED | RECEIVED | IN_PROCESS | REJECTED | TRANSFERRED_IN | TRANSFERRED_OUT | READY | CANCELLED</code>. <b>Append-only:</b> <b>yes</b> — REVOKE in §6; a correction is a new event row. <b>Soft delete:</b> no.</p></div>
+<div class="spec"><h4><code>sample_transfer</code></h4><p class="kv"><b>Purpose:</b> chain-of-custody record when a sample moves between a collection centre and a processing branch. <b>Accepted (OQ-24, §20):</b> Doc 01 §7 names transfers under the samples module but §9 has no transfer table. <b>Columns:</b> <code>id</code> uuid PK · <code>sample_id</code> uuid NOT NULL FK → sample(id) RESTRICT (Django PROTECT) · <code>from_branch_id</code> uuid NOT NULL FK → branch(id) RESTRICT (Django PROTECT) · <code>to_branch_id</code> uuid NOT NULL FK → branch(id) RESTRICT (Django PROTECT) · <code>transferred_by</code> uuid NULL FK → staff_user(id) RESTRICT (Django PROTECT) · <code>received_by</code> uuid NULL FK → staff_user(id) RESTRICT (Django PROTECT) · <code>status</code> text NOT NULL DEFAULT 'open' (<code>open | received | cancelled | lost</code>, application-enforced) · <code>dispatched_at</code> timestamptz NULL · <code>received_at</code> timestamptz NULL · <code>created_at / updated_at</code>. The <code>status</code> / <code>dispatched_at</code> / <code>received_at</code> columns are A-9 (§20), accepted from Doc 04: before them, "open" was inferred from <code>received_by</code> being NULL and dispatch / receipt times existed only as <code>sample_event</code> rows. Each transfer also writes <code>TRANSFERRED_OUT</code> / <code>TRANSFERRED_IN</code> sample events. <b>Append-only:</b> no. <b>Soft delete:</b> no.</p></div>
+
+<h3>5.6 Results</h3>
+<div class="spec"><h4><code>result</code></h4><p class="kv"><b>Purpose:</b> one measured value for one test on one sample. <b>Doc 01 ref:</b> §12 Flow B. <b>Columns:</b> <code>id</code> uuid PK · <code>sample_id</code> uuid NOT NULL FK → sample(id) RESTRICT (Django PROTECT) · <code>test_id</code> uuid NOT NULL FK → test(id) RESTRICT (Django PROTECT) · <code>value</code> text NOT NULL (stored as entered; numeric interpretation happens against the reference range, because some results are qualitative) · <code>unit</code> text NULL · <code>flag</code> text NULL (<code>low | normal | high | critical</code>, application-enforced, computed against §10 at entry; <code>critical</code> is the A-1 value, §20) · <code>status</code> text NOT NULL DEFAULT 'entered', <b>CHECK</b> · <code>entered_by</code> uuid NOT NULL FK → staff_user(id) RESTRICT (Django PROTECT) · <code>created_at / updated_at</code>. A result is expected exactly when a <code>sample_test</code> row (§5.5) exists for (<code>sample_id</code>, <code>test_id</code>); the application rejects a result with no matching <code>sample_test</code> row. <b>Statuses:</b> <code>entered | approved | rejected | amended | withdrawn</code> — <b>CHECK-constrained</b>. <b>Withdrawn:</b> a result its author removed before any approval decision. Withdrawal writes <b>no</b> <code>result_approval</code> row — only an <code>audit_log</code> row. <b>Append-only:</b> no — but an approved result is never edited in place; an amendment changes status and is audited, and any report already final gains a new <code>report_version</code> (§11). <b>Soft delete:</b> no (clinical fact).</p></div>
+<div class="spec"><h4><code>result_approval</code></h4><p class="kv"><b>Purpose:</b> the pathologist's sign-off (or rejection) of a result. <b>Columns:</b> <code>id</code> uuid PK · <code>result_id</code> uuid NOT NULL FK → result(id) RESTRICT (Django PROTECT) · <code>pathologist_id</code> uuid NOT NULL FK → staff_user(id) RESTRICT (Django PROTECT) · <code>decision</code> text NOT NULL (<code>approved | rejected</code>, application-enforced) · <code>note</code> text NULL · <code>range_override</code> boolean NOT NULL DEFAULT false (true when the pathologist released a result outside its range — the override itself is written to <code>audit_log</code>, §10) · <code>created_at</code> only. <b>Append-only:</b> no by REVOKE, but rows are never updated by the application; a changed decision is a new approval row and a status change on <code>result</code>. A withdrawn result has no row here by design — its author removed it before any approval decision, and the withdrawal is recorded only in <code>audit_log</code>. <b>Soft delete:</b> no.</p></div>
+<div class="spec"><h4><code>critical_notification</code></h4><p class="kv"><b>Purpose:</b> the record that a critical result was notified — who was told, when, and whether the value was read back. Accepted from Doc 03 amendment A-3 (§20). <b>Columns:</b> <code>id</code> uuid PK · <code>result_id</code> uuid NOT NULL FK → result(id) RESTRICT (Django PROTECT) · <code>notified_name</code> text NOT NULL · <code>notified_at</code> timestamptz NOT NULL · <code>read_back</code> boolean NOT NULL DEFAULT false · <code>recorded_by</code> uuid NOT NULL FK → staff_user(id) RESTRICT (Django PROTECT) · <code>created_at</code> only. <b>Append-only:</b> <b>yes</b> — REVOKE in §6; a notification record is never edited or deleted, and a further notification is a new row. <b>Soft delete:</b> no. <b>Indexes:</b> FK indexes per the §7 pattern (<code>idx_critical_notification_result_id</code>, <code>idx_critical_notification_recorded_by</code>).</p></div>
+
+<h3>5.7 Reports</h3>
+<div class="spec"><h4><code>report</code></h4><p class="kv"><b>Purpose:</b> the patient-facing report for one sample (v1 grouping, §11). <b>Doc 01 ref:</b> §12 Flow B, §9 (<code>SAMPLE ||--o| REPORT</code>). <b>Columns:</b> <code>id</code> uuid PK · <code>sample_id</code> uuid NOT NULL FK → sample(id) RESTRICT (Django PROTECT) · <code>status</code> text NOT NULL DEFAULT 'draft' (application-enforced only) · <code>current_version</code> int NOT NULL DEFAULT 0 · <code>finalised_at</code> timestamptz NULL · <code>created_at / updated_at</code>. <b>Statuses:</b> <code>draft | final | amended | void</code>. <b>Append-only:</b> no. <b>Soft delete:</b> no — a report is <code>void</code>, never deleted. Cardinality: a sample has at most one current report in v1; corrections live in <code>report_version</code>.</p></div>
+<div class="spec"><h4><code>report_version</code></h4><p class="kv"><b>Purpose:</b> one immutable rendered version of a report (PDF in object storage). <b>Columns:</b> <code>id</code> uuid PK · <code>report_id</code> uuid NOT NULL FK → report(id) RESTRICT (Django PROTECT) · <code>version</code> int NOT NULL CHECK &gt; 0 · <code>pdf_key</code> text NOT NULL UNIQUE (<code>reports/{report_id}/{version}.pdf</code>, §9) · <code>generated_by</code> uuid NULL FK → staff_user(id) RESTRICT (Django PROTECT) · <code>created_at</code> only. UNIQUE <code>(report_id, version)</code> (<code>uq_report_version_report_id_version</code>). <b>Append-only:</b> <b>yes</b> — REVOKE in §6. A correction is a new row with the next version and <code>report.status = amended</code>. <b>Soft delete:</b> no.</p></div>
+<div class="spec"><h4><code>report_delivery</code></h4><p class="kv"><b>Purpose:</b> one delivery attempt of a report link to the patient, via n8n, with retry state. <b>Doc 01 ref:</b> §12 Flow B, §13 queues. <b>Columns:</b> <code>id</code> uuid PK · <code>report_id</code> uuid NOT NULL FK → report(id) RESTRICT (Django PROTECT) · <code>channel</code> text NOT NULL (<code>email | whatsapp</code>, application-enforced) · <code>status</code> text NOT NULL DEFAULT 'PENDING' (application-enforced only) · <code>whatsapp_url</code> text NULL (the click-to-send URL returned in the n8n callback body and stored here — Doc 01 Flow B fix; NULL for email deliveries) · <code>attempts</code> int NOT NULL DEFAULT 0 · <code>next_attempt_at</code> timestamptz NULL · <code>last_error</code> text NULL · <code>created_at / updated_at</code>. <b>Statuses:</b> <code>PENDING | SENT | FAILED | BOUNCED | OPENED</code>. <b>Append-only:</b> no — retry state is mutable by design. <b>Soft delete:</b> no. <b>Indexes:</b> partial <code>idx_report_delivery_status_next_attempt_at WHERE status IN ('PENDING','FAILED')</code> — drives the 15-minute retry Beat task.</p></div>
+<div class="spec"><h4><code>report_access_token</code></h4><p class="kv"><b>Purpose:</b> the hashed token behind a patient's signed report link. <b>Doc 01 ref:</b> §14 patient report access. <b>Columns:</b> <code>id</code> uuid PK · <code>report_id</code> uuid NOT NULL FK → report(id) RESTRICT (Django PROTECT) · <code>token_hash</code> text NOT NULL UNIQUE (<code>uq_report_access_token_token_hash</code>, argon2 hash of 32 random bytes, §9) · <code>expires_at</code> timestamptz NOT NULL CHECK expires_at &gt; created_at (7-day TTL) · <code>revoked_at</code> timestamptz NULL (staff can revoke; resend issues a new token) · <code>last_accessed_at</code> timestamptz NULL · <code>created_at / updated_at</code>. The plain token exists only in the link that is sent; it is never stored. The 7-day access URL is <b>not</b> the pre-signed R2 URL — opening the link checks this token, then redirects to a pre-signed storage URL valid ~15 minutes (Doc 01 §14). <b>Append-only:</b> no. <b>Soft delete:</b> no — revoke via <code>revoked_at</code>.</p></div>
+
+<h3>5.8 Referral partners and revenue share</h3>
+<div class="spec"><h4><code>referral_partner</code></h4><p class="kv"><b>Purpose:</b> a referring doctor or facility. Record only — no login in v1; receives a monthly statement PDF. <b>Doc 01 ref:</b> §4, §7 partners module (neutral naming, Doc 01 ADR-013). <b>Columns:</b> <code>id</code> uuid PK · <code>name</code> text NOT NULL · <code>organisation</code> text NULL · <code>phone</code> text NULL · <code>email</code> text NULL (statement recipient) · <code>is_active</code> boolean NOT NULL DEFAULT true · <code>created_at / updated_at</code>. <b>Append-only:</b> no. <b>Soft delete:</b> <b>yes</b> — <code>deleted_at</code>, because ledger rows keep FKs to the partner and a merged duplicate must be recoverable. UI labels for this module are tenant-renamable (Doc 01 §7); the table name is not.</p></div>
+<div class="spec"><h4><code>revenue_share_rule</code></h4><p class="kv"><b>Purpose:</b> the percentage a partner earns, effective-dated and resolvable by partner, test category, and branch. <b>Doc 01 ref:</b> §12 Flow C (rule resolution), §8.5 step 4 (0% default — applied by rule resolution, not seeded; A-10, §16, §20). <b>Columns:</b> <code>id</code> uuid PK · <code>referral_partner_id</code> uuid NOT NULL FK → referral_partner(id) RESTRICT (Django PROTECT) · <code>test_category</code> text NULL (NULL = all categories) · <code>branch_id</code> uuid NULL FK → branch(id) RESTRICT (Django PROTECT) (NULL = all branches) · <code>percent</code> numeric(5,2) NOT NULL CHECK percent BETWEEN 0 AND 100 · <code>effective_from</code> date NOT NULL · <code>effective_to</code> date NULL · <code>created_at / updated_at</code>. Resolution picks the most specific matching rule effective on the payment date (specificity order is Doc 05 behaviour; the columns here are what make it possible). If no rule matches, resolution applies 0% — there is no seeded tenant-level rule row, because <code>referral_partner_id</code> is NOT NULL and no partner exists at provisioning (A-10, §16, §20). The owner creates the first real rule for each partner. <b>Append-only:</b> no — supersede via <code>effective_to</code>. <b>Soft delete:</b> no.</p></div>
+<div class="spec"><h4><code>share_ledger_entry</code></h4><p class="kv"><b>Purpose:</b> one partner's share of one payment. The revenue-share ledger. <b>Doc 01 ref:</b> §12 Flow C; model locked in §12 of this document. <b>Columns:</b> <code>id</code> uuid PK · <code>payment_id</code> uuid NOT NULL FK → payment(id) RESTRICT (Django PROTECT), <b>UNIQUE</b> (<code>uq_share_ledger_entry_payment_id</code> — one ledger row per payment is the idempotency guarantee) · <code>referral_partner_id</code> uuid NOT NULL FK → referral_partner(id) RESTRICT (Django PROTECT) · <code>rule_id</code> uuid NULL FK → revenue_share_rule(id) RESTRICT (Django PROTECT) (the rule applied; NULL only for a reversal whose original predates rules) · <b>no <code>settlement_id</code> column</b> — which settlement (if any) includes this entry is recorded only in <code>settlement_line</code> · <code>amount</code> numeric(12,2) NOT NULL (negative = compensating / reversal entry) · <code>percent_applied</code> numeric(5,2) NOT NULL · <code>basis_amount</code> numeric(12,2) NOT NULL (the payment amount the share was computed on) · <code>period</code> text NOT NULL (YYYY-MM of the payment) · <code>created_at</code> only. <b>Status: derived, never stored.</b> An entry with no <code>settlement_line</code> on a live settlement is pending; a line on a DRAFT settlement means in-draft; a line on an APPROVED / SENT / PAID settlement means settled. A line on a CANCELLED settlement does not count — the entry is pending again and can be picked up by the re-draft. There is no REVERSED status. <b>Append-only:</b> <b>yes, fully</b> — UPDATE and DELETE are both revoked (§6); no column on this table ever changes after insert. A refund never edits this row: it creates a new negative entry (§12). <b>Soft delete:</b> no (financial fact).</p></div>
+<div class="spec"><h4><code>settlement</code></h4><p class="kv"><b>Purpose:</b> one partner's statement for one calendar month. <b>Doc 01 ref:</b> §12 Flow C, §19 OQ-13/OQ-14 (calendar-month settlements, share on paid amount). <b>Columns:</b> <code>id</code> uuid PK · <code>referral_partner_id</code> uuid NOT NULL FK → referral_partner(id) RESTRICT (Django PROTECT) · <code>period</code> text NOT NULL CHECK period ~ '^\d{4}-\d{2}$' · <code>status</code> text NOT NULL DEFAULT 'DRAFT', <b>CHECK</b> · <code>total</code> numeric(12,2) NOT NULL DEFAULT 0 · <code>statement_pdf_key</code> text NULL (<code>settlements/{partner_id}/{period}.pdf</code>, §9; set by the finalize task before the approved webhook fires) · <code>approved_by</code> uuid NULL FK → staff_user(id) RESTRICT (Django PROTECT) · <code>approved_at</code> timestamptz NULL · <code>created_at / updated_at</code>. Partial UNIQUE <code>(referral_partner_id, period) WHERE status &lt;&gt; 'CANCELLED'</code> (<code>uq_settlement_partner_id_period</code> — one <i>live</i> settlement per partner per month; a cancelled settlement does not block its replacement, which is what makes the re-draft flow under <code>settlement_line</code> possible). <b>Statuses:</b> <code>DRAFT | APPROVED | SENT | PAID | CANCELLED</code> — <b>CHECK-constrained</b>. <b>Append-only:</b> no. <b>Soft delete:</b> no — a wrong settlement is <code>CANCELLED</code>.</p></div>
+<div class="spec"><h4><code>settlement_line</code></h4><p class="kv"><b>Purpose:</b> the itemisation of a settlement: which ledger entries it includes. <b>Columns:</b> <code>id</code> uuid PK · <code>settlement_id</code> uuid NOT NULL FK → settlement(id) RESTRICT (Django PROTECT) · <code>share_ledger_entry_id</code> uuid NOT NULL FK → share_ledger_entry(id) RESTRICT (Django PROTECT), UNIQUE (an entry appears in exactly one settlement) · <code>amount</code> numeric(12,2) NOT NULL (snapshot of the entry amount at drafting) · <code>created_at</code> only. <b>Append-only:</b> no by REVOKE, but never updated by the application — a re-draft cancels the settlement and creates a new one. <b>Soft delete:</b> no.</p></div>
+
+<h3>5.9 Notifications</h3>
+<div class="spec"><h4><code>notification_template</code></h4><p class="kv"><b>Purpose:</b> bilingual (English / Urdu) message templates, seeded per tenant (§16). <b>Columns:</b> <code>id</code> uuid PK · <code>key</code> text NOT NULL (<code>sample_collected | report_ready | report_link_resend | settlement_ready</code>) · <code>locale</code> text NOT NULL (<code>en | ur</code>) · <code>channel</code> text NOT NULL (<code>email | whatsapp</code>) · <code>subject</code> text NULL (email only) · <code>body</code> text NOT NULL · <code>template_context_schema</code> jsonb NULL (the one sanctioned JSONB outside audit/webhook — names the variables the body may use) · <code>created_at / updated_at</code>. UNIQUE <code>(key, locale, channel)</code>. <b>Append-only:</b> no. <b>Soft delete:</b> no.</p></div>
+<div class="spec"><h4><code>notification</code></h4><p class="kv"><b>Purpose:</b> one queued notification to a patient, partner, or staff member, delivered through n8n, with retry state mirroring <code>report_delivery</code>. <b>Columns:</b> <code>id</code> uuid PK · <code>template_key</code> text NULL · <code>recipient_type</code> text NOT NULL (<code>patient | partner | staff</code>, application-enforced) · <code>recipient_id</code> uuid NULL (plain UUID, no FK — the recipient table varies by type) · <code>channel</code> text NOT NULL · <code>status</code> text NOT NULL DEFAULT 'PENDING' (application-enforced only) · <code>attempts</code> int NOT NULL DEFAULT 0 · <code>next_attempt_at</code> timestamptz NULL · <code>last_error</code> text NULL · <code>idempotency_key</code> text NULL UNIQUE (partial) · <code>created_at / updated_at</code>. <b>Statuses:</b> <code>PENDING | SENT | FAILED</code>. <b>Append-only:</b> no. <b>Soft delete:</b> no.</p></div>
+
+<h3>5.10 Webhook delivery</h3>
+<div class="spec"><h4><code>webhook_delivery</code></h4><p class="kv"><b>Purpose:</b> one signed Django → n8n webhook attempt, with dedupe and retry state. <b>Accepted (OQ-24, §20):</b> Doc 01 §13 defines the signed-webhook protocol and idempotency keys but no delivery table — this is where exhausted deliveries leave their FAILED row (Doc 01 §14). <b>Columns:</b> <code>id</code> uuid PK · <code>event</code> text NOT NULL · <code>idempotency_key</code> text NOT NULL UNIQUE · <code>payload_jsonb</code> jsonb NOT NULL (sanctioned JSONB, §2 — the wire payload <code>{event, tenant_slug, callback_url, idempotency_key, timestamp, data}</code>; tenant_slug here is payload data for a task running inside this tenant's schema, <b>not</b> a tenant_id column) · <code>status</code> text NOT NULL DEFAULT 'PENDING' (<code>PENDING | SENT | FAILED</code>, application-enforced) · <code>attempts</code> int NOT NULL DEFAULT 0 · <code>next_attempt_at</code> timestamptz NULL · <code>last_error</code> text NULL · <code>created_at / updated_at</code>. <b>Indexes:</b> partial <code>idx_webhook_delivery_status_next_attempt_at WHERE status IN ('PENDING','FAILED')</code>. <b>Append-only:</b> no. <b>Soft delete:</b> no.</p></div>
+
+<h3>5.11 Audit and login</h3>
+<div class="spec"><h4><code>audit_log</code></h4><p class="kv"><b>Purpose:</b> append-only audit of every write touching money, results, reports, or auth, inside this tenant. Full treatment in §13. <b>Columns:</b> <code>id</code> uuid PK · <code>actor_id</code> uuid NULL (plain UUID, no FK — NULL for system events; no FK so audit survives staff removal) · <code>entity_type</code> text NOT NULL · <code>entity_id</code> uuid NOT NULL · <code>action</code> text NOT NULL · <code>before_jsonb</code> jsonb NULL · <code>after_jsonb</code> jsonb NULL · <code>ip</code> inet NULL · <code>user_agent</code> text NULL · <code>at</code> timestamptz NOT NULL DEFAULT now(). <b>Append-only:</b> <b>yes</b> — REVOKE in §6. <b>Soft delete:</b> no. <b>Indexes:</b> <code>idx_audit_log_at</code>, <code>idx_audit_log_entity_type_entity_id</code>.</p></div>
+<div class="spec"><h4><code>login_event</code></h4><p class="kv"><b>Purpose:</b> staff sign-in attempts (success and failure) for security review. <b>Doc 01 ref:</b> §7 accounts (login events). <b>Columns:</b> <code>id</code> uuid PK · <code>staff_user_id</code> uuid NULL FK → staff_user(id) RESTRICT (Django PROTECT) (NULL when the email matched no account) · <code>email_attempted</code> text NOT NULL · <code>success</code> boolean NOT NULL · <code>ip</code> inet NULL · <code>user_agent</code> text NULL · <code>created_at</code> only. <b>Append-only:</b> no by REVOKE, but never updated or deleted by the application; retention cleanup is a maintenance task (Doc 08). <b>Soft delete:</b> no.</p></div>
+<div class="spec"><h4><code>password_reset_token</code> (with <code>email_verification_token</code>, same shape)</h4><p class="kv"><b>Purpose:</b> hashed, expiring tokens for staff password reset and email verification (§14). <b>Accepted (OQ-24, §20):</b> required by the §14 token-storage decision. <b>Columns:</b> <code>id</code> uuid PK · <code>staff_user_id</code> uuid NOT NULL FK → staff_user(id) CASCADE (a token is meaningless without its user — one of the two sanctioned CASCADEs) · <code>token_hash</code> text NOT NULL UNIQUE (argon2) · <code>purpose</code> text NOT NULL DEFAULT 'password_reset', <b>CHECK</b> <code>purpose IN ('password_reset','email_verification','activation')</code> (<code>chk_password_reset_token_purpose</code>) · <code>expires_at</code> timestamptz NOT NULL CHECK expires_at &gt; created_at · <code>used_at</code> timestamptz NULL · <code>created_at / updated_at</code>. The <code>purpose</code> column is A-14 (revised, §20): one token table serves password reset, email verification, and activation, because the token rules are the same for all three — single-use, expiring, stored hashed (§14). No second token table is created, and the table name is unchanged. <b>Append-only:</b> no — rows are DELETEd after 30 days by a Beat maintenance task. <b>Soft delete:</b> no.</p></div>
+
+<h3>5.12 Tenant settings</h3>
+<div class="spec"><h4><code>tenant_setting</code></h4><p class="kv"><b>Purpose:</b> per-tenant key/value settings — one row per setting key — for the switches and defaults Doc 04 §10 defines (billing hold, report language, report link validity, branding). <b>Accepted (A-7, §20):</b> Doc 03 OQ-33 made billing hold a per-tenant setting, and no settings store existed in this schema. <b>Columns:</b> <code>id</code> uuid PK · <code>key</code> text NOT NULL UNIQUE (<code>uq_tenant_setting_key</code>) · <code>value</code> text NOT NULL (the setting value, stored as text; the application parses and validates it per key — Doc 04 §10) · <code>updated_by</code> uuid NULL FK → staff_user(id) RESTRICT (Django PROTECT) (NULL for a value set by the system, e.g. at provisioning) · <code>created_at / updated_at</code>. <b>Rules:</b> only known keys are valid — an unknown key is rejected by the application; a key with no row falls back to the platform default for that key (Doc 04 §10). Setting changes are written to <code>audit_log</code>. <b>Append-only:</b> no. <b>Soft delete:</b> no — resetting a setting deletes its row, and the platform default applies again.</p></div>
+
+<h2 id="s6">6. Append-only enforcement</h2>
+<p>Six tenant tables and one public table are append-only: <code>share_ledger_entry</code>, <code>audit_log</code>, <code>report_version</code>, <code>payment</code>, <code>sample_event</code>, <code>critical_notification</code> (tenant), and <code>platform_audit</code> (public). Append-only tables have <code>created_at</code> (or <code>at</code>) only — never <code>updated_at</code>.</p>
+<pre>-- Run in public at provisioning, and repeated in EVERY new tenant schema
+-- (Doc 01 §8.5 step 3), and by migration for existing tenants:
+REVOKE UPDATE, DELETE ON platform_audit FROM labflow_app;        -- public only
+REVOKE UPDATE, DELETE ON payment FROM labflow_app;
+REVOKE UPDATE, DELETE ON sample_event FROM labflow_app;
+REVOKE UPDATE, DELETE ON report_version FROM labflow_app;
+REVOKE UPDATE, DELETE ON critical_notification FROM labflow_app;
+REVOKE UPDATE, DELETE ON audit_log FROM labflow_app;
+REVOKE UPDATE, DELETE ON share_ledger_entry FROM labflow_app;  -- fully immutable: it has no status or settlement column to transition (see §5.8)</pre>
+<div class="box"><table><thead><tr><th>Table</th><th>How a "change" is modelled</th></tr></thead><tbody>
+<tr><td>share_ledger_entry</td><td>A new negative (compensating) row against the same partner, in the current open period if the original period is closed (§12). Amounts on existing rows never change.</td></tr>
+<tr><td>payment</td><td>A new row with <code>kind = refund</code> and the method the money was actually returned by (e.g. cash), never an edit. The amount stays positive; <code>kind</code> supplies the sign.</td></tr>
+<tr><td>report_version</td><td>A new row with the next version number; <code>report.status</code> becomes <code>amended</code>.</td></tr>
+<tr><td>sample_event</td><td>A new event row.</td></tr>
+<tr><td>critical_notification</td><td>Never changed — the record of who was notified, when, and whether the value was read back stands as written; a further notification is a new row.</td></tr>
+<tr><td>audit_log / platform_audit</td><td>A new row. Audit is never corrected in place.</td></tr>
+</tbody></table></div>
+<p><b>No exceptions:</b> <code>share_ledger_entry</code> is fully immutable. It carries no <code>status</code> and no <code>settlement_id</code>: settlement membership lives only in <code>settlement_line</code>, and an entry’s status is derived from that line’s <code>settlement.status</code> (§5.8). Nothing on a ledger row ever needs to change, so UPDATE is revoked outright — the earlier status-transition exception (old OQ-22) is gone.</p>
+<p><b>Rule:</b> application code never issues UPDATE or DELETE against these tables. If it does, the database rejects it — that rejection is the safety net, not the primary defence.</p>
+
+<h2 id="s7">7. Indexes</h2>
+<p>Every foreign-key column is indexed, no exceptions. Every other index below exists for a named query or constraint — there are no speculative indexes for "possible future queries". The consolidated catalogue is repeated in §18; the two must agree exactly.</p>
+<div class="box"><table><thead><tr><th>Table</th><th>Index</th><th>Columns</th><th>Type</th><th>Partial</th><th>Rationale</th></tr></thead><tbody>
+<tr><td>tenant</td><td>uq_tenant_slug</td><td>slug</td><td>unique btree</td><td>—</td><td>Subdomain / schema lookup, uniqueness</td></tr>
+<tr><td>domain</td><td>uq_domain_domain</td><td>domain</td><td>unique btree</td><td>—</td><td>TLS ask endpoint and tenant resolution</td></tr>
+<tr><td>domain, subscription, and every tenant table</td><td>idx_{table}_{fk}_id</td><td>each FK column</td><td>btree</td><td>—</td><td>Every FK indexed (§2 rule); names follow the pattern, e.g. <code>idx_invoice_patient_id</code>, <code>idx_sample_invoice_id</code>, <code>idx_share_ledger_entry_payment_id</code>, <code>idx_critical_notification_result_id</code></td></tr>
+<tr><td>subscription</td><td>uq_subscription_one_active_per_tenant</td><td>tenant_id</td><td>unique btree</td><td>WHERE status = 'active'</td><td>A tenant can have only one active subscription</td></tr>
+<tr><td>branch</td><td>uq_branch_code</td><td>code</td><td>unique btree</td><td>—</td><td>Branch code unique per tenant (used in MRNs, §9)</td></tr>
+<tr><td>branch</td><td>idx_branch_deleted_at</td><td>deleted_at</td><td>btree</td><td>—</td><td>Soft-delete filtering (§2)</td></tr>
+<tr><td>patient</td><td>idx_patient_deleted_at</td><td>deleted_at</td><td>btree</td><td>—</td><td>Soft-delete filtering (§2)</td></tr>
+<tr><td>patient</td><td>uq_patient_mrn</td><td>mrn</td><td>unique btree</td><td>—</td><td>One MRN per patient per tenant</td></tr>
+<tr><td>patient</td><td>idx_patient_name_trgm</td><td>name</td><td>gin (gin_trgm_ops)</td><td>—</td><td>Fuzzy patient search at reception</td></tr>
+<tr><td>patient</td><td>idx_patient_phone_trgm</td><td>phone</td><td>gin (gin_trgm_ops)</td><td>—</td><td>Find patient by (partial) phone</td></tr>
+<tr><td>staff_user</td><td>uq_staff_user_email</td><td>email</td><td>unique btree</td><td>—</td><td>Login identifier, unique per tenant</td></tr>
+<tr><td>sample</td><td>uq_sample_accession_id</td><td>accession_id</td><td>unique btree</td><td>—</td><td>Barcode scan lookup</td></tr>
+<tr><td>sample</td><td>idx_sample_branch_id_status</td><td>branch_id, status</td><td>btree</td><td>—</td><td>Branch work-queue views</td></tr>
+<tr><td>staff_branch</td><td>uq_staff_branch_staff_user_id_branch_id</td><td>staff_user_id, branch_id</td><td>unique btree (composite PK)</td><td>—</td><td>One assignment row per staff member per branch</td></tr>
+<tr><td>sample_test</td><td>uq_sample_test_sample_id_test_id</td><td>sample_id, test_id</td><td>unique btree</td><td>—</td><td>One expected-result row per test per sample — pending-result and report-completeness queries</td></tr>
+<tr><td>invoice</td><td>uq_invoice_idempotency_key</td><td>idempotency_key</td><td>unique btree</td><td>WHERE idempotency_key IS NOT NULL</td><td>Safe invoice re-submission</td></tr>
+<tr><td>payment</td><td>uq_payment_idempotency_key</td><td>idempotency_key</td><td>unique btree</td><td>WHERE idempotency_key IS NOT NULL</td><td>No double-charging on retry</td></tr>
+<tr><td>share_ledger_entry</td><td>uq_share_ledger_entry_payment_id</td><td>payment_id</td><td>unique btree</td><td>—</td><td>One ledger row per payment — idempotency (§12)</td></tr>
+<tr><td>settlement</td><td>uq_settlement_partner_id_period</td><td>referral_partner_id, period</td><td>unique btree</td><td>WHERE status &lt;&gt; 'CANCELLED'</td><td>One live settlement per partner per month; a cancelled settlement does not block its re-draft</td></tr>
+<tr><td>report_version</td><td>uq_report_version_report_id_version</td><td>report_id, version</td><td>unique btree</td><td>—</td><td>One PDF per version number</td></tr>
+<tr><td>report_access_token</td><td>uq_report_access_token_token_hash</td><td>token_hash</td><td>unique btree</td><td>—</td><td>Token lookup on report open</td></tr>
+<tr><td>report_delivery</td><td>idx_report_delivery_status_next_attempt_at</td><td>status, next_attempt_at</td><td>btree</td><td>WHERE status IN ('PENDING','FAILED')</td><td>Drives the 15-minute delivery retry</td></tr>
+<tr><td>webhook_delivery</td><td>idx_webhook_delivery_status_next_attempt_at</td><td>status, next_attempt_at</td><td>btree</td><td>WHERE status IN ('PENDING','FAILED')</td><td>Drives webhook retry</td></tr>
+<tr><td>audit_log</td><td>idx_audit_log_at</td><td>at</td><td>btree</td><td>—</td><td>Time-range audit queries</td></tr>
+<tr><td>platform_audit</td><td>idx_platform_audit_at</td><td>at</td><td>btree</td><td>—</td><td>Time-range platform audit queries</td></tr>
+<tr><td>settlement_line</td><td>uq_settlement_line_share_ledger_entry_id</td><td>share_ledger_entry_id</td><td>unique btree</td><td>—</td><td>An entry is settled exactly once</td></tr>
+<tr><td>notification_template</td><td>uq_notification_template_key_locale_channel</td><td>key, locale, channel</td><td>unique btree</td><td>—</td><td>Idempotent template seeding (§16)</td></tr>
+<tr><td>webhook_delivery</td><td>uq_webhook_delivery_idempotency_key</td><td>idempotency_key</td><td>unique btree</td><td>—</td><td>Webhook dedupe (Doc 01 §14)</td></tr>
+<tr><td>tenant_setting</td><td>uq_tenant_setting_key</td><td>key</td><td>unique btree</td><td>—</td><td>One row per setting key per tenant (A-7)</td></tr>
+</tbody></table></div>
+
+<h2 id="s8">8. Constraints</h2>
+<div class="box"><table><thead><tr><th>Kind</th><th>Rule</th><th>Where</th></tr></thead><tbody>
+<tr><td>CHECK</td><td>Money &gt;= 0</td><td>plan.price, test_price.price, invoice.subtotal / discount_amount / total, invoice_item.unit_price / line_total</td></tr>
+<tr><td>CHECK</td><td>percent BETWEEN 0 AND 100</td><td>revenue_share_rule.percent, share_ledger_entry.percent_applied</td></tr>
+<tr><td>CHECK</td><td>expires_at &gt; created_at</td><td>report_access_token, password_reset_token, email_verification_token</td></tr>
+<tr><td>CHECK</td><td>purpose IN ('password_reset','email_verification','activation')</td><td>password_reset_token.purpose (<code>chk_password_reset_token_purpose</code>, A-14 revised)</td></tr>
+<tr><td>CHECK</td><td>period matches ^\d{4}-\d{2}$</td><td>settlement.period (and share_ledger_entry.period by the same pattern)</td></tr>
+<tr><td>CHECK</td><td>Status in the enumerated set</td><td>Only the six §2 columns: invoice.status, sample.status, result.status, settlement.status, payment.method, payment.kind — named <code>chk_{table}_{rule}</code></td></tr>
+<tr><td>CHECK</td><td>Exactly one parent set</td><td>invoice_item (test XOR panel), test_price (test XOR panel)</td></tr>
+<tr><td>CHECK</td><td>low &lt;= high; critical_low &lt;= critical_high; age_min_days &gt;= 0; age_max_days &gt;= age_min_days; version &gt; 0; quantity &gt; 0</td><td>reference_range, report_version, invoice_item</td></tr>
+<tr><td>Unique</td><td>See the <code>uq_*</code> rows in §7 / §18</td><td>Partial (WHERE … IS NOT NULL) for the two idempotency-key uniques, so keyless rows never collide; partial (WHERE status &lt;&gt; 'CANCELLED') for settlement partner/period, so a cancelled settlement never blocks its re-draft; partial (WHERE status = 'active') for one active subscription per tenant</td></tr>
+<tr><td>NOT NULL</td><td>Every FK, every status, every money column, names, codes, and timestamps are NOT NULL</td><td>Nullable columns are justified in one sentence in their spec (e.g. patient.date_of_birth — not always known at collection; subscription.ends_at — NULL while open-ended; report_delivery.whatsapp_url — email deliveries have none)</td></tr>
+<tr><td>FK delete</td><td>RESTRICT (Django PROTECT) on financial and clinical facts; CASCADE only on panel_test, staff_branch and the token tables</td><td>Full per-FK matrix in §17</td></tr>
+</tbody></table></div>
+
+<h2 id="s9">9. Sequences and ID generation</h2>
+<div class="box"><table><thead><tr><th>Identifier</th><th>Format / source</th><th>Rules</th></tr></thead><tbody>
+<tr><td>Primary keys</td><td>uuid v4, <code>gen_random_uuid()</code></td><td>Every table, both schemas</td></tr>
+<tr><td>accession_id</td><td><code>{tenant_prefix:3}{YYYYMMDD}{seq:06d}</code> — e.g. <code>CIT20261019000042</code></td><td>Sequence per tenant per day (a per-schema sequence, reset daily by the collection task that mints the day's first ID — implemented as a date-keyed counter row updated in the sample-creation transaction, so concurrent collection cannot duplicate). Printed as Code128 (Doc 01 OQ-03)</td></tr>
+<tr><td>mrn</td><td><code>MRN-{branch_code:3}-{seq:06d}</code></td><td>Sequence per branch. <b>Reset: never.</b></td></tr>
+<tr><td>settlement.period</td><td><code>YYYY-MM</code></td><td>No other format. Calendar month, Asia/Karachi (Doc 01 OQ-13)</td></tr>
+<tr><td>Report object key</td><td><code>reports/{report_id}/{version}.pdf</code></td><td>report_version.pdf_key, unique</td></tr>
+<tr><td>Statement object key</td><td><code>settlements/{partner_id}/{period}.pdf</code></td><td>settlement.statement_pdf_key</td></tr>
+<tr><td>Report access token</td><td>32 bytes from <code>secrets.token_urlsafe(32)</code></td><td>Stored only as an argon2 hash in <code>report_access_token.token_hash</code>. Link TTL 7 days (<code>REPORT_LINK_TTL_DAYS=7</code>). Revocable via <code>revoked_at</code>; resend mints a new token</td></tr>
+</tbody></table></div>
+
+<h2 id="s10">10. Reference ranges</h2>
+<p><b>Decision:</b> reference ranges live in their own <code>reference_range</code> table — not as a string on <code>test</code>. <b>Reason:</b> a reference range is not a constant; it varies by sex and age, and a string cannot be selected on, validated against, or effective-dated.</p>
+<ul>
+<li>Multiple ranges per test are supported, keyed by <code>sex</code> (<code>M | F | B</code>), <code>age_min_days</code> / <code>age_max_days</code>, and <code>effective_from</code> / <code>effective_to</code>. Age bands are in days, so newborn and infant ranges are expressible; seeded adult bands start at <code>age_min_days = 6570</code> (18 years).</li>
+<li>Result validation computes the patient's age <b>in days at collection time</b> (from <code>sample.collected_at</code> and <code>patient.date_of_birth</code>), picks the row whose day band contains that age and matches the patient's sex, and sets <code>result.flag</code>: <code>low</code> or <code>high</code> outside <code>low</code> / <code>high</code>, <code>critical</code> outside <code>critical_low</code> / <code>critical_high</code> when those are set, otherwise <code>normal</code>. A <code>critical</code> flag requires a <code>critical_notification</code> record (§5.6).</li>
+<li>A pathologist may release an out-of-range result: the release sets <code>result_approval.range_override = true</code> and writes an <code>audit_log</code> row — overrides are audited (Doc 01 §4: pathologist range override, audited).</li>
+</ul>
+
+<h2 id="s11">11. Report grouping — resolves OQ-15</h2>
+<p><b>Decision:</b> one <code>report</code> row per <code>sample</code> in v1 (<code>SAMPLE ||--o| REPORT</code>). <code>report_version</code> captures corrections (version 1, 2, 3, …); a new version sets <code>report.status = amended</code>.</p>
+<p><b>Justification:</b> it matches the per-sample reading in Doc 01 §9/§12, it is simpler for the pathologist (one sample, one sign-off, one PDF), and the corrections path stays clean because versions are append-only.</p>
+<p><b>Known limitation (v1), stated plainly:</b> one report per sample means <b>several PDFs per visit</b>. A patient who orders CBC, LFT and Urine R/E on a single invoice receives three separate reports — one per sample — not one combined PDF. Staff hand over (and patients download) one link per sample. This is accepted for v1; the per-order grouping below is the v2 fix.</p>
+<p><b>Rule for Doc 03:</b> any result approved after its report is <code>final</code> produces a new <code>report_version</code> — never a mutation of the existing version or its PDF. Completeness is computed from <code>sample_test</code> (§5.5): a report may go <code>final</code> only when every <code>sample_test</code> row for its sample has an approved <code>result</code>; pending results are exactly the <code>sample_test</code> rows without one.</p>
+<p><b>Per-order path (documented for v2, not built):</b> a new <code>report_order</code> join table mapping <code>report → invoice_id</code> would group a whole order's reports. The change is additive; no v1 data is lost. The table is deliberately <b>not</b> created in v1.</p>
+
+<h2 id="s12">12. Revenue share, partial payments, discounts, refunds — resolves OQ-16</h2>
+<p><b>Decision:</b> the share is computed per <code>payment</code>, on the <b>paid amount</b> — never on the invoice total. Doc 05 defines behaviour on top of this model; it does not reopen it.</p>
+<ul>
+<li><b>Ledger creation:</b> one <code>share_ledger_entry</code> per <code>payment</code>, unique on <code>payment_id</code> (idempotency — a retried task cannot double-pay a partner). <code>amount = payment.amount × rule.percent / 100</code>, Decimal arithmetic, rounded with <code>Decimal.quantize(Decimal('0.01'), ROUND_HALF_UP)</code>.</li>
+<li><b>No partner, no entry:</b> if <code>invoice.referral_partner_id</code> is NULL (walk-in), no ledger row is created.</li>
+<li><b>Discounts:</b> <code>invoice.discount_amount numeric(12,2) DEFAULT 0</code> with <code>discount_reason</code>. Because the basis is the paid amount, a discount simply reduces what the patient pays and the ledger naturally reflects the lower amount. <b>There is no separate discount ledger row.</b></li>
+<li><b>Partial payments:</b> each payment produces its own ledger row. No special handling.</li>
+<li><b>Refunds:</b> a refund is a new <code>payment</code> row with <code>kind = refund</code>, a positive amount, and <code>method</code> set to how the money was actually returned (cash, bank_transfer, …); every sum treats <code>kind = refund</code> rows as negative. Its ledger entry is a compensating negative <code>share_ledger_entry</code>. If the original period is already closed (<code>settlement.status IN ('APPROVED','SENT','PAID')</code>), the compensating row attaches to the <b>current open period</b>, not the historical one.</li>
+<li><b>Settlement:</b> on the 1st at 01:00 Asia/Karachi, Beat enqueues generation via Redis; entries are grouped per partner into a DRAFT settlement with <code>settlement_line</code> rows — that line is the only record of membership, and an entry’s status is derived from it (line on a DRAFT settlement = in-draft; on an APPROVED / SENT / PAID settlement = settled; no live line = pending) — the Lab Owner is notified, and approval (SPA → <code>POST /api/v1/settlements/{id}/approve</code> → finalize task) sets the settlement APPROVED, which is what makes its entries settled, renders the statement PDF (WeasyPrint), stores it at <code>settlements/{partner_id}/{period}.pdf</code>, and only then fires the "settlement approved" webhook that emails the partner (Doc 01 Flow C, as fixed).</li>
+</ul>
+<h3>Worked example (Decimal only)</h3>
+<p>Invoice total 10,000.00 PKR (after a 500.00 discount already applied at billing). Partner rule: 20.00%.</p>
+<div class="box"><table><thead><tr><th>#</th><th>Payment</th><th>Amount</th><th>Ledger entry</th><th>Computation</th><th>Derived status</th></tr></thead><tbody>
+<tr><td>1</td><td>Full payment on a second invoice (no discount)</td><td>10,000.00</td><td>+2,000.00</td><td>10,000.00 × 20.00 / 100 = 2,000.00</td><td>PENDING</td></tr>
+<tr><td>2</td><td>Partial payment on the discounted invoice</td><td>4,000.00</td><td>+800.00</td><td>4,000.00 × 20.00 / 100 = 800.00 — on what was actually paid, not the 9,500.00 total</td><td>PENDING</td></tr>
+<tr><td>3</td><td>Refund of payment 2 (patient withdrew one test)</td><td>4,000.00 (kind refund, method cash — returned the way it was paid)</td><td>−800.00</td><td>−4,000.00 × 20.00 / 100 = −800.00 — a new compensating row; row 2 is untouched</td><td>PENDING (current open period if row 2's period is closed)</td></tr>
+</tbody></table></div>
+<p>Net partner share for these three events: 2,000.00 + 800.00 − 800.00 = <b>2,000.00 PKR</b>. All arithmetic in <code>Decimal</code>; every stored amount is <code>numeric(12,2)</code>; every percent is <code>numeric(5,2)</code>.</p>
+
+<h2 id="s13">13. Audit log</h2>
+<ul>
+<li>One <code>audit_log</code> table <b>per tenant schema</b>; one <code>platform_audit</code> in <code>public</code>. Same shape: <code>id</code>, <code>actor_id</code> (nullable — system events have no actor), <code>entity_type</code>, <code>entity_id</code>, <code>action</code>, <code>before_jsonb</code>, <code>after_jsonb</code>, <code>ip</code> (inet), <code>user_agent</code>, <code>at</code>.</li>
+<li><b>Row-count expectation:</b> any write to money, results, reports, or auth triggers exactly one audit row.</li>
+<li><b>No PII duplication:</b> <code>before_jsonb</code> / <code>after_jsonb</code> store field names and their changed values only. Phone, name, and address values are hashed or truncated before being written — the audit log must not become a second patient database.</li>
+<li><b>Enforcement:</b> <code>REVOKE UPDATE, DELETE</code> per schema (§6), applied at provisioning (Doc 01 §8.5 step 3) and by migration for existing tenants.</li>
+<li><b>Retention:</b> 24 months hot (Doc 01 §14). The archive path is a Doc 08 concern, not this one.</li>
+</ul>
+
+<h2 id="s14">14. Session and token storage</h2>
+<div class="box"><table><thead><tr><th>Credential</th><th>Stored where</th><th>Rule</th></tr></thead><tbody>
+<tr><td>JWT access token</td><td>Nowhere</td><td>Stateless, 15-minute TTL, memory only in the SPA (Doc 01 ADR-005)</td></tr>
+<tr><td>JWT refresh token</td><td>Nowhere in the DB</td><td>httpOnly cookie, rotated on use, 7 days. Stateless</td></tr>
+<tr><td>Refresh denylist</td><td>Redis only</td><td>Per ADR-005. No database table</td></tr>
+<tr><td>Report access tokens</td><td>Database, hashed</td><td><code>report_access_token.token_hash</code> (argon2), 7-day TTL, revocable (§9)</td></tr>
+<tr><td>2FA (TOTP)</td><td>On <code>staff_user</code> (v1 decision)</td><td><code>totp_secret_encrypted</code> + <code>totp_backup_codes_hash</code> (text array of argon2 hashes). The encryption key (<code>LABFLOW_TOTP_ENCRYPTION_KEY</code>, a Fernet key) lives only in the VPS environment — injected via Docker Compose secrets / the host <code>.env</code> — never in the database and never in the repo, so a database dump alone cannot mint TOTP codes. Migration path: a <code>totp_device</code> table in v2 for multiple devices — <b>not created now</b></td></tr>
+<tr><td>Service API keys (n8n callbacks)</td><td>Environment only</td><td><code>N8N_CALLBACK_KEY</code> (plus <code>_NEXT</code> for rotation). No database table (Doc 01 §14)</td></tr>
+<tr><td>Password reset tokens</td><td>Database, hashed</td><td><code>password_reset_token</code>: token_hash, purpose, expires_at, used_at. One table serves password reset, email verification, and activation — the <code>purpose</code> column says which (A-14 revised, §5.11). Not append-only; DELETEd after 30 days by a Beat task</td></tr>
+<tr><td>Email verification tokens</td><td>Database, hashed</td><td>Same pattern and table shape as password reset</td></tr>
+</tbody></table></div>
+
+<h2 id="s15">15. Migrations</h2>
+<p><b>Ordering (unchanged from Doc 01 §8.6):</b> <code>migrate_schemas --shared</code> runs first (public), then <code>migrate_schemas --tenant</code> on every tenant schema in alphabetical order. django-tenants records applied migrations per schema; there is no custom migration-status table.</p>
+<div class="box"><table><thead><tr><th>Change</th><th>Safe rule</th></tr></thead><tbody>
+<tr><td>Add column</td><td>Nullable, or NOT NULL with a DEFAULT that PostgreSQL 16 can backfill cheaply (constant default — no long lock, no table rewrite)</td></tr>
+<tr><td>Add index</td><td><code>CREATE INDEX CONCURRENTLY</code>, via a per-schema management command (the workaround for django-tenants: run the concurrent build schema by schema, outside a transaction)</td></tr>
+<tr><td>Rename column</td><td>Three migrations: add-new + backfill (data command) + drop-old. Never a bare rename</td></tr>
+<tr><td>Change type</td><td>Add-new-cast-column + backfill + drop-old. Never <code>ALTER COLUMN TYPE</code> in place</td></tr>
+<tr><td>Drop column</td><td>Two-phase: mark deprecated in code, wait one deploy cycle, then drop</td></tr>
+<tr><td>Data migration</td><td>A separate management command, run <b>after</b> the schema migration completes. Never inside a <code>RunPython</code> that also alters schema</td></tr>
+<tr><td>Rollback</td><td>Every migration states its rollback. Irreversible migrations require sign-off in Doc 10</td></tr>
+<tr><td>Staging rehearsal</td><td>Every migration is replayed on staging with a copy of production data before the tag is pushed (Doc 09's rule, repeated here)</td></tr>
+</tbody></table></div>
+
+<h3>Worked example 1 — adding a nullable column</h3>
+<pre># Goal: add patient.email (nullable) to every tenant schema.
+# Migration: patients/0007_patient_email.py — AddField(null=True), no default backfill.
+python manage.py makemigrations patients
+python manage.py migrate_schemas --shared   # no-op for this change, run anyway (order rule)
+python manage.py migrate_schemas --tenant   # applies 0007 to tenant_* schemas, alphabetical
+
+-- SQL effect per schema (fast, metadata-only — no table rewrite):
+ALTER TABLE "patient" ADD COLUMN "email" varchar(254) NULL;
+-- Rollback: migrate_schemas --tenant patients 0006 (drops the column).</pre>
+
+<h3>Worked example 2 — adding a unique index concurrently</h3>
+<pre># Goal: uq_sample_accession_id on sample.accession_id, without locking writes.
+# Migration uses SeparateDatabaseAndState + a per-schema command, because
+# CREATE INDEX CONCURRENTLY cannot run inside a transaction or a normal migration.
+python manage.py migrate_schemas --shared
+python manage.py add_index_concurrently --app samples --index uq_sample_accession_id
+
+-- SQL effect per schema, run by the command once per tenant_* schema:
+CREATE UNIQUE INDEX CONCURRENTLY "uq_sample_accession_id"
+    ON "sample" ("accession_id");
+-- Rollback: DROP INDEX CONCURRENTLY "uq_sample_accession_id"; (same command, --drop).</pre>
+
+<h3>Worked example 3 — renaming a column (three-step dance)</h3>
+<pre># Goal: rename referral_partner.phone -> contact_phone, zero downtime.
+# Step 1 (deploy A): add the new column, nullable.
+python manage.py migrate_schemas --tenant   # partners/0004_add_contact_phone
+-- ALTER TABLE "referral_partner" ADD COLUMN "contact_phone" varchar(32) NULL;
+
+# Step 2 (after deploy A is live): backfill as a DATA command — never inside the schema migration.
+python manage.py backfill_partner_contact_phone --all-tenants
+-- UPDATE "referral_partner" SET "contact_phone" = "phone" WHERE "contact_phone" IS NULL;
+# Deploy B reads/writes contact_phone only; phone is now untouched.
+
+# Step 3 (next deploy cycle): drop the old column.
+python manage.py migrate_schemas --tenant   # partners/0005_drop_phone
+-- ALTER TABLE "referral_partner" DROP COLUMN "phone";
+-- Rollback: before step 3, trivial (drop contact_phone). After step 3, restore from the
+-- step-2 values is impossible — that is why the drop waits a full deploy cycle.</pre>
+
+<h2 id="s16">16. Seed data per tenant</h2>
+<p>Seeding runs at provisioning (Doc 01 §8.5 step 4), after the schema is created, migrations are applied, and the audit REVOKEs are in place (step 3). <b>Every seed operation is idempotent</b> — <code>get_or_create</code> on the natural unique key — so re-running provisioning is safe.</p>
+<div class="box"><table><thead><tr><th>Seed</th><th>Content</th><th>Why</th></tr></thead><tbody>
+<tr><td>Roles</td><td>The five <code>staff_user.role</code> values from Doc 01 §4 (permissions seeded with the Lab Owner account created from a one-time activation token)</td><td>A tenant is unusable until its owner can sign in</td></tr>
+<tr><td>Default branch</td><td>One <code>branch</code> row (the tenant's first branch)</td><td>Patients, staff, and samples all require a branch</td></tr>
+<tr><td>Revenue-share rule</td><td><b>No <code>revenue_share_rule</code> row is seeded.</b> Rule resolution applies 0% when no rule matches a payment; the owner creates the first real rule for each partner</td><td>A-10 (§20): the old seed — one tenant-level rule at 0.00% — could never be inserted, because <code>referral_partner_id</code> is NOT NULL and no partner exists at provisioning. Doc 01 §8.5 step 4's intent is kept: share is 0% until the owner configures a real rule — nobody earns by accident</td></tr>
+<tr><td>Notification templates</td><td><code>notification_template</code> rows in English <b>and</b> Urdu for <code>sample_collected</code>, <code>report_ready</code>, <code>report_link_resend</code>, <code>settlement_ready</code></td><td>Doc 01 §8.5 step 4: EN + UR templates from day one</td></tr>
+</tbody></table></div>
+<h3>Starter catalogue (Doc 01 §8.5 step 4 / OQ-08)</h3>
+<p>Prices are <b>placeholders, operator-editable</b> — the Lab Owner corrects them before trading. They exist so a new tenant can bill immediately.</p>
+<div class="box"><table><thead><tr><th>Code</th><th>Name</th><th>Kind</th><th>Starting price (PKR)</th></tr></thead><tbody>
+<tr><td>CBC</td><td>Complete Blood Count</td><td>Panel</td><td>800.00</td></tr>
+<tr><td>LFT</td><td>Liver Function Tests</td><td>Panel</td><td>1,800.00</td></tr>
+<tr><td>RFT</td><td>Renal Function Tests</td><td>Panel</td><td>1,600.00</td></tr>
+<tr><td>HBA1C</td><td>HbA1c</td><td>Test</td><td>1,500.00</td></tr>
+<tr><td>LIPID</td><td>Lipid Profile</td><td>Panel</td><td>2,000.00</td></tr>
+<tr><td>BSF</td><td>Blood Sugar (Fasting)</td><td>Test</td><td>400.00</td></tr>
+<tr><td>BSR</td><td>Blood Sugar (Random)</td><td>Test</td><td>350.00</td></tr>
+<tr><td>URE</td><td>Urine R/E</td><td>Test</td><td>600.00</td></tr>
+<tr><td>TSH</td><td>TSH</td><td>Test</td><td>1,800.00</td></tr>
+</tbody></table></div>
+<h3>Panel components (panel_test seed)</h3>
+<p>The four starter panels are seeded <b>with their component tests</b> — each component is a <code>test</code> row, linked to its panel by <code>panel_test</code>, with its own <code>reference_range</code> rows. Panels themselves carry no reference range and produce no results directly; results are entered per component test, which is what makes CBC, LFT, RFT and LIPID reportable.</p>
+<div class="box"><table><thead><tr><th>Panel</th><th>Component tests seeded (code — name)</th></tr></thead><tbody>
+<tr><td>CBC — Complete Blood Count</td><td>HB — Haemoglobin · RBC — Red Blood Cell Count · HCT — Haematocrit · MCV — Mean Corpuscular Volume · MCH — Mean Corpuscular Haemoglobin · MCHC — Mean Corpuscular Haemoglobin Concentration · WBC — Total WBC Count · NEUT — Neutrophils % · LYMPH — Lymphocytes % · MONO — Monocytes % · EOS — Eosinophils % · PLT — Platelet Count</td></tr>
+<tr><td>LFT — Liver Function Tests</td><td>ALT — Alanine Aminotransferase · AST — Aspartate Aminotransferase · ALP — Alkaline Phosphatase · GGT — Gamma-Glutamyl Transferase · BILT — Bilirubin, Total · BILD — Bilirubin, Direct · ALB — Albumin · TP — Total Protein</td></tr>
+<tr><td>RFT — Renal Function Tests</td><td>UREA — Blood Urea · CREAT — Creatinine · NA — Sodium · K — Potassium · CL — Chloride · CA — Calcium (Total) · URIC — Uric Acid</td></tr>
+<tr><td>LIPID — Lipid Profile</td><td>CHOL — Total Cholesterol · TG — Triglycerides · HDL — HDL Cholesterol · LDL — LDL Cholesterol (calculated) · VLDL — VLDL Cholesterol (calculated)</td></tr>
+</tbody></table></div>
+<p><b>Reference ranges:</b> each starter <b>component</b> test above (and each standalone starter test) is seeded with at least an adult-M and an adult-F <code>reference_range</code> row (plus a both-sex row where the range does not differ), effective from the provisioning date. Adult rows start at <code>age_min_days = 6570</code> (18 years) with <code>age_max_days</code> NULL. Like the prices, seeded ranges are starting points the lab's pathologist verifies and edits — the schema (§10) is what guarantees they can vary by sex, age, and date, and that edits are effective-dated rather than overwrites.</p>
+
+<h2 id="s17">17. Foreign key matrix</h2>
+<div class="box"><table><thead><tr><th>Table</th><th>Column</th><th>References</th><th>ON DELETE</th><th>Rationale</th></tr></thead><tbody>
+<tr><td>domain</td><td>tenant_id</td><td>tenant(id)</td><td>CASCADE</td><td>A domain is meaningless without its tenant</td></tr>
+<tr><td>subscription</td><td>tenant_id</td><td>tenant(id)</td><td>RESTRICT (Django PROTECT)</td><td>Platform billing history is a fact</td></tr>
+<tr><td>subscription</td><td>plan_id</td><td>plan(id)</td><td>RESTRICT (Django PROTECT)</td><td>Plans are retired, not deleted</td></tr>
+<tr><td>staff_user</td><td>branch_id</td><td>branch(id)</td><td>RESTRICT (Django PROTECT)</td><td>Home branch only (nullable = tenant-wide); staff history must survive a branch closure</td></tr>
+<tr><td>staff_branch</td><td>staff_user_id, branch_id</td><td>staff_user / branch</td><td>CASCADE</td><td>Pure join table (§2 exception) — an assignment row has no meaning on its own</td></tr>
+<tr><td>patient</td><td>branch_id</td><td>branch(id)</td><td>RESTRICT (Django PROTECT)</td><td>Clinical registration fact</td></tr>
+<tr><td>patient_contact / patient_consent</td><td>patient_id</td><td>patient(id)</td><td>RESTRICT (Django PROTECT)</td><td>Consent and contact evidence is retained</td></tr>
+<tr><td>panel_test</td><td>panel_id, test_id</td><td>panel(id), test(id)</td><td>CASCADE</td><td>Pure join table (§2 exception)</td></tr>
+<tr><td>test_price</td><td>branch_id, test_id, panel_id</td><td>branch / test / panel</td><td>RESTRICT (Django PROTECT)</td><td>Pricing history supports billed invoices</td></tr>
+<tr><td>reference_range</td><td>test_id</td><td>test(id)</td><td>RESTRICT (Django PROTECT)</td><td>Ranges underpin validated results</td></tr>
+<tr><td>invoice</td><td>patient_id, branch_id, referral_partner_id</td><td>patient / branch / referral_partner</td><td>RESTRICT (Django PROTECT)</td><td>Financial fact</td></tr>
+<tr><td>invoice_item</td><td>invoice_id, test_id, panel_id</td><td>invoice / test / panel</td><td>RESTRICT (Django PROTECT)</td><td>Financial fact</td></tr>
+<tr><td>payment</td><td>invoice_id, received_by</td><td>invoice(id), staff_user(id)</td><td>RESTRICT (Django PROTECT)</td><td>Append-only financial fact</td></tr>
+<tr><td>sample</td><td>invoice_id, branch_id, collected_by</td><td>invoice / branch / staff_user</td><td>RESTRICT (Django PROTECT)</td><td>Clinical fact</td></tr>
+<tr><td>sample_event</td><td>sample_id, actor_id, branch_id</td><td>sample / staff_user / branch</td><td>RESTRICT (Django PROTECT)</td><td>Append-only custody timeline</td></tr>
+<tr><td>sample_transfer</td><td>sample_id, from_branch_id, to_branch_id, transferred_by, received_by</td><td>sample / branch / staff_user</td><td>RESTRICT (Django PROTECT)</td><td>Chain of custody</td></tr>
+<tr><td>sample_test</td><td>sample_id, invoice_item_id, test_id</td><td>sample / invoice_item / test</td><td>RESTRICT (Django PROTECT)</td><td>The ordered-test link: pending results and report completeness derive from it</td></tr>
+<tr><td>result</td><td>sample_id, test_id, entered_by</td><td>sample / test / staff_user</td><td>RESTRICT (Django PROTECT)</td><td>Clinical fact</td></tr>
+<tr><td>result_approval</td><td>result_id, pathologist_id</td><td>result / staff_user</td><td>RESTRICT (Django PROTECT)</td><td>Sign-off is a clinical fact</td></tr>
+<tr><td>critical_notification</td><td>result_id, recorded_by</td><td>result / staff_user</td><td>RESTRICT (Django PROTECT)</td><td>Critical-value notification is a clinical safety record</td></tr>
+<tr><td>report</td><td>sample_id</td><td>sample(id)</td><td>RESTRICT (Django PROTECT)</td><td>Clinical fact</td></tr>
+<tr><td>report_version / report_delivery / report_access_token</td><td>report_id</td><td>report(id)</td><td>RESTRICT (Django PROTECT)</td><td>Reports are never deleted in v1 (Doc 01 OQ-12)</td></tr>
+<tr><td>revenue_share_rule</td><td>referral_partner_id, branch_id</td><td>referral_partner / branch</td><td>RESTRICT (Django PROTECT)</td><td>Rules explain historical ledger rows</td></tr>
+<tr><td>share_ledger_entry</td><td>payment_id, referral_partner_id, rule_id</td><td>payment / referral_partner / revenue_share_rule</td><td>RESTRICT (Django PROTECT)</td><td>Append-only financial fact</td></tr>
+<tr><td>settlement</td><td>referral_partner_id, approved_by</td><td>referral_partner / staff_user</td><td>RESTRICT (Django PROTECT)</td><td>Financial fact</td></tr>
+<tr><td>settlement_line</td><td>settlement_id, share_ledger_entry_id</td><td>settlement / share_ledger_entry</td><td>RESTRICT (Django PROTECT)</td><td>Settlement itemisation is a fact</td></tr>
+<tr><td>login_event</td><td>staff_user_id</td><td>staff_user(id)</td><td>RESTRICT (Django PROTECT)</td><td>Security record</td></tr>
+<tr><td>password_reset_token / email_verification_token</td><td>staff_user_id</td><td>staff_user(id)</td><td>CASCADE</td><td>A token is meaningless without its user (§2 exception)</td></tr>
+<tr><td>tenant_setting</td><td>updated_by</td><td>staff_user(id)</td><td>RESTRICT (Django PROTECT)</td><td>Who last changed a setting stays resolvable (A-7)</td></tr>
+</tbody></table></div>
+<p class="meta">Not FKs, by design: <code>audit_log.actor_id</code>, <code>platform_audit.actor_id</code>, <code>audit_log.entity_id</code>, <code>platform_audit.entity_id</code>, and <code>notification.recipient_id</code> are plain UUIDs — audit and notification rows must survive removal of the row they point at, and no FK ever crosses the public / tenant boundary (§3).</p>
+
+<h2 id="s18">18. Complete index catalogue</h2>
+<p>This catalogue is §7, consolidated in one place for a DBA or a new developer to grep. <b>The two must agree exactly</b> — if they ever differ, that is a defect in this document, and the fix is an amendment.</p>
+<div class="box"><table><thead><tr><th>Index</th><th>Table (columns)</th><th>Notes</th></tr></thead><tbody>
+<tr><td>uq_tenant_slug</td><td>tenant (slug)</td><td>Unique</td></tr>
+<tr><td>uq_domain_domain</td><td>domain (domain)</td><td>Unique</td></tr>
+<tr><td>uq_subscription_one_active_per_tenant</td><td>subscription (tenant_id)</td><td>Unique, partial WHERE status = 'active' — one active subscription per tenant</td></tr>
+<tr><td>idx_{table}_{fk}_id</td><td>Every FK column, both schemas</td><td>Pattern rule (§7) — e.g. idx_invoice_patient_id, idx_payment_invoice_id, idx_result_sample_id, idx_critical_notification_result_id</td></tr>
+<tr><td>uq_patient_mrn</td><td>patient (mrn)</td><td>Unique per tenant</td></tr>
+<tr><td>idx_patient_name_trgm / idx_patient_phone_trgm</td><td>patient (name / phone)</td><td>GIN trigram</td></tr>
+<tr><td>uq_staff_user_email</td><td>staff_user (email)</td><td>Unique per tenant</td></tr>
+<tr><td>uq_branch_code</td><td>branch (code)</td><td>Unique per tenant</td></tr>
+<tr><td>uq_sample_accession_id</td><td>sample (accession_id)</td><td>Unique</td></tr>
+<tr><td>idx_sample_branch_id_status</td><td>sample (branch_id, status)</td><td>Queue views</td></tr>
+<tr><td>uq_staff_branch_staff_user_id_branch_id</td><td>staff_branch (staff_user_id, branch_id)</td><td>Unique (composite PK)</td></tr>
+<tr><td>uq_sample_test_sample_id_test_id</td><td>sample_test (sample_id, test_id)</td><td>Unique — one expected-result row per test per sample</td></tr>
+<tr><td>uq_invoice_idempotency_key</td><td>invoice (idempotency_key)</td><td>Unique, partial WHERE NOT NULL</td></tr>
+<tr><td>uq_payment_idempotency_key</td><td>payment (idempotency_key)</td><td>Unique, partial WHERE NOT NULL</td></tr>
+<tr><td>uq_share_ledger_entry_payment_id</td><td>share_ledger_entry (payment_id)</td><td>Unique — idempotency</td></tr>
+<tr><td>uq_settlement_partner_id_period</td><td>settlement (referral_partner_id, period)</td><td>Unique, partial WHERE status &lt;&gt; 'CANCELLED' — one live settlement per partner per month</td></tr>
+<tr><td>uq_report_version_report_id_version</td><td>report_version (report_id, version)</td><td>Unique</td></tr>
+<tr><td>uq_report_access_token_token_hash</td><td>report_access_token (token_hash)</td><td>Unique</td></tr>
+<tr><td>uq_settlement_line_share_ledger_entry_id</td><td>settlement_line (share_ledger_entry_id)</td><td>Unique</td></tr>
+<tr><td>uq_notification_template_key_locale_channel</td><td>notification_template (key, locale, channel)</td><td>Unique</td></tr>
+<tr><td>uq_webhook_delivery_idempotency_key</td><td>webhook_delivery (idempotency_key)</td><td>Unique</td></tr>
+<tr><td>uq_tenant_setting_key</td><td>tenant_setting (key)</td><td>Unique — one row per setting key per tenant (A-7)</td></tr>
+<tr><td>idx_report_delivery_status_next_attempt_at</td><td>report_delivery (status, next_attempt_at)</td><td>Partial WHERE status IN ('PENDING','FAILED')</td></tr>
+<tr><td>idx_webhook_delivery_status_next_attempt_at</td><td>webhook_delivery (status, next_attempt_at)</td><td>Partial WHERE status IN ('PENDING','FAILED')</td></tr>
+<tr><td>idx_audit_log_at / idx_platform_audit_at</td><td>audit_log (at) / platform_audit (at)</td><td>Time-range queries</td></tr>
+<tr><td>idx_audit_log_entity_type_entity_id</td><td>audit_log (entity_type, entity_id)</td><td>Per-entity history</td></tr>
+<tr><td>idx_branch_deleted_at / idx_patient_deleted_at</td><td>branch / patient (deleted_at)</td><td>Soft-delete filtering (§2)</td></tr>
+</tbody></table></div>
+
+<h2 id="s19">19. Cross-references to Doc 01</h2>
+<div class="box"><table><thead><tr><th>Table (Doc 02)</th><th>Doc 01 §7 module</th><th>Doc 01 §9 ERD entity</th><th>Doc 01 flow</th></tr></thead><tbody>
+<tr><td>tenant, domain, plan, subscription</td><td>tenants (public)</td><td>TENANT, DOMAIN, PLAN, SUBSCRIPTION</td><td>§8 provisioning</td></tr>
+<tr><td>platform_user, platform_audit</td><td>platform_admin (public)</td><td>PLATFORM_USER (audit: §7/§14)</td><td>—</td></tr>
+<tr><td>branch</td><td>branches</td><td>BRANCH</td><td>§12 Flows A–C (branch scoping)</td></tr>
+<tr><td>staff_user, staff_branch, login_event</td><td>accounts</td><td>STAFF_USER, STAFF_BRANCH</td><td>§10 request lifecycle</td></tr>
+<tr><td>password_reset_token, email_verification_token</td><td>accounts</td><td>PASSWORD_RESET_TOKEN, EMAIL_VERIFICATION_TOKEN</td><td>—</td></tr>
+<tr><td>patient</td><td>patients</td><td>PATIENT</td><td>§12 Flow A</td></tr>
+<tr><td>patient_contact, patient_consent</td><td>patients</td><td>PATIENT_CONTACT, PATIENT_CONSENT</td><td>§12 Flow B (delivery)</td></tr>
+<tr><td>test, panel, panel_test, reference_range</td><td>catalog</td><td>TEST, PANEL, REFERENCE_RANGE</td><td>§12 Flow B (validation)</td></tr>
+<tr><td>test_price</td><td>catalog</td><td>TEST_PRICE</td><td>§12 Flow A (billing)</td></tr>
+<tr><td>invoice, invoice_item, payment</td><td>billing</td><td>INVOICE, INVOICE_ITEM, PAYMENT</td><td>§12 Flows A, C</td></tr>
+<tr><td>sample, sample_event, sample_test</td><td>samples</td><td>SAMPLE, SAMPLE_EVENT, SAMPLE_TEST</td><td>§12 Flow A</td></tr>
+<tr><td>sample_transfer</td><td>samples</td><td>SAMPLE_TRANSFER</td><td>§12 Flow A (transfers)</td></tr>
+<tr><td>result, result_approval, critical_notification</td><td>results</td><td>RESULT, RESULT_APPROVAL, CRITICAL_NOTIFICATION</td><td>§12 Flow B</td></tr>
+<tr><td>report, report_version, report_delivery, report_access_token</td><td>reports</td><td>REPORT, REPORT_VERSION, REPORT_DELIVERY, REPORT_ACCESS_TOKEN</td><td>§12 Flow B</td></tr>
+<tr><td>referral_partner, revenue_share_rule, share_ledger_entry, settlement, settlement_line</td><td>partners</td><td>REFERRAL_PARTNER, REVENUE_SHARE_RULE, SHARE_LEDGER_ENTRY, SETTLEMENT, SETTLEMENT_LINE</td><td>§12 Flow C</td></tr>
+<tr><td>notification, notification_template</td><td>notifications</td><td>NOTIFICATION, NOTIFICATION_TEMPLATE</td><td>§12 Flows A, B; §13</td></tr>
+<tr><td>webhook_delivery</td><td>automation</td><td>WEBHOOK_DELIVERY</td><td>§13 n8n protocol</td></tr>
+<tr><td>audit_log</td><td>audit</td><td>AUDIT_LOG</td><td>§14 security</td></tr>
+<tr><td>tenant_setting</td><td>— (Doc 04 §10)</td><td>—</td><td>Doc 04 §10 tenant settings (A-7)</td></tr>
+</tbody></table></div>
+<p>All 13 Doc 01 ADRs (§18 in Doc 01) are honoured — in particular ADR-003 (schema isolation, §3), ADR-005 (JWT + httpOnly refresh, §14), ADR-010 (Decimal money, §2), and ADR-012 (WhatsApp click-to-send, not unattended — the URL is stored on <code>report_delivery</code> for staff to click, §5.7).</p>
+<p><b>Doc 01 amendment required (recorded here so it is not lost):</b> Doc 01 still lists OQ-15 and OQ-16 as open — both are resolved in this document (§11, §12) and should be marked resolved there. Its §9 ERD needs the nine tables accepted under OQ-24 (§20) and <code>critical_notification</code> (A-3) — Doc 01 v2.1 adds them — and its ADR summary should not point readers to a markdown source they cannot open.</p>
+
+<h2 id="s20">20. Open Questions</h2>
+<p><b>OQ-15.</b> <i>Report per sample or per order?</i> <b>Resolved here</b> (§11): per sample in v1. Doc 03 inherits this decision. The per-order path is documented as an additive v2 change. The known limitation — several PDFs per visit — is stated plainly in §11.</p>
+<p><b>OQ-16.</b> <i>How do partial payments, discounts, and refunds change the share?</i> <b>Resolved here</b> (§12): per-payment ledger on the paid amount; discounts need no ledger row; refunds are compensating negative entries in the current open period when the original is closed. Doc 05 inherits this decision.</p>
+<p><b>OQ-17.</b> <i>Real domain name and VPS?</i> Not a schema concern. Carried forward unchanged; owner: Doc 10, before launch.</p>
+<p><b>OQ-22.</b> <i>Is share_ledger_entry truly append-only?</i> <b>Resolved here</b>: yes. <code>status</code> and <code>settlement_id</code> were removed from the ledger; both are derived from <code>settlement_line</code> and <code>settlement.status</code> (§5.8, §6), and the REVERSED status is dropped. The ledger has no mutable columns, so UPDATE and DELETE are both revoked with no exception. Doc 05 inherits the derived-status rule.</p>
+<p><b>OQ-23.</b> <i>Is <code>refund</code> a payment method or a separate marker?</i> <b>Resolved here</b>: a separate marker. <code>payment</code> gains a <code>kind</code> column (<code>payment | refund</code>, CHECK-constrained) and <code>method</code> keeps the real channel (cash, bank_transfer, …); <code>refund</code> is removed from the method list (§5.4, §12). Doc 03 inherits this.</p>
+<p><b>OQ-24.</b> <i>Are the Proposed tables in?</i> <b>Resolved here (v1.2)</b>: yes — all nine are accepted. <code>patient_contact</code>, <code>patient_consent</code>, <code>test_price</code>, <code>sample_transfer</code>, <code>webhook_delivery</code>, <code>password_reset_token</code>, <code>email_verification_token</code>, <code>sample_test</code>, and <code>staff_branch</code> are part of this schema, and their specs no longer carry a Proposed mark; Doc 01 v2.1 §9 includes them (§19). Each fills a gap a Doc 01 flow or rule already implies; <code>sample_test</code> and <code>staff_branch</code> additionally fix the missing ordered-test link and the single-branch staff rule. Doc 03 inherits all nine as settled.</p>
+<p><b>A-1 – A-3.</b> <i>Doc 03 amendments to this schema.</i> <b>Accepted in v1.2</b> — no longer Proposed. A-1: <code>reference_range.critical_low</code> and <code>critical_high</code> (<code>numeric(10,3)</code> NULL), and <code>result.flag</code> gains <code>critical</code> (§5.3, §5.6, §10). A-2: <code>sample.rejection_reason_code</code> and <code>sample.rejection_note</code> (§5.5). A-3: new table <code>critical_notification</code> (§5.6), append-only with REVOKE (§6). Doc 03 amendments A-4, A-5, A-6 remain Proposed in Doc 03 only; they are not part of this schema.</p>
+<p><b>OQ-25.</b> <i>Result value typing.</i> <b>Resolved in Doc 03 §8.1</b>: <code>result.value</code> stays text. The value is parsed to Decimal only when the test's reference range is numeric; when it cannot be parsed, <code>result.flag</code> stays NULL — a flag is never guessed. The parse rule itself lives in Doc 03 §8.1; this schema does not change.</p>
+<p><b>A-7 – A-10, A-14.</b> <i>Doc 04 amendments to this schema.</i> <b>Accepted in v1.3</b> — no longer Proposed. A-7: new table <code>tenant_setting</code> (§5.12) — per-tenant key/value settings, proposed in Doc 04 §10 because Doc 03 OQ-33 made billing hold a per-tenant setting and no settings store existed. A-8: <code>branch.result_entry_enabled</code> boolean NOT NULL DEFAULT false (§5.1) — the switch Doc 03 OQ-27 requires. A-9: <code>sample_transfer.status</code> (<code>open | received | cancelled | lost</code>, application-enforced), <code>dispatched_at</code> and <code>received_at</code> (§5.5) — transfer state and times stored on the row instead of inferred. A-10: §16 no longer seeds a tenant-level 0% <code>revenue_share_rule</code> — the row was impossible, because <code>referral_partner_id</code> is NOT NULL and no partner exists at provisioning; the 0% default is applied by rule resolution when no rule matches, and the owner creates the first real rule per partner (§5.8, §16). A-14 (<b>revised</b>): <code>password_reset_token</code> gains a <code>purpose</code> column — text NOT NULL DEFAULT 'password_reset', CHECK <code>purpose IN ('password_reset','email_verification','activation')</code> (§5.11, §8) — and <b>no new token table is created</b>; the table name is unchanged. The revision replaces Doc 04's separate activation-token idea: token rules (single-use, expiring, stored hashed) are identical for every purpose, so one table with a purpose column avoids duplicate cleanup logic. A-11, A-12 and A-13 are also accepted; they change Doc 01 and Doc 03 only, not this schema.</p>
+
+<h2 id="s21">21. Glossary of data terms</h2>
+<div class="box"><table><thead><tr><th>Term</th><th>Meaning</th></tr></thead><tbody>
+<tr><td>idempotency_key column</td><td>A nullable unique column that makes a create safe to retry: the second insert with the same key fails the unique check instead of duplicating the row</td></tr>
+<tr><td>before_jsonb / after_jsonb</td><td>The changed-field snapshots on an audit row — field names and changed values only, PII hashed or truncated</td></tr>
+<tr><td>Partial index</td><td>An index with a WHERE clause, covering only the rows a query actually scans (e.g. deliveries still PENDING or FAILED)</td></tr>
+<tr><td>Trigram index</td><td>A GIN index over <code>pg_trgm</code> trigrams, enabling fast fuzzy substring search on patient name and phone</td></tr>
+<tr><td>Sequence per schema</td><td>Each tenant schema owns its sequences/counters, so accession and MRN numbering is per lab (and per branch/day) with no cross-tenant coordination</td></tr>
+<tr><td>Append-only</td><td>Rows may be inserted but never updated or deleted; enforced in the database with REVOKE, not just by convention (§6)</td></tr>
+<tr><td>Compensating entry</td><td>A new row that cancels an earlier financial row by amount (negative), leaving both visible — how refunds work in the ledger</td></tr>
+<tr><td>Effective-dated</td><td>A row valid for a period (<code>effective_from</code> / <code>effective_to</code>); a change closes one row and opens another instead of overwriting history</td></tr>
+<tr><td>RESTRICT (Django PROTECT)</td><td>PostgreSQL <code>ON DELETE RESTRICT</code> — refuses to delete a row while other rows reference it. RESTRICT (Django PROTECT) is the Django ORM name for the same behaviour; it is not a PostgreSQL keyword, so this document writes RESTRICT (Django PROTECT) throughout.</td></tr>
+</tbody></table></div>
+<p class="meta">End of Doc 02. Next: Doc 03 — Core Lab Modules, which inherits §11 (per-sample reports) and §12 (per-payment revenue share) as settled decisions.</p>
+</main>
+</body></html>
