@@ -1,0 +1,59 @@
+# ==============================================================================
+# LabFlow — Docker Compose Skeleton (Phase 0, Doc 01 §15)
+# ==============================================================================
+# Architectural Rules & Standards (Doc 01 §15, Doc 08 §6):
+#
+# 1. Two-Network Model (Doc 01 §15):
+#    - edge: Public-facing ingress/external reach. Only services that must be
+#      reachable from outside (Caddy reverse proxy and n8n webhook listener surface)
+#      attach to this network.
+#    - internal: Data isolation network. Connects backend/workers to data stores
+#      (PostgreSQL, Redis, MinIO). Non-routable from the external network.
+#      Security invariant: n8n cannot reach postgres directly.
+#
+# 2. Volume Rule (Doc 01 §15):
+#    - Named volumes only: postgres_data, redis_data, minio_data, caddy_data, caddy_config.
+#    - Rule: Services must NEVER use anonymous volumes or host bind-mounts for data.
+#    - All persistent state must survive `docker compose down`.
+#
+# 3. Fail-Fast Environment Variable Validation (Doc 01 §15, Doc 08 §6):
+#    - Every required variable referenced anywhere in this Compose file MUST use
+#      this exact syntax:
+#        ${VAR_NAME:?error: VAR_NAME is required — copy .env.example to .env and set it}
+#    - Rule: NEVER give a required variable a silent default (${VAR:-default} is FORBIDDEN).
+#    - Compose aborts `docker compose up` or `config` before any container starts,
+#      explicitly naming the missing variable.
+#    - Every required variable name must come strictly from Doc 08 §6's inventory
+#      and must be documented in .env.example.
+# ==============================================================================
+
+networks:
+  edge:
+    driver: bridge
+  internal:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+  minio_data:
+  caddy_data:
+  caddy_config:
+
+services:
+  postgres:
+    image: postgres:16
+
+  redis:
+    image: redis:7
+
+  minio:
+    # dev only (Doc 01 §15)
+    image: minio/minio
+
+  n8n:
+    image: n8nio/n8n
+
+  caddy:
+    image: caddy:2
+
