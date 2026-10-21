@@ -1,87 +1,34 @@
 # LabFlow — Frontend
 
-React 18 + TypeScript + Vite + Tailwind CSS + shadcn/ui SPA.
+React 18 + TypeScript + Vite + Tailwind CSS + shadcn/ui Single-Page Application (Doc 07).
 
-See [`docs/07-frontend-architecture.md`](../docs/07-frontend-architecture.md) for frontend specifications and guidelines.
+## Architectural & Security Invariants
 
----
+1. **Access Tokens in Memory Only (Doc 01 ADR-005, Doc 07 FP-2, FP-3)**:
+   - Access tokens must exist **strictly in runtime memory** (e.g., Zustand in-memory store).
+   - **NEVER** write or persist tokens to `localStorage`, `sessionStorage`, or client-accessible cookies.
+   - Refresh tokens are handled exclusively via an `httpOnly, Secure, SameSite=Lax` cookie scoped to `/api/v1/auth/`.
+   - No token-handling code is included in this scaffold.
 
-## Security Invariants
+2. **Form & Data Layer Conventions (Doc 07 §7, Doc 09 §6)**:
+   - **Zod Validation**: All forms must validate inputs using Zod schemas mirroring the backend API shapes.
+   - **Server State via TanStack Query**: All server state is managed via React Query (configured with `staleTime: 30s` default, `gcTime: 5m`, `mutation retry: 0`). No parallel manual state in `useState` or Zustand.
+   - **User-Friendly Error Mapping**: API errors (problem+json) are mapped to localized, user-friendly copy; raw error codes are never shown directly to users.
+   - **Client-Side Validation is UX Only**: Client validation provides immediate user feedback; server-side validation is the authoritative security boundary.
 
-> [!CAUTION]
-> **ADR-005 / Doc 07 FP-2 & FP-3 — Access Token Storage Rule**
->
-> Access tokens **MUST** live in memory only. They must **NEVER** be written to:
-> - `localStorage`
-> - `sessionStorage`
-> - Any client-accessible cookie (only `HttpOnly`, `Secure`, `SameSite=Strict` cookies are permitted for the refresh token, set by the server)
->
-> Violating this rule exposes tokens to XSS attacks. No exceptions.
+3. **TypeScript Strictness (Doc 09 §6.1)**:
+   - `"strict": true` and `"noUncheckedIndexedAccess": true` are enforced.
+   - Do NOT disable or weaken these flags.
 
----
+4. **Internationalization & RTL (Doc 07 §9)**:
+   - i18next initialized with `en` (English LTR) and `ur` (Urdu RTL) placeholders.
 
-## Tech Stack
+## Tooling & Quality Scripts
 
-| Tool | Version | Purpose |
-|---|---|---|
-| React | 18.x | UI library |
-| TypeScript | 5.x (strict) | Type safety (`strict: true`, `noUncheckedIndexedAccess: true`) |
-| Vite | 5.x | Build tool & dev server |
-| Tailwind CSS | 3.x | Utility-first styling |
-| shadcn/ui | CSS-variables | Headless UI component primitives |
-| i18next | 23.x | Internationalisation (English LTR + Urdu RTL) |
-
----
-
-## TypeScript Strictness
-
-`tsconfig.json` enforces:
-- `"strict": true` — enables all strict type-checking flags
-- `"noUncheckedIndexedAccess": true` — array/object index access returns `T | undefined`
-
-**Neither flag may be disabled or weakened** at any point in the project lifecycle.
-
----
-
-## Internationalisation (i18n)
-
-The app supports two locales per Doc 07 §9:
-
-| Locale | Language | Direction |
-|---|---|---|
-| `en` | English | LTR |
-| `ur` | Urdu | RTL |
-
-Translation resource files are bootstrapped as stubs in `src/i18n.ts`.
-Real translation strings are added in LAB-38.
-
----
-
-## Design Tokens
-
-Defined as Tailwind CSS custom properties in `src/index.css`:
-
-| Token | Value | Usage |
-|---|---|---|
-| Primary | `#0d9488` (teal-600) | Brand colour, buttons, links |
-| Accent | `#e8a33d` (amber) | Highlights, CTAs |
-| Neutrals | Slate scale | Backgrounds, text, borders |
-
----
-
-## Available Scripts
-
-```bash
-npm run dev       # Start Vite dev server
-npm run build     # Type-check + production build → dist/
-npm run lint      # ESLint — zero warnings gate
-npm run preview   # Preview production build locally
-```
-
----
-
-## Money Display Rule
-
-Per Doc 01 ADR-010: monetary values are `Decimal` / `numeric(12,2)` on the server.
-The frontend **must display server-provided strings verbatim** — no float arithmetic,
-no client-side currency formatting libraries that convert to float internally.
+- `npm run dev`: Start Vite local development server (`http://localhost:5173`)
+- `npm run build`: Compile TypeScript (`tsc`) and bundle for production (`vite build`)
+- `npm run typecheck`: Run strict TypeScript check without emitting files (`tsc --noEmit`)
+- `npm run lint`: Run ESLint with zero-warnings gate (`--max-warnings 0`)
+- `npm run format:check`: Check code formatting against `.prettierrc`
+- `npm run format`: Auto-format source files with Prettier
+- `npm run preview`: Preview production build locally
