@@ -57,7 +57,7 @@ services:
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-labflow}
       POSTGRES_USER: ${POSTGRES_USER:-labflow_app}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-labflow_dev_password}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
@@ -124,9 +124,13 @@ services:
       - /bin/sh
       - -c
       - |
+        if [ "$$#" -gt 0 ]; then
+          exec "$$@"
+        fi
         mc alias set local http://minio:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD"
         mc mb --ignore-existing local/"$$R2_BUCKET_NAME"
         exit 0
+      - /bin/sh
 
   n8n:
     image: docker.n8n.io/n8nio/n8n:1.70.0
@@ -169,8 +173,10 @@ services:
       - caddy_data:/data
       - caddy_config:/config
     networks:
-      - edge
-      - internal
+      edge:
+      internal:
+        aliases:
+          - backend
     healthcheck:
       test: ["CMD", "caddy", "validate", "--config", "/etc/caddy/Caddyfile"]
       interval: 10s

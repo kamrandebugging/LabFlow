@@ -6,6 +6,10 @@
 	}
 }
 
+http://backend:8000 {
+	respond /internal/tls-check 200
+}
+
 *.{$PLATFORM_BASE_DOMAIN:localhost}, {$PLATFORM_BASE_DOMAIN:localhost} {
 	tls {
 		on_demand
