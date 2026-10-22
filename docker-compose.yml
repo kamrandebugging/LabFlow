@@ -39,6 +39,7 @@ volumes:
   postgres_data:
   redis_data:
   minio_data:
+  n8n_data:
   caddy_data:
   caddy_config:
 
@@ -126,7 +127,31 @@ services:
         exit 0
 
   n8n:
-    image: n8nio/n8n
+    image: docker.n8n.io/n8nio/n8n:1.70.0
+    container_name: labflow-n8n
+    restart: unless-stopped
+    networks:
+      - edge
+    environment:
+      - N8N_HOST=n8n
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      - NODE_ENV=production
+      - WEBHOOK_URL=http://n8n:5678/
+      - GENERIC_TIMEZONE=Asia/Karachi
+      - TZ=Asia/Karachi
+      - N8N_DIAGNOSTICS_ENABLED=false
+      - N8N_VERSION_NOTIFICATIONS_ENABLED=false
+      - "N8N_LISTEN_ADDRESS=::"
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - ./n8n/workflows:/home/node/.n8n/workflows
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:5678/healthz || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
 
   caddy:
     image: caddy:2
