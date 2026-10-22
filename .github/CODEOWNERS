@@ -1,0 +1,8 @@
+# Global default code owner
+* @kamrandebugging
+
+# Critical architecture boundaries per Doc 09 §12
+/backend/ @kamrandebugging
+/frontend/ @kamrandebugging
+/infra/ @kamrandebugging
+/.github/ @kamrandebugging
