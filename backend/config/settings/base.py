@@ -13,8 +13,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 # Secrets: read from environment, never hardcoded (Doc 08 §6)
 SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY")
 
-# Application definition
-INSTALLED_APPS = [
+# Application definition (Doc 01 §15, Doc 04 §13.7)
+SHARED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -26,6 +26,14 @@ INSTALLED_APPS = [
     "drf_spectacular",
     # Note: django-tenants is installed in pyproject.toml per instructions,
     # but not added to INSTALLED_APPS until LAB-5 (multi-tenancy configuration).
+]
+
+TENANT_APPS = [
+    "apps.accounts",
+]
+
+INSTALLED_APPS = list(SHARED_APPS) + [
+    app for app in TENANT_APPS if app not in SHARED_APPS
 ]
 
 MIDDLEWARE = [
