@@ -60,7 +60,7 @@ def get_tenant_models() -> list[type[models.Model]]:
     tenant_models: list[type[models.Model]] = []
 
     for model in apps.get_models():
-        if model._meta.abstract or not model._meta.managed:
+        if model._meta.abstract:
             continue
         if model._meta.app_label in tenant_labels:
             tenant_models.append(model)

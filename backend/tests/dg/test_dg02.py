@@ -41,19 +41,22 @@ def test_dg02_mypy_gate_fails_with_function_named(
         "def execute_payment_service(invoice_id, amount):\n    return amount * 2\n"
     )
 
+    backend_dir = Path(__file__).resolve().parent.parent.parent
+    config_file = backend_dir / "pyproject.toml"
     res = subprocess.run(
         [
             sys.executable,
             "-m",
             "mypy",
             "--config-file",
-            "pyproject.toml",
+            str(config_file),
             "--disallow-untyped-defs",
             "--pretty",
             str(untyped_service_file),
         ],
         capture_output=True,
         text=True,
+        cwd=backend_dir,
     )
     assert res.returncode != 0
     output = res.stdout + res.stderr

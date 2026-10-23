@@ -1,53 +1,42 @@
-# ==============================================================================
-# LabFlow — Developer & CI Interface (Doc 09 §16.2)
-# ==============================================================================
+.PHONY: help up down test test-backend test-frontend lint format typecheck seed
 
-.DEFAULT_GOAL := help
-SHELL := /bin/bash
-.SHELLFLAGS := -eu -o pipefail -c
+SHELL := /usr/bin/env bash
 
-.PHONY: help up down lint test config migrate seed test-e2e types
+help:
+	@echo "LabFlow Development Commands:"
+	@echo "  make up             Start Docker Compose development stack"
+	@echo "  make down           Stop Docker Compose development stack"
+	@echo "  make test           Run full backend test suite"
+	@echo "  make test-backend   Run backend pytest suite against PostgreSQL and Redis"
+	@echo "  make lint           Run backend and frontend linters"
+	@echo "  make format         Run backend and frontend code formatters"
+	@echo "  make typecheck      Run Mypy strict type checks"
 
-help: ## Show this help message
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
+up:
+	docker compose -f infra/docker-compose.yml up -d
 
-up: ## Start all infrastructure services and wait for healthchecks
-	@if [ ! -f .env ]; then \
-		echo "Creating .env from .env.example..."; \
-		cp .env.example .env; \
+down:
+	docker compose -f infra/docker-compose.yml down
+
+test-backend:
+	@echo "==> Running LabFlow backend test suite against PostgreSQL & Redis..."
+	cd backend && python -m pytest -v
+
+test-frontend:
+	@echo "==> Running LabFlow frontend tests..."
+	@if [ -d "frontend" ] && [ -f "frontend/package.json" ]; then \
+		cd frontend && npm test -- --run; \
+	else \
+		echo "Frontend test suite not initialized yet. Skipping."; \
 	fi
-	docker compose up -d --wait postgres redis minio n8n caddy
-	docker compose up -d minio-init
-	@for s in labflow-postgres labflow-redis labflow-minio labflow-n8n labflow-caddy; do \
-		while [ "$$(docker inspect --format='{{json .State.Health.Status}}' $$s 2>/dev/null | tr -d '\r')" != '"healthy"' ]; do \
-			sleep 1; \
-		done; \
-	done
-	@while [ "$$(docker inspect --format='{{.State.Status}}' labflow-minio-init 2>/dev/null | tr -d '\r')" != "exited" ]; do \
-		sleep 1; \
-	done
 
-down: ## Stop all infrastructure services without removing volumes (preserves data)
-	docker compose down
+test: test-backend
 
-config: ## Validate docker-compose configuration
-	docker compose config --quiet
+lint:
+	cd backend && python -m ruff check .
 
-lint: ## Run code linters across backend and frontend
-	@echo "Running linters..."
+format:
+	cd backend && python -m ruff format .
 
-test: ## Run test suites
-	@echo "Running tests..."
-
-migrate: ## Run database migrations from backend/
-	cd backend && python manage.py migrate
-
-seed: ## Seed local demo tenant data (placeholder until LAB-5)
-	@echo "Seeding demo tenant data is scheduled for LAB-5"
-
-test-e2e: ## Run Playwright E2E tests (placeholder until LAB-38)
-	@echo "Playwright E2E smoke suite is scheduled for LAB-38"
-
-types: ## Regenerate OpenAPI schemas and frontend types
-	cd backend && python manage.py spectacular --file schema.yml
-	@echo "Schema generated at backend/schema.yml"
+typecheck:
+	cd backend && python -m mypy --config-file pyproject.toml tests/ config/

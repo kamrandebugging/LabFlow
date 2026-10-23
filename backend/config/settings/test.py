@@ -5,10 +5,14 @@ Hard-bans SQLite at initialization.
 """
 
 import os
+import socket
 from typing import Any
 from urllib.parse import urlparse
 
 from config.settings.base import *  # noqa: F403
+
+if not os.environ.get("DJANGO_SECRET_KEY"):
+    SECRET_KEY = "ci-test-secret-key-32-chars-minimum-length-for-testing"
 
 # Hard-ban SQLite before any database connection attempt
 _db_url = os.environ.get("DATABASE_URL", "")
@@ -20,17 +24,62 @@ if _db_url:
         )
         raise RuntimeError(msg)
 
+
+def _resolve_default_db_port() -> str:
+    if "POSTGRES_PORT" in os.environ:
+        return os.environ["POSTGRES_PORT"]
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.settimeout(0.2)
+    try:
+        if sock.connect_ex(("127.0.0.1", 5433)) == 0:
+            return "5433"
+    except Exception:
+        pass
+    finally:
+        sock.close()
+    return "5432"
+
+
+def _resolve_default_db_host() -> str:
+    if "POSTGRES_HOST" in os.environ:
+        return os.environ["POSTGRES_HOST"]
+    if _resolve_default_db_port() == "5433":
+        return "127.0.0.1"
+    return "localhost"
+
+
+def _resolve_default_redis_url() -> str:
+    if "REDIS_URL" in os.environ:
+        return os.environ["REDIS_URL"]
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.settimeout(0.2)
+    try:
+        if sock.connect_ex(("127.0.0.1", 6380)) == 0:
+            return "redis://127.0.0.1:6380/0"
+    except Exception:
+        pass
+    finally:
+        sock.close()
+    return "redis://localhost:6379/0"
+
+
 DEBUG = False
 
 # Ensure django_tenants postgresql engine is configured
+_db_user = os.environ.get("POSTGRES_USER", "labflow")
+_db_pass = os.environ.get("POSTGRES_PASSWORD", "labflow_test_password")
+_db_name = os.environ.get("POSTGRES_DB", "labflow_test")
+_db_host = _resolve_default_db_host()
+_db_port = _resolve_default_db_port()
+
 DATABASES: dict[str, dict[str, Any]] = {
     "default": {
         "ENGINE": "django_tenants.postgresql_backend",
-        "NAME": os.environ.get("POSTGRES_DB", "labflow_test"),
-        "USER": os.environ.get("POSTGRES_USER", "labflow"),
-        "PASSWORD": os.environ.get("POSTGRES_PASSWORD", "labflow_test_password"),
-        "HOST": os.environ.get("POSTGRES_HOST", "localhost"),
-        "PORT": os.environ.get("POSTGRES_PORT", "5432"),
+        "NAME": _db_name,
+        "USER": _db_user,
+        "PASSWORD": _db_pass,
+        "HOST": _db_host,
+        "PORT": _db_port,
     }
 }
 
@@ -42,6 +91,12 @@ if _db_url:
     DATABASES["default"]["PASSWORD"] = _parsed.password or "labflow_test_password"
     DATABASES["default"]["HOST"] = _parsed.hostname or "localhost"
     DATABASES["default"]["PORT"] = str(_parsed.port or 5432)
+else:
+    # Ensure DATABASE_URL is set in environment for child processes and assertions
+    os.environ.setdefault(
+        "DATABASE_URL",
+        f"postgresql://{_db_user}:{_db_pass}@{_db_host}:{_db_port}/{_db_name}",
+    )
 
 # Verify engine is never downgraded to SQLite
 if "sqlite" in str(DATABASES["default"]["ENGINE"]):
@@ -57,7 +112,9 @@ PASSWORD_HASHERS = [
 ]
 
 # Redis test cache configuration
-REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
+REDIS_URL = _resolve_default_redis_url()
+os.environ.setdefault("REDIS_URL", REDIS_URL)
+
 CACHES: dict[str, dict[str, Any]] = {
     "default": {
         "BACKEND": "django.core.cache.backends.redis.RedisCache",
