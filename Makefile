@@ -1,53 +1,39 @@
-# ==============================================================================
-# LabFlow — Developer & CI Interface (Doc 09 §16.2)
-# ==============================================================================
+.PHONY: help up down seed test test-e2e lint types migrate
 
-.DEFAULT_GOAL := help
-SHELL := /bin/bash
-.SHELLFLAGS := -eu -o pipefail -c
+help:
+	@echo "LabFlow Developer Interface (Doc 09 §16.2)"
+	@echo "  make up        - Start local infrastructure containers"
+	@echo "  make down      - Stop local infrastructure containers"
+	@echo "  make migrate   - Run shared then tenant schema migrations (Doc 02 §15)"
+	@echo "  make seed      - Seed demo tenant and synthetic catalogue"
+	@echo "  make test      - Run backend unit and integration test suite"
+	@echo "  make test-e2e  - Run Playwright end-to-end tests"
+	@echo "  make lint      - Run code style, formatting, and type checks"
+	@echo "  make types     - Generate OpenAPI schema and frontend API types"
 
-.PHONY: help up down lint test config migrate seed test-e2e types
+up:
+	docker compose up -d
 
-help: ## Show this help message
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
-
-up: ## Start all infrastructure services and wait for healthchecks
-	@if [ ! -f .env ]; then \
-		echo "Creating .env from .env.example..."; \
-		cp .env.example .env; \
-	fi
-	docker compose up -d --wait postgres redis minio n8n caddy
-	docker compose up -d minio-init
-	@for s in labflow-postgres labflow-redis labflow-minio labflow-n8n labflow-caddy; do \
-		while [ "$$(docker inspect --format='{{json .State.Health.Status}}' $$s 2>/dev/null | tr -d '\r')" != '"healthy"' ]; do \
-			sleep 1; \
-		done; \
-	done
-	@while [ "$$(docker inspect --format='{{.State.Status}}' labflow-minio-init 2>/dev/null | tr -d '\r')" != "exited" ]; do \
-		sleep 1; \
-	done
-
-down: ## Stop all infrastructure services without removing volumes (preserves data)
+down:
 	docker compose down
 
-config: ## Validate docker-compose configuration
-	docker compose config --quiet
+migrate:
+	cd backend && poetry run python manage.py migrate_schemas --shared
+	cd backend && poetry run python manage.py migrate_schemas --tenant
 
-lint: ## Run code linters across backend and frontend
-	@echo "Running linters..."
+seed:
+	cd backend && poetry run python manage.py seed_demo_tenant
 
-test: ## Run test suites
-	@echo "Running tests..."
+test:
+	cd backend && poetry run pytest
 
-migrate: ## Run database migrations from backend/
-	cd backend && python manage.py migrate
+test-e2e:
+	cd frontend && npx playwright test
 
-seed: ## Seed local demo tenant data (placeholder until LAB-5)
-	@echo "Seeding demo tenant data is scheduled for LAB-5"
+lint:
+	cd backend && poetry run ruff check .
+	cd backend && poetry run ruff format --check .
+	cd backend && poetry run mypy --strict apps/ config/ tests/
 
-test-e2e: ## Run Playwright E2E tests (placeholder until LAB-38)
-	@echo "Playwright E2E smoke suite is scheduled for LAB-38"
-
-types: ## Regenerate OpenAPI schemas and frontend types
-	cd backend && python manage.py spectacular --file schema.yml
-	@echo "Schema generated at backend/schema.yml"
+types:
+	cd backend && poetry run python manage.py spectacular --file schema.yml
