@@ -17,10 +17,19 @@ dependencies = [
 dev = [
     "pytest>=8.0.0",
     "pytest-django>=4.8.0",
+    "factory-boy>=3.3.0",
     "mypy>=1.10.0,<2.0",
     "django-stubs>=5.0.0",
     "djangorestframework-stubs>=3.15.0",
     "ruff>=0.4.0",
+]
+test = [
+    "pytest>=8.0.0",
+    "pytest-django>=4.9.0",
+    "factory-boy>=3.3.0",
+    "mypy>=1.11.0",
+    "django-stubs>=5.0.0",
+    "ruff>=0.6.0",
 ]
 
 [build-system]
@@ -70,11 +79,12 @@ disallow_untyped_defs = true
 disallow_incomplete_defs = true
 
 [tool.django-stubs]
-django_settings_module = "config.settings.dev"
+django_settings_module = "config.settings.test"
 
 [[tool.mypy.overrides]]
 module = [
     "django_tenants.*",
+    "factory.*",
 ]
 ignore_missing_imports = true
 
@@ -95,4 +105,6 @@ markers = [
     "smoke: environment and connectivity smoke tests",
     "unit: fast unit tests without external network",
     "integration: integration tests requiring postgres and redis",
+    "tenancy: tenant isolation and schema tests",
+    "factory: factory_boy pattern and isolation tests",
 ]
