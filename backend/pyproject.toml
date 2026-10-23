@@ -49,6 +49,7 @@ ignore = []
 [tool.ruff.lint.per-file-ignores]
 # Star-imports are required for the split-settings pattern (base -> dev)
 "config/settings/dev.py" = ["F403", "F405"]
+"**/migrations/*" = ["E501"]
 
 [tool.ruff.format]
 quote-style = "double"
@@ -81,8 +82,17 @@ ignore_missing_imports = true
 [[tool.mypy.overrides]]
 module = [
     "apps.core.models",
+    "tests.factories.*",
 ]
 disallow_subclassing_any = false
+disallow_untyped_calls = false
+
+[[tool.mypy.overrides]]
+module = [
+    "factory",
+    "factory.*",
+]
+implicit_reexport = true
 
 # ==============================================================================
 # Pytest Configuration (Doc 09 §9.1)
