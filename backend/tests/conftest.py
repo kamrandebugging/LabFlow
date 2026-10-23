@@ -70,14 +70,18 @@ def enforce_postgresql_connection(django_db_blocker: Any) -> None:
 @pytest.fixture
 def tenant_a(db: Any) -> Generator[Tenant, None, None]:
     """Primary test tenant fixture backed by real Tenant model."""
-    tenant, _ = Tenant.objects.get_or_create(
-        schema_name="tenant_a",
-        defaults={
-            "name": "Tenant A",
-            "slug": "tenant_a",
-            "status": Tenant.Status.ACTIVE,
-        },
+    schema_name = "tenant_a"
+    with connection.cursor() as cursor:
+        cursor.execute(f'CREATE SCHEMA IF NOT EXISTS "{schema_name}"')
+    tenant = Tenant(
+        schema_name=schema_name,
+        name="Tenant A",
+        slug="tenant_a",
+        status=Tenant.Status.ACTIVE,
     )
+    tenant.auto_create_schema = False
+    tenant.save()
+
     Domain.objects.get_or_create(
         tenant=tenant,
         domain="tenant-a.localhost",
@@ -85,20 +89,27 @@ def tenant_a(db: Any) -> Generator[Tenant, None, None]:
     )
     yield tenant
     Domain.objects.filter(tenant=tenant).delete()
-    tenant.delete(force_drop=True)
+    with connection.cursor() as cursor:
+        cursor.execute(f'DROP SCHEMA IF EXISTS "{schema_name}" CASCADE')
+    tenant.auto_drop_schema = False
+    tenant.delete()
 
 
 @pytest.fixture
 def tenant_b(db: Any) -> Generator[Tenant, None, None]:
     """Secondary test tenant fixture for cross-tenant isolation testing."""
-    tenant, _ = Tenant.objects.get_or_create(
-        schema_name="tenant_b",
-        defaults={
-            "name": "Tenant B",
-            "slug": "tenant_b",
-            "status": Tenant.Status.ACTIVE,
-        },
+    schema_name = "tenant_b"
+    with connection.cursor() as cursor:
+        cursor.execute(f'CREATE SCHEMA IF NOT EXISTS "{schema_name}"')
+    tenant = Tenant(
+        schema_name=schema_name,
+        name="Tenant B",
+        slug="tenant_b",
+        status=Tenant.Status.ACTIVE,
     )
+    tenant.auto_create_schema = False
+    tenant.save()
+
     Domain.objects.get_or_create(
         tenant=tenant,
         domain="tenant-b.localhost",
@@ -106,4 +117,7 @@ def tenant_b(db: Any) -> Generator[Tenant, None, None]:
     )
     yield tenant
     Domain.objects.filter(tenant=tenant).delete()
-    tenant.delete(force_drop=True)
+    with connection.cursor() as cursor:
+        cursor.execute(f'DROP SCHEMA IF EXISTS "{schema_name}" CASCADE')
+    tenant.auto_drop_schema = False
+    tenant.delete()
