@@ -107,4 +107,5 @@ markers = [
     "integration: integration tests requiring postgres and redis",
     "tenancy: tenant isolation and schema tests",
     "factory: factory_boy pattern and isolation tests",
+    "isolation: cross-tenant model registry harness tests (Doc 04 §13.7)",
 ]
