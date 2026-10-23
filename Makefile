@@ -1,4 +1,4 @@
-.PHONY: help up down test test-backend test-frontend lint format typecheck seed
+.PHONY: help up down test test-backend test-frontend lint format typecheck seed migrate test-e2e types
 
 SHELL := /usr/bin/env bash
 
@@ -11,12 +11,17 @@ help:
 	@echo "  make lint           Run backend and frontend linters"
 	@echo "  make format         Run backend and frontend code formatters"
 	@echo "  make typecheck      Run Mypy strict type checks"
+	@echo "  make migrate        Run shared then tenant schema migrations (Doc 02 §15)"
 
 up:
 	docker compose -f infra/docker-compose.yml up -d
 
 down:
 	docker compose -f infra/docker-compose.yml down
+
+migrate:
+	cd backend && poetry run python manage.py migrate_schemas --shared
+	cd backend && poetry run python manage.py migrate_schemas --tenant
 
 test-backend:
 	@echo "==> Running LabFlow backend test suite against PostgreSQL & Redis..."
@@ -40,3 +45,9 @@ format:
 
 typecheck:
 	cd backend && python -m mypy --config-file pyproject.toml tests/ config/
+
+test-e2e:
+	cd frontend && npx playwright test
+
+types:
+	cd backend && poetry run python manage.py spectacular --file schema.yml

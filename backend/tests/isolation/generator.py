@@ -19,10 +19,18 @@ from django.db import models
 # Format: {"app_label.ModelName": "Detailed justification per Doc 04 §13.7"}
 # Note: LAB-54 formalises this dictionary into the reviewed allow-list and merge gate.
 EXCLUDED_MODELS: dict[str, str] = {
-    # Example format:
-    # "billing.SpecialLedger": (
-    #     "Transient table requiring external payment provider mock"
-    # ),
+    # Django framework models pulled into TENANT_APPS by LAB-5 (KAN-37) so
+    # their tables exist per tenant. They are not LabFlow domain models and
+    # have no <Model>Factory by design; isolation of domain models is what
+    # this harness parameterizes. LAB-54 formalises the reviewed allow-list.
+    "auth.Permission": (
+        "Django framework model in TENANT_APPS (LAB-5), not a domain model"
+    ),
+    "auth.Group": "Django framework model in TENANT_APPS (LAB-5), not a domain model",
+    "auth.User": "Django framework model in TENANT_APPS (LAB-5), not a domain model",
+    "contenttypes.ContentType": (
+        "Django framework model in TENANT_APPS (LAB-5), not a domain model"
+    ),
 }
 
 

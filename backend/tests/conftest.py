@@ -1,26 +1,30 @@
-"""Pytest root configuration and environment sanity checks (Doc 09 §9.1)."""
+"""Pytest root configuration, environment sanity checks, and tenant fixtures.
 
+Combines the LAB-4 harness guards (Doc 09 §9.1: SQLite hard-ban, live
+PostgreSQL check, TenantFixture helpers re-exported from
+tests.fixtures.tenants) with the LAB-5 tenant fixtures (KAN-38):
+tenant_a / tenant_b are backed by the real Tenant model, keeping the
+LAB-4 fixture names and interface stable.
+"""
+
+from collections.abc import Generator
 from typing import Any
 
 import pytest
 from django.conf import settings
 from django.db import connection
 
-# Re-export two-tenant fixtures and helpers per Doc 09 §9.4
-from tests.fixtures.tenants import (
-    TenantFixture,
-    run_in_schema,
-    run_in_tenant,
-    tenant_a,
-    tenant_b,
-)
+from apps.core.models import Domain, Tenant
+
+# Re-export harness helpers per Doc 09 §9.4 (fixtures defined in
+# tests.fixtures.tenants register here; tenant_a/tenant_b are defined
+# below on the real Tenant model per KAN-38 and are NOT imported).
+from tests.fixtures.tenants import TenantFixture, run_in_schema, run_in_tenant
 
 __all__ = [
     "TenantFixture",
     "run_in_schema",
     "run_in_tenant",
-    "tenant_a",
-    "tenant_b",
 ]
 
 
@@ -61,3 +65,59 @@ def enforce_postgresql_connection(django_db_blocker: Any) -> None:
                 f"got '{connection.vendor}'. "
                 "SQLite fallback strictly prohibited per Doc 09 §9.1."
             )
+
+
+@pytest.fixture
+def tenant_a(db: Any) -> Generator[Tenant, None, None]:
+    """Primary test tenant fixture backed by real Tenant model."""
+    schema_name = "tenant_a"
+    with connection.cursor() as cursor:
+        cursor.execute(f'CREATE SCHEMA IF NOT EXISTS "{schema_name}"')
+    tenant = Tenant(
+        schema_name=schema_name,
+        name="Tenant A",
+        slug="tenant_a",
+        status=Tenant.Status.ACTIVE,
+    )
+    tenant.auto_create_schema = False
+    tenant.save()
+
+    Domain.objects.get_or_create(
+        tenant=tenant,
+        domain="tenant-a.localhost",
+        defaults={"is_primary": True},
+    )
+    yield tenant
+    Domain.objects.filter(tenant=tenant).delete()
+    with connection.cursor() as cursor:
+        cursor.execute(f'DROP SCHEMA IF EXISTS "{schema_name}" CASCADE')
+    tenant.auto_drop_schema = False
+    tenant.delete()
+
+
+@pytest.fixture
+def tenant_b(db: Any) -> Generator[Tenant, None, None]:
+    """Secondary test tenant fixture for cross-tenant isolation testing."""
+    schema_name = "tenant_b"
+    with connection.cursor() as cursor:
+        cursor.execute(f'CREATE SCHEMA IF NOT EXISTS "{schema_name}"')
+    tenant = Tenant(
+        schema_name=schema_name,
+        name="Tenant B",
+        slug="tenant_b",
+        status=Tenant.Status.ACTIVE,
+    )
+    tenant.auto_create_schema = False
+    tenant.save()
+
+    Domain.objects.get_or_create(
+        tenant=tenant,
+        domain="tenant-b.localhost",
+        defaults={"is_primary": True},
+    )
+    yield tenant
+    Domain.objects.filter(tenant=tenant).delete()
+    with connection.cursor() as cursor:
+        cursor.execute(f'DROP SCHEMA IF EXISTS "{schema_name}" CASCADE')
+    tenant.auto_drop_schema = False
+    tenant.delete()

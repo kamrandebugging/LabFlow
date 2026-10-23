@@ -72,7 +72,7 @@ _db_name = os.environ.get("POSTGRES_DB", "labflow_test")
 _db_host = _resolve_default_db_host()
 _db_port = _resolve_default_db_port()
 
-DATABASES: dict[str, dict[str, Any]] = {
+DATABASES: dict[str, dict[str, Any]] = {  # type: ignore[no-redef]  # overrides base.py DATABASES (LAB-5)
     "default": {
         "ENGINE": "django_tenants.postgresql_backend",
         "NAME": _db_name,

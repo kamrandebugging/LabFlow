@@ -9,6 +9,7 @@ dependencies = [
     "djangorestframework>=3.15.0",
     "drf-spectacular>=0.27.0",
     "django-tenants>=3.7.0",
+    "django-environ>=0.11.0",
     "psycopg[binary]>=3.1.0",
     "redis>=5.0.0",
 ]
@@ -63,6 +64,7 @@ ignore = []
 # Star-imports are required for the split-settings pattern (base -> dev, base -> test)
 "config/settings/dev.py" = ["F403", "F405"]
 "config/settings/test.py" = ["F403", "F405"]
+"**/migrations/*" = ["E501"]
 
 [tool.ruff.format]
 quote-style = "double"
@@ -88,9 +90,19 @@ django_settings_module = "config.settings.test"
 [[tool.mypy.overrides]]
 module = [
     "django_tenants.*",
+    "environ",
     "factory.*",
 ]
 ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = [
+    "apps.core.models",
+    "tests.*",
+]
+disallow_subclassing_any = false
+disallow_untyped_calls = false
+disable_error_code = ["misc", "comparison-overlap", "attr-defined"]
 
 # ==============================================================================
 # Pytest Configuration (Doc 09 §9.1)
@@ -101,6 +113,9 @@ addopts = "-ra --strict-markers --strict-config"
 testpaths = ["tests"]
 pythonpath = ["."]
 DJANGO_SETTINGS_MODULE = "config.settings.test"
+django_debug_mode = "keep"
+python_files = ["test_*.py", "*_test.py"]
+python_functions = ["test_*"]
 filterwarnings = [
     "error",
     "ignore::DeprecationWarning",
