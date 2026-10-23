@@ -108,4 +108,5 @@ markers = [
     "tenancy: tenant isolation and schema tests",
     "factory: factory_boy pattern and isolation tests",
     "isolation: cross-tenant model registry harness tests (Doc 04 §13.7)",
+    "dg: Doc 09 development guidelines meta-test suite (Doc 09 §18)",
 ]
