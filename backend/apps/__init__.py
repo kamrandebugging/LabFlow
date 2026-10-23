@@ -1,1 +1,1 @@
-"""Applications package."""
+"""LabFlow core business and tenant domain applications."""
