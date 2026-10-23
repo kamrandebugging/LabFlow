@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import factory
 from django.db import connection, models
@@ -20,6 +20,16 @@ class TenantModelFactory[T: models.Model](DjangoModelFactory[T]):
 
     class Meta:
         abstract = True
+
+    if TYPE_CHECKING:
+
+        def __new__(cls, *args: Any, **kwargs: Any) -> Any: ...
+
+        @classmethod
+        def build(cls, **kwargs: Any) -> Any: ...
+
+        @classmethod
+        def create(cls, **kwargs: Any) -> Any: ...
 
     @classmethod
     def _create(cls, model_class: type[Any], *args: Any, **kwargs: Any) -> Any:
@@ -53,6 +63,16 @@ class PublicModelFactory[T: models.Model](DjangoModelFactory[T]):
 
     class Meta:
         abstract = True
+
+    if TYPE_CHECKING:
+
+        def __new__(cls, *args: Any, **kwargs: Any) -> Any: ...
+
+        @classmethod
+        def build(cls, **kwargs: Any) -> Any: ...
+
+        @classmethod
+        def create(cls, **kwargs: Any) -> Any: ...
 
     @classmethod
     def _create(cls, model_class: type[Any], *args: Any, **kwargs: Any) -> Any:

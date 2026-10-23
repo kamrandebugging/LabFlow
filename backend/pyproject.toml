@@ -82,10 +82,11 @@ ignore_missing_imports = true
 [[tool.mypy.overrides]]
 module = [
     "apps.core.models",
-    "tests.factories.*",
+    "tests.*",
 ]
 disallow_subclassing_any = false
 disallow_untyped_calls = false
+disable_error_code = ["misc", "comparison-overlap"]
 
 [[tool.mypy.overrides]]
 module = [

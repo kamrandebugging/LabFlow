@@ -1,8 +1,11 @@
 """Model factories for apps.core public models."""
 
-import factory
+from decimal import Decimal
 
-from apps.core.models import Domain, Tenant
+import factory
+from django.utils import timezone
+
+from apps.core.models import Domain, Plan, Subscription, Tenant
 from tests.factories.base import PublicModelFactory
 
 
@@ -29,3 +32,29 @@ class DomainFactory(PublicModelFactory[Domain]):
     domain = factory.Sequence(lambda n: f"lab{n}.localhost")
     tenant = factory.SubFactory(TenantFactory)
     is_primary = True
+
+
+class PlanFactory(PublicModelFactory[Plan]):
+    """Factory for Plan public schema model (Doc 02 §4.1)."""
+
+    class Meta:
+        model = Plan
+        django_get_or_create = ("name",)
+
+    name = factory.Sequence(lambda n: f"Tier {n}")
+    price = Decimal("5000.00")
+    max_branches = None
+    is_active = True
+
+
+class SubscriptionFactory(PublicModelFactory[Subscription]):
+    """Factory for Subscription public schema model (Doc 02 §4.1)."""
+
+    class Meta:
+        model = Subscription
+
+    tenant = factory.SubFactory(TenantFactory)
+    plan = factory.SubFactory(PlanFactory)
+    status = Subscription.Status.ACTIVE
+    starts_at = factory.LazyFunction(timezone.now)
+    ends_at = None

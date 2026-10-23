@@ -1,10 +1,12 @@
-"""Public schema models: Tenant and Domain per Doc 02 §4.1."""
+"""Public schema models: Tenant, Domain, Plan, Subscription per Doc 02 §4.1."""
 
 import uuid
+from decimal import Decimal
 
 from django.contrib.postgres.functions import RandomUUID
 from django.core.validators import RegexValidator
 from django.db import models
+from django.db.models import F, Q
 from django_tenants.models import DomainMixin, TenantMixin
 
 slug_validator = RegexValidator(
@@ -96,3 +98,118 @@ class Domain(DomainMixin):
 
     def __str__(self) -> str:
         return self.domain
+
+
+class Plan(models.Model):
+    """Platform pricing tier for tenant subscriptions (Doc 02 §4.1)."""
+
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        db_default=RandomUUID(),
+        editable=False,
+    )
+    name = models.CharField(
+        max_length=100,
+        unique=True,
+        help_text="Unique tier name, e.g. Starter, Professional",
+    )
+    price = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        help_text="PKR per month (Doc 01 ADR-010)",
+    )
+    max_branches = models.IntegerField(
+        null=True,
+        blank=True,
+        help_text="Maximum branches permitted; NULL denotes unlimited",
+    )
+    is_active = models.BooleanField(
+        default=True,
+        help_text=(
+            "Retired plans remain active for existing subscriptions but block new ones"
+        ),
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "plan"
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(price__gte=Decimal("0.00")),
+                name="chk_plan_price_gte_0",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.name} (PKR {self.price})"
+
+
+class Subscription(models.Model):
+    """Tenant subscription contract to a platform plan (Doc 02 §4.1)."""
+
+    class Status(models.TextChoices):
+        ACTIVE = "active", "Active"
+        PAST_DUE = "past_due", "Past Due"
+        CANCELLED = "cancelled", "Cancelled"
+        EXPIRED = "expired", "Expired"
+
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        db_default=RandomUUID(),
+        editable=False,
+    )
+    tenant = models.ForeignKey(
+        "core.Tenant",
+        on_delete=models.PROTECT,
+        related_name="subscriptions",
+        db_column="tenant_id",
+        db_index=False,
+    )
+    plan = models.ForeignKey(
+        "core.Plan",
+        on_delete=models.PROTECT,
+        related_name="subscriptions",
+        db_column="plan_id",
+        db_index=False,
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.ACTIVE,
+        help_text="Subscription lifecycle status (Doc 02 §4.1)",
+    )
+    starts_at = models.DateTimeField(
+        help_text="Start timestamp of the subscription period",
+    )
+    ends_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="End timestamp of the subscription; NULL while open-ended",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "subscription"
+        indexes = [
+            models.Index(fields=["tenant"], name="idx_subscription_tenant_id"),
+            models.Index(fields=["plan"], name="idx_subscription_plan_id"),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["tenant"],
+                condition=Q(status="active"),
+                name="uq_subscription_one_active_per_tenant",
+            ),
+            models.CheckConstraint(
+                condition=Q(ends_at__isnull=True) | Q(ends_at__gt=F("starts_at")),
+                name="chk_subscription_ends_at_gt_starts_at",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.tenant.slug} -> {self.plan.name} ({self.status})"
