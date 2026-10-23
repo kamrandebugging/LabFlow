@@ -11,4 +11,4 @@ def test_django_settings_loaded() -> None:
     """Assert Django settings boot and DEBUG flag is readable."""
     assert hasattr(settings, "DEBUG")
     assert isinstance(settings.DEBUG, bool)
-    assert settings.DEBUG is True
+    assert settings.DEBUG is False

@@ -10,6 +10,7 @@ dependencies = [
     "drf-spectacular>=0.27.0",
     "django-tenants>=3.7.0",
     "psycopg[binary]>=3.1.0",
+    "redis>=5.0.0",
 ]
 
 [project.optional-dependencies]
@@ -46,8 +47,9 @@ select = [
 ignore = []
 
 [tool.ruff.lint.per-file-ignores]
-# Star-imports are required for the split-settings pattern (base -> dev)
+# Star-imports are required for the split-settings pattern (base -> dev, base -> test)
 "config/settings/dev.py" = ["F403", "F405"]
+"config/settings/test.py" = ["F403", "F405"]
 
 [tool.ruff.format]
 quote-style = "double"
@@ -80,10 +82,17 @@ ignore_missing_imports = true
 # Pytest Configuration (Doc 09 §9.1)
 # ==============================================================================
 [tool.pytest.ini_options]
-DJANGO_SETTINGS_MODULE = "config.settings.dev"
-django_debug_mode = "keep"
-pythonpath = ["."]
+minversion = "8.0"
+addopts = "-ra -q --strict-markers --strict-config"
 testpaths = ["tests"]
-python_files = ["test_*.py", "*_test.py"]
-python_functions = ["test_*"]
-addopts = "-v --strict-markers"
+pythonpath = ["."]
+DJANGO_SETTINGS_MODULE = "config.settings.test"
+filterwarnings = [
+    "error",
+    "ignore::DeprecationWarning",
+]
+markers = [
+    "smoke: environment and connectivity smoke tests",
+    "unit: fast unit tests without external network",
+    "integration: integration tests requiring postgres and redis",
+]
