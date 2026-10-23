@@ -1,67 +1,63 @@
-"""
-Pytest session configuration and safety guards for LabFlow.
-Enforces real PostgreSQL 16 and Redis 7 per Doc 09 §9.1.
-"""
+"""Pytest root configuration and environment sanity checks (Doc 09 §9.1)."""
 
-from __future__ import annotations
+from typing import Any
 
-import os
-from collections.abc import Generator
-
-import django
 import pytest
+from django.conf import settings
+from django.db import connection
+
+# Re-export two-tenant fixtures and helpers per Doc 09 §9.4
+from tests.fixtures.tenants import (
+    TenantFixture,
+    run_in_schema,
+    run_in_tenant,
+    tenant_a,
+    tenant_b,
+)
+
+__all__ = [
+    "TenantFixture",
+    "run_in_schema",
+    "run_in_tenant",
+    "tenant_a",
+    "tenant_b",
+]
 
 
 def pytest_sessionstart(session: pytest.Session) -> None:
     """
-    Session-start hook to verify database engine configuration before any test executes.
-    Aborts immediately if SQLite is configured (Doc 09 §9.1).
+    Abort pytest session immediately if SQLite or non-PostgreSQL backend is configured.
     """
-    # Ensure Django settings are configured
+    import os
+
+    import django
+
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings.test")
-    if not django.conf.settings.configured:
+    if not settings.configured:
         django.setup()
 
-    from django.conf import settings
-
-    default_db = settings.DATABASES.get("default", {})
-    engine = str(default_db.get("ENGINE", ""))
-
-    if "sqlite" in engine.lower():
+    engine = str(settings.DATABASES["default"]["ENGINE"])
+    allowed_backends = (
+        "django.db.backends.postgresql",
+        "django_tenants.postgresql_backend",
+    )
+    if "sqlite" in engine or not any(backend in engine for backend in allowed_backends):
         pytest.exit(
-            "SQLite is not allowed — tests must run against PostgreSQL (Doc 09 §9.1).\n"
+            "SQLite is not allowed — tests must run against PostgreSQL (Doc 09 §9.1). "
             f"Configured engine: {engine}",
-            returncode=1,
-        )
-
-    if "postgresql" not in engine.lower() and "django_tenants" not in engine.lower():
-        pytest.exit(
-            "Invalid database engine for test suite — "
-            "must be PostgreSQL / django-tenants (Doc 09 §9.1).\n"
-            f"Found: {engine}",
             returncode=1,
         )
 
 
 @pytest.fixture(scope="session", autouse=True)
-def enforce_postgresql_connection() -> Generator[None, None, None]:
-    """
-    Session-scoped runtime fixture to verify actual database connection vendor
-    is PostgreSQL.
-    """
-    from django.db import connection
-
-    vendor = connection.vendor
-    if vendor == "sqlite":
-        pytest.exit(
-            "SQLite is not allowed — tests must run against PostgreSQL (Doc 09 §9.1).\n"
-            f"Detected connection vendor: {vendor}",
-            returncode=1,
-        )
-    if vendor != "postgresql":
-        pytest.exit(
-            "Invalid connection vendor for test suite — "
-            f"expected 'postgresql', got: '{vendor}' (Doc 09 §9.1).",
-            returncode=1,
-        )
-    yield
+def enforce_postgresql_connection(django_db_blocker: Any) -> None:
+    """Verify live database connection vendor is postgresql at session start."""
+    with django_db_blocker.unblock():
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT 1;")
+        if connection.vendor != "postgresql":
+            pytest.fail(
+                "Expected database connection vendor 'postgresql', "
+                f"got '{connection.vendor}'. "
+                "SQLite fallback strictly prohibited per Doc 09 §9.1."
+            )

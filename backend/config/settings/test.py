@@ -1,99 +1,75 @@
-"""
-Test settings for LabFlow.
-Enforces real PostgreSQL 16 and Redis 7 per Doc 09 §9.1. SQLite is strictly banned.
-"""
+"""Test settings for LabFlow backend (Doc 09 §9.1).
 
-from __future__ import annotations
+Runs exclusively against real PostgreSQL 16 and Redis 7 service containers.
+Hard-bans SQLite at initialization.
+"""
 
 import os
+from typing import Any
 from urllib.parse import urlparse
 
 from config.settings.base import *  # noqa: F403
 
-DEBUG = False
-TESTING = True
+# Hard-ban SQLite before any database connection attempt
+_db_url = os.environ.get("DATABASE_URL", "")
+if _db_url:
+    _scheme = urlparse(_db_url).scheme
+    if "sqlite" in _scheme:
+        msg = (
+            "SQLite is strictly prohibited per Doc 09 §9.1. PostgreSQL 16 is required."
+        )
+        raise RuntimeError(msg)
 
-# Security / Auth speedups for testing
-# (argon2 kept available, fast hasher for runner speed)
+DEBUG = False
+
+# Ensure django_tenants postgresql engine is configured
+DATABASES: dict[str, dict[str, Any]] = {
+    "default": {
+        "ENGINE": "django_tenants.postgresql_backend",
+        "NAME": os.environ.get("POSTGRES_DB", "labflow_test"),
+        "USER": os.environ.get("POSTGRES_USER", "labflow"),
+        "PASSWORD": os.environ.get("POSTGRES_PASSWORD", "labflow_test_password"),
+        "HOST": os.environ.get("POSTGRES_HOST", "localhost"),
+        "PORT": os.environ.get("POSTGRES_PORT", "5432"),
+    }
+}
+
+# If DATABASE_URL is explicitly set, parse and update connection params
+if _db_url:
+    _parsed = urlparse(_db_url)
+    DATABASES["default"]["NAME"] = _parsed.path.lstrip("/") or "labflow_test"
+    DATABASES["default"]["USER"] = _parsed.username or "labflow"
+    DATABASES["default"]["PASSWORD"] = _parsed.password or "labflow_test_password"
+    DATABASES["default"]["HOST"] = _parsed.hostname or "localhost"
+    DATABASES["default"]["PORT"] = str(_parsed.port or 5432)
+
+# Verify engine is never downgraded to SQLite
+if "sqlite" in str(DATABASES["default"]["ENGINE"]):
+    msg = (
+        "SQLite database engine detected in DATABASES['default']. "
+        "Aborting per Doc 09 §9.1."
+    )
+    raise RuntimeError(msg)
+
+# Password hashing speedup for tests
 PASSWORD_HASHERS = [
     "django.contrib.auth.hashers.MD5PasswordHasher",
 ]
 
-# Database configuration: read DATABASE_URL or individual POSTGRES_* environment vars
-DATABASE_URL = os.environ.get("DATABASE_URL")
-
-if DATABASE_URL:
-    parsed_db = urlparse(DATABASE_URL)
-    engine = "django.db.backends.postgresql"
-    # When django_tenants is installed in INSTALLED_APPS, use tenant backend
-    if "django_tenants" in globals().get("INSTALLED_APPS", []):
-        engine = "django_tenants.postgresql_backend"
-
-    DATABASES = {
-        "default": {
-            "ENGINE": engine,
-            "NAME": parsed_db.path.lstrip("/") or "labflow_test",
-            "USER": parsed_db.username or "labflow",
-            "PASSWORD": parsed_db.password or "labflow",
-            "HOST": parsed_db.hostname or "localhost",
-            "PORT": parsed_db.port or 5432,
-            "TEST": {
-                "NAME": (
-                    f"test_{parsed_db.path.lstrip('/')}"
-                    if parsed_db.path
-                    else "test_labflow"
-                ),
-            },
-        }
-    }
-else:
-    pg_db = os.environ.get("POSTGRES_DB", "labflow_test")
-    pg_user = os.environ.get("POSTGRES_USER", "labflow")
-    pg_password = os.environ.get("POSTGRES_PASSWORD", "labflow")
-    pg_host = os.environ.get("POSTGRES_HOST", "localhost")
-    pg_port = int(os.environ.get("POSTGRES_PORT", "5432"))
-
-    engine = "django.db.backends.postgresql"
-    if "django_tenants" in globals().get("INSTALLED_APPS", []):
-        engine = "django_tenants.postgresql_backend"
-
-    DATABASES = {
-        "default": {
-            "ENGINE": engine,
-            "NAME": pg_db,
-            "USER": pg_user,
-            "PASSWORD": pg_password,
-            "HOST": pg_host,
-            "PORT": pg_port,
-            "TEST": {
-                "NAME": f"test_{pg_db}",
-            },
-        }
-    }
-
-# Explicitly disallow any fallback or sqlite engine
-if "sqlite" in str(DATABASES["default"]["ENGINE"]).lower():
-    raise RuntimeError(
-        "SQLite is not allowed — tests must run against PostgreSQL (Doc 09 §9.1)."
-    )
-
-# Redis / Cache configuration
-REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379/1")
-
-CACHES = {
+# Redis test cache configuration
+REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
+CACHES: dict[str, dict[str, Any]] = {
     "default": {
         "BACKEND": "django.core.cache.backends.redis.RedisCache",
         "LOCATION": REDIS_URL,
         "KEY_PREFIX": "labflow_test",
-        "TIMEOUT": 300,
     }
 }
 
-# Celery in test mode
-CELERY_BROKER_URL = REDIS_URL
-CELERY_RESULT_BACKEND = REDIS_URL
+# Celery eager mode during tests
 CELERY_TASK_ALWAYS_EAGER = True
 CELERY_TASK_EAGER_PROPAGATES = True
+CELERY_BROKER_URL = REDIS_URL
 
-# Disable Sentry in test runs
+# Disable Sentry in test environment
 SENTRY_DSN = ""
