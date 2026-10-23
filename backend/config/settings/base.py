@@ -1,34 +1,67 @@
-"""
-Django base settings for LabFlow project.
-Follows Doc 01 §6, Doc 02 §2, Doc 08 §6, and Doc 09 §5.1.
+"""Django base settings for LabFlow.
+
+Architecture & Configuration per Docs 01, 02, 04, 08, 09.
 """
 
-import os
 from pathlib import Path
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
-# Path hierarchy: base.py -> settings -> config -> backend
+import environ
+
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
-# Secrets: read from environment, never hardcoded (Doc 08 §6)
-SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY")
+env = environ.Env()
+environ.Env.read_env(BASE_DIR / ".env")
 
-# Application definition
-INSTALLED_APPS = [
+SECRET_KEY = env(
+    "DJANGO_SECRET_KEY", default="django-insecure-dev-key-change-in-production"
+)
+DEBUG = env.bool("DJANGO_DEBUG", default=False)
+ALLOWED_HOSTS = env.list(
+    "DJANGO_ALLOWED_HOSTS", default=[".localhost", "127.0.0.1", "localhost"]
+)
+
+# -----------------------------------------------------------------------------
+# Multi-Tenancy Architecture (Docs 01 §6, 02 §3, 04 §6)
+# -----------------------------------------------------------------------------
+
+SHARED_APPS: tuple[str, ...] = (
+    "django_tenants",
+    "apps.core",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    # Third-party packages
     "rest_framework",
     "drf_spectacular",
-    # Note: django-tenants is installed in pyproject.toml per instructions,
-    # but not added to INSTALLED_APPS until LAB-5 (multi-tenancy configuration).
+)
+
+TENANT_APPS: tuple[str, ...] = (
+    "django.contrib.auth",
+    "django.contrib.contenttypes",
+    "django.contrib.messages",
+    "rest_framework",
+    "drf_spectacular",
+)
+
+INSTALLED_APPS: list[str] = list(SHARED_APPS) + [
+    app for app in TENANT_APPS if app not in SHARED_APPS
 ]
 
+TENANT_MODEL = "core.Tenant"
+TENANT_DOMAIN_MODEL = "core.Domain"
+
+PUBLIC_SCHEMA_NAME = "public"
+PUBLIC_SCHEMA_URLCONF = "config.urls_public"
+ROOT_URLCONF = "config.urls"
+
+# -----------------------------------------------------------------------------
+# Middleware Configuration (Doc 01 §11, Doc 04 §6.1)
+# -----------------------------------------------------------------------------
+
 MIDDLEWARE = [
+    "django_tenants.middleware.main.TenantMainMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -38,7 +71,39 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
-ROOT_URLCONF = "config.urls"
+# -----------------------------------------------------------------------------
+# Database Configuration (Docs 01 §6, 02 §2, 04 §6.1)
+# -----------------------------------------------------------------------------
+
+DATABASES = {
+    "default": env.db(
+        "DATABASE_URL",
+        default="postgres://postgres:postgres@localhost:5432/labflow",
+        engine="django_tenants.postgresql_backend",
+    )
+}
+DATABASES["default"]["ENGINE"] = "django_tenants.postgresql_backend"
+
+DATABASE_ROUTERS = ("django_tenants.routers.TenantSyncRouter",)
+
+# -----------------------------------------------------------------------------
+# Internationalization & Regionalization (Doc 01 §5, Doc 03 §6.1, Doc 07 §9)
+# -----------------------------------------------------------------------------
+
+LANGUAGE_CODE = "en-us"
+TIME_ZONE = "Asia/Karachi"
+USE_I18N = True
+USE_TZ = True
+
+# -----------------------------------------------------------------------------
+# Static & Media Storage (Doc 01 §15)
+# -----------------------------------------------------------------------------
+
+STATIC_URL = "/static/"
+STATIC_ROOT = BASE_DIR / "staticfiles"
+
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "mediafiles"
 
 TEMPLATES = [
     {
@@ -56,23 +121,10 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = "config.wsgi.application"
-ASGI_APPLICATION = "config.asgi.application"
+# -----------------------------------------------------------------------------
+# Django REST Framework & Documentation (Doc 01 §6, Doc 03 §6.1)
+# -----------------------------------------------------------------------------
 
-# Internationalization & Localization (Doc 01 §15, Doc 02 §2, Doc 03 §6.1)
-LANGUAGE_CODE = "en-us"
-TIME_ZONE = "Asia/Karachi"
-USE_I18N = True
-USE_TZ = True
-
-# Static files (CSS, JavaScript, Images)
-STATIC_URL = "static/"
-STATIC_ROOT = BASE_DIR / "staticfiles"
-
-# Default primary key field type
-DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
-
-# Django REST Framework configuration (Doc 01 §6, Doc 09 §5.1)
 REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "DEFAULT_AUTHENTICATION_CLASSES": (
@@ -81,11 +133,9 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.IsAuthenticated",),
 }
 
-# drf-spectacular configuration (OpenAPI 3.0 documentation)
 SPECTACULAR_SETTINGS = {
-    "TITLE": "LabFlow API",
-    "DESCRIPTION": "Multi-tenant SaaS platform for diagnostic laboratories in Pakistan",
+    "TITLE": "LabFlow Platform API",
+    "DESCRIPTION": "Diagnostic Laboratory Multi-Tenant SaaS Platform API",
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
-    "COMPONENT_SPLIT_REQUEST": True,
 }
