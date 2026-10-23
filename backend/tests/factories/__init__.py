@@ -4,6 +4,8 @@ from tests.factories.base import PublicModelFactory, TenantModelFactory
 from tests.factories.core import (
     DomainFactory,
     PlanFactory,
+    PlatformAuditFactory,
+    PlatformUserFactory,
     SubscriptionFactory,
     TenantFactory,
 )
@@ -15,4 +17,6 @@ __all__ = [
     "DomainFactory",
     "PlanFactory",
     "SubscriptionFactory",
+    "PlatformUserFactory",
+    "PlatformAuditFactory",
 ]

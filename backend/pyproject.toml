@@ -86,7 +86,7 @@ module = [
 ]
 disallow_subclassing_any = false
 disallow_untyped_calls = false
-disable_error_code = ["misc", "comparison-overlap"]
+disable_error_code = ["misc", "comparison-overlap", "attr-defined"]
 
 [[tool.mypy.overrides]]
 module = [
