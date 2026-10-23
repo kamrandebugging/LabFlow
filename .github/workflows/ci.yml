@@ -142,13 +142,7 @@ jobs:
       - name: Install backend dependencies
         run: |
           python -m pip install --upgrade pip
-          if [ -f backend/requirements-dev.txt ]; then
-            pip install -r backend/requirements-dev.txt
-          elif [ -f backend/requirements.txt ]; then
-            pip install -r backend/requirements.txt
-          else
-            pip install py""test py""test-django
-          fi
+          pip install -e "./backend[dev,test]"
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -170,7 +164,7 @@ jobs:
           DJANGO_SECRET_KEY: ci-test-secret-key-32-chars-minimum-length-for-testing
         run: |
           python -c "import os, urllib.parse; scheme = urllib.parse.urlparse(os.environ['DATABASE_URL']).scheme; assert scheme in ('postgres', 'postgresql'), 'FAIL: SQLite fallback prohibited. Must use PostgreSQL service container.'"
-          pytest
+          python -m pytest -v
 
       - name: Run frontend tests
         working-directory: frontend
