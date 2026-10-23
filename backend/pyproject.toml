@@ -11,21 +11,35 @@ dependencies = [
     "django-tenants>=3.7.0",
     "django-environ>=0.11.0",
     "psycopg[binary]>=3.1.0",
+    "redis>=5.0.0",
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0.0",
     "pytest-django>=4.8.0",
+    "factory-boy>=3.3.0",
     "mypy>=1.10.0,<2.0",
     "django-stubs>=5.0.0",
     "djangorestframework-stubs>=3.15.0",
     "ruff>=0.4.0",
 ]
+test = [
+    "pytest>=8.0.0",
+    "pytest-django>=4.9.0",
+    "factory-boy>=3.3.0",
+    "mypy>=1.11.0",
+    "django-stubs>=5.0.0",
+    "ruff>=0.6.0",
+]
 
 [build-system]
 requires = ["setuptools>=68.0"]
 build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["apps*", "config*"]
 
 # ==============================================================================
 # Ruff Configuration (Doc 09 §5.1)
@@ -47,8 +61,9 @@ select = [
 ignore = []
 
 [tool.ruff.lint.per-file-ignores]
-# Star-imports are required for the split-settings pattern (base -> dev)
+# Star-imports are required for the split-settings pattern (base -> dev, base -> test)
 "config/settings/dev.py" = ["F403", "F405"]
+"config/settings/test.py" = ["F403", "F405"]
 "**/migrations/*" = ["E501"]
 
 [tool.ruff.format]
@@ -70,12 +85,13 @@ disallow_untyped_defs = true
 disallow_incomplete_defs = true
 
 [tool.django-stubs]
-django_settings_module = "config.settings.dev"
+django_settings_module = "config.settings.test"
 
 [[tool.mypy.overrides]]
 module = [
     "django_tenants.*",
     "environ",
+    "factory.*",
 ]
 ignore_missing_imports = true
 
@@ -88,21 +104,28 @@ disallow_subclassing_any = false
 disallow_untyped_calls = false
 disable_error_code = ["misc", "comparison-overlap", "attr-defined"]
 
-[[tool.mypy.overrides]]
-module = [
-    "factory",
-    "factory.*",
-]
-implicit_reexport = true
-
 # ==============================================================================
 # Pytest Configuration (Doc 09 §9.1)
 # ==============================================================================
 [tool.pytest.ini_options]
-DJANGO_SETTINGS_MODULE = "config.settings.dev"
-django_debug_mode = "keep"
-pythonpath = ["."]
+minversion = "8.0"
+addopts = "-ra --strict-markers --strict-config"
 testpaths = ["tests"]
+pythonpath = ["."]
+DJANGO_SETTINGS_MODULE = "config.settings.test"
+django_debug_mode = "keep"
 python_files = ["test_*.py", "*_test.py"]
 python_functions = ["test_*"]
-addopts = "-v --strict-markers"
+filterwarnings = [
+    "error",
+    "ignore::DeprecationWarning",
+]
+markers = [
+    "smoke: environment and connectivity smoke tests",
+    "unit: fast unit tests without external network",
+    "integration: integration tests requiring postgres and redis",
+    "tenancy: tenant isolation and schema tests",
+    "factory: factory_boy pattern and isolation tests",
+    "isolation: cross-tenant model registry harness tests (Doc 04 §13.7)",
+    "dg: Doc 09 development guidelines meta-test suite (Doc 09 §18)",
+]

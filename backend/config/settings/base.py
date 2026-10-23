@@ -39,6 +39,7 @@ SHARED_APPS: tuple[str, ...] = (
 )
 
 TENANT_APPS: tuple[str, ...] = (
+    "apps.accounts",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.messages",
@@ -56,6 +57,11 @@ TENANT_DOMAIN_MODEL = "core.Domain"
 PUBLIC_SCHEMA_NAME = "public"
 PUBLIC_SCHEMA_URLCONF = "config.urls_public"
 ROOT_URLCONF = "config.urls"
+
+WSGI_APPLICATION = "config.wsgi.application"
+ASGI_APPLICATION = "config.asgi.application"
+
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # -----------------------------------------------------------------------------
 # Middleware Configuration (Doc 01 §11, Doc 04 §6.1)
@@ -139,4 +145,5 @@ SPECTACULAR_SETTINGS = {
     "DESCRIPTION": "Diagnostic Laboratory Multi-Tenant SaaS Platform API",
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
+    "COMPONENT_SPLIT_REQUEST": True,
 }

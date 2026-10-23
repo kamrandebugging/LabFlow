@@ -122,6 +122,10 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+    env:
+      DJANGO_SETTINGS_MODULE: config.settings.test
+      DATABASE_URL: postgresql://labflow:labflow_test_password@localhost:5432/labflow_test
+      REDIS_URL: redis://localhost:6379/0
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -138,13 +142,7 @@ jobs:
       - name: Install backend dependencies
         run: |
           python -m pip install --upgrade pip
-          if [ -f backend/requirements-dev.txt ]; then
-            pip install -r backend/requirements-dev.txt
-          elif [ -f backend/requirements.txt ]; then
-            pip install -r backend/requirements.txt
-          else
-            pip install py""test py""test-django
-          fi
+          pip install -e "./backend[dev,test]"
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -168,12 +166,13 @@ jobs:
       - name: Run backend pytest suite
         working-directory: backend
         env:
+          DJANGO_SETTINGS_MODULE: config.settings.test
           DATABASE_URL: postgresql://labflow:labflow_test_password@localhost:5432/labflow_test
           REDIS_URL: redis://localhost:6379/0
           DJANGO_SECRET_KEY: ci-test-secret-key-32-chars-minimum-length-for-testing
         run: |
           python -c "import os, urllib.parse; scheme = urllib.parse.urlparse(os.environ['DATABASE_URL']).scheme; assert scheme in ('postgres', 'postgresql'), 'FAIL: SQLite fallback prohibited. Must use PostgreSQL service container.'"
-          pytest
+          python -m pytest -v
 
       - name: Run frontend tests
         working-directory: frontend

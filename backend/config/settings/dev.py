@@ -16,4 +16,3 @@ SECRET_KEY = os.environ.get(
 )
 
 ALLOWED_HOSTS = ["*"]
-

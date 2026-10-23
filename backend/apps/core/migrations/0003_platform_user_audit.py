@@ -159,7 +159,7 @@ class Migration(migrations.Migration):
                     models.Index(fields=["at"], name="idx_platform_audit_at"),
                     models.Index(
                         fields=["entity_type", "entity_id"],
-                        name="idx_platform_audit_entity_type_entity_id",
+                        name="idx_platform_audit_entity",
                     ),
                 ],
             },
