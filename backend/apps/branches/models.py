@@ -28,3 +28,9 @@ class Branch(models.Model):
 
     def __str__(self) -> str:
         return f"{self.name} ({self.code})"
+
+
+# Re-export StaffBranch for branch-context accessibility
+from apps.accounts.models import StaffBranch  # noqa: E402
+
+__all__ = ["Branch", "StaffBranch"]

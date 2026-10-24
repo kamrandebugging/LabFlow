@@ -18,6 +18,8 @@ from tests.factories.core import (
     SubscriptionFactory,
     TenantFactory,
 )
+from tests.factories.login_event import LoginEventFactory
+from tests.factories.staff_branch import StaffBranchFactory
 from tests.factories.staff_user import StaffUserFactory
 from tests.factories.tenants import TenantFixtureFactory
 
@@ -34,4 +36,6 @@ __all__ = [
     "PlatformAuditFactory",
     "BranchFactory",
     "StaffUserFactory",
+    "StaffBranchFactory",
+    "LoginEventFactory",
 ]
