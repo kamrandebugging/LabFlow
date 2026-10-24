@@ -19,8 +19,10 @@ from tests.factories.core import (
     TenantFactory,
 )
 from tests.factories.login_event import LoginEventFactory
+from tests.factories.password_reset_token import PasswordResetTokenFactory
 from tests.factories.staff_branch import StaffBranchFactory
 from tests.factories.staff_user import StaffUserFactory
+from tests.factories.tenant_setting import TenantSettingFactory
 from tests.factories.tenants import TenantFixtureFactory
 
 __all__ = [
@@ -38,4 +40,6 @@ __all__ = [
     "StaffUserFactory",
     "StaffBranchFactory",
     "LoginEventFactory",
+    "PasswordResetTokenFactory",
+    "TenantSettingFactory",
 ]

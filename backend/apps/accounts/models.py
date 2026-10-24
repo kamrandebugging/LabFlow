@@ -127,3 +127,97 @@ class LoginEvent(models.Model):
     def __str__(self) -> str:
         status_label = "SUCCESS" if self.success else "FAILED"
         return f"LoginEvent({self.email_attempted}, {status_label}, {self.created_at})"
+
+
+class PasswordResetToken(models.Model):
+    """Doc 02 §5.11: Hashed, single-use, expiring tokens for password reset,
+
+    email verification, and activation.
+    """
+
+    class Purpose(models.TextChoices):
+        PASSWORD_RESET = "password_reset", "Password Reset"
+        EMAIL_VERIFICATION = "email_verification", "Email Verification"
+        ACTIVATION = "activation", "Activation"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    staff_user = models.ForeignKey(
+        StaffUser,
+        on_delete=models.CASCADE,
+        db_column="staff_user_id",
+        related_name="password_reset_tokens",
+    )
+    token_hash = models.CharField(max_length=255)
+    purpose = models.CharField(
+        max_length=32,
+        choices=Purpose.choices,
+        default=Purpose.PASSWORD_RESET,
+    )
+    expires_at = models.DateTimeField()
+    used_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "password_reset_token"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["token_hash"],
+                name="uq_password_reset_token_token_hash",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(
+                    purpose__in=[
+                        "password_reset",
+                        "email_verification",
+                        "activation",
+                    ]
+                ),
+                name="chk_password_reset_token_purpose",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(expires_at__gt=models.F("created_at")),
+                name="chk_password_reset_token_expires_gt_created",
+            ),
+        ]
+        indexes = [
+            models.Index(
+                fields=["staff_user"],
+                name="idx_password_reset_token_staff_user_id",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"PasswordResetToken(user={self.staff_user_id}, purpose={self.purpose})"
+
+
+class TenantSetting(models.Model):
+    """Doc 02 §5.12: Per-tenant key/value settings store (A-7)."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    key = models.CharField(max_length=255)
+    value = models.TextField()
+    updated_by = models.ForeignKey(
+        StaffUser,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="tenant_settings",
+        db_column="updated_by",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "tenant_setting"
+        constraints = [
+            models.UniqueConstraint(fields=["key"], name="uq_tenant_setting_key"),
+        ]
+        indexes = [
+            models.Index(
+                fields=["updated_by"], name="idx_tenant_setting_updated_by_id"
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"TenantSetting(key={self.key})"

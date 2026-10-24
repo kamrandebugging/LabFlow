@@ -1,6 +1,10 @@
 import uuid
+from typing import TYPE_CHECKING, Any
 
 from django.db import models
+
+if TYPE_CHECKING:
+    from apps.accounts.models import StaffBranch
 
 
 class Branch(models.Model):
@@ -30,7 +34,12 @@ class Branch(models.Model):
         return f"{self.name} ({self.code})"
 
 
-# Re-export StaffBranch for branch-context accessibility
-from apps.accounts.models import StaffBranch  # noqa: E402
+def __getattr__(name: str) -> Any:
+    if name == "StaffBranch":
+        from apps.accounts.models import StaffBranch
+
+        return StaffBranch
+    raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
+
 
 __all__ = ["Branch", "StaffBranch"]
