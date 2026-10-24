@@ -69,6 +69,21 @@ def enforce_postgresql_connection(django_db_blocker: Any) -> None:
             )
 
 
+@pytest.fixture(autouse=True)
+def purge_tenant_migrations_from_public(db: Any) -> None:
+    """Ensure tenant app migrations recorded in public schema by test runner
+
+    are purged.
+    """
+    tenant_apps = [app.split(".")[-1] for app in getattr(settings, "TENANT_APPS", ())]
+    if tenant_apps:
+        with connection.cursor() as cursor:
+            placeholders = ", ".join(f"'{app}'" for app in tenant_apps)
+            cursor.execute(
+                f"DELETE FROM public.django_migrations WHERE app IN ({placeholders});"
+            )
+
+
 @pytest.fixture
 def tenant_a(db: Any) -> Generator[Tenant, None, None]:
     """Primary test tenant fixture backed by real Tenant model."""
