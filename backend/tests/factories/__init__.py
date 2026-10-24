@@ -4,6 +4,7 @@ Root exports the public-schema core factories (LAB-5) plus the LAB-4
 test-harness fixture factories and domain model factories (KAN-45 / KAN-36).
 """
 
+from tests.factories.audit_log import AuditLogFactory
 from tests.factories.base import (
     BaseTenantFixtureFactory,
     PublicModelFactory,
@@ -26,6 +27,7 @@ from tests.factories.tenant_setting import TenantSettingFactory
 from tests.factories.tenants import TenantFixtureFactory
 
 __all__ = [
+    "AuditLogFactory",
     "BaseTenantFixtureFactory",
     "PublicModelFactory",
     "TenantModelFactory",

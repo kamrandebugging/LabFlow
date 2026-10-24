@@ -221,3 +221,38 @@ class TenantSetting(models.Model):
 
     def __str__(self) -> str:
         return f"TenantSetting(key={self.key})"
+
+
+class AuditLog(models.Model):
+    """Doc 02 §5.11 & §13: Append-only audit log of state changes.
+
+    Inside the tenant schema. Zero updated_at, zero soft-delete, plain UUIDs
+    for actor_id and entity_id.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    actor_id = models.UUIDField(null=True, blank=True)
+    action = models.CharField(max_length=255)
+    entity_type = models.CharField(max_length=255)
+    entity_id = models.UUIDField()
+    before_jsonb = models.JSONField(null=True, blank=True)
+    after_jsonb = models.JSONField(null=True, blank=True)
+    ip = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.TextField(null=True, blank=True)  # noqa: DJ001
+    at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "audit_log"
+        indexes = [
+            models.Index(fields=["at"], name="idx_audit_log_at"),
+            models.Index(
+                fields=["entity_type", "entity_id"],
+                name="idx_audit_log_entity_type_entity_id",
+            ),
+            models.Index(fields=["actor_id"], name="idx_audit_log_actor_id"),
+        ]
+
+    def __str__(self) -> str:
+        return (
+            f"AuditLog({self.action}, {self.entity_type}:{self.entity_id}, {self.at})"
+        )
