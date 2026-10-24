@@ -117,9 +117,9 @@ def main() -> None:
     # Check 2: Composite PK on staff_branch
     def check_2() -> None:
         with schema_context(tenant.schema_name):
-            b1 = BranchFactory()
-            u1 = StaffUserFactory()
-            sb1 = StaffBranchFactory(staff_user=u1, branch=b1)
+            b1 = BranchFactory.build()
+            u1 = StaffUserFactory.build()
+            sb1 = StaffBranchFactory.build(staff_user=u1, branch=b1)
             assert sb1.pk == (u1.id, b1.id)
             assert "id" not in [f.name for f in StaffBranch._meta.get_fields()]
 
@@ -151,7 +151,7 @@ def main() -> None:
     # Check 4: Setting uniqueness & RESTRICT
     def check_4() -> None:
         with schema_context(tenant.schema_name):
-            s = StaffUserFactory()
+            s = StaffUserFactory.build()
             ts = TenantSetting.objects.create(
                 key=f"dod_test_key_{tenant.id}", value="1", updated_by=s
             )
