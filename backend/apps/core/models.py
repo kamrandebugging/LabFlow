@@ -338,3 +338,17 @@ class PlatformAudit(models.Model):
 
     def __str__(self) -> str:
         return f"{self.action} on {self.entity_type}:{self.entity_id} at {self.at}"
+
+
+# Re-export TenantSetting for core/tenancy namespace access
+from apps.accounts.models import TenantSetting  # noqa: E402
+
+__all__ = [
+    "Tenant",
+    "Domain",
+    "Plan",
+    "Subscription",
+    "PlatformUser",
+    "PlatformAudit",
+    "TenantSetting",
+]

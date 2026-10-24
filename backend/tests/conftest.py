@@ -7,11 +7,13 @@ tenant_a / tenant_b are backed by the real Tenant model, keeping the
 LAB-4 fixture names and interface stable.
 """
 
+import contextlib
 from collections.abc import Generator
 from typing import Any
 
 import pytest
 from django.conf import settings
+from django.core.management import call_command
 from django.db import connection
 
 from apps.core.models import Domain, Tenant
@@ -67,12 +69,28 @@ def enforce_postgresql_connection(django_db_blocker: Any) -> None:
             )
 
 
+@pytest.fixture(autouse=True)
+def purge_tenant_migrations_from_public(db: Any) -> None:
+    """Ensure tenant app migrations recorded in public schema by test runner
+
+    are purged.
+    """
+    tenant_apps = [app.split(".")[-1] for app in getattr(settings, "TENANT_APPS", ())]
+    if tenant_apps:
+        with connection.cursor() as cursor:
+            placeholders = ", ".join(f"'{app}'" for app in tenant_apps)
+            cursor.execute(
+                f"DELETE FROM public.django_migrations WHERE app IN ({placeholders});"
+            )
+
+
 @pytest.fixture
 def tenant_a(db: Any) -> Generator[Tenant, None, None]:
     """Primary test tenant fixture backed by real Tenant model."""
     schema_name = "tenant_a"
     with connection.cursor() as cursor:
         cursor.execute(f'CREATE SCHEMA IF NOT EXISTS "{schema_name}"')
+    call_command("migrate_schemas", schema_name=schema_name, tenant=True, verbosity=0)
     tenant = Tenant(
         schema_name=schema_name,
         name="Tenant A",
@@ -88,6 +106,13 @@ def tenant_a(db: Any) -> Generator[Tenant, None, None]:
         defaults={"is_primary": True},
     )
     yield tenant
+    if connection.connection and not connection.connection.closed:
+        with contextlib.suppress(Exception):
+            connection.connection.rollback()
+    connection.needs_rollback = False
+    connection.rollback_exc = None
+    if hasattr(connection, "set_schema_to_public"):
+        connection.set_schema_to_public()
     Domain.objects.filter(tenant=tenant).delete()
     with connection.cursor() as cursor:
         cursor.execute(f'DROP SCHEMA IF EXISTS "{schema_name}" CASCADE')
@@ -101,6 +126,7 @@ def tenant_b(db: Any) -> Generator[Tenant, None, None]:
     schema_name = "tenant_b"
     with connection.cursor() as cursor:
         cursor.execute(f'CREATE SCHEMA IF NOT EXISTS "{schema_name}"')
+    call_command("migrate_schemas", schema_name=schema_name, tenant=True, verbosity=0)
     tenant = Tenant(
         schema_name=schema_name,
         name="Tenant B",
@@ -116,6 +142,13 @@ def tenant_b(db: Any) -> Generator[Tenant, None, None]:
         defaults={"is_primary": True},
     )
     yield tenant
+    if connection.connection and not connection.connection.closed:
+        with contextlib.suppress(Exception):
+            connection.connection.rollback()
+    connection.needs_rollback = False
+    connection.rollback_exc = None
+    if hasattr(connection, "set_schema_to_public"):
+        connection.set_schema_to_public()
     Domain.objects.filter(tenant=tenant).delete()
     with connection.cursor() as cursor:
         cursor.execute(f'DROP SCHEMA IF EXISTS "{schema_name}" CASCADE')
