@@ -39,12 +39,8 @@ SHARED_APPS: tuple[str, ...] = (
 )
 
 TENANT_APPS: tuple[str, ...] = (
+    "apps.branches",
     "apps.accounts",
-    "django.contrib.auth",
-    "django.contrib.contenttypes",
-    "django.contrib.messages",
-    "rest_framework",
-    "drf_spectacular",
 )
 
 INSTALLED_APPS: list[str] = list(SHARED_APPS) + [
