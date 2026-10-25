@@ -41,6 +41,7 @@ SHARED_APPS: tuple[str, ...] = (
 TENANT_APPS: tuple[str, ...] = (
     "apps.branches",
     "apps.accounts",
+    "apps.patients",
 )
 
 INSTALLED_APPS: list[str] = list(SHARED_APPS) + [
@@ -143,3 +144,7 @@ SPECTACULAR_SETTINGS = {
     "SERVE_INCLUDE_SCHEMA": False,
     "COMPONENT_SPLIT_REQUEST": True,
 }
+
+# PostgreSQL supports 63-character identifiers (Doc 02 §7 & §18).
+# Silence Django's 30-character Oracle compatibility check E034.
+SILENCED_SYSTEM_CHECKS = ["models.E034"]
