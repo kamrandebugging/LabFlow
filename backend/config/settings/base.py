@@ -42,6 +42,7 @@ TENANT_APPS: tuple[str, ...] = (
     "apps.branches",
     "apps.accounts",
     "apps.patients",
+    "apps.catalog",
 )
 
 INSTALLED_APPS: list[str] = list(SHARED_APPS) + [

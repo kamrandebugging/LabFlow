@@ -11,6 +11,12 @@ from tests.factories.base import (
     TenantModelFactory,
 )
 from tests.factories.branch import BranchFactory
+from tests.factories.catalog import (
+    PanelFactory,
+    PanelTestFactory,
+    TestFactory,
+    TestPriceFactory,
+)
 from tests.factories.core import (
     DomainFactory,
     PlanFactory,
@@ -52,4 +58,8 @@ __all__ = [
     "PatientFactory",
     "PatientContactFactory",
     "PatientConsentFactory",
+    "TestFactory",
+    "PanelFactory",
+    "PanelTestFactory",
+    "TestPriceFactory",
 ]
