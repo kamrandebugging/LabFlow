@@ -41,6 +41,12 @@ from tests.factories.patients import (
     PatientContactFactory,
     PatientFactory,
 )
+from tests.factories.reports import (
+    ReportAccessTokenFactory,
+    ReportDeliveryFactory,
+    ReportFactory,
+    ReportVersionFactory,
+)
 from tests.factories.results import (
     CriticalNotificationFactory,
     ResultApprovalFactory,
@@ -94,4 +100,8 @@ __all__ = [
     "ResultFactory",
     "ResultApprovalFactory",
     "CriticalNotificationFactory",
+    "ReportFactory",
+    "ReportVersionFactory",
+    "ReportDeliveryFactory",
+    "ReportAccessTokenFactory",
 ]
