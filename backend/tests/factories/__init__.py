@@ -41,6 +41,12 @@ from tests.factories.patients import (
     PatientContactFactory,
     PatientFactory,
 )
+from tests.factories.samples import (
+    SampleEventFactory,
+    SampleFactory,
+    SampleTestFactory,
+    SampleTransferFactory,
+)
 from tests.factories.staff_branch import StaffBranchFactory
 from tests.factories.staff_user import StaffUserFactory
 from tests.factories.tenant_setting import TenantSettingFactory
@@ -76,4 +82,8 @@ __all__ = [
     "InvoiceFactory",
     "InvoiceItemFactory",
     "PaymentFactory",
+    "SampleFactory",
+    "SampleTestFactory",
+    "SampleEventFactory",
+    "SampleTransferFactory",
 ]
