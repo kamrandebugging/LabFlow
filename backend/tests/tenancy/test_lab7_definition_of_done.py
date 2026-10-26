@@ -1,9 +1,10 @@
+import subprocess
+import sys
 from decimal import Decimal
-from io import StringIO
+from pathlib import Path
 from typing import Any
 
 import pytest
-from django.core.management import call_command
 from django.db import DatabaseError, IntegrityError, connection, transaction
 from django.utils import timezone
 from django_tenants.utils import get_public_schema_name, tenant_context
@@ -142,9 +143,25 @@ class TestLab7DefinitionOfDone:
             assert "pg_trgm" in extensions
             assert "pgcrypto" not in extensions
 
-        out = StringIO()
-        call_command("makemigrations", "--check", "--dry-run", stdout=out)
-        assert "No changes detected" in out.getvalue()
+        repo_backend = Path(__file__).resolve().parent.parent.parent
+        cmd = [
+            sys.executable,
+            "manage.py",
+            "makemigrations",
+            "--check",
+            "--dry-run",
+        ]
+        result = subprocess.run(
+            cmd,
+            cwd=repo_backend,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        assert result.returncode == 0, (
+            f"Drift gate failed:\n{result.stdout}\n{result.stderr}"
+        )
+        assert "No changes detected" in result.stdout or result.returncode == 0
 
     def test_check2_xor_checks_on_test_price_and_invoice_item(
         self, tenant_a: Any
