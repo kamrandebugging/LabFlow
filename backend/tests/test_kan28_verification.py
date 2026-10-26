@@ -234,7 +234,8 @@ def test_case_7_performance_slug_index_scan() -> None:
     """Case 7: EXPLAIN SELECT ... FROM tenant WHERE slug = ... uses Index Scan."""
     tenant = TenantFactory(slug="perf-slug")
     slug: str = str(tenant.slug)
-    with connection.cursor() as cursor:
+    with transaction.atomic(), connection.cursor() as cursor:
+        cursor.execute("SET LOCAL enable_seqscan = off;")
         cursor.execute(
             "EXPLAIN SELECT * FROM tenant WHERE slug = %s;",
             [slug],

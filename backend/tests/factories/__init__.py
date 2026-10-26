@@ -10,7 +10,19 @@ from tests.factories.base import (
     PublicModelFactory,
     TenantModelFactory,
 )
+from tests.factories.billing import (
+    InvoiceFactory,
+    InvoiceItemFactory,
+    PaymentFactory,
+)
 from tests.factories.branch import BranchFactory
+from tests.factories.catalog import (
+    PanelFactory,
+    PanelTestFactory,
+    ReferenceRangeFactory,
+    TestFactory,
+    TestPriceFactory,
+)
 from tests.factories.core import (
     DomainFactory,
     PlanFactory,
@@ -20,7 +32,32 @@ from tests.factories.core import (
     TenantFactory,
 )
 from tests.factories.login_event import LoginEventFactory
+from tests.factories.partners import (
+    ReferralPartnerFactory,
+)
 from tests.factories.password_reset_token import PasswordResetTokenFactory
+from tests.factories.patients import (
+    PatientConsentFactory,
+    PatientContactFactory,
+    PatientFactory,
+)
+from tests.factories.reports import (
+    ReportAccessTokenFactory,
+    ReportDeliveryFactory,
+    ReportFactory,
+    ReportVersionFactory,
+)
+from tests.factories.results import (
+    CriticalNotificationFactory,
+    ResultApprovalFactory,
+    ResultFactory,
+)
+from tests.factories.samples import (
+    SampleEventFactory,
+    SampleFactory,
+    SampleTestFactory,
+    SampleTransferFactory,
+)
 from tests.factories.staff_branch import StaffBranchFactory
 from tests.factories.staff_user import StaffUserFactory
 from tests.factories.tenant_setting import TenantSettingFactory
@@ -44,4 +81,27 @@ __all__ = [
     "LoginEventFactory",
     "PasswordResetTokenFactory",
     "TenantSettingFactory",
+    "PatientFactory",
+    "PatientContactFactory",
+    "PatientConsentFactory",
+    "TestFactory",
+    "PanelFactory",
+    "PanelTestFactory",
+    "TestPriceFactory",
+    "ReferenceRangeFactory",
+    "ReferralPartnerFactory",
+    "InvoiceFactory",
+    "InvoiceItemFactory",
+    "PaymentFactory",
+    "SampleFactory",
+    "SampleTestFactory",
+    "SampleEventFactory",
+    "SampleTransferFactory",
+    "ResultFactory",
+    "ResultApprovalFactory",
+    "CriticalNotificationFactory",
+    "ReportFactory",
+    "ReportVersionFactory",
+    "ReportDeliveryFactory",
+    "ReportAccessTokenFactory",
 ]
