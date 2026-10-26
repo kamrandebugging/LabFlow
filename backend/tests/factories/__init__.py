@@ -13,6 +13,7 @@ from tests.factories.base import (
 from tests.factories.billing import (
     InvoiceFactory,
     InvoiceItemFactory,
+    PaymentFactory,
 )
 from tests.factories.branch import BranchFactory
 from tests.factories.catalog import (
@@ -74,4 +75,5 @@ __all__ = [
     "ReferralPartnerFactory",
     "InvoiceFactory",
     "InvoiceItemFactory",
+    "PaymentFactory",
 ]

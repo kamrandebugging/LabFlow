@@ -233,3 +233,108 @@ class InvoiceItem(models.Model):
 
     def __str__(self) -> str:
         return f"{self.description} x{self.quantity} = PKR {self.line_total}"
+
+
+class Payment(models.Model):
+    """Money received against an invoice — or returned (Doc 02 §5.4, §12).
+
+    Append-only financial fact: created_at only, never updated_at or deleted_at.
+    kind and method are separate CHECK-constrained columns; amount is always > 0.
+    """
+
+    class Kind(models.TextChoices):
+        PAYMENT = "payment", "Payment"
+        REFUND = "refund", "Refund"
+
+    class Method(models.TextChoices):
+        CASH = "cash", "Cash"
+        CARD = "card", "Card"
+        BANK_TRANSFER = "bank_transfer", "Bank Transfer"
+        EASYPAISA = "easypaisa", "Easypaisa"
+        JAZZCASH = "jazzcash", "JazzCash"
+        OTHER = "other", "Other"
+
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        db_default=models.Func(function="gen_random_uuid"),
+        editable=False,
+    )
+    invoice = models.ForeignKey(
+        "billing.Invoice",
+        on_delete=models.PROTECT,
+        related_name="payments",
+        db_column="invoice_id",
+        db_index=False,
+    )
+    kind = models.TextField(
+        choices=Kind.choices,
+        default=Kind.PAYMENT,
+        db_default=Kind.PAYMENT,
+    )
+    method = models.TextField(
+        choices=Method.choices,
+    )
+    amount = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+    )
+    received_by = models.ForeignKey(
+        "accounts.StaffUser",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="received_payments",
+        db_column="received_by",
+        db_index=False,
+    )
+    reference = models.TextField(null=True, blank=True)  # noqa: DJ001
+    idempotency_key = models.TextField(null=True, blank=True)  # noqa: DJ001
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        db_default=Now(),
+    )
+
+    class Meta:
+        db_table = "payment"
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(kind__in=["payment", "refund"]),
+                name="chk_payment_kind",
+            ),
+            models.CheckConstraint(
+                condition=Q(
+                    method__in=[
+                        "cash",
+                        "card",
+                        "bank_transfer",
+                        "easypaisa",
+                        "jazzcash",
+                        "other",
+                    ]
+                ),
+                name="chk_payment_method",
+            ),
+            models.CheckConstraint(
+                condition=Q(amount__gt=Decimal("0.00")),
+                name="chk_payment_amount_pos",
+            ),
+            models.UniqueConstraint(
+                fields=["idempotency_key"],
+                condition=Q(idempotency_key__isnull=False),
+                name="uq_payment_idempotency_key",
+            ),
+        ]
+        indexes = [
+            models.Index(
+                fields=["invoice"],
+                name="idx_payment_invoice_id",
+            ),
+            models.Index(
+                fields=["received_by"],
+                name="idx_payment_received_by",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"Payment({self.id}) [{self.kind}/{self.method}] PKR {self.amount}"

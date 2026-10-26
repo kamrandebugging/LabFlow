@@ -2,7 +2,8 @@ from decimal import Decimal
 
 import factory
 
-from apps.billing.models import Invoice, InvoiceItem
+from apps.billing.models import Invoice, InvoiceItem, Payment
+from tests.factories.accounts import StaffUserFactory
 from tests.factories.base import TenantModelFactory
 from tests.factories.branches import BranchFactory
 from tests.factories.catalog import TestFactory
@@ -37,3 +38,16 @@ class InvoiceItemFactory(TenantModelFactory):
     unit_price = Decimal("1500.00")
     quantity = 1
     line_total = Decimal("1500.00")
+
+
+class PaymentFactory(TenantModelFactory):
+    class Meta:
+        model = Payment
+
+    invoice = factory.SubFactory(InvoiceFactory)
+    kind = Payment.Kind.PAYMENT
+    method = Payment.Method.CASH
+    amount = Decimal("1500.00")
+    received_by = factory.SubFactory(StaffUserFactory)
+    reference = None
+    idempotency_key = factory.Sequence(lambda n: f"pay-idem-key-{n + 1:06d}")
