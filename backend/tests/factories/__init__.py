@@ -14,6 +14,7 @@ from tests.factories.branch import BranchFactory
 from tests.factories.catalog import (
     PanelFactory,
     PanelTestFactory,
+    ReferenceRangeFactory,
     TestFactory,
     TestPriceFactory,
 )
@@ -62,4 +63,5 @@ __all__ = [
     "PanelFactory",
     "PanelTestFactory",
     "TestPriceFactory",
+    "ReferenceRangeFactory",
 ]
