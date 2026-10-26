@@ -10,6 +10,10 @@ from tests.factories.base import (
     PublicModelFactory,
     TenantModelFactory,
 )
+from tests.factories.billing import (
+    InvoiceFactory,
+    InvoiceItemFactory,
+)
 from tests.factories.branch import BranchFactory
 from tests.factories.catalog import (
     PanelFactory,
@@ -27,6 +31,9 @@ from tests.factories.core import (
     TenantFactory,
 )
 from tests.factories.login_event import LoginEventFactory
+from tests.factories.partners import (
+    ReferralPartnerFactory,
+)
 from tests.factories.password_reset_token import PasswordResetTokenFactory
 from tests.factories.patients import (
     PatientConsentFactory,
@@ -64,4 +71,7 @@ __all__ = [
     "PanelTestFactory",
     "TestPriceFactory",
     "ReferenceRangeFactory",
+    "ReferralPartnerFactory",
+    "InvoiceFactory",
+    "InvoiceItemFactory",
 ]
