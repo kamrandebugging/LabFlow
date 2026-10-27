@@ -101,3 +101,98 @@ class RevenueShareRule(models.Model):
 
     def __str__(self) -> str:
         return f"Rule {self.id} ({self.percent}%)"
+
+
+class ShareLedgerEntry(models.Model):
+    """
+    Immutable revenue-share ledger entry (Doc 02 §5.8, §6, §12; Doc 05 §6).
+    - Append-only: created_at only, never updated_at or deleted_at.
+    - No status column and no settlement_id column (OQ-22 resolved).
+    - UNIQUE payment_id (uq_share_ledger_entry_payment_id) enforces 1 entry per payment.
+    - amount may be positive (accrual) or negative (compensating refund reversal).
+    """
+
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False,
+    )
+    payment = models.ForeignKey(
+        "billing.Payment",
+        on_delete=models.PROTECT,
+        related_name="share_ledger_entries",
+        db_column="payment_id",
+        db_index=False,
+        null=False,
+    )
+    referral_partner = models.ForeignKey(
+        "partners.ReferralPartner",
+        on_delete=models.PROTECT,
+        related_name="share_ledger_entries",
+        db_column="referral_partner_id",
+        db_index=False,
+        null=False,
+    )
+    rule = models.ForeignKey(
+        "partners.RevenueShareRule",
+        on_delete=models.PROTECT,
+        related_name="share_ledger_entries",
+        db_column="rule_id",
+        db_index=False,
+        null=True,
+        blank=True,
+    )
+    amount = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=False,
+    )
+    percent_applied = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        null=False,
+    )
+    basis_amount = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=False,
+    )
+    period = models.TextField(null=False, blank=False)
+    created_at = models.DateTimeField(auto_now_add=True, null=False)
+
+    class Meta:
+        db_table = "share_ledger_entry"
+        indexes = [
+            models.Index(
+                fields=["payment"],
+                name="idx_share_ledger_entry_payment_id",
+            ),
+            models.Index(
+                fields=["referral_partner"],
+                name="idx_share_ledger_entry_referral_partner_id",
+            ),
+            models.Index(
+                fields=["rule"],
+                name="idx_share_ledger_entry_rule_id",
+            ),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["payment"],
+                name="uq_share_ledger_entry_payment_id",
+            ),
+            models.CheckConstraint(
+                condition=Q(
+                    percent_applied__gte=Decimal("0.00"),
+                    percent_applied__lte=Decimal("100.00"),
+                ),
+                name="chk_share_ledger_entry_percent_0_100",
+            ),
+            models.CheckConstraint(
+                condition=Q(period__regex=r"^\d{4}-\d{2}$"),
+                name="chk_share_ledger_entry_period_format",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"ShareLedgerEntry {self.id} ({self.amount} PKR, {self.period})"

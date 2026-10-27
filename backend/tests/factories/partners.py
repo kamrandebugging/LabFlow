@@ -5,8 +5,13 @@ from decimal import Decimal
 
 import factory
 
-from apps.partners.models import ReferralPartner, RevenueShareRule
+from apps.partners.models import (
+    ReferralPartner,
+    RevenueShareRule,
+    ShareLedgerEntry,
+)
 from tests.factories.base import TenantModelFactory
+from tests.factories.billing import PaymentFactory
 from tests.factories.branches import BranchFactory
 
 
@@ -32,3 +37,19 @@ class RevenueShareRuleFactory(TenantModelFactory):
     percent = Decimal("20.00")
     effective_from = factory.LazyFunction(lambda: date(2026, 1, 1))
     effective_to = None
+
+
+class ShareLedgerEntryFactory(TenantModelFactory):
+    class Meta:
+        model = ShareLedgerEntry
+
+    payment = factory.SubFactory(PaymentFactory)
+    referral_partner = factory.SubFactory(ReferralPartnerFactory)
+    rule = factory.SubFactory(
+        RevenueShareRuleFactory,
+        referral_partner=factory.SelfAttribute("..referral_partner"),
+    )
+    amount = Decimal("200.00")
+    percent_applied = Decimal("20.00")
+    basis_amount = Decimal("1000.00")
+    period = "2026-10"
