@@ -8,6 +8,8 @@ import factory
 from apps.partners.models import (
     ReferralPartner,
     RevenueShareRule,
+    Settlement,
+    SettlementLine,
     ShareLedgerEntry,
 )
 from tests.factories.base import TenantModelFactory
@@ -53,3 +55,28 @@ class ShareLedgerEntryFactory(TenantModelFactory):
     percent_applied = Decimal("20.00")
     basis_amount = Decimal("1000.00")
     period = "2026-10"
+
+
+class SettlementFactory(TenantModelFactory):
+    class Meta:
+        model = Settlement
+
+    referral_partner = factory.SubFactory(ReferralPartnerFactory)
+    period = factory.Sequence(lambda n: f"2026-{(n % 12) + 1:02d}")
+    status = Settlement.Status.DRAFT
+    total = Decimal("200.00")
+    statement_pdf_key = None
+    approved_by = None
+    approved_at = None
+
+
+class SettlementLineFactory(TenantModelFactory):
+    class Meta:
+        model = SettlementLine
+
+    settlement = factory.SubFactory(SettlementFactory)
+    share_ledger_entry = factory.SubFactory(
+        ShareLedgerEntryFactory,
+        referral_partner=factory.SelfAttribute("..settlement.referral_partner"),
+    )
+    amount = Decimal("200.00")
