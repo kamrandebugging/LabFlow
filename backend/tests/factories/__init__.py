@@ -34,6 +34,7 @@ from tests.factories.core import (
 from tests.factories.login_event import LoginEventFactory
 from tests.factories.partners import (
     ReferralPartnerFactory,
+    RevenueShareRuleFactory,
 )
 from tests.factories.password_reset_token import PasswordResetTokenFactory
 from tests.factories.patients import (
@@ -90,6 +91,7 @@ __all__ = [
     "TestPriceFactory",
     "ReferenceRangeFactory",
     "ReferralPartnerFactory",
+    "RevenueShareRuleFactory",
     "InvoiceFactory",
     "InvoiceItemFactory",
     "PaymentFactory",
