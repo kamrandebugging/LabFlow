@@ -1,0 +1,9 @@
+title = "LabFlow Gitleaks Configuration"
+
+[allowlist]
+description = "Allowlist for test fixtures, examples, and documentation"
+paths = [
+    '''backend/tests/.*''',
+    '''docs/.*''',
+    '''\.env\.example''',
+]
