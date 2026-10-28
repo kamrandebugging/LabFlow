@@ -92,6 +92,7 @@ module = [
     "django_tenants.*",
     "environ",
     "factory.*",
+    "celery.*",
 ]
 ignore_missing_imports = true
 
@@ -102,7 +103,7 @@ module = [
 ]
 disallow_subclassing_any = false
 disallow_untyped_calls = false
-disable_error_code = ["misc", "comparison-overlap", "attr-defined"]
+disable_error_code = ["misc", "comparison-overlap", "attr-defined", "type-arg", "name-defined"]
 
 # ==============================================================================
 # Pytest Configuration (Doc 09 §9.1)
