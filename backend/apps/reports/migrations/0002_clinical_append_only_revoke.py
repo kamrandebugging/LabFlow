@@ -28,6 +28,17 @@ def apply_append_only_revoke(apps: Any, schema_editor: Any) -> None:
             return
         db_user = row[0]
 
+    schema_editor.execute(
+        """
+        CREATE OR REPLACE FUNCTION prevent_append_only_mutation()
+        RETURNS trigger AS $$
+        BEGIN
+            RAISE EXCEPTION 'Table is append-only: UPDATE, DELETE, and TRUNCATE are prohibited.';
+        END;
+        $$ LANGUAGE plpgsql;
+        """
+    )
+
     quoted_user = schema_editor.quote_name(db_user)
     for table_name in APPEND_ONLY_TABLES:
         quoted_table = schema_editor.quote_name(table_name)
@@ -36,6 +47,14 @@ def apply_append_only_revoke(apps: Any, schema_editor: Any) -> None:
         )
         schema_editor.execute(
             f"REVOKE UPDATE, DELETE, TRUNCATE ON TABLE {quoted_table} FROM {quoted_user};"
+        )
+        schema_editor.execute(
+            f'DROP TRIGGER IF EXISTS "trg_append_only_{table_name}" ON {quoted_table};'
+        )
+        schema_editor.execute(
+            f'CREATE TRIGGER "trg_append_only_{table_name}" '
+            f"BEFORE UPDATE OR DELETE OR TRUNCATE ON {quoted_table} "
+            f"FOR EACH STATEMENT EXECUTE FUNCTION prevent_append_only_mutation();"
         )
 
 
@@ -57,6 +76,9 @@ def reverse_append_only_revoke(apps: Any, schema_editor: Any) -> None:
     quoted_user = schema_editor.quote_name(db_user)
     for table_name in APPEND_ONLY_TABLES:
         quoted_table = schema_editor.quote_name(table_name)
+        schema_editor.execute(
+            f'DROP TRIGGER IF EXISTS "trg_append_only_{table_name}" ON {quoted_table};'
+        )
         schema_editor.execute(
             f"GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE ON TABLE {quoted_table} TO {quoted_user};"
         )

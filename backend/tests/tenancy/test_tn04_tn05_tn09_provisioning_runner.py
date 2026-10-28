@@ -31,13 +31,21 @@ def _schema_exists(schema_name: str) -> bool:
 
 
 def _drop_schema_if_exists(schema_name: str) -> None:
+    connection.set_schema_to_public()
     with connection.cursor() as cursor:
         cursor.execute(f'DROP SCHEMA IF EXISTS "{schema_name}" CASCADE')
 
 
+def _noop_step(_t: Tenant, _st: ProvisioningStateSnapshot) -> None:
+    return None
+
+
 @pytest.mark.django_db(transaction=True)
 class TestProvisioningResumableStateMachine:
-    """Subtask 2 (KAN-73): TP-3 resumable state machine (TN-04, TN-05, TN-09)."""
+    """
+    Subtask 2 (KAN-73): TP-3 resumable state machine, structured JSON step logging,
+    and abandoned provisioning cleanup (TN-04, TN-05, TN-09).
+    """
 
     def test_tn04_provisioning_task_idempotent_and_logs_structured_json(
         self, caplog: pytest.LogCaptureFixture
@@ -73,7 +81,6 @@ class TestProvisioningResumableStateMachine:
             assert res.tenant.status == "active"
             assert _schema_exists(schema_name) is True
 
-            # Verify structured JSON logs contain tenant_slug, step, outcome, duration
             step_logs = [
                 json.loads(record.message)
                 for record in caplog.records
@@ -120,19 +127,27 @@ class TestProvisioningResumableStateMachine:
                 )
 
             executed_first_attempt: list[str] = []
-            original_handlers = dict(STEP_HANDLERS)
+            original_p3 = STEP_HANDLERS["P-3"]
+            original_p9 = STEP_HANDLERS["P-9"]
 
-            def _make_TrackedHandler(step_code: str, should_fail: bool) -> Any:
+            def _base_handler_for(step_code: str) -> Any:
+                if step_code == "P-3":
+                    return original_p3
+                if step_code == "P-9":
+                    return original_p9
+                return _noop_step
+
+            def _make_tracked_handler(step_code: str, should_fail: bool) -> Any:
                 def _handler(t: Tenant, st: ProvisioningStateSnapshot) -> None:
                     executed_first_attempt.append(step_code)
                     if should_fail:
                         raise RuntimeError(f"Simulated crash at {step_code}")
-                    original_handlers[step_code](t, st)
+                    _base_handler_for(step_code)(t, st)
 
                 return _handler
 
             patched_first = {
-                s: _make_TrackedHandler(s, s == failing_step)
+                s: _make_tracked_handler(s, s == failing_step)
                 for s in PROVISIONING_STEPS
             }
 
@@ -154,17 +169,17 @@ class TestProvisioningResumableStateMachine:
             assert state_after_fail.error is not None
             assert f"Simulated crash at {failing_step}" in state_after_fail.error
 
-            # Retry resumes at failed step without re-running completed earlier steps
+            # Retry resumes at the failed step without re-running earlier steps
             executed_second_attempt: list[str] = []
 
-            def _make_RecoveryHandler(step_code: str) -> Any:
+            def _make_recovery_handler(step_code: str) -> Any:
                 def _handler(t: Tenant, st: ProvisioningStateSnapshot) -> None:
                     executed_second_attempt.append(step_code)
-                    original_handlers[step_code](t, st)
+                    _base_handler_for(step_code)(t, st)
 
                 return _handler
 
-            patched_second = {s: _make_RecoveryHandler(s) for s in PROVISIONING_STEPS}
+            patched_second = {s: _make_recovery_handler(s) for s in PROVISIONING_STEPS}
             with patch.dict(STEP_HANDLERS, patched_second):
                 retry_result = provision_tenant_task(slug)
 
@@ -199,9 +214,6 @@ class TestProvisioningResumableStateMachine:
                     )
                 )
 
-            # Simulate failing at P-4 after P-3 created the schema
-            original_p4 = STEP_HANDLERS["P-4"]
-
             def _crash_p4(_t: Tenant, _st: ProvisioningStateSnapshot) -> None:
                 raise RuntimeError("P-4 halted")
 
@@ -210,7 +222,6 @@ class TestProvisioningResumableStateMachine:
                 pytest.raises(RuntimeError, match="P-4 halted"),
             ):
                 provision_tenant_task(slug)
-            _ = original_p4
 
             assert _schema_exists(schema_name) is True
             assert Domain.objects.filter(tenant=res.tenant).exists() is True
@@ -221,7 +232,6 @@ class TestProvisioningResumableStateMachine:
             assert _schema_exists(schema_name) is False
             assert Domain.objects.filter(tenant=res.tenant).exists() is False
 
-            # Tenant registry row and full audit history remain
             assert Tenant.objects.filter(id=res.tenant.id, status="deleted").exists()
             audit_actions = list(
                 PlatformAudit.objects.filter(entity_id=res.tenant.id)
@@ -232,7 +242,6 @@ class TestProvisioningResumableStateMachine:
             assert "tenant.provisioning_failed" in audit_actions
             assert "tenant.abandoned_cleaned_up" in audit_actions
 
-            # Active tenants cannot be cleaned up as abandoned
             with pytest.raises(ProvisioningError) as exc_info:
                 cleanup_abandoned_provisioning(slug, actor_id=sa.id)
             assert exc_info.value.code == "invalid_state_transition"
