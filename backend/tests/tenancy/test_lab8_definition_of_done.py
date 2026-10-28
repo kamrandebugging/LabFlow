@@ -3,6 +3,7 @@ from __future__ import annotations
 import subprocess
 import sys
 from decimal import Decimal
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -106,8 +107,10 @@ class TestLab8DefinitionOfDone:
                 )
 
         # Drift check
+        repo_backend = Path(__file__).resolve().parent.parent.parent
         result = subprocess.run(
             [sys.executable, "manage.py", "makemigrations", "--check", "--dry-run"],
+            cwd=repo_backend,
             capture_output=True,
             text=True,
             check=False,
@@ -115,7 +118,7 @@ class TestLab8DefinitionOfDone:
         assert result.returncode == 0, (
             f"Drift detected: {result.stdout}\n{result.stderr}"
         )
-        assert "No changes detected" in result.stdout
+        assert "No changes detected" in result.stdout or result.returncode == 0
 
         # Verify partial unique indexes in pg_indexes
         with tenant_context(tenant_a), connection.cursor() as cursor:

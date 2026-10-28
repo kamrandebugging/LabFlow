@@ -199,10 +199,10 @@ class TestSettlementAndSettlementLineModels:
         self, tenant_a: Tenant
     ) -> None:
         with schema_context(tenant_a.schema_name):
-            line = SettlementLineFactory()
+            line = SettlementLineFactory(settlement__period="2026-01")
             other_settlement = SettlementFactory(
                 referral_partner=line.settlement.referral_partner,
-                period="2026-11",
+                period="2026-02",
             )
             with pytest.raises(IntegrityError), transaction.atomic():
                 SettlementLine.objects.create(
