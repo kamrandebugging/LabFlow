@@ -2,13 +2,13 @@ from decimal import Decimal
 from unittest.mock import patch
 
 import pytest
-from apps.core.tenant_settings import TenantSetting
 from django.db import connection
 from django_tenants.utils import schema_context
 
 from apps.billing.models import Invoice, Payment
 from apps.branches.models import Branch
 from apps.catalog.models import Panel, PanelTest, ReferenceRange, Test, TestPrice
+from apps.core.tenant_settings import TenantSetting
 from apps.notifications.models import NotificationTemplate
 from apps.partners.models import (
     ReferralPartner,
