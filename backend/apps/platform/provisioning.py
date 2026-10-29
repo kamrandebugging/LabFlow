@@ -478,6 +478,7 @@ def _log_provisioning_step(
     outcome: str,
     duration_ms: float,
     error: str | None = None,
+    total_duration_ms: float | None = None,
 ) -> None:
     """Emit structured JSON log line with tenant_slug on every line (Doc 04 §5.2)."""
     payload: dict[str, Any] = {
@@ -487,6 +488,8 @@ def _log_provisioning_step(
         "outcome": outcome,
         "duration_ms": round(duration_ms, 3),
     }
+    if total_duration_ms is not None:
+        payload["total_duration_ms"] = round(total_duration_ms, 3)
     if error is not None:
         payload["error"] = error
     logger.info(json.dumps(payload, sort_keys=True))
@@ -867,15 +870,82 @@ def execute_step_p8_create_owner(
 
 def execute_step_p9_activate(tenant: Tenant, _state: ProvisioningStateSnapshot) -> None:
     """
-    P-9: Activate tenant (status='active') and write 'tenant.provisioned'
-    (Doc 04 §5 P-9). Guarded so it only transitions from 'provisioning'.
+    P-9: Activate tenant (status='active') in a single-row update guarded on
+    status still being 'provisioning', and record 'tenant.provisioned' in
+    platform_audit with total duration and step summary (Doc 04 §5 P-9).
     """
+    _verify_tenant_schema_identity(tenant)
+    _set_schema_to_public()
+
     with transaction.atomic():
         locked = Tenant.objects.select_for_update().get(id=tenant.id)
-        if locked.status == "provisioning":
-            locked.status = "active"
-            locked.save(update_fields=["status", "updated_at"])
+        if locked.status != "provisioning":
+            raise ProvisioningError(
+                code="invalid_state_transition",
+                title="Invalid state transition",
+                detail=(
+                    f"Cannot activate tenant '{tenant.slug}' in status "
+                    f"'{locked.status}': status must be 'provisioning'."
+                ),
+                status_code=409,
+                errors={
+                    "status": [
+                        f"Tenant is in '{locked.status}' state, not 'provisioning'."
+                    ]
+                },
+            )
+        locked.status = "active"
+        locked.auto_create_schema = False
+        locked.save(update_fields=["status", "updated_at"])
         tenant.status = locked.status
+        tenant.updated_at = locked.updated_at
+
+    # Calculate total duration from initial tenant creation
+    created_audit = (
+        PlatformAudit.objects.filter(
+            entity_type="tenant",
+            entity_id=tenant.id,
+            action="tenant.created",
+        )
+        .order_by("at", "id")
+        .first()
+    )
+    start_time = created_audit.at if created_audit else tenant.created_at
+    total_duration_ms = max(0.0, (timezone.now() - start_time).total_seconds() * 1000.0)
+
+    # Gather per-step outcome summary from platform_audit records
+    step_audits = PlatformAudit.objects.filter(
+        entity_type="tenant",
+        entity_id=tenant.id,
+        action="tenant.provisioning_step_completed",
+    ).order_by("at", "id")
+
+    step_summary: dict[str, Any] = {}
+    for audit_row in step_audits:
+        if isinstance(audit_row.after_jsonb, dict):
+            step_code = str(audit_row.after_jsonb.get("step", ""))
+            if step_code:
+                step_summary[step_code] = {
+                    "outcome": "completed",
+                    "duration_ms": audit_row.after_jsonb.get("duration_ms"),
+                }
+    step_summary["P-9"] = {
+        "outcome": "completed",
+    }
+
+    PlatformAudit.objects.create(
+        actor_id=None,
+        action="tenant.provisioned",
+        entity_type="tenant",
+        entity_id=tenant.id,
+        before_jsonb={"status": "provisioning"},
+        after_jsonb={
+            "status": "active",
+            "tenant_slug": tenant.slug,
+            "total_duration_ms": round(total_duration_ms, 3),
+            "step_summary": step_summary,
+        },
+    )
 
 
 STEP_HANDLERS: dict[str, Callable[[Tenant, ProvisioningStateSnapshot], None]] = {
@@ -963,11 +1033,15 @@ def run_provisioning_state_machine(tenant_slug: str) -> dict[str, Any]:
             raise
 
         duration_ms = (time.monotonic() - step_start) * 1000.0
+        total_duration_ms = (
+            (time.monotonic() - run_start) * 1000.0 if step == "P-9" else None
+        )
         _log_provisioning_step(
             tenant_slug=tenant.slug,
             step=step,
             outcome="completed",
             duration_ms=duration_ms,
+            total_duration_ms=total_duration_ms,
         )
         completed_set.add(step)
 
@@ -983,21 +1057,6 @@ def run_provisioning_state_machine(tenant_slug: str) -> dict[str, Any]:
                 "tenant_slug": tenant.slug,
             },
         )
-
-        if step == "P-9":
-            total_duration_ms = (time.monotonic() - run_start) * 1000.0
-            PlatformAudit.objects.create(
-                actor_id=None,
-                action="tenant.provisioned",
-                entity_type="tenant",
-                entity_id=tenant.id,
-                before_jsonb={"status": "provisioning"},
-                after_jsonb={
-                    "status": "active",
-                    "total_duration_ms": round(total_duration_ms, 3),
-                    "tenant_slug": tenant.slug,
-                },
-            )
 
     tenant.refresh_from_db()
     final_state = get_provisioning_state(tenant)
