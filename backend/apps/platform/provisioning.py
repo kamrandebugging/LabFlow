@@ -15,6 +15,7 @@ from django.db import IntegrityError, connection, transaction
 from django.utils import timezone
 
 from apps.core.models import Domain, Plan, PlatformAudit, Subscription, Tenant
+from apps.platform.seeds import seed_tenant_p6_data, seed_tenant_p7_settings
 from apps.platform.tasks import provision_tenant_task
 
 logger = logging.getLogger("labflow.provisioning")
@@ -89,7 +90,10 @@ RESERVED_SLUGS: frozenset[str] = frozenset(
 
 
 class ProvisioningError(Exception):
-    """Domain exception carrying RFC 9457 problem+json fields (Doc 03 §6.1)."""
+    """Domain exception carrying RFC 9457 problem+json fields
+
+    (Doc 03 §6.1, Doc 04 §15).
+    """
 
     def __init__(
         self,
@@ -170,7 +174,7 @@ def validate_slug(slug: str) -> str:
 
 
 def _validate_p1(data: ProvisionTenantInput) -> Plan:
-    """Execute P-1 validation checks before opening a write transaction."""
+    """Execute P-1 validation checks before opening a write transaction (Doc 04 §5)."""
     validate_slug(data.slug)
 
     cleaned_name = data.name.strip() if isinstance(data.name, str) else ""
@@ -226,7 +230,11 @@ def _check_existing_for_idempotency_or_conflict(
     data: ProvisionTenantInput,
     primary_domain: str,
 ) -> ProvisionTenantResult | None:
-    """Check if slug or domain is already registered (Doc 04 §5 P-2, §15.1)."""
+    """
+    Check if slug or domain is already registered (Doc 04 §5 P-2, §15.1).
+    If idempotency_key matches an existing provisioning record with identical
+    parameters, return it idempotently; otherwise raise 409 slug_taken.
+    """
     existing_tenant = Tenant.objects.filter(slug=data.slug).first()
     existing_domain = (
         Domain.objects.select_related("tenant").filter(domain=primary_domain).first()
@@ -266,7 +274,10 @@ def _check_existing_for_idempotency_or_conflict(
                 raise ProvisioningError(
                     code="idempotency_key_reused",
                     title="Idempotency key reused with different payload",
-                    detail="Idempotency-Key was used with different parameters.",
+                    detail=(
+                        "The Idempotency-Key was already used with "
+                        "different parameters."
+                    ),
                     status_code=409,
                     errors={"idempotency_key": ["Key reused with different payload."]},
                 )
@@ -274,16 +285,20 @@ def _check_existing_for_idempotency_or_conflict(
     raise ProvisioningError(
         code="slug_taken",
         title="Tenant slug or domain already taken",
-        detail=f"Slug '{data.slug}' or domain '{primary_domain}' is taken.",
+        detail=(
+            f"The slug '{data.slug}' or domain '{primary_domain}' is "
+            f"already registered."
+        ),
         status_code=409,
         errors={"slug": ["Slug or domain is already taken."]},
     )
 
 
-def create_tenant_provisioning(
-    data: ProvisionTenantInput,
-) -> ProvisionTenantResult:
-    """Execute P-1 validate and P-2 atomic insert and enqueue (Doc 04 §5)."""
+def create_tenant_provisioning(data: ProvisionTenantInput) -> ProvisionTenantResult:
+    """
+    Execute P-1 (validate) and P-2 (atomic public-schema registration + on_commit task)
+    per Doc 04 §5 and §15.1.
+    """
     plan = _validate_p1(data)
     base_domain = get_platform_base_domain()
     primary_domain = f"{data.slug}.{base_domain}"
@@ -307,7 +322,9 @@ def create_tenant_provisioning(
                     raise ProvisioningError(
                         code="idempotency_key_reused",
                         title="Idempotency key reused with different payload",
-                        detail="The Idempotency-Key was used for another tenant.",
+                        detail=(
+                            "The Idempotency-Key was already used for another tenant."
+                        ),
                         status_code=409,
                         errors={
                             "idempotency_key": ["Key reused with different payload."]
@@ -370,7 +387,10 @@ def create_tenant_provisioning(
         raise ProvisioningError(
             code="slug_taken",
             title="Tenant slug or domain already taken",
-            detail=f"Slug '{data.slug}' or domain '{primary_domain}' is taken.",
+            detail=(
+                f"The slug '{data.slug}' or domain '{primary_domain}' is "
+                f"already registered."
+            ),
             status_code=409,
             errors={"slug": ["Slug or domain is already taken."]},
         ) from exc
@@ -385,21 +405,14 @@ def create_tenant_provisioning(
 
 
 def get_provisioning_state(tenant: Tenant) -> ProvisioningStateSnapshot:
-    """Reconstruct current provisioning state from PlatformAudit."""
-    audits = list(
-        PlatformAudit.objects.filter(
-            entity_type="tenant",
-            entity_id=tenant.id,
-        )
-    )
-    action_order = {
-        "tenant.created": 0,
-        "tenant.provisioning_step_started": 1,
-        "tenant.provisioning_step_completed": 2,
-        "tenant.provisioning_failed": 3,
-        "tenant.provisioned": 4,
-    }
-    audits.sort(key=lambda a: (a.at, action_order.get(a.action, 99)))
+    """
+    Reconstruct the current provisioning state (completed steps, current/failed step,
+    and error detail) for `tenant` from `PlatformAudit` rows (Doc 02 §4.1, Doc 04 §5).
+    """
+    audits = PlatformAudit.objects.filter(
+        entity_type="tenant",
+        entity_id=tenant.id,
+    ).order_by("at", "id")
 
     completed: list[str] = []
     current_step: str | None = None
@@ -458,7 +471,7 @@ def _log_provisioning_step(
     duration_ms: float,
     error: str | None = None,
 ) -> None:
-    """Emit structured JSON log line with tenant_slug on every line."""
+    """Emit structured JSON log line with tenant_slug on every line (Doc 04 §5.2)."""
     payload: dict[str, Any] = {
         "event": "provisioning_step",
         "tenant_slug": tenant_slug,
@@ -472,7 +485,10 @@ def _log_provisioning_step(
 
 
 def _verify_tenant_schema_identity(tenant: Tenant) -> str:
-    """Verify tenant schema_name matches tenant_<slug> and exclusive ownership."""
+    """
+    Verify that `tenant.schema_name` matches `tenant_<slug>`, obeys `SCHEMA_NAME_REGEX`,
+    and is not claimed by any other Tenant row in the public schema (Doc 04 §5 P-3).
+    """
     expected_schema_name = f"tenant_{tenant.slug}"
     if tenant.schema_name != expected_schema_name:
         raise ValueError(
@@ -488,7 +504,10 @@ def _verify_tenant_schema_identity(tenant: Tenant) -> str:
         .exists()
     )
     if conflicting_owner:
-        raise ValueError(f"Schema '{tenant.schema_name}' is claimed by another tenant.")
+        raise ValueError(
+            f"Schema '{tenant.schema_name}' is already claimed by another "
+            f"tenant record."
+        )
     return expected_schema_name
 
 
@@ -497,12 +516,20 @@ def _verify_tenant_schema_identity(tenant: Tenant) -> str:
 # ---------------------------------------------------------------------------
 
 
+def _set_schema_to_public() -> None:
+    set_schema = getattr(connection, "set_schema_to_public", None)
+    if callable(set_schema):
+        set_schema()
+
+
 def execute_step_p3_create_schema(
     tenant: Tenant, _state: ProvisioningStateSnapshot
 ) -> None:
-    """P-3: Create the tenant's PostgreSQL schema idempotently."""
+    """
+    P-3: Create the tenant's PostgreSQL schema idempotently (Doc 04 §5 P-3).
+    """
     schema_name = _verify_tenant_schema_identity(tenant)
-    connection.set_schema_to_public()  # type: ignore[attr-defined]
+    _set_schema_to_public()
 
     with connection.cursor() as cursor:
         cursor.execute(
@@ -514,15 +541,17 @@ def execute_step_p3_create_schema(
         if not already_exists:
             cursor.execute(f'CREATE SCHEMA IF NOT EXISTS "{schema_name}"')
 
-    connection.set_schema_to_public()  # type: ignore[attr-defined]
+    _set_schema_to_public()
 
 
 def execute_step_p4_migrate_schema(
     tenant: Tenant, _state: ProvisioningStateSnapshot
 ) -> None:
-    """P-4: Run tenant migrations for this single schema only."""
+    """
+    P-4: Run tenant migrations for this single schema only (Doc 04 §5 P-4).
+    """
     schema_name = _verify_tenant_schema_identity(tenant)
-    connection.set_schema_to_public()  # type: ignore[attr-defined]
+    _set_schema_to_public()
 
     with connection.cursor() as cursor:
         cursor.execute(
@@ -543,18 +572,18 @@ def execute_step_p4_migrate_schema(
             verbosity=0,
         )
     finally:
-        connection.set_schema_to_public()  # type: ignore[attr-defined]
+        _set_schema_to_public()
 
 
 def execute_step_p5_revoke_append_only(
     tenant: Tenant, _state: ProvisioningStateSnapshot
 ) -> None:
     """
-    P-5: Apply and confirm the append-only REVOKE set on all 6 tenant
-    append-only tables in the new schema (Doc 02 §6, Doc 04 §5 P-5 — TN-07).
+    P-5: Apply and confirm the append-only REVOKE set on all 6 tenant append-only tables
+    in the new schema (Doc 02 §6, Doc 04 §5 P-5 — TN-07).
     """
     schema_name = _verify_tenant_schema_identity(tenant)
-    connection.set_schema_to_public()  # type: ignore[attr-defined]
+    _set_schema_to_public()
 
     try:
         with connection.cursor() as cursor:
@@ -573,25 +602,26 @@ def execute_step_p5_revoke_append_only(
             ]
             if missing_tables:
                 raise RuntimeError(
-                    f"P-5 append-only verification failed in schema "
-                    f"'{schema_name}': missing tables {missing_tables}."
+                    f"P-5 append-only verification failed in schema '{schema_name}': "
+                    f"missing tables {missing_tables}."
                 )
 
             cursor.execute("SELECT 1 FROM pg_roles WHERE rolname = 'labflow_app'")
             has_labflow_app_role = cursor.fetchone() is not None
 
             for table_name in TENANT_APPEND_ONLY_TABLES:
-                cursor.execute(
-                    f"REVOKE UPDATE, DELETE, TRUNCATE ON TABLE "
+                revoke_sql = (
+                    "REVOKE UPDATE, DELETE, TRUNCATE ON TABLE "
                     f'"{schema_name}"."{table_name}" FROM PUBLIC, CURRENT_USER'
                 )
+                cursor.execute(revoke_sql)
                 if has_labflow_app_role:
-                    cursor.execute(
-                        f"REVOKE UPDATE, DELETE, TRUNCATE ON TABLE "
+                    revoke_app_sql = (
+                        "REVOKE UPDATE, DELETE, TRUNCATE ON TABLE "
                         f'"{schema_name}"."{table_name}" FROM labflow_app'
                     )
+                    cursor.execute(revoke_app_sql)
 
-            # Confirm no UPDATE, DELETE, or TRUNCATE table grants remain
             cursor.execute(
                 """
                 SELECT table_name, grantee, privilege_type
@@ -614,7 +644,6 @@ def execute_step_p5_revoke_append_only(
                     f"{remaining_grants}."
                 )
 
-            # Confirm each table has an active append-only BEFORE trigger
             cursor.execute(
                 """
                 SELECT c.relname
@@ -636,39 +665,54 @@ def execute_step_p5_revoke_append_only(
             ]
             if unprotected_tables:
                 raise RuntimeError(
-                    f"P-5 append-only trigger check failed in schema "
-                    f"'{schema_name}': tables missing active trigger: "
-                    f"{unprotected_tables}."
+                    f"P-5 append-only trigger check failed in schema '{schema_name}': "
+                    f"tables missing active append-only trigger: {unprotected_tables}."
                 )
     finally:
-        connection.set_schema_to_public()  # type: ignore[attr-defined]
+        _set_schema_to_public()
 
 
 def execute_step_p6_seed_data(
     tenant: Tenant, _state: ProvisioningStateSnapshot
 ) -> None:
-    """P-6: Seed default branch, catalogue, ranges (Subtask 5)."""
-    _ = tenant
+    """
+    P-6: Seed default branch, starter catalogue with panel components and reference
+    ranges, and EN/UR notification templates via get_or_create (Doc 02 §16).
+    Never seeds a revenue_share_rule row (A-10) or any clinical/demo data.
+    """
+    _verify_tenant_schema_identity(tenant)
+    _set_schema_to_public()
+    try:
+        seed_tenant_p6_data(tenant)
+    finally:
+        _set_schema_to_public()
 
 
 def execute_step_p7_settings_defaults(
     tenant: Tenant, _state: ProvisioningStateSnapshot
 ) -> None:
-    """P-7: Seed tenant_setting defaults (Subtask 6)."""
-    _ = tenant
+    """
+    P-7: Seed default `tenant_setting` rows via get_or_create (Doc 04 §5 P-7, §10.2).
+    """
+    _verify_tenant_schema_identity(tenant)
+    _set_schema_to_public()
+    try:
+        seed_tenant_p7_settings(tenant)
+    finally:
+        _set_schema_to_public()
 
 
 def execute_step_p8_create_owner(
     tenant: Tenant, _state: ProvisioningStateSnapshot
 ) -> None:
-    """P-8: Create inactive Lab Owner and activation token (Subtask 7)."""
+    """P-8: Create inactive Lab Owner and hashed activation token."""
     _ = tenant
 
 
 def execute_step_p9_activate(tenant: Tenant, _state: ProvisioningStateSnapshot) -> None:
     """
-    P-9: Activate the tenant (status='active') and write
-    platform_audit 'tenant.provisioned' (Doc 04 §5 P-9).
+    P-9: Activate tenant (status='active') and write 'tenant.provisioned'
+    (Doc 04 §5 P-9). Guarded so it only transitions from 'provisioning'.
     """
     with transaction.atomic():
         locked = Tenant.objects.select_for_update().get(id=tenant.id)
@@ -690,7 +734,9 @@ STEP_HANDLERS: dict[str, Callable[[Tenant, ProvisioningStateSnapshot], None]] = 
 
 
 def run_provisioning_state_machine(tenant_slug: str) -> dict[str, Any]:
-    """TP-3 Resumable Provisioning State Machine Runner (Doc 04 §5)."""
+    """
+    TP-3 Resumable Provisioning State Machine Runner (Doc 04 §5).
+    """
     run_start = time.monotonic()
     tenant = Tenant.objects.filter(slug=tenant_slug).first()
     if tenant is None:
@@ -812,7 +858,9 @@ def cleanup_abandoned_provisioning(
     *,
     actor_id: uuid.UUID | None = None,
 ) -> Tenant:
-    """Clean up a tenant abandoned in `provisioning` state (Doc 04 §4.2)."""
+    """
+    Clean up a tenant abandoned in `provisioning` state (Doc 04 §4.2, §5.2 — TN-09).
+    """
     tenant = Tenant.objects.filter(slug=tenant_slug).first()
     if tenant is None:
         raise ProvisioningError(
@@ -827,8 +875,8 @@ def cleanup_abandoned_provisioning(
             code="invalid_state_transition",
             title="Invalid state transition",
             detail=(
-                f"Cannot clean up abandoned provisioning for tenant "
-                f"'{tenant_slug}' in status '{tenant.status}'."
+                f"Cannot clean up abandoned provisioning for tenant '{tenant_slug}' "
+                f"in status '{tenant.status}'."
             ),
             status_code=409,
             errors={
@@ -836,22 +884,22 @@ def cleanup_abandoned_provisioning(
             },
         )
 
-    connection.set_schema_to_public()  # type: ignore[attr-defined]
+    if not SCHEMA_NAME_REGEX.match(tenant.schema_name):
+        raise ValueError(f"Unsafe schema_name '{tenant.schema_name}'")
+
+    _set_schema_to_public()
 
     with connection.cursor() as cursor:
         cursor.execute(f'DROP SCHEMA IF EXISTS "{tenant.schema_name}" CASCADE')
 
-    connection.set_schema_to_public()  # type: ignore[attr-defined]
+    _set_schema_to_public()
 
     with transaction.atomic():
         deleted_domains_count, _ = Domain.objects.filter(tenant=tenant).delete()
 
-        Tenant.objects.filter(id=tenant.id).update(
-            status="deleted",
-            updated_at=timezone.now(),
-        )
-        tenant.status = "deleted"
         tenant.auto_create_schema = False
+        tenant.status = "deleted"
+        tenant.save(update_fields=["status", "updated_at"])
 
         PlatformAudit.objects.create(
             actor_id=actor_id,
