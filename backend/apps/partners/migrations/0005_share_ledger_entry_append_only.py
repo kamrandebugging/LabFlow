@@ -16,6 +16,13 @@ def get_db_user() -> str:
 DB_USER = get_db_user()
 
 REVOKE_SQL = f"""
+CREATE OR REPLACE FUNCTION prevent_append_only_mutation()
+RETURNS trigger AS $$
+BEGIN
+    RAISE EXCEPTION 'Table is append-only: UPDATE, DELETE, and TRUNCATE are prohibited.';
+END;
+$$ LANGUAGE plpgsql;
+
 DO $$
 DECLARE
     r text;
@@ -29,9 +36,16 @@ BEGIN
     END LOOP;
 END
 $$;
+
+DROP TRIGGER IF EXISTS "trg_append_only_share_ledger_entry" ON "share_ledger_entry";
+CREATE TRIGGER "trg_append_only_share_ledger_entry"
+BEFORE UPDATE OR DELETE OR TRUNCATE ON "share_ledger_entry"
+FOR EACH STATEMENT EXECUTE FUNCTION prevent_append_only_mutation();
 """
 
 RESTORE_SQL = f"""
+DROP TRIGGER IF EXISTS "trg_append_only_share_ledger_entry" ON "share_ledger_entry";
+
 DO $$
 DECLARE
     r text;

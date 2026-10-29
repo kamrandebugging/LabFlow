@@ -130,3 +130,13 @@ CELERY_BROKER_URL = REDIS_URL
 
 # Disable Sentry in test environment
 SENTRY_DSN = ""
+
+# Django 6.1+: MAILERS replaces EMAIL_BACKEND (RemovedInDjango2028Warning).
+# Without MAILERS, send_mail() emits "Django 2028 will not have a default
+# mailer", which pytest's filterwarnings=error turns into an exception and
+# silently breaks owner activation emails. Locmem keeps mail.outbox working.
+MAILERS = {
+    "default": {
+        "BACKEND": "django.core.mail.backends.locmem.EmailBackend",
+    }
+}

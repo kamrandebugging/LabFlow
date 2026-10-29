@@ -84,6 +84,24 @@ def purge_tenant_migrations_from_public(db: Any) -> None:
             )
 
 
+@pytest.fixture(autouse=True)
+def public_tenant_domain(db: Any) -> None:
+    """Ensure the public tenant and localhost domain exist for public routing."""
+    public_tenant, _ = Tenant.objects.get_or_create(
+        schema_name="public",
+        defaults={
+            "name": "LabFlow Platform",
+            "slug": "public",
+            "status": Tenant.Status.ACTIVE,
+        },
+    )
+    Domain.objects.get_or_create(
+        tenant=public_tenant,
+        domain="localhost",
+        defaults={"is_primary": True},
+    )
+
+
 @pytest.fixture
 def tenant_a(db: Any) -> Generator[Tenant, None, None]:
     """Primary test tenant fixture backed by real Tenant model."""

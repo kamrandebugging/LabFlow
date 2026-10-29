@@ -11,8 +11,26 @@ def get_db_user() -> str:
 
 DB_USER = get_db_user()
 
-REVOKE_SQL = f'REVOKE UPDATE, DELETE, TRUNCATE ON TABLE "audit_log" FROM "{DB_USER}";'
-RESTORE_SQL = f'GRANT UPDATE, DELETE, TRUNCATE ON TABLE "audit_log" TO "{DB_USER}";'
+REVOKE_SQL = f"""
+CREATE OR REPLACE FUNCTION prevent_append_only_mutation()
+RETURNS trigger AS $$
+BEGIN
+    RAISE EXCEPTION 'Table is append-only: UPDATE, DELETE, and TRUNCATE are prohibited.';
+END;
+$$ LANGUAGE plpgsql;
+
+REVOKE UPDATE, DELETE, TRUNCATE ON TABLE "audit_log" FROM "{DB_USER}";
+
+DROP TRIGGER IF EXISTS "trg_append_only_audit_log" ON "audit_log";
+CREATE TRIGGER "trg_append_only_audit_log"
+BEFORE UPDATE OR DELETE OR TRUNCATE ON "audit_log"
+FOR EACH STATEMENT EXECUTE FUNCTION prevent_append_only_mutation();
+"""
+
+RESTORE_SQL = f"""
+DROP TRIGGER IF EXISTS "trg_append_only_audit_log" ON "audit_log";
+GRANT UPDATE, DELETE, TRUNCATE ON TABLE "audit_log" TO "{DB_USER}";
+"""
 
 
 class Migration(migrations.Migration):
