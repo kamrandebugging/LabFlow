@@ -1,19 +1,25 @@
 import json
 import logging
 import re
+import secrets
 import time
 import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
+from datetime import timedelta
 from typing import Any, cast
 
 from django.conf import settings
+from django.contrib.auth.hashers import make_password
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.core.mail import send_mail
 from django.core.management import call_command
 from django.core.validators import validate_email
 from django.db import IntegrityError, connection, transaction
 from django.utils import timezone
+from django_tenants.utils import schema_context
 
+from apps.accounts.models import PasswordResetToken, Role, StaffUser
 from apps.core.models import Domain, Plan, PlatformAudit, Subscription, Tenant
 from apps.platform.seeds import seed_tenant_p6_data, seed_tenant_p7_settings
 from apps.platform.tasks import provision_tenant_task
@@ -32,6 +38,8 @@ PROVISIONING_STEPS: tuple[str, ...] = (
     "P-8",
     "P-9",
 )
+
+ACTIVATION_TOKEN_TTL_HOURS: int = 72
 
 TENANT_APPEND_ONLY_TABLES: tuple[str, ...] = (
     "audit_log",
@@ -702,11 +710,159 @@ def execute_step_p7_settings_defaults(
         _set_schema_to_public()
 
 
+def send_owner_activation_email(
+    tenant: Tenant,
+    owner: StaffUser,
+    raw_token: str,
+    owner_name: str = "",
+) -> None:
+    """
+    Send owner activation email with link to tenant subdomain (Doc 04 §5 P-8).
+
+    Email failures are logged as warnings and never block provisioning completion.
+    """
+    primary_domain_obj = Domain.objects.filter(tenant=tenant, is_primary=True).first()
+    if primary_domain_obj and primary_domain_obj.domain:
+        domain_name = primary_domain_obj.domain
+    else:
+        domain_name = f"{tenant.slug}.{get_platform_base_domain()}"
+
+    activation_url = f"https://{domain_name}/activate#{raw_token}"
+    greeting = f"Hello {owner_name},\n\n" if owner_name else ""
+    subject = f"Activate your LabFlow account - {tenant.name}"
+    message = (
+        f"{greeting}Welcome to LabFlow.\n\n"
+        f"An account has been created for you as the Owner of {tenant.name}.\n"
+        f"Please use the following link to set your password and activate your "
+        f"account:\n\n"
+        f"{activation_url}\n\n"
+        f"This link is valid for {ACTIVATION_TOKEN_TTL_HOURS} hours.\n"
+        f"If you did not request this, please contact platform support.\n"
+    )
+    from_email = getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@labflow.app")
+
+    try:
+        send_mail(
+            subject=subject,
+            message=message,
+            from_email=from_email,
+            recipient_list=[owner.email],
+            fail_silently=False,
+        )
+    except Exception as exc:
+        logger.warning(
+            "Failed to send owner activation email for tenant '%s' to '%s': %s",
+            tenant.slug,
+            owner.email,
+            exc,
+        )
+
+
+def _resolve_owner_email(tenant: Tenant) -> str:
+    """Extract owner_email from the tenant.created PlatformAudit entry."""
+    audit = (
+        PlatformAudit.objects.filter(
+            entity_type="tenant",
+            entity_id=tenant.id,
+            action="tenant.created",
+        )
+        .order_by("-at", "-id")
+        .first()
+    )
+    if audit and isinstance(audit.after_jsonb, dict):
+        email = str(audit.after_jsonb.get("owner_email", "")).strip().lower()
+        if email:
+            return email
+    raise ValueError(f"Cannot resolve owner_email for tenant '{tenant.slug}'")
+
+
+def create_tenant_owner_activation(
+    tenant: Tenant,
+    *,
+    owner_email: str,
+    owner_name: str = "",
+) -> tuple[StaffUser, PasswordResetToken, str]:
+    """
+    Create or look up inactive Lab Owner staff_user and issue a fresh activation
+    token inside the tenant's schema context (Doc 02 §5.1, Doc 04 §5 P-8, Doc 08 §4.5).
+
+    Returns:
+        tuple of (StaffUser, PasswordResetToken, raw_token)
+    """
+    cleaned_email = owner_email.strip().lower()
+    if not cleaned_email:
+        raise ValueError("owner_email cannot be empty")
+
+    with schema_context(tenant.schema_name):
+        now = timezone.now()
+        owner = StaffUser.objects.filter(email=cleaned_email).first()
+        if owner is None:
+            owner = StaffUser.objects.create(
+                email=cleaned_email,
+                role=Role.OWNER,
+                branch=None,
+                password_hash=make_password(None),
+                is_active=False,
+                totp_enabled=False,
+            )
+
+        if owner.is_active:
+            latest_token = (
+                PasswordResetToken.objects.filter(
+                    staff_user=owner,
+                    purpose=PasswordResetToken.Purpose.ACTIVATION,
+                )
+                .order_by("-created_at")
+                .first()
+            )
+            if latest_token is not None:
+                return owner, latest_token, ""
+
+        raw_token = secrets.token_urlsafe(32)
+        token_hash = make_password(raw_token)
+        expires_at = now + timedelta(hours=ACTIVATION_TOKEN_TTL_HOURS)
+
+        # Invalidate any live predecessor activation tokens for this owner (Doc 08 §4.5)
+        PasswordResetToken.objects.filter(
+            staff_user=owner,
+            purpose=PasswordResetToken.Purpose.ACTIVATION,
+            used_at__isnull=True,
+        ).update(used_at=now)
+
+        token_record = PasswordResetToken.objects.create(
+            staff_user=owner,
+            token_hash=token_hash,
+            purpose=PasswordResetToken.Purpose.ACTIVATION,
+            expires_at=expires_at,
+            used_at=None,
+        )
+
+    send_owner_activation_email(
+        tenant=tenant,
+        owner=owner,
+        raw_token=raw_token,
+        owner_name=owner_name,
+    )
+    return owner, token_record, raw_token
+
+
 def execute_step_p8_create_owner(
     tenant: Tenant, _state: ProvisioningStateSnapshot
 ) -> None:
-    """P-8: Create inactive Lab Owner and hashed activation token."""
-    _ = tenant
+    """
+    P-8: Create inactive Lab Owner and hashed activation token (Doc 04 §5 P-8).
+    """
+    _verify_tenant_schema_identity(tenant)
+    _set_schema_to_public()
+    try:
+        owner_email = _state.owner_email or _resolve_owner_email(tenant)
+        create_tenant_owner_activation(
+            tenant,
+            owner_email=owner_email,
+            owner_name=_state.owner_name,
+        )
+    finally:
+        _set_schema_to_public()
 
 
 def execute_step_p9_activate(tenant: Tenant, _state: ProvisioningStateSnapshot) -> None:
