@@ -95,6 +95,7 @@ module = [
     "environ",
     "factory.*",
     "celery.*",
+    "jwt",
 ]
 ignore_missing_imports = true
 

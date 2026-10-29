@@ -3,7 +3,7 @@ from typing import Any
 from celery import shared_task
 
 
-@shared_task(  # type: ignore[untyped-decorator]
+@shared_task(
     name="tenants.provision",
     bind=True,
     max_retries=3,
