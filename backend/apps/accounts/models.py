@@ -52,6 +52,16 @@ class StaffUser(models.Model):
     def __str__(self) -> str:
         return f"{self.email} ({self.role})"
 
+    @property
+    def is_authenticated(self) -> bool:
+        """DRF and Django auth compatibility."""
+        return True
+
+    @property
+    def is_anonymous(self) -> bool:
+        """DRF and Django auth compatibility."""
+        return False
+
 
 class StaffBranch(models.Model):
     """Doc 02 §5.1: Join table linking staff_user and branch with composite primary key.
