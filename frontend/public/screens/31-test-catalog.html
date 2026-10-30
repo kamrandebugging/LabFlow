@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Test Catalog — City Diagnostic Lab (LabFlow)</title>
+<!-- Material Symbols Outlined -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Fonts: Inter & Manrope -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Manrope:wght@600;700;800&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS CDN -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "surface-container-lowest": "#ffffff",
+            "inverse-on-surface": "#eef0ff",
+            "secondary-fixed": "#89f5e7",
+            "tertiary-fixed-dim": "#8fd3cc",
+            "surface": "#faf8ff",
+            "secondary-container": "#86f2e4",
+            "on-tertiary-container": "#b3f7f0",
+            "inverse-surface": "#283044",
+            "surface-container-highest": "#dae2fd",
+            "surface-dim": "#d2d9f4",
+            "outline": "#6e7977",
+            "surface-variant": "#dae2fd",
+            "secondary": "#006a61",
+            "primary": "#005c55",
+            "error": "#ba1a1a",
+            "surface-bright": "#faf8ff",
+            "inverse-primary": "#80d5cb",
+            "tertiary-container": "#2f746f",
+            "on-primary-fixed-variant": "#00504a",
+            "surface-container-high": "#e2e7ff",
+            "outline-variant": "#bdc9c6",
+            "tertiary": "#0c5b56",
+            "primary-fixed": "#9cf2e8",
+            "on-primary-fixed": "#00201d",
+            "on-error": "#ffffff",
+            "background": "#faf8ff",
+            "on-tertiary": "#ffffff",
+            "on-secondary-fixed-variant": "#005049",
+            "on-background": "#131b2e",
+            "on-secondary": "#ffffff",
+            "surface-container": "#eaedff",
+            "on-error-container": "#93000a",
+            "tertiary-fixed": "#abefe8",
+            "primary-fixed-dim": "#80d5cb",
+            "surface-container-low": "#f2f3ff",
+            "on-tertiary-fixed": "#00201e",
+            "primary-container": "#0f766e",
+            "on-primary": "#ffffff",
+            "secondary-fixed-dim": "#6bd8cb",
+            "on-tertiary-fixed-variant": "#00504b",
+            "on-surface-variant": "#3e4947",
+            "on-secondary-container": "#006f66",
+            "on-surface": "#131b2e",
+            "surface-tint": "#006a63",
+            "on-secondary-fixed": "#00201d",
+            "on-primary-container": "#a3faef",
+            "error-container": "#ffdad6"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.25rem",
+            "lg": "0.5rem",
+            "xl": "0.75rem",
+            "full": "9999px"
+          },
+          "spacing": {
+            "space-sm": "0.5rem",
+            "space-md": "1rem",
+            "margin-lg": "2rem",
+            "space-2xl": "3rem",
+            "margin-md": "1.5rem",
+            "space-xl": "2rem",
+            "gutter-md": "1.25rem",
+            "space-xs": "0.25rem",
+            "margin": "1rem",
+            "gutter-lg": "1.5rem",
+            "gutter": "1rem",
+            "space-lg": "1.5rem"
+          },
+          "fontFamily": {
+            "display-lg": ["Manrope"],
+            "body-lg": ["Inter"],
+            "display-lg-mobile": ["Manrope"],
+            "body-sm": ["Inter"],
+            "data-mono": ["JetBrains Mono", "monospace"],
+            "label-sm": ["Inter"],
+            "label-md": ["Inter"],
+            "headline-md": ["Manrope"],
+            "headline-lg": ["Manrope"],
+            "body-md": ["Inter"],
+            "headline-sm": ["Manrope"]
+          },
+          "fontSize": {
+            "display-lg": ["36px", { lineHeight: "44px", letterSpacing: "-0.02em", fontWeight: "700" }],
+            "body-lg": ["16px", { lineHeight: "24px", letterSpacing: "0em", fontWeight: "400" }],
+            "display-lg-mobile": ["28px", { lineHeight: "36px", letterSpacing: "-0.015em", fontWeight: "700" }],
+            "body-sm": ["12px", { lineHeight: "16px", letterSpacing: "0.01em", fontWeight: "400" }],
+            "data-mono": ["13px", { lineHeight: "18px", letterSpacing: "-0.01em", fontWeight: "500" }],
+            "label-sm": ["11px", { lineHeight: "14px", letterSpacing: "0.03em", fontWeight: "600" }],
+            "label-md": ["13px", { lineHeight: "18px", letterSpacing: "0.01em", fontWeight: "500" }],
+            "headline-md": ["20px", { lineHeight: "28px", letterSpacing: "-0.01em", fontWeight: "600" }],
+            "headline-lg": ["24px", { lineHeight: "32px", letterSpacing: "-0.015em", fontWeight: "600" }],
+            "body-md": ["14px", { lineHeight: "20px", letterSpacing: "0em", fontWeight: "400" }],
+            "headline-sm": ["16px", { lineHeight: "24px", letterSpacing: "-0.005em", fontWeight: "600" }]
+          }
+        },
+      },
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+      vertical-align: middle;
+      line-height: 1;
+    }
+    .material-symbols-outlined[data-weight="fill"] {
+      font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-900 font-body-md text-body-md antialiased min-h-screen flex flex-col selection:bg-teal-100 selection:text-teal-900">
+<!-- TOP APP BAR (Shared Components: TopNavBar) -->
+<header class="h-14 bg-surface-container-lowest border-b border-slate-200 px-space-lg flex items-center justify-between w-full docked full-width top-0 z-40 sticky shadow-sm">
+<!-- Brand / Branch Context -->
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-lg bg-teal-700 flex items-center justify-center text-white shrink-0 shadow-sm">
+<span class="material-symbols-outlined text-lg" data-weight="fill">biotech</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="text-headline-sm font-headline-sm font-semibold text-slate-900 tracking-tight">City Diagnostic Lab</span>
+<span class="text-slate-300">/</span>
+<div class="flex items-center text-slate-500 font-body-sm text-body-sm gap-1">
+<span class="material-symbols-outlined text-sm text-slate-400">location_on</span>
+<span>Main Branch — Gulberg, Lahore</span>
+</div>
+</div>
+</div>
+<!-- Navigation Right Clusters -->
+<div class="flex items-center gap-3">
+<!-- Language Selector -->
+<button class="text-label-md font-label-md border border-slate-200 rounded px-2.5 py-1 text-slate-700 hover:bg-slate-100 transition-colors duration-150" type="button">
+        English / اردو
+      </button>
+<!-- Trailing Icon Actions -->
+<div class="flex items-center border-l border-r border-slate-200 px-2 gap-1">
+<button aria-label="Notifications" class="p-1.5 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors relative" type="button">
+<span class="material-symbols-outlined text-[20px]">notifications</span>
+</button>
+<button aria-label="Help Documentation" class="p-1.5 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors" type="button">
+<span class="material-symbols-outlined text-[20px]">help_outline</span>
+</button>
+</div>
+<!-- User Menu Badge -->
+<div class="flex items-center gap-2.5 pl-1">
+<div class="w-7 h-7 rounded-full bg-slate-800 text-white font-label-md text-label-sm flex items-center justify-center font-semibold">
+          AR
+        </div>
+<div class="flex flex-col text-left">
+<span class="text-label-md font-label-md font-semibold text-slate-900 leading-tight">Ali Raza</span>
+<span class="text-[10px] font-medium text-slate-500 uppercase tracking-wider">Owner</span>
+</div>
+<button class="ml-2 flex items-center gap-1 text-label-sm font-label-sm text-slate-500 hover:text-slate-800 transition-colors pl-2 border-l border-slate-200" type="button">
+<span class="material-symbols-outlined text-[16px]">logout</span>
+<span>Logout</span>
+</button>
+</div>
+</div>
+</header>
+<!-- BODY CONTENT SHELL: SideNav + Main Scroll Area -->
+<div class="flex flex-1 w-full min-h-[calc(100vh-3.5rem)] overflow-hidden">
+<!-- SIDE NAVIGATION BAR (Shared Components: SideNavBar) -->
+<aside class="w-60 bg-surface-container-lowest border-r border-slate-200 flex flex-col justify-between shrink-0 h-[calc(100vh-3.5rem)] sticky top-14 left-0 py-space-md px- space-sm overflow-y-auto select-none">
+<div class="flex flex-col gap-4">
+<!-- LAB OPERATIONS GROUP -->
+<div>
+<div class="px-3 pb-1.5 text-[10px] font-semibold tracking-wider text-slate-400 uppercase font-label-sm">
+            Lab Operations
+          </div>
+<nav class="space-y-0.5">
+<!-- Home -->
+<a class="flex items-center gap-2.5 text-on-surface-variant hover:text-on-surface font-label-md text-label-md px-3 py-1.5 rounded-lg hover:bg-slate-100 transition-colors duration-150" href="#">
+<span class="material-symbols-outlined text-[18px]">dashboard</span>
+<span>Home</span>
+</a>
+<!-- Patients -->
+<a class="flex items-center gap-2.5 text-on-surface-variant hover:text-on-surface font-label-md text-label-md px-3 py-1.5 rounded-lg hover:bg-slate-100 transition-colors duration-150" href="#">
+<span class="material-symbols-outlined text-[18px]">personal_injury</span>
+<span>Patients</span>
+</a>
+<!-- Invoices -->
+<a class="flex items-center gap-2.5 text-on-surface-variant hover:text-on-surface font-label-md text-label-md px-3 py-1.5 rounded-lg hover:bg-slate-100 transition-colors duration-150" href="#">
+<span class="material-symbols-outlined text-[18px]">receipt_long</span>
+<span>Invoices &amp; payments</span>
+</a>
+<!-- Samples -->
+<a class="flex items-center gap-2.5 text-on-surface-variant hover:text-on-surface font-label-md text-label-md px-3 py-1.5 rounded-lg hover:bg-slate-100 transition-colors duration-150" href="#">
+<span class="material-symbols-outlined text-[18px]">biotech</span>
+<span>Samples</span>
+</a>
+<!-- Worklist -->
+<a class="flex items-center gap-2.5 text-on-surface-variant hover:text-on-surface font-label-md text-label-md px-3 py-1.5 rounded-lg hover:bg-slate-100 transition-colors duration-150" href="#">
+<span class="material-symbols-outlined text-[18px]">assignment</span>
+<span>Worklist</span>
+</a>
+<!-- Results entry -->
+<a class="flex items-center gap-2.5 text-on-surface-variant hover:text-on-surface font-label-md text-label-md px-3 py-1.5 rounded-lg hover:bg-slate-100 transition-colors duration-150" href="#">
+<span class="material-symbols-outlined text-[18px]">edit_note</span>
+<span>Results entry</span>
+</a>
+<!-- Approvals with Amber Badge '9' -->
+<a class="flex items-center justify-between text-on-surface-variant hover:text-on-surface font-label-md text-label-md px-3 py-1.5 rounded-lg hover:bg-slate-100 transition-colors duration-150" href="#">
+<div class="flex items-center gap-2.5">
+<span class="material-symbols-outlined text-[18px]">verified</span>
+<span>Approvals</span>
+</div>
+<span class="bg-[#e8a33d] text-white text-[11px] font-bold px-1.5 py-0.2 rounded-full leading-tight font-data-mono">9</span>
+</a>
+<!-- Reports -->
+<a class="flex items-center gap-2.5 text-on-surface-variant hover:text-on-surface font-label-md text-label-md px-3 py-1.5 rounded-lg hover:bg-slate-100 transition-colors duration-150" href="#">
+<span class="material-symbols-outlined text-[18px]">description</span>
+<span>Reports</span>
+</a>
+<!-- Exceptions with Red Badge '5' -->
+<a class="flex items-center justify-between text-on-surface-variant hover:text-on-surface font-label-md text-label-md px-3 py-1.5 rounded-lg hover:bg-slate-100 transition-colors duration-150" href="#">
+<div class="flex items-center gap-2.5">
+<span class="material-symbols-outlined text-[18px]">report_problem</span>
+<span>Exceptions</span>
+</div>
+<span class="bg-red-600 text-white text-[11px] font-bold px-1.5 py-0.2 rounded-full leading-tight font-data-mono">5</span>
+</a>
+<!-- Catalog: ACTIVE TAB (Exact Match to Prompt & Context) -->
+<a class="flex items-center gap-2.5 bg-teal-50 text-teal-700 font-label-md text-label-md font-semibold px-3 py-1.5 rounded-lg border-l-4 border-teal-600 transition-all duration-150" href="#">
+<span class="material-symbols-outlined text-[18px] text-teal-700" data-weight="fill">inventory_2</span>
+<span>Catalog</span>
+</a>
+</nav>
+</div>
+<!-- MANAGEMENT & SETTINGS GROUP -->
+<div>
+<div class="px-3 pb-1.5 text-[10px] font-semibold tracking-wider text-slate-400 uppercase font-label-sm">
+            Management &amp; Settings
+          </div>
+<nav class="space-y-0.5">
+<a class="flex items-center gap-2.5 text-on-surface-variant hover:text-on-surface font-label-md text-label-md px-3 py-1.5 rounded-lg hover:bg-slate-100 transition-colors duration-150" href="#">
+<span class="material-symbols-outlined text-[18px]">store</span>
+<span>Branches</span>
+</a>
+<a class="flex items-center gap-2.5 text-on-surface-variant hover:text-on-surface font-label-md text-label-md px-3 py-1.5 rounded-lg hover:bg-slate-100 transition-colors duration-150" href="#">
+<span class="material-symbols-outlined text-[18px]">group</span>
+<span>Staff</span>
+</a>
+<a class="flex items-center gap-2.5 text-on-surface-variant hover:text-on-surface font-label-md text-label-md px-3 py-1.5 rounded-lg hover:bg-slate-100 transition-colors duration-150" href="#">
+<span class="material-symbols-outlined text-[18px]">handshake</span>
+<span>Partners &amp; share ledger</span>
+</a>
+<a class="flex items-center gap-2.5 text-on-surface-variant hover:text-on-surface font-label-md text-label-md px-3 py-1.5 rounded-lg hover:bg-slate-100 transition-colors duration-150" href="#">
+<span class="material-symbols-outlined text-[18px]">account_balance_wallet</span>
+<span>Settlements</span>
+</a>
+<a class="flex items-center gap-2.5 text-on-surface-variant hover:text-on-surface font-label-md text-label-md px-3 py-1.5 rounded-lg hover:bg-slate-100 transition-colors duration-150" href="#">
+<span class="material-symbols-outlined text-[18px]">settings</span>
+<span>Settings</span>
+</a>
+<a class="flex items-center gap-2.5 text-on-surface-variant hover:text-on-surface font-label-md text-label-md px-3 py-1.5 rounded-lg hover:bg-slate-100 transition-colors duration-150" href="#">
+<span class="material-symbols-outlined text-[18px]">file_download</span>
+<span>Exports</span>
+</a>
+</nav>
+</div>
+</div>
+<!-- FOOTER ACTIONS -->
+<div class="border-t border-slate-200 pt-3 space-y-1">
+<a class="flex items-center gap-2.5 text-slate-600 hover:text-slate-900 font-label-sm text-label-sm px-3 py-1.5 rounded-lg hover:bg-slate-100 transition-colors" href="#">
+<span class="material-symbols-outlined text-[18px]">help</span>
+<span>Help &amp; docs</span>
+</a>
+<a class="flex items-center gap-2.5 text-slate-600 hover:text-slate-900 font-label-sm text-label-sm px-3 py-1.5 rounded-lg hover:bg-slate-100 transition-colors" href="#">
+<span class="material-symbols-outlined text-[18px]">logout</span>
+<span>Logout</span>
+</a>
+</div>
+</aside>
+<!-- MAIN WORKSPACE CONTENT AREA -->
+<main class="flex-1 bg-slate-50 overflow-y-auto p-8">
+<div class="max-w-[1280px] mx-auto space-y-6">
+<!-- Page Header & Main CTAs -->
+<div class="flex items-center justify-between">
+<div>
+<h1 class="text-headline-lg font-headline-lg text-slate-900 tracking-tight">Test Catalog</h1>
+<p class="text-body-sm font-body-sm text-slate-500 mt-1">Tests, prices and reference ranges</p>
+</div>
+<div class="flex items-center gap-3">
+<button class="inline-flex items-center gap-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-label-md font-label-md px-3.5 py-2 rounded-lg shadow-sm transition-colors duration-150" type="button">
+<span class="material-symbols-outlined text-[18px]">file_download</span>
+<span>Export CSV</span>
+</button>
+<button class="inline-flex items-center gap-1.5 bg-teal-600 hover:bg-teal-700 text-white text-label-md font-label-md px-4 py-2 rounded-lg shadow-sm transition-colors duration-150" type="button">
+<span class="material-symbols-outlined text-[18px]">add</span>
+<span>+ Add test</span>
+</button>
+</div>
+</div>
+<!-- Filter & Search Bar Container -->
+<div class="bg-white p-3 rounded-xl border border-slate-200 flex items-center justify-between gap-4 shadow-sm">
+<!-- Search Box -->
+<div class="relative w-96">
+<span class="material-symbols-outlined absolute left-3 top-2.5 text-slate-400 text-[18px]">search</span>
+<input class="w-full pl-9 pr-3 py-2 bg-slate-50/50 border border-slate-200 rounded-lg text-body-md font-body-md text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-600 focus:border-teal-600 transition-all text-sm" placeholder="Search by test name, code or specimen..." type="text"/>
+</div>
+<!-- Filter Dropdowns Cluster -->
+<div class="flex items-center gap-2.5">
+<!-- Type Dropdown -->
+<div class="relative">
+<select class="appearance-none bg-white border border-slate-200 text-slate-700 text-body-sm font-body-sm rounded-lg pl-3 pr-8 py-2 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-teal-600 cursor-pointer">
+<option selected="">All Types</option>
+<option>Routine</option>
+<option>Panel</option>
+<option>Single</option>
+<option>Specialised</option>
+</select>
+<span class="material-symbols-outlined absolute right-2 top-2.5 text-slate-400 pointer-events-none text-base">expand_more</span>
+</div>
+<!-- Specimen Dropdown -->
+<div class="relative">
+<select class="appearance-none bg-white border border-slate-200 text-slate-700 text-body-sm font-body-sm rounded-lg pl-3 pr-8 py-2 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-teal-600 cursor-pointer">
+<option selected="">All Specimens</option>
+<option>Whole Blood EDTA</option>
+<option>Serum</option>
+<option>Serum Fasting</option>
+<option>Urine</option>
+<option>Nasopharyngeal Swab</option>
+</select>
+<span class="material-symbols-outlined absolute right-2 top-2.5 text-slate-400 pointer-events-none text-base">expand_more</span>
+</div>
+<!-- Status Dropdown -->
+<div class="relative">
+<select class="appearance-none bg-white border border-slate-200 text-slate-700 text-body-sm font-body-sm rounded-lg pl-3 pr-8 py-2 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-teal-600 cursor-pointer">
+<option selected="">All Statuses</option>
+<option>Active</option>
+<option>Inactive</option>
+</select>
+<span class="material-symbols-outlined absolute right-2 top-2.5 text-slate-400 pointer-events-none text-base">expand_more</span>
+</div>
+<!-- Filter Icon Toggle -->
+<button aria-label="Toggle filters" class="p-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors" type="button">
+<span class="material-symbols-outlined text-[18px]">filter_list</span>
+</button>
+</div>
+</div>
+<!-- Clinical Data Table Card Container -->
+<div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-slate-50/80 border-b border-slate-200 text-slate-500 font-label-sm text-label-sm uppercase tracking-wider">
+<th class="px-6 py-3.5" scope="col">Code</th>
+<th class="px-6 py-3.5" scope="col">Test Name</th>
+<th class="px-6 py-3.5" scope="col">Type</th>
+<th class="px-6 py-3.5" scope="col">Specimen</th>
+<th class="px-6 py-3.5" scope="col">Price</th>
+<th class="px-6 py-3.5" scope="col">Reference Ranges Summary</th>
+<th class="px-6 py-3.5" scope="col">Status</th>
+<th class="px-6 py-3.5 text-right" scope="col">Actions</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-slate-100 font-body-md text-body-md">
+<!-- ROW 1: CBC -->
+<tr class="hover:bg-slate-50/60 transition-colors">
+<td class="px-6 py-4 font-data-mono text-data-mono font-semibold text-slate-900">
+                    CBC-001
+                  </td>
+<td class="px-6 py-4">
+<div class="font-medium text-slate-900">Complete Blood Count</div>
+<div class="text-body-sm font-body-sm text-slate-500">Hematology</div>
+</td>
+<td class="px-6 py-4">
+<span class="bg-slate-100 text-slate-700 text-label-sm font-label-sm px-2.5 py-1 rounded-md">Panel</span>
+</td>
+<td class="px-6 py-4 text-slate-700 text-sm">
+                    Whole Blood EDTA
+                  </td>
+<td class="px-6 py-4 font-data-mono text-data-mono font-medium text-slate-900 whitespace-nowrap">
+                    PKR 850.00
+                  </td>
+<td class="px-6 py-4 text-slate-600 text-sm">
+                    M 13.5–17.5, F 12.0–15.5 g/dL (Hb)
+                  </td>
+<td class="px-6 py-4 whitespace-nowrap">
+<span class="bg-green-50 border border-green-200 text-green-700 rounded-full px-2.5 py-0.5 text-xs font-medium inline-flex items-center gap-1.5">
+<span class="w-1.5 h-1.5 rounded-full bg-green-600"></span>
+<span>Active</span>
+</span>
+</td>
+<td class="px-6 py-4 text-right whitespace-nowrap">
+<div class="inline-flex items-center gap-3">
+<button class="text-teal-600 hover:text-teal-800 font-medium text-sm transition-colors" type="button">Edit</button>
+<button aria-label="More options" class="text-slate-400 hover:text-slate-600" type="button">
+<span class="material-symbols-outlined text-[18px]">more_horiz</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- ROW 2: HbA1c -->
+<tr class="hover:bg-slate-50/60 transition-colors">
+<td class="px-6 py-4 font-data-mono text-data-mono font-semibold text-slate-900">
+                    HBA1C-002
+                  </td>
+<td class="px-6 py-4">
+<div class="font-medium text-slate-900">HbA1c (Glycated Haemoglobin)</div>
+<div class="text-body-sm font-body-sm text-slate-500">Endocrinology</div>
+</td>
+<td class="px-6 py-4">
+<span class="bg-slate-100 text-slate-700 text-label-sm font-label-sm px-2.5 py-1 rounded-md">Single</span>
+</td>
+<td class="px-6 py-4 text-slate-700 text-sm">
+                    Whole Blood EDTA
+                  </td>
+<td class="px-6 py-4 font-data-mono text-data-mono font-medium text-slate-900 whitespace-nowrap">
+                    PKR 1200.00
+                  </td>
+<td class="px-6 py-4 text-slate-600 text-sm">
+                    &lt; 5.7 % (Normal), 5.7–6.4 % (Prediabetes)
+                  </td>
+<td class="px-6 py-4 whitespace-nowrap">
+<span class="bg-green-50 border border-green-200 text-green-700 rounded-full px-2.5 py-0.5 text-xs font-medium inline-flex items-center gap-1.5">
+<span class="w-1.5 h-1.5 rounded-full bg-green-600"></span>
+<span>Active</span>
+</span>
+</td>
+<td class="px-6 py-4 text-right whitespace-nowrap">
+<div class="inline-flex items-center gap-3">
+<button class="text-teal-600 hover:text-teal-800 font-medium text-sm transition-colors" type="button">Edit</button>
+<button aria-label="More options" class="text-slate-400 hover:text-slate-600" type="button">
+<span class="material-symbols-outlined text-[18px]">more_horiz</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- ROW 3: Lipid Profile -->
+<tr class="hover:bg-slate-50/60 transition-colors">
+<td class="px-6 py-4 font-data-mono text-data-mono font-semibold text-slate-900">
+                    LIP-003
+                  </td>
+<td class="px-6 py-4">
+<div class="font-medium text-slate-900">Lipid Profile</div>
+<div class="text-body-sm font-body-sm text-slate-500">Biochemistry</div>
+</td>
+<td class="px-6 py-4">
+<span class="bg-slate-100 text-slate-700 text-label-sm font-label-sm px-2.5 py-1 rounded-md">Panel</span>
+</td>
+<td class="px-6 py-4 text-slate-700 text-sm">
+                    Serum Fasting
+                  </td>
+<td class="px-6 py-4 font-data-mono text-data-mono font-medium text-slate-900 whitespace-nowrap">
+                    PKR 1850.00
+                  </td>
+<td class="px-6 py-4 text-slate-600 text-sm">
+                    Chol &lt; 200, TG &lt; 150, HDL &gt; 40 mg/dL
+                  </td>
+<td class="px-6 py-4 whitespace-nowrap">
+<span class="bg-green-50 border border-green-200 text-green-700 rounded-full px-2.5 py-0.5 text-xs font-medium inline-flex items-center gap-1.5">
+<span class="w-1.5 h-1.5 rounded-full bg-green-600"></span>
+<span>Active</span>
+</span>
+</td>
+<td class="px-6 py-4 text-right whitespace-nowrap">
+<div class="inline-flex items-center gap-3">
+<button class="text-teal-600 hover:text-teal-800 font-medium text-sm transition-colors" type="button">Edit</button>
+<button aria-label="More options" class="text-slate-400 hover:text-slate-600" type="button">
+<span class="material-symbols-outlined text-[18px]">more_horiz</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- ROW 4: TSH -->
+<tr class="hover:bg-slate-50/60 transition-colors">
+<td class="px-6 py-4 font-data-mono text-data-mono font-semibold text-slate-900">
+                    TSH-004
+                  </td>
+<td class="px-6 py-4">
+<div class="font-medium text-slate-900">TSH (Thyroid Stimulating Hormone)</div>
+<div class="text-body-sm font-body-sm text-slate-500">Immunology</div>
+</td>
+<td class="px-6 py-4">
+<span class="bg-slate-100 text-slate-700 text-label-sm font-label-sm px-2.5 py-1 rounded-md">Single</span>
+</td>
+<td class="px-6 py-4 text-slate-700 text-sm">
+                    Serum
+                  </td>
+<td class="px-6 py-4 font-data-mono text-data-mono font-medium text-slate-900 whitespace-nowrap">
+                    PKR 1500.00
+                  </td>
+<td class="px-6 py-4 text-slate-600 text-sm">
+                    0.45–4.50 µIU/mL
+                  </td>
+<td class="px-6 py-4 whitespace-nowrap">
+<span class="bg-green-50 border border-green-200 text-green-700 rounded-full px-2.5 py-0.5 text-xs font-medium inline-flex items-center gap-1.5">
+<span class="w-1.5 h-1.5 rounded-full bg-green-600"></span>
+<span>Active</span>
+</span>
+</td>
+<td class="px-6 py-4 text-right whitespace-nowrap">
+<div class="inline-flex items-center gap-3">
+<button class="text-teal-600 hover:text-teal-800 font-medium text-sm transition-colors" type="button">Edit</button>
+<button aria-label="More options" class="text-slate-400 hover:text-slate-600" type="button">
+<span class="material-symbols-outlined text-[18px]">more_horiz</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- ROW 5: UCE -->
+<tr class="hover:bg-slate-50/60 transition-colors">
+<td class="px-6 py-4 font-data-mono text-data-mono font-semibold text-slate-900">
+                    UCE-005
+                  </td>
+<td class="px-6 py-4">
+<div class="font-medium text-slate-900">Urine Complete Examination</div>
+<div class="text-body-sm font-body-sm text-slate-500">Clinical Pathology</div>
+</td>
+<td class="px-6 py-4">
+<span class="bg-slate-100 text-slate-700 text-label-sm font-label-sm px-2.5 py-1 rounded-md">Routine</span>
+</td>
+<td class="px-6 py-4 text-slate-700 text-sm">
+                    Urine
+                  </td>
+<td class="px-6 py-4 font-data-mono text-data-mono font-medium text-slate-900 whitespace-nowrap">
+                    PKR 600.00
+                  </td>
+<td class="px-6 py-4 text-slate-600 text-sm">
+                    Visual clear, pH 4.5–8.0, Albumin Nil
+                  </td>
+<td class="px-6 py-4 whitespace-nowrap">
+<span class="bg-green-50 border border-green-200 text-green-700 rounded-full px-2.5 py-0.5 text-xs font-medium inline-flex items-center gap-1.5">
+<span class="w-1.5 h-1.5 rounded-full bg-green-600"></span>
+<span>Active</span>
+</span>
+</td>
+<td class="px-6 py-4 text-right whitespace-nowrap">
+<div class="inline-flex items-center gap-3">
+<button class="text-teal-600 hover:text-teal-800 font-medium text-sm transition-colors" type="button">Edit</button>
+<button aria-label="More options" class="text-slate-400 hover:text-slate-600" type="button">
+<span class="material-symbols-outlined text-[18px]">more_horiz</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- ROW 6: LFT -->
+<tr class="hover:bg-slate-50/60 transition-colors">
+<td class="px-6 py-4 font-data-mono text-data-mono font-semibold text-slate-900">
+                    LFT-006
+                  </td>
+<td class="px-6 py-4">
+<div class="font-medium text-slate-900">Liver Function Tests (LFT)</div>
+<div class="text-body-sm font-body-sm text-slate-500">Biochemistry</div>
+</td>
+<td class="px-6 py-4">
+<span class="bg-slate-100 text-slate-700 text-label-sm font-label-sm px-2.5 py-1 rounded-md">Panel</span>
+</td>
+<td class="px-6 py-4 text-slate-700 text-sm">
+                    Serum
+                  </td>
+<td class="px-6 py-4 font-data-mono text-data-mono font-medium text-slate-900 whitespace-nowrap">
+                    PKR 2200.00
+                  </td>
+<td class="px-6 py-4 text-slate-600 text-sm">
+                    ALT &lt; 45, AST &lt; 35 U/L, Bilirubin &lt; 1.2 mg/dL
+                  </td>
+<td class="px-6 py-4 whitespace-nowrap">
+<span class="bg-green-50 border border-green-200 text-green-700 rounded-full px-2.5 py-0.5 text-xs font-medium inline-flex items-center gap-1.5">
+<span class="w-1.5 h-1.5 rounded-full bg-green-600"></span>
+<span>Active</span>
+</span>
+</td>
+<td class="px-6 py-4 text-right whitespace-nowrap">
+<div class="inline-flex items-center gap-3">
+<button class="text-teal-600 hover:text-teal-800 font-medium text-sm transition-colors" type="button">Edit</button>
+<button aria-label="More options" class="text-slate-400 hover:text-slate-600" type="button">
+<span class="material-symbols-outlined text-[18px]">more_horiz</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- ROW 7: RFT -->
+<tr class="hover:bg-slate-50/60 transition-colors">
+<td class="px-6 py-4 font-data-mono text-data-mono font-semibold text-slate-900">
+                    RFT-007
+                  </td>
+<td class="px-6 py-4">
+<div class="font-medium text-slate-900">Renal Function Tests (RFT)</div>
+<div class="text-body-sm font-body-sm text-slate-500">Biochemistry</div>
+</td>
+<td class="px-6 py-4">
+<span class="bg-slate-100 text-slate-700 text-label-sm font-label-sm px-2.5 py-1 rounded-md">Panel</span>
+</td>
+<td class="px-6 py-4 text-slate-700 text-sm">
+                    Serum
+                  </td>
+<td class="px-6 py-4 font-data-mono text-data-mono font-medium text-slate-900 whitespace-nowrap">
+                    PKR 1600.00
+                  </td>
+<td class="px-6 py-4 text-slate-600 text-sm">
+                    Urea 15–45 mg/dL, Creatinine 0.6–1.2 mg/dL
+                  </td>
+<td class="px-6 py-4 whitespace-nowrap">
+<span class="bg-green-50 border border-green-200 text-green-700 rounded-full px-2.5 py-0.5 text-xs font-medium inline-flex items-center gap-1.5">
+<span class="w-1.5 h-1.5 rounded-full bg-green-600"></span>
+<span>Active</span>
+</span>
+</td>
+<td class="px-6 py-4 text-right whitespace-nowrap">
+<div class="inline-flex items-center gap-3">
+<button class="text-teal-600 hover:text-teal-800 font-medium text-sm transition-colors" type="button">Edit</button>
+<button aria-label="More options" class="text-slate-400 hover:text-slate-600" type="button">
+<span class="material-symbols-outlined text-[18px]">more_horiz</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- ROW 8: Widal (Inactive) -->
+<tr class="hover:bg-slate-50/60 transition-colors">
+<td class="px-6 py-4 font-data-mono text-data-mono font-semibold text-slate-900">
+                    WDL-008
+                  </td>
+<td class="px-6 py-4">
+<div class="font-medium text-slate-900">Widal Antigen Agglutination</div>
+<div class="text-body-sm font-body-sm text-slate-500">Serology</div>
+</td>
+<td class="px-6 py-4">
+<span class="bg-slate-100 text-slate-700 text-label-sm font-label-sm px-2.5 py-1 rounded-md">Specialised</span>
+</td>
+<td class="px-6 py-4 text-slate-700 text-sm">
+                    Serum
+                  </td>
+<td class="px-6 py-4 font-data-mono text-data-mono font-medium text-slate-900 whitespace-nowrap">
+                    PKR 750.00
+                  </td>
+<td class="px-6 py-4 text-slate-600 text-sm">
+                    Titre &lt; 1:80 (Negative)
+                  </td>
+<td class="px-6 py-4 whitespace-nowrap">
+<span class="bg-slate-100 border border-slate-200 text-slate-600 rounded-full px-2.5 py-0.5 text-xs font-medium inline-flex items-center gap-1.5">
+<span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+<span>Inactive</span>
+</span>
+</td>
+<td class="px-6 py-4 text-right whitespace-nowrap">
+<div class="inline-flex items-center gap-3">
+<button class="text-teal-600 hover:text-teal-800 font-medium text-sm transition-colors" type="button">Edit</button>
+<button aria-label="More options" class="text-slate-400 hover:text-slate-600" type="button">
+<span class="material-symbols-outlined text-[18px]">more_horiz</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- ROW 9: COVID-19 PCR (Inactive) -->
+<tr class="hover:bg-slate-50/60 transition-colors">
+<td class="px-6 py-4 font-data-mono text-data-mono font-semibold text-slate-900">
+                    COVID-009
+                  </td>
+<td class="px-6 py-4">
+<div class="font-medium text-slate-900">SARS-CoV-2 Real-Time PCR</div>
+<div class="text-body-sm font-body-sm text-slate-500">Molecular Biology</div>
+</td>
+<td class="px-6 py-4">
+<span class="bg-slate-100 text-slate-700 text-label-sm font-label-sm px-2.5 py-1 rounded-md">Molecular</span>
+</td>
+<td class="px-6 py-4 text-slate-700 text-sm">
+                    Nasopharyngeal Swab
+                  </td>
+<td class="px-6 py-4 font-data-mono text-data-mono font-medium text-slate-900 whitespace-nowrap">
+                    PKR 3500.00
+                  </td>
+<td class="px-6 py-4 text-slate-600 text-sm">
+                    Target RNA Not Detected (Negative)
+                  </td>
+<td class="px-6 py-4 whitespace-nowrap">
+<span class="bg-slate-100 border border-slate-200 text-slate-600 rounded-full px-2.5 py-0.5 text-xs font-medium inline-flex items-center gap-1.5">
+<span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+<span>Inactive</span>
+</span>
+</td>
+<td class="px-6 py-4 text-right whitespace-nowrap">
+<div class="inline-flex items-center gap-3">
+<button class="text-teal-600 hover:text-teal-800 font-medium text-sm transition-colors" type="button">Edit</button>
+<button aria-label="More options" class="text-slate-400 hover:text-slate-600" type="button">
+<span class="material-symbols-outlined text-[18px]">more_horiz</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- ROW 10: Vitamin D -->
+<tr class="hover:bg-slate-50/60 transition-colors">
+<td class="px-6 py-4 font-data-mono text-data-mono font-semibold text-slate-900">
+                    VITD-010
+                  </td>
+<td class="px-6 py-4">
+<div class="font-medium text-slate-900">Vitamin D (25-Hydroxy)</div>
+<div class="text-body-sm font-body-sm text-slate-500">Specialised Chemistry</div>
+</td>
+<td class="px-6 py-4">
+<span class="bg-slate-100 text-slate-700 text-label-sm font-label-sm px-2.5 py-1 rounded-md">Single</span>
+</td>
+<td class="px-6 py-4 text-slate-700 text-sm">
+                    Serum
+                  </td>
+<td class="px-6 py-4 font-data-mono text-data-mono font-medium text-slate-900 whitespace-nowrap">
+                    PKR 2800.00
+                  </td>
+<td class="px-6 py-4 text-slate-600 text-sm">
+                    Deficient &lt; 20, Sufficient 30–100 ng/mL
+                  </td>
+<td class="px-6 py-4 whitespace-nowrap">
+<span class="bg-green-50 border border-green-200 text-green-700 rounded-full px-2.5 py-0.5 text-xs font-medium inline-flex items-center gap-1.5">
+<span class="w-1.5 h-1.5 rounded-full bg-green-600"></span>
+<span>Active</span>
+</span>
+</td>
+<td class="px-6 py-4 text-right whitespace-nowrap">
+<div class="inline-flex items-center gap-3">
+<button class="text-teal-600 hover:text-teal-800 font-medium text-sm transition-colors" type="button">Edit</button>
+<button aria-label="More options" class="text-slate-400 hover:text-slate-600" type="button">
+<span class="material-symbols-outlined text-[18px]">more_horiz</span>
+</button>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Pagination Footer -->
+<div class="px-6 py-4 flex items-center justify-between border-t border-slate-200 bg-white text-body-sm font-body-sm text-slate-500">
+<div>
+              Showing <span class="font-semibold text-slate-700">10</span> of <span class="font-semibold text-slate-700">48</span> tests
+            </div>
+<div class="flex items-center gap-4">
+<button class="text-slate-300 font-medium cursor-not-allowed" disabled="" type="button">
+                Previous
+              </button>
+<span class="text-slate-600 font-medium">Page 1 of 5</span>
+<button class="text-teal-600 hover:text-teal-800 font-medium transition-colors" type="button">
+                Next
+              </button>
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+<!-- Bottom-Right Empty Toast Notification Container Slot -->
+<div class="fixed bottom-6 right-6 z-50 pointer-events-none flex flex-col gap-2" id="toast-container"></div>
+</body></html>

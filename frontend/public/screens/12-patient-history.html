@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>LabFlow — Patient History: Muhammad Imran (MRN-2026-00417)</title>
+<!-- Google Fonts: Manrope & Inter -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Manrope:wght@500;600;700;800&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols Outlined -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS v3 -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "on-surface": "#131b2e",
+            "primary-fixed": "#9cf2e8",
+            "surface-container-highest": "#dae2fd",
+            "on-tertiary-fixed": "#00201e",
+            "surface-variant": "#dae2fd",
+            "on-error-container": "#93000a",
+            "surface-container-low": "#f2f3ff",
+            "surface-bright": "#faf8ff",
+            "on-error": "#ffffff",
+            "surface-container": "#eaedff",
+            "inverse-surface": "#283044",
+            "on-background": "#131b2e",
+            "tertiary-fixed": "#abefe8",
+            "inverse-primary": "#80d5cb",
+            "inverse-on-surface": "#eef0ff",
+            "error": "#ba1a1a",
+            "on-secondary-container": "#006f66",
+            "secondary-container": "#86f2e4",
+            "primary-container": "#0f766e",
+            "outline-variant": "#bdc9c6",
+            "on-primary-fixed-variant": "#00504a",
+            "on-surface-variant": "#3e4947",
+            "on-secondary-fixed-variant": "#005049",
+            "surface": "#faf8ff",
+            "primary": "#005c55",
+            "primary-fixed-dim": "#80d5cb",
+            "on-tertiary-container": "#b3f7f0",
+            "surface-container-lowest": "#ffffff",
+            "outline": "#6e7977",
+            "secondary-fixed": "#89f5e7",
+            "surface-dim": "#d2d9f4",
+            "secondary": "#006a61",
+            "on-secondary-fixed": "#00201d",
+            "error-container": "#ffdad6",
+            "tertiary-container": "#2f746f",
+            "surface-tint": "#006a63",
+            "on-secondary": "#ffffff",
+            "surface-container-high": "#e2e7ff",
+            "on-primary": "#ffffff",
+            "tertiary": "#0c5b56",
+            "on-tertiary-fixed-variant": "#00504b",
+            "background": "#faf8ff",
+            "on-tertiary": "#ffffff",
+            "on-primary-fixed": "#00201d",
+            "tertiary-fixed-dim": "#8fd3cc",
+            "secondary-fixed-dim": "#6bd8cb",
+            "on-primary-container": "#a3faef"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.25rem",
+            "lg": "0.5rem",
+            "xl": "0.75rem",
+            "full": "9999px"
+          },
+          "spacing": {
+            "gutter-md": "1.25rem",
+            "space-xl": "2rem",
+            "space-2xl": "3rem",
+            "margin": "1rem",
+            "space-sm": "0.5rem",
+            "margin-md": "1.5rem",
+            "margin-lg": "2rem",
+            "gutter-lg": "1.5rem",
+            "space-md": "1rem",
+            "space-lg": "1.5rem",
+            "space-xs": "0.25rem",
+            "gutter": "1rem"
+          },
+          "fontFamily": {
+            "headline-sm": ["Manrope"],
+            "label-md": ["Inter"],
+            "body-sm": ["Inter"],
+            "body-md": ["Inter"],
+            "headline-lg": ["Manrope"],
+            "display-lg": ["Manrope"],
+            "display-lg-mobile": ["Manrope"],
+            "body-lg": ["Inter"],
+            "label-sm": ["Inter"],
+            "data-mono": ["JetBrains Mono", "monospace"],
+            "headline-md": ["Manrope"]
+          },
+          "fontSize": {
+            "headline-sm": ["16px", { "lineHeight": "24px", "letterSpacing": "-0.005em", "fontWeight": "600" }],
+            "label-md": ["13px", { "lineHeight": "18px", "letterSpacing": "0.01em", "fontWeight": "500" }],
+            "body-sm": ["12px", { "lineHeight": "16px", "letterSpacing": "0.01em", "fontWeight": "400" }],
+            "body-md": ["14px", { "lineHeight": "20px", "letterSpacing": "0em", "fontWeight": "400" }],
+            "headline-lg": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.015em", "fontWeight": "600" }],
+            "display-lg": ["36px", { "lineHeight": "44px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+            "display-lg-mobile": ["28px", { "lineHeight": "36px", "letterSpacing": "-0.015em", "fontWeight": "700" }],
+            "body-lg": ["16px", { "lineHeight": "24px", "letterSpacing": "0em", "fontWeight": "400" }],
+            "label-sm": ["11px", { "lineHeight": "14px", "letterSpacing": "0.03em", "fontWeight": "600" }],
+            "data-mono": ["13px", { "lineHeight": "18px", "letterSpacing": "-0.01em", "fontWeight": "500" }],
+            "headline-md": ["20px", { "lineHeight": "28px", "letterSpacing": "-0.01em", "fontWeight": "600" }]
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+      vertical-align: middle;
+      display: inline-block;
+      line-height: 1;
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 5px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: #f8fafc;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 4px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-900 font-body-md antialiased min-h-screen flex flex-col selection:bg-teal-100 selection:text-teal-900">
+<!-- ================= TOP APP BAR ================= -->
+<header class="w-full h-16 px-6 bg-white flex items-center justify-between border-b border-slate-200 z-40 sticky top-0 shadow-sm">
+<!-- Brand / Identity -->
+<div class="flex items-center gap-6">
+<div class="flex items-center gap-2.5">
+<div class="w-8 h-8 rounded-lg bg-teal-700 flex items-center justify-center text-white font-headline-md font-bold text-sm tracking-tight shadow-sm">
+          LF
+        </div>
+<div class="flex flex-col">
+<span class="font-headline-sm text-slate-900 text-sm font-semibold tracking-tight">City Diagnostic Lab</span>
+<span class="font-body-sm text-slate-500 text-xs">Gulberg Branch · All branches</span>
+</div>
+</div>
+</div>
+<!-- Right Actions / Profile -->
+<div class="flex items-center gap-4">
+<!-- Language Switcher Segmented Control -->
+<div class="bg-slate-100 p-0.5 rounded-lg border border-slate-200 flex items-center text-xs font-medium">
+<button class="px-2.5 py-1 rounded bg-white text-slate-900 shadow-sm border border-slate-200/60 font-semibold transition-all">English</button>
+<button class="px-2.5 py-1 rounded text-slate-600 hover:text-slate-900 transition-colors font-sans">اردو</button>
+</div>
+<div class="h-5 w-px bg-slate-200"></div>
+<!-- User Profile Badge & Logout -->
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-full bg-teal-100 border border-teal-200 text-teal-800 font-label-md text-xs font-bold flex items-center justify-center">
+          AR
+        </div>
+<div class="flex flex-col text-left">
+<span class="text-xs font-semibold text-slate-900 leading-tight">Ali Raza</span>
+<span class="text-[11px] text-slate-500 leading-tight">Owner · L-4412</span>
+</div>
+<button class="ml-1 p-1.5 text-slate-400 hover:text-slate-700 rounded-md hover:bg-slate-100 transition-colors" title="Sign out">
+<span class="material-symbols-outlined text-[18px]">logout</span>
+</button>
+</div>
+</div>
+</header>
+<!-- ================= SHELL BODY (SIDEBAR + MAIN CANVAS) ================= -->
+<div class="flex flex-1 min-h-[calc(100vh-4rem)]">
+<!-- ================= SIDEBAR ================= -->
+<aside class="w-60 bg-white border-r border-slate-200 flex flex-col justify-between shrink-0 sticky top-16 h-[calc(100vh-4rem)] select-none">
+<div class="p-3 overflow-y-auto custom-scrollbar flex-1 space-y-6">
+<!-- LAB OPERATIONS Section -->
+<div>
+<div class="px-2 pb-2 text-[10px] font-bold text-slate-400 tracking-wider uppercase">LAB OPERATIONS</div>
+<nav class="space-y-0.5">
+<a class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-slate-600 hover:bg-slate-100 hover:text-slate-900 text-xs font-medium transition-colors" href="#">
+<span class="material-symbols-outlined text-[18px] text-slate-400">home</span>
+<span>Home</span>
+</a>
+<!-- ACTIVE: Patients -->
+<a class="flex items-center justify-between px-2.5 py-1.5 rounded-md bg-teal-50 text-teal-700 border-l-2 border-teal-600 text-xs font-semibold shadow-xs" href="#">
+<div class="flex items-center gap-2.5">
+<span class="material-symbols-outlined text-[18px] text-teal-700">person_search</span>
+<span>Patients</span>
+</div>
+</a>
+<a class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-slate-600 hover:bg-slate-100 hover:text-slate-900 text-xs font-medium transition-colors" href="#">
+<span class="material-symbols-outlined text-[18px] text-slate-400">receipt_long</span>
+<span>Invoices &amp; payments</span>
+</a>
+<a class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-slate-600 hover:bg-slate-100 hover:text-slate-900 text-xs font-medium transition-colors" href="#">
+<span class="material-symbols-outlined text-[18px] text-slate-400">biotech</span>
+<span>Samples</span>
+</a>
+<a class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-slate-600 hover:bg-slate-100 hover:text-slate-900 text-xs font-medium transition-colors" href="#">
+<span class="material-symbols-outlined text-[18px] text-slate-400">format_list_bulleted</span>
+<span>Worklist</span>
+</a>
+<a class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-slate-600 hover:bg-slate-100 hover:text-slate-900 text-xs font-medium transition-colors" href="#">
+<span class="material-symbols-outlined text-[18px] text-slate-400">edit_note</span>
+<span>Results entry</span>
+</a>
+<a class="flex items-center justify-between px-2.5 py-1.5 rounded-md text-slate-600 hover:bg-slate-100 hover:text-slate-900 text-xs font-medium transition-colors" href="#">
+<div class="flex items-center gap-2.5">
+<span class="material-symbols-outlined text-[18px] text-slate-400">verified</span>
+<span>Approvals</span>
+</div>
+<!-- Amber strictly #e8a33d reserved badge -->
+<span class="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-[#fef3c7] text-[#92400e] border border-[#fcd34d]">9</span>
+</a>
+<a class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-slate-600 hover:bg-slate-100 hover:text-slate-900 text-xs font-medium transition-colors" href="#">
+<span class="material-symbols-outlined text-[18px] text-slate-400">crisis_alert</span>
+<span>Critical notifications</span>
+</a>
+<a class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-slate-600 hover:bg-slate-100 hover:text-slate-900 text-xs font-medium transition-colors" href="#">
+<span class="material-symbols-outlined text-[18px] text-slate-400">description</span>
+<span>Reports</span>
+</a>
+<a class="flex items-center justify-between px-2.5 py-1.5 rounded-md text-slate-600 hover:bg-slate-100 hover:text-slate-900 text-xs font-medium transition-colors" href="#">
+<div class="flex items-center gap-2.5">
+<span class="material-symbols-outlined text-[18px] text-slate-400">warning</span>
+<span>Exceptions</span>
+</div>
+<span class="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-red-100 text-red-700 border border-red-200">5</span>
+</a>
+</nav>
+</div>
+<!-- MANAGEMENT Section -->
+<div>
+<div class="px-2 pb-2 text-[10px] font-bold text-slate-400 tracking-wider uppercase">MANAGEMENT</div>
+<nav class="space-y-0.5">
+<a class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-slate-600 hover:bg-slate-100 hover:text-slate-900 text-xs font-medium transition-colors" href="#">
+<span class="material-symbols-outlined text-[18px] text-slate-400">handshake</span>
+<span>Partners &amp; share ledger</span>
+</a>
+<a class="flex items-center justify-between px-2.5 py-1.5 rounded-md text-slate-600 hover:bg-slate-100 hover:text-slate-900 text-xs font-medium transition-colors" href="#">
+<div class="flex items-center gap-2.5">
+<span class="material-symbols-outlined text-[18px] text-slate-400">account_balance_wallet</span>
+<span>Settlements</span>
+</div>
+<!-- Amber reservation badge -->
+<span class="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-[#fef3c7] text-[#92400e] border border-[#fcd34d]">2</span>
+</a>
+<a class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-slate-600 hover:bg-slate-100 hover:text-slate-900 text-xs font-medium transition-colors" href="#">
+<span class="material-symbols-outlined text-[18px] text-slate-400">menu_book</span>
+<span>Catalog</span>
+</a>
+<a class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-slate-600 hover:bg-slate-100 hover:text-slate-900 text-xs font-medium transition-colors" href="#">
+<span class="material-symbols-outlined text-[18px] text-slate-400">settings</span>
+<span>Settings</span>
+</a>
+</nav>
+</div>
+</div>
+<!-- Sidebar Subtle Footer -->
+<div class="p-3 border-t border-slate-200 bg-slate-50/50">
+<div class="flex items-center justify-between text-[11px] text-slate-400 font-mono">
+<span>LabFlow Core</span>
+<span>v2.4.1</span>
+</div>
+</div>
+</aside>
+<!-- ================= MAIN CONTENT CANVAS ================= -->
+<main class="flex-1 overflow-y-auto px-8 py-7 bg-slate-50 min-w-0">
+<div class="max-w-[1180px] mx-auto space-y-6">
+<!-- Breadcrumbs & Meta Badges -->
+<div class="flex flex-wrap items-center justify-between gap-3">
+<nav class="flex items-center gap-2 text-xs text-slate-500">
+<span class="hover:text-slate-700">Patients</span>
+<span class="text-slate-300">/</span>
+<span class="text-slate-700 font-medium">Muhammad Imran</span>
+<span class="text-slate-300">/</span>
+<span class="text-slate-900 font-semibold">History</span>
+</nav>
+<div class="flex items-center gap-2.5">
+<span class="font-data-mono text-xs px-2.5 py-1 rounded bg-white border border-slate-200 text-slate-700 tracking-wider">
+              MRN-2026-00417
+            </span>
+<span class="inline-flex items-center gap-1 text-[11px] font-semibold uppercase px-2 py-0.5 rounded bg-slate-200/80 text-slate-700 border border-slate-300/60">
+<span class="material-symbols-outlined text-[13px]">lock</span>
+              Read-only
+            </span>
+</div>
+</div>
+<!-- Page Title & Patient Quick Context -->
+<div class="flex flex-col md:flex-row md:items-baseline md:justify-between gap-2 border-b border-slate-200 pb-4">
+<div>
+<h1 class="text-2xl font-bold font-headline-lg text-slate-900 tracking-tight">
+              Patient history — Muhammad Imran
+            </h1>
+<p class="text-xs text-slate-500 mt-1 font-body-sm flex items-center gap-3">
+<span>Male · 42 Yrs</span>
+<span class="text-slate-300">•</span>
+<span class="font-data-mono">+92 300 8472910</span>
+<span class="text-slate-300">•</span>
+<span>Primary Branch: Gulberg Main (Lahore)</span>
+</p>
+</div>
+<div class="text-right">
+<span class="text-xs font-medium text-slate-500">Total Visits Recorded:</span>
+<span class="ml-1 text-xs font-bold text-slate-800">4 Episodes</span>
+</div>
+</div>
+<!-- Branch-Scoped Informative Notice Banner -->
+<div class="bg-white border border-slate-200 rounded-xl p-3.5 flex items-start gap-3 shadow-xs">
+<div class="text-teal-700 mt-0.5 shrink-0">
+<span class="material-symbols-outlined text-[20px]">info</span>
+</div>
+<div class="text-xs text-slate-600 leading-relaxed">
+<span class="font-semibold text-slate-800">Partitioned ledger scope:</span> 
+            Showing visits from branches you can access. Historical diagnostic episodes are synchronized across centralized partitions. All clinical parameters, accession states, and fiscal rows are sealed upon pathologist validation.
+          </div>
+</div>
+<!-- ================= READ-ONLY TIMELINE (4 VISIT CARDS) ================= -->
+<div class="space-y-4">
+<!-- VISIT 1: 20 Oct 2026 -->
+<article class="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-xs hover:border-slate-300 transition-colors">
+<!-- Header Bar -->
+<div class="px-5 py-3.5 bg-slate-50/70 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
+<div class="flex items-center gap-3">
+<div class="w-2.5 h-2.5 rounded-full bg-teal-600 ring-4 ring-teal-50"></div>
+<div class="font-headline-sm text-sm font-bold text-slate-900 tracking-tight">
+                  20 Oct 2026
+                </div>
+<span class="text-xs text-slate-500 font-body-sm">
+                  10:15 PKT · Gulberg Main Branch
+                </span>
+</div>
+<span class="text-[11px] font-mono text-slate-400 bg-white px-2 py-0.5 rounded border border-slate-200">
+                EPISODE #04
+              </span>
+</div>
+<!-- Body Details (Invoice, Samples, Report) -->
+<div class="p-5 divide-y divide-slate-100 text-xs">
+<!-- Invoice Row -->
+<div class="py-2.5 first:pt-0 flex flex-wrap items-center justify-between gap-2">
+<div class="flex items-center gap-3 w-72">
+<span class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider w-16">Invoice</span>
+<span class="font-data-mono font-medium text-slate-800">INV-2026-0891</span>
+</div>
+<div class="flex items-center gap-4">
+<!-- Status Dot + Text Rule -->
+<div class="flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-green-600"></span>
+<span class="font-semibold text-green-700 text-xs uppercase tracking-wide">Paid</span>
+</div>
+<!-- Money Chip Rule: Verbatim black text on slate-50 chip with slate-200 border, no comma -->
+<div class="px-2.5 py-1 rounded bg-slate-50 border border-slate-200 font-data-mono text-slate-900 text-xs font-medium">
+                    PKR 3200.00
+                  </div>
+</div>
+</div>
+<!-- Samples Row -->
+<div class="py-2.5 flex flex-wrap items-center justify-between gap-2">
+<div class="flex items-center gap-3">
+<span class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider w-16">Sample</span>
+<span class="font-data-mono font-medium text-slate-800">CDL20261020000041</span>
+<span class="text-slate-400 hidden sm:inline">•</span>
+<span class="text-slate-700 font-medium">CBC (Complete Blood Count) &amp; Fasting Blood Glucose</span>
+</div>
+<div class="flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-green-600"></span>
+<span class="font-semibold text-green-700 text-xs uppercase tracking-wide">Reported</span>
+</div>
+</div>
+<!-- Report Row -->
+<div class="py-2.5 last:pb-0 flex flex-wrap items-center justify-between gap-2">
+<div class="flex items-center gap-3">
+<span class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider w-16">Report</span>
+<span class="font-data-mono font-medium text-slate-800">RPT-2026-1042</span>
+<span class="text-slate-400 hidden sm:inline">•</span>
+<span class="text-slate-600">Consultant: Dr. Ayesha Khan</span>
+</div>
+<div class="flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-blue-600"></span>
+<span class="font-semibold text-blue-700 text-xs uppercase tracking-wide">Delivered</span>
+</div>
+</div>
+</div>
+</article>
+<!-- VISIT 2: 14 Jul 2026 -->
+<article class="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-xs hover:border-slate-300 transition-colors">
+<!-- Header Bar -->
+<div class="px-5 py-3.5 bg-slate-50/70 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
+<div class="flex items-center gap-3">
+<div class="w-2.5 h-2.5 rounded-full bg-slate-400 ring-4 ring-slate-100"></div>
+<div class="font-headline-sm text-sm font-bold text-slate-900 tracking-tight">
+                  14 Jul 2026
+                </div>
+<span class="text-xs text-slate-500 font-body-sm">
+                  09:30 PKT · Gulberg Main Branch
+                </span>
+</div>
+<span class="text-[11px] font-mono text-slate-400 bg-white px-2 py-0.5 rounded border border-slate-200">
+                EPISODE #03
+              </span>
+</div>
+<!-- Body Details -->
+<div class="p-5 divide-y divide-slate-100 text-xs">
+<!-- Invoice Row -->
+<div class="py-2.5 first:pt-0 flex flex-wrap items-center justify-between gap-2">
+<div class="flex items-center gap-3 w-72">
+<span class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider w-16">Invoice</span>
+<span class="font-data-mono font-medium text-slate-800">INV-2026-0512</span>
+</div>
+<div class="flex items-center gap-4">
+<!-- Status Dot + Text: Partial (orange-600) -->
+<div class="flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-orange-600"></span>
+<span class="font-semibold text-orange-700 text-xs uppercase tracking-wide">Partial</span>
+</div>
+<!-- Money Chip Rule -->
+<div class="px-2.5 py-1 rounded bg-slate-50 border border-slate-200 font-data-mono text-slate-900 text-xs font-medium">
+                    PKR 1850.00
+                  </div>
+</div>
+</div>
+<!-- Samples Row -->
+<div class="py-2.5 flex flex-wrap items-center justify-between gap-2">
+<div class="flex items-center gap-3">
+<span class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider w-16">Sample</span>
+<span class="font-data-mono font-medium text-slate-800">CDL20260714000019</span>
+<span class="text-slate-400 hidden sm:inline">•</span>
+<span class="text-slate-700 font-medium">HbA1c &amp; Fasting Lipid Profile</span>
+</div>
+<div class="flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-green-600"></span>
+<span class="font-semibold text-green-700 text-xs uppercase tracking-wide">Reported</span>
+</div>
+</div>
+<!-- Report Row -->
+<div class="py-2.5 last:pb-0 flex flex-wrap items-center justify-between gap-2">
+<div class="flex items-center gap-3">
+<span class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider w-16">Report</span>
+<span class="font-data-mono font-medium text-slate-800">RPT-2026-0588</span>
+<span class="text-slate-400 hidden sm:inline">•</span>
+<span class="text-slate-600">Consultant: Dr. Farooq Aziz</span>
+</div>
+<div class="flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-blue-600"></span>
+<span class="font-semibold text-blue-700 text-xs uppercase tracking-wide">Delivered</span>
+</div>
+</div>
+</div>
+</article>
+<!-- VISIT 3: 02 Apr 2026 -->
+<article class="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-xs hover:border-slate-300 transition-colors">
+<!-- Header Bar -->
+<div class="px-5 py-3.5 bg-slate-50/70 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
+<div class="flex items-center gap-3">
+<div class="w-2.5 h-2.5 rounded-full bg-slate-400 ring-4 ring-slate-100"></div>
+<div class="font-headline-sm text-sm font-bold text-slate-900 tracking-tight">
+                  02 Apr 2026
+                </div>
+<span class="text-xs text-slate-500 font-body-sm">
+                  11:45 PKT · DHA Collection Centre
+                </span>
+</div>
+<span class="text-[11px] font-mono text-slate-400 bg-white px-2 py-0.5 rounded border border-slate-200">
+                EPISODE #02
+              </span>
+</div>
+<!-- Body Details -->
+<div class="p-5 divide-y divide-slate-100 text-xs">
+<!-- Invoice Row -->
+<div class="py-2.5 first:pt-0 flex flex-wrap items-center justify-between gap-2">
+<div class="flex items-center gap-3 w-72">
+<span class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider w-16">Invoice</span>
+<span class="font-data-mono font-medium text-slate-800">INV-2026-0244</span>
+</div>
+<div class="flex items-center gap-4">
+<!-- Status Dot + Text: Paid (green-600) -->
+<div class="flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-green-600"></span>
+<span class="font-semibold text-green-700 text-xs uppercase tracking-wide">Paid</span>
+</div>
+<!-- Money Chip Rule -->
+<div class="px-2.5 py-1 rounded bg-slate-50 border border-slate-200 font-data-mono text-slate-900 text-xs font-medium">
+                    PKR 6400.00
+                  </div>
+</div>
+</div>
+<!-- Samples Row -->
+<div class="py-2.5 flex flex-wrap items-center justify-between gap-2">
+<div class="flex items-center gap-3">
+<span class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider w-16">Sample</span>
+<span class="font-data-mono font-medium text-slate-800">CDL20260402000088</span>
+<span class="text-slate-400 hidden sm:inline">•</span>
+<span class="text-slate-700 font-medium">Liver Function Test (LFT) &amp; Renal Function Test (RFT)</span>
+</div>
+<div class="flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-green-600"></span>
+<span class="font-semibold text-green-700 text-xs uppercase tracking-wide">Reported</span>
+</div>
+</div>
+<!-- Report Row -->
+<div class="py-2.5 last:pb-0 flex flex-wrap items-center justify-between gap-2">
+<div class="flex items-center gap-3">
+<span class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider w-16">Report</span>
+<span class="font-data-mono font-medium text-slate-800">RPT-2026-0311</span>
+<span class="text-slate-400 hidden sm:inline">•</span>
+<span class="text-slate-600">Consultant: Dr. Ayesha Khan</span>
+</div>
+<div class="flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-blue-600"></span>
+<span class="font-semibold text-blue-700 text-xs uppercase tracking-wide">Delivered</span>
+</div>
+</div>
+</div>
+</article>
+<!-- VISIT 4: 14 Jul 2025 -->
+<article class="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-xs hover:border-slate-300 transition-colors">
+<!-- Header Bar -->
+<div class="px-5 py-3.5 bg-slate-50/70 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
+<div class="flex items-center gap-3">
+<div class="w-2.5 h-2.5 rounded-full bg-slate-300 ring-4 ring-slate-100"></div>
+<div class="font-headline-sm text-sm font-bold text-slate-900 tracking-tight">
+                  14 Jul 2025
+                </div>
+<span class="text-xs text-slate-500 font-body-sm">
+                  14:10 PKT · Gulberg Main Branch
+                </span>
+</div>
+<span class="text-[11px] font-mono text-slate-400 bg-white px-2 py-0.5 rounded border border-slate-200">
+                EPISODE #01
+              </span>
+</div>
+<!-- Body Details -->
+<div class="p-5 divide-y divide-slate-100 text-xs">
+<!-- Invoice Row -->
+<div class="py-2.5 first:pt-0 flex flex-wrap items-center justify-between gap-2">
+<div class="flex items-center gap-3 w-72">
+<span class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider w-16">Invoice</span>
+<span class="font-data-mono font-medium text-slate-800">INV-2025-0109</span>
+</div>
+<div class="flex items-center gap-4">
+<!-- Status Dot + Text: Paid (green-600) -->
+<div class="flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-green-600"></span>
+<span class="font-semibold text-green-700 text-xs uppercase tracking-wide">Paid</span>
+</div>
+<!-- Money Chip Rule -->
+<div class="px-2.5 py-1 rounded bg-slate-50 border border-slate-200 font-data-mono text-slate-900 text-xs font-medium">
+                    PKR 1500.00
+                  </div>
+</div>
+</div>
+<!-- Samples Row -->
+<div class="py-2.5 flex flex-wrap items-center justify-between gap-2">
+<div class="flex items-center gap-3">
+<span class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider w-16">Sample</span>
+<span class="font-data-mono font-medium text-slate-800">CDL20250714000005</span>
+<span class="text-slate-400 hidden sm:inline">•</span>
+<span class="text-slate-700 font-medium">Serum Electrolytes Panel</span>
+</div>
+<div class="flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-green-600"></span>
+<span class="font-semibold text-green-700 text-xs uppercase tracking-wide">Reported</span>
+</div>
+</div>
+<!-- Report Row: Pending -->
+<div class="py-2.5 last:pb-0 flex flex-wrap items-center justify-between gap-2">
+<div class="flex items-center gap-3">
+<span class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider w-16">Report</span>
+<span class="font-data-mono font-medium text-slate-800">RPT-2025-0145</span>
+<span class="text-slate-400 hidden sm:inline">•</span>
+<span class="text-slate-600">Consultant: Dr. Tariq Mahmood</span>
+</div>
+<!-- Status Dot + Text: Pending (slate-500 dot + gray/slate text) -->
+<div class="flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-slate-500"></span>
+<span class="font-semibold text-slate-600 text-xs uppercase tracking-wide">Pending</span>
+</div>
+</div>
+</div>
+</article>
+</div>
+<!-- Audit Ledger Regulatory Note -->
+<div class="pt-3 pb-8 text-center">
+<p class="text-[11px] text-slate-400 font-body-sm flex items-center justify-center gap-1.5">
+<span class="material-symbols-outlined text-[14px] text-slate-400">verified_user</span>
+            Cryptographically verified patient diagnostic audit timeline. Historical entries cannot be modified directly from this workspace.
+          </p>
+</div>
+</div>
+</main>
+</div>
+<!-- Toast Notification Fixed Aside Container (empty read-only placeholder) -->
+<aside aria-atomic="true" aria-live="polite" class="fixed bottom-4 right-4 z-50 pointer-events-none flex flex-col gap-2" id="toast-container"></aside>
+</body></html>

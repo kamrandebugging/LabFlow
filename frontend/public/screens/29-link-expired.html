@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Link Expired — City Diagnostic Lab</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+          },
+          colors: {
+            primary: {
+              DEFAULT: '#0d9488',
+              hover: '#0f766e',
+            }
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-slate-50 text-slate-900 font-sans antialiased min-h-screen flex flex-col justify-between items-center px-4 py-8 selection:bg-teal-100 selection:text-teal-900">
+
+  <!-- Minimal Brand Indicator -->
+  <header class="w-full max-w-md pt-4 sm:pt-8 flex justify-center">
+    <div class="inline-flex items-center gap-2.5 text-slate-700">
+      <div class="w-8 h-8 rounded-lg bg-teal-50 border border-teal-200/70 flex items-center justify-center text-teal-700">
+        <span class="material-symbols-outlined text-[19px]">biotech</span>
+      </div>
+      <span class="font-semibold text-sm tracking-tight text-slate-800">City Diagnostic Lab</span>
+    </div>
+  </header>
+
+  <!-- Centered Calm Minimal Card -->
+  <main class="w-full max-w-md my-auto">
+    <div class="bg-white border border-slate-200 rounded-2xl p-8 sm:p-10 shadow-sm text-center">
+      
+      <!-- Calm Icon Badge -->
+      <div class="mx-auto w-12 h-12 rounded-full bg-slate-100 border border-slate-200/80 flex items-center justify-center text-slate-500 mb-6">
+        <span class="material-symbols-outlined text-2xl text-slate-600">history_toggle_off</span>
+      </div>
+
+      <!-- Main Headline -->
+      <h1 class="text-2xl font-bold tracking-tight text-slate-900 mb-3">
+        This link has expired
+      </h1>
+
+      <!-- Guidance instructions -->
+      <p class="text-slate-600 text-[15px] leading-relaxed mb-6">
+        Please call the lab — our staff can reissue your report link.
+      </p>
+
+      <!-- Lab Contact Information Box -->
+      <div class="bg-slate-50 border border-slate-200/90 rounded-xl p-4 mb-8 text-left">
+        <div class="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">
+          City Diagnostic Lab
+        </div>
+        <div class="flex items-center justify-between gap-3">
+          <a href="tel:+924235712345" class="text-slate-900 font-semibold text-base hover:text-teal-700 transition-colors flex items-center gap-2 focus:outline-none focus:ring-2 focus:ring-teal-600 rounded">
+            <span class="material-symbols-outlined text-[18px] text-teal-600">call</span>
+            +92 42 35712345
+          </a>
+          <span class="text-xs text-slate-500 font-medium">UAN / Front Desk</span>
+        </div>
+      </div>
+
+      <!-- Action: Single 'Back to home' text link -->
+      <div>
+        <a href="/" class="inline-flex items-center gap-1.5 text-sm font-semibold text-teal-600 hover:text-teal-700 transition-colors focus:outline-none focus:underline">
+          <span class="material-symbols-outlined text-[16px]">arrow_back</span>
+          Back to home
+        </a>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- Muted Footer Accreditation Info -->
+  <footer class="w-full max-w-md pb-4 text-center">
+    <p class="text-xs text-slate-400">
+      City Diagnostic Lab &middot; ISO 15189 Accredited
+    </p>
+  </footer>
+
+</body>
+</html>

@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Tenant Settings — LabFlow</title>
+<!-- Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Manrope:wght@600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "surface-container-low": "#f2f3ff",
+            "tertiary": "#0c5b56",
+            "on-primary-container": "#a3faef",
+            "on-tertiary": "#ffffff",
+            "on-background": "#131b2e",
+            "surface-container": "#eaedff",
+            "primary-container": "#0f766e",
+            "secondary-fixed-dim": "#6bd8cb",
+            "inverse-on-surface": "#eef0ff",
+            "surface-container-lowest": "#ffffff",
+            "secondary": "#006a61",
+            "tertiary-fixed-dim": "#8fd3cc",
+            "primary-fixed-dim": "#80d5cb",
+            "on-tertiary-fixed-variant": "#00504b",
+            "on-surface": "#131b2e",
+            "on-secondary": "#ffffff",
+            "outline-variant": "#bdc9c6",
+            "on-secondary-fixed": "#00201d",
+            "on-secondary-fixed-variant": "#005049",
+            "on-tertiary-container": "#b3f7f0",
+            "on-primary-fixed-variant": "#00504a",
+            "inverse-surface": "#283044",
+            "surface-bright": "#faf8ff",
+            "tertiary-fixed": "#abefe8",
+            "inverse-primary": "#80d5cb",
+            "on-primary-fixed": "#00201d",
+            "on-error": "#ffffff",
+            "error-container": "#ffdad6",
+            "surface": "#faf8ff",
+            "secondary-container": "#86f2e4",
+            "primary": "#005c55",
+            "surface-container-high": "#e2e7ff",
+            "on-tertiary-fixed": "#00201e",
+            "surface-container-highest": "#dae2fd",
+            "secondary-fixed": "#89f5e7",
+            "on-primary": "#ffffff",
+            "on-surface-variant": "#3e4947",
+            "error": "#ba1a1a",
+            "tertiary-container": "#2f746f",
+            "surface-tint": "#006a63",
+            "on-secondary-container": "#006f66",
+            "on-error-container": "#93000a",
+            "primary-fixed": "#9cf2e8",
+            "outline": "#6e7977",
+            "background": "#faf8ff",
+            "surface-variant": "#dae2fd",
+            "surface-dim": "#d2d9f4"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.25rem",
+            "lg": "0.5rem",
+            "xl": "0.75rem",
+            "full": "9999px"
+          },
+          "spacing": {
+            "space-xl": "2rem",
+            "margin-md": "1.5rem",
+            "space-xs": "0.25rem",
+            "space-md": "1rem",
+            "gutter": "1rem",
+            "space-sm": "0.5rem",
+            "margin": "1rem",
+            "space-lg": "1.5rem",
+            "space-2xl": "3rem",
+            "gutter-md": "1.25rem",
+            "gutter-lg": "1.5rem",
+            "margin-lg": "2rem"
+          },
+          "fontFamily": {
+            "data-mono": ["Inter", "monospace"],
+            "headline-sm": ["Manrope", "sans-serif"],
+            "headline-lg": ["Manrope", "sans-serif"],
+            "display-lg-mobile": ["Manrope", "sans-serif"],
+            "body-md": ["Inter", "sans-serif"],
+            "body-sm": ["Inter", "sans-serif"],
+            "body-lg": ["Inter", "sans-serif"],
+            "label-md": ["Inter", "sans-serif"],
+            "label-sm": ["Inter", "sans-serif"],
+            "headline-md": ["Manrope", "sans-serif"],
+            "display-lg": ["Manrope", "sans-serif"]
+          },
+          "fontSize": {
+            "data-mono": ["13px", { "lineHeight": "18px", "letterSpacing": "-0.01em", "fontWeight": "500" }],
+            "headline-sm": ["16px", { "lineHeight": "24px", "letterSpacing": "-0.005em", "fontWeight": "600" }],
+            "headline-lg": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.015em", "fontWeight": "600" }],
+            "display-lg-mobile": ["28px", { "lineHeight": "36px", "letterSpacing": "-0.015em", "fontWeight": "700" }],
+            "body-md": ["14px", { "lineHeight": "20px", "letterSpacing": "0em", "fontWeight": "400" }],
+            "body-sm": ["12px", { "lineHeight": "16px", "letterSpacing": "0.01em", "fontWeight": "400" }],
+            "body-lg": ["16px", { "lineHeight": "24px", "letterSpacing": "0em", "fontWeight": "400" }],
+            "label-md": ["13px", { "lineHeight": "18px", "letterSpacing": "0.01em", "fontWeight": "500" }],
+            "label-sm": ["11px", { "lineHeight": "14px", "letterSpacing": "0.03em", "fontWeight": "600" }],
+            "headline-md": ["20px", { "lineHeight": "28px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+            "display-lg": ["36px", { "lineHeight": "44px", "letterSpacing": "-0.02em", "fontWeight": "700" }]
+          }
+        },
+      },
+    }
+  </script>
+</head>
+<body class="bg-slate-50 text-slate-900 font-body-md text-body-md antialiased min-h-screen flex flex-col selection:bg-teal-100 selection:text-teal-900">
+<!-- TOP APP BAR -->
+<header class="bg-surface-container-lowest border-b border-outline-variant shadow-sm h-14 flex items-center justify-between px-space-lg w-full sticky top-0 z-40">
+<div class="flex items-center space-x-4">
+<div class="flex items-center space-x-2">
+<span class="material-symbols-outlined text-primary text-2xl" style="font-variation-settings: 'FILL' 1;">biotech</span>
+<span class="text-headline-sm font-headline-sm font-semibold text-primary tracking-tight">City Diagnostic Lab</span>
+</div>
+<div class="h-4 w-px bg-slate-200"></div>
+<div class="flex items-center space-x-1.5 bg-slate-100 text-slate-700 px-2.5 py-1 rounded-full border border-slate-200">
+<span class="material-symbols-outlined text-xs text-slate-500">location_on</span>
+<span class="text-label-sm font-label-sm">Main Branch — Gulberg, Lahore</span>
+</div>
+</div>
+<div class="flex items-center space-x-5">
+<!-- Language Selector -->
+<button class="flex items-center space-x-1 text-on-surface-variant font-label-md text-label-md hover:text-on-surface transition-colors duration-150">
+<span class="material-symbols-outlined text-base">translate</span>
+<span>English / اردو</span>
+</button>
+<div class="h-4 w-px bg-slate-200"></div>
+<!-- Icon Actions -->
+<div class="flex items-center space-x-2 text-on-surface-variant">
+<button class="p-1.5 rounded-lg hover:bg-slate-100 transition-colors relative" title="Notifications">
+<span class="material-symbols-outlined text-xl">notifications</span>
+<span class="absolute top-1.5 right-1.5 w-2 h-2 bg-teal-600 rounded-full"></span>
+</button>
+<button class="p-1.5 rounded-lg hover:bg-slate-100 transition-colors" title="Help &amp; Support">
+<span class="material-symbols-outlined text-xl">help_outline</span>
+</button>
+</div>
+<div class="h-4 w-px bg-slate-200"></div>
+<!-- User Menu -->
+<div class="flex items-center space-x-3">
+<div class="w-8 h-8 rounded-full bg-teal-100 text-teal-800 border border-teal-200 flex items-center justify-center font-semibold text-xs tracking-wider">
+          AR
+        </div>
+<div class="flex flex-col text-left">
+<span class="text-label-md font-label-md font-semibold text-slate-900 leading-tight">Ali Raza</span>
+<span class="text-xs text-slate-500 font-normal">Owner</span>
+</div>
+<button class="text-xs font-medium text-slate-500 hover:text-red-600 transition-colors ml-2 pl-2 border-l border-slate-200">
+          Logout
+        </button>
+</div>
+</div>
+</header>
+<div class="flex flex-1 w-full max-w-[1440px] mx-auto">
+<!-- LEFT SIDEBAR -->
+<aside class="w-60 bg-surface-container-lowest border-r border-outline-variant sticky top-14 h-[calc(100vh-3.5rem)] flex flex-col justify-between shrink-0 overflow-y-auto p-3">
+<div class="space-y-4">
+<!-- Section: Lab Operations -->
+<div>
+<div class="px-3 pb-1.5 text-[11px] font-bold text-slate-400 uppercase tracking-wider">Lab Operations</div>
+<nav class="space-y-0.5">
+<a class="flex items-center space-x-2.5 px-3 py-1.5 rounded-lg text-on-surface-variant font-label-md text-label-md hover:bg-slate-50 hover:text-slate-900 transition-colors" href="#">
+<span class="material-symbols-outlined text-lg">dashboard</span>
+<span>Home</span>
+</a>
+<a class="flex items-center space-x-2.5 px-3 py-1.5 rounded-lg text-on-surface-variant font-label-md text-label-md hover:bg-slate-50 hover:text-slate-900 transition-colors" href="#">
+<span class="material-symbols-outlined text-lg">personal_injury</span>
+<span>Patients</span>
+</a>
+<a class="flex items-center space-x-2.5 px-3 py-1.5 rounded-lg text-on-surface-variant font-label-md text-label-md hover:bg-slate-50 hover:text-slate-900 transition-colors" href="#">
+<span class="material-symbols-outlined text-lg">receipt_long</span>
+<span>Invoices</span>
+</a>
+<a class="flex items-center space-x-2.5 px-3 py-1.5 rounded-lg text-on-surface-variant font-label-md text-label-md hover:bg-slate-50 hover:text-slate-900 transition-colors" href="#">
+<span class="material-symbols-outlined text-lg">biotech</span>
+<span>Samples</span>
+</a>
+<a class="flex items-center space-x-2.5 px-3 py-1.5 rounded-lg text-on-surface-variant font-label-md text-label-md hover:bg-slate-50 hover:text-slate-900 transition-colors" href="#">
+<span class="material-symbols-outlined text-lg">assignment</span>
+<span>Worklist</span>
+</a>
+<a class="flex items-center space-x-2.5 px-3 py-1.5 rounded-lg text-on-surface-variant font-label-md text-label-md hover:bg-slate-50 hover:text-slate-900 transition-colors" href="#">
+<span class="material-symbols-outlined text-lg">edit_note</span>
+<span>Results</span>
+</a>
+<a class="flex items-center justify-between px-3 py-1.5 rounded-lg text-on-surface-variant font-label-md text-label-md hover:bg-slate-50 hover:text-slate-900 transition-colors" href="#">
+<div class="flex items-center space-x-2.5">
+<span class="material-symbols-outlined text-lg">verified</span>
+<span>Approvals</span>
+</div>
+<span class="px-1.5 py-0.5 text-[10px] font-bold rounded-md bg-[#fef7ec] text-[#e8a33d] border border-[#fde8c2]">9</span>
+</a>
+<a class="flex items-center space-x-2.5 px-3 py-1.5 rounded-lg text-on-surface-variant font-label-md text-label-md hover:bg-slate-50 hover:text-slate-900 transition-colors" href="#">
+<span class="material-symbols-outlined text-lg">description</span>
+<span>Reports</span>
+</a>
+<a class="flex items-center justify-between px-3 py-1.5 rounded-lg text-on-surface-variant font-label-md text-label-md hover:bg-slate-50 hover:text-slate-900 transition-colors" href="#">
+<div class="flex items-center space-x-2.5">
+<span class="material-symbols-outlined text-lg">report_problem</span>
+<span>Exceptions</span>
+</div>
+<span class="px-1.5 py-0.5 text-[10px] font-bold rounded-md bg-red-50 text-red-600 border border-red-200">5</span>
+</a>
+<a class="flex items-center space-x-2.5 px-3 py-1.5 rounded-lg text-on-surface-variant font-label-md text-label-md hover:bg-slate-50 hover:text-slate-900 transition-colors" href="#">
+<span class="material-symbols-outlined text-lg">inventory_2</span>
+<span>Catalog</span>
+</a>
+</nav>
+</div>
+<!-- Section: Management -->
+<div>
+<div class="px-3 pb-1.5 text-[11px] font-bold text-slate-400 uppercase tracking-wider">Management</div>
+<nav class="space-y-0.5">
+<a class="flex items-center space-x-2.5 px-3 py-1.5 rounded-lg text-on-surface-variant font-label-md text-label-md hover:bg-slate-50 hover:text-slate-900 transition-colors" href="#">
+<span class="material-symbols-outlined text-lg">domain</span>
+<span>Branches</span>
+</a>
+<a class="flex items-center space-x-2.5 px-3 py-1.5 rounded-lg text-on-surface-variant font-label-md text-label-md hover:bg-slate-50 hover:text-slate-900 transition-colors" href="#">
+<span class="material-symbols-outlined text-lg">badge</span>
+<span>Staff</span>
+</a>
+<a class="flex items-center space-x-2.5 px-3 py-1.5 rounded-lg text-on-surface-variant font-label-md text-label-md hover:bg-slate-50 hover:text-slate-900 transition-colors" href="#">
+<span class="material-symbols-outlined text-lg">handshake</span>
+<span>Partners</span>
+</a>
+<a class="flex items-center justify-between px-3 py-1.5 rounded-lg text-on-surface-variant font-label-md text-label-md hover:bg-slate-50 hover:text-slate-900 transition-colors" href="#">
+<div class="flex items-center space-x-2.5">
+<span class="material-symbols-outlined text-lg">account_balance_wallet</span>
+<span>Settlements</span>
+</div>
+<span class="px-1.5 py-0.5 text-[10px] font-bold rounded-md bg-slate-100 text-slate-600 border border-slate-200">2</span>
+</a>
+<!-- Active item -->
+<a class="flex items-center space-x-2.5 px-3 py-1.5 rounded-r-lg bg-teal-50 text-teal-700 font-semibold border-l-4 border-teal-600" href="#">
+<span class="material-symbols-outlined text-lg text-teal-700" style="font-variation-settings: 'FILL' 1;">settings</span>
+<span>Tenant Settings</span>
+</a>
+<a class="flex items-center space-x-2.5 px-3 py-1.5 rounded-lg text-on-surface-variant font-label-md text-label-md hover:bg-slate-50 hover:text-slate-900 transition-colors" href="#">
+<span class="material-symbols-outlined text-lg">file_download</span>
+<span>Exports</span>
+</a>
+</nav>
+</div>
+</div>
+<!-- Footer Menu -->
+<div class="pt-4 border-t border-slate-100 space-y-0.5">
+<a class="flex items-center space-x-2.5 px-3 py-1.5 rounded-lg text-slate-500 font-label-sm text-label-sm hover:bg-slate-50 hover:text-slate-800 transition-colors" href="#">
+<span class="material-symbols-outlined text-base">help</span>
+<span>Help &amp; docs</span>
+</a>
+<a class="flex items-center space-x-2.5 px-3 py-1.5 rounded-lg text-slate-500 font-label-sm text-label-sm hover:bg-slate-50 hover:text-red-600 transition-colors" href="#">
+<span class="material-symbols-outlined text-base">logout</span>
+<span>Logout</span>
+</a>
+</div>
+</aside>
+<!-- MAIN CONTENT CANVAS -->
+<main class="flex-1 bg-slate-50 p-8 min-h-[calc(100vh-3.5rem)]">
+<div class="max-w-4xl mx-auto space-y-6">
+<!-- Page Header -->
+<div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-slate-200">
+<div>
+<nav class="flex items-center space-x-2 text-xs text-slate-500 mb-1">
+<span>Settings</span>
+<span class="material-symbols-outlined text-[10px]">chevron_right</span>
+<span class="font-medium text-slate-800">Tenant Settings</span>
+</nav>
+<h1 class="text-2xl font-bold font-headline-lg text-slate-900 tracking-tight">Tenant Settings</h1>
+<p class="text-slate-600 text-sm mt-0.5">Lab-wide configuration registry</p>
+</div>
+<div class="flex items-center">
+<span class="font-data-mono text-data-mono text-slate-600 bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm flex items-center space-x-2">
+<span class="w-1.5 h-1.5 rounded-full bg-teal-600"></span>
+<span>Tenant ID: TEN-CDL-001</span>
+</span>
+</div>
+</div>
+<!-- Card 1: General & Contact Information -->
+<div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+<div class="p-6 border-b border-slate-100">
+<h2 class="text-headline-sm font-headline-sm text-slate-900 flex items-center space-x-2">
+<span class="material-symbols-outlined text-teal-700">corporate_fare</span>
+<span>General &amp; Contact Information</span>
+</h2>
+<p class="text-slate-500 text-sm mt-1">Identity and public contact channels for patient receipts and diagnostic report headers.</p>
+</div>
+<div class="p-6 space-y-6">
+<!-- Row 1: Lab display name -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-3 items-start">
+<div>
+<label class="block font-medium text-slate-900 text-sm">Lab display name</label>
+<p class="text-xs text-slate-500 mt-0.5">Printed on patient report headers, invoice vouchers, and SMS headers.</p>
+</div>
+<div class="md:col-span-2">
+<input class="w-full rounded-lg border border-slate-300 text-slate-900 text-sm px-3.5 py-2 focus:ring-2 focus:ring-teal-600 focus:border-teal-600 transition-colors shadow-sm font-medium" type="text" value="City Diagnostic Lab"/>
+</div>
+</div>
+<!-- Row 2: Landline Phone -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-3 items-start pt-4 border-t border-slate-100">
+<div>
+<label class="block font-medium text-slate-900 text-sm">Primary landline phone</label>
+<p class="text-xs text-slate-500 mt-0.5">Official verification and front desk contact number.</p>
+</div>
+<div class="md:col-span-2">
+<input class="w-full rounded-lg border border-slate-300 text-slate-900 font-data-mono text-sm px-3.5 py-2 focus:ring-2 focus:ring-teal-600 focus:border-teal-600 transition-colors shadow-sm" type="text" value="+92 42 35712345"/>
+</div>
+</div>
+<!-- Row 3: Support WhatsApp / Mobile -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-3 items-start pt-4 border-t border-slate-100">
+<div>
+<label class="block font-medium text-slate-900 text-sm">Patient inquiry WhatsApp</label>
+<p class="text-xs text-slate-500 mt-0.5">Used for automated dispatch notifications and verification inquiries.</p>
+</div>
+<div class="md:col-span-2">
+<input class="w-full rounded-lg border border-slate-300 text-slate-900 font-data-mono text-sm px-3.5 py-2 focus:ring-2 focus:ring-teal-600 focus:border-teal-600 transition-colors shadow-sm" type="text" value="+92 300 1234567"/>
+</div>
+</div>
+</div>
+<!-- Card Footer -->
+<div class="bg-slate-50 px-6 py-3.5 border-t border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+<span class="text-xs text-slate-500">Last updated 18 Oct 2026 14:20 PKT by Ali Raza</span>
+<button class="inline-flex items-center justify-center space-x-1.5 bg-[#0d9488] hover:bg-[#0f766e] text-white px-4 py-2 rounded-lg font-medium text-sm transition-colors shadow-sm">
+<span class="material-symbols-outlined text-base">check</span>
+<span>Save changes</span>
+</button>
+</div>
+</div>
+<!-- Card 2: Patient Communication & Report Access -->
+<div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+<div class="p-6 border-b border-slate-100">
+<h2 class="text-headline-sm font-headline-sm text-slate-900 flex items-center space-x-2">
+<span class="material-symbols-outlined text-teal-700">chat</span>
+<span>Patient Communication &amp; Report Access</span>
+</h2>
+<p class="text-slate-500 text-sm mt-1">Digital delivery rules and web portal token life cycle.</p>
+</div>
+<div class="p-6 space-y-6">
+<!-- Row 1: Default language -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-3 items-start">
+<div>
+<div class="flex items-center space-x-2">
+<label class="block font-medium text-slate-900 text-sm">Default language for patient messages</label>
+<span class="bg-slate-100 text-slate-600 text-[10px] font-semibold px-2 py-0.5 rounded border border-slate-200 uppercase">default</span>
+</div>
+<p class="text-xs text-slate-500 mt-0.5">Language used for automated SMS dispatch and WhatsApp notification messages.</p>
+</div>
+<div class="md:col-span-2">
+<select class="w-full md:w-64 rounded-lg border border-slate-300 text-slate-900 text-sm px-3 py-2 bg-white focus:ring-2 focus:ring-teal-600 focus:border-teal-600 shadow-sm font-medium">
+<option selected="" value="English">English</option>
+<option value="Urdu">Urdu (اردو)</option>
+</select>
+</div>
+</div>
+<!-- Row 2: Report link validity -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-3 items-start pt-4 border-t border-slate-100">
+<div>
+<div class="flex items-center space-x-2">
+<label class="block font-medium text-slate-900 text-sm">Report link validity</label>
+<span class="bg-slate-100 text-slate-600 text-[10px] font-semibold px-2 py-0.5 rounded border border-slate-200 uppercase">default</span>
+</div>
+<p class="text-xs text-slate-500 mt-0.5">Security expiry window for tokenized public report inspection links without requiring patient login.</p>
+</div>
+<div class="md:col-span-2 flex items-center space-x-2">
+<input class="w-24 rounded-lg border border-slate-300 text-slate-900 font-data-mono text-sm px-3.5 py-2 focus:ring-2 focus:ring-teal-600 focus:border-teal-600 shadow-sm" type="number" value="7"/>
+<span class="text-sm font-medium text-slate-600">days</span>
+</div>
+</div>
+<!-- Row 3: Delivery channels -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-3 items-start pt-4 border-t border-slate-100">
+<div>
+<label class="block font-medium text-slate-900 text-sm">Delivery channels enabled</label>
+<p class="text-xs text-slate-500 mt-0.5">Dispatch triggers for lab technician specimen validation.</p>
+</div>
+<div class="md:col-span-2 space-y-3">
+<label class="flex items-center space-x-3 cursor-pointer">
+<input checked="" class="rounded border-slate-300 text-teal-600 focus:ring-teal-600 h-4 w-4" type="checkbox"/>
+<span class="text-sm text-slate-800 font-medium">WhatsApp Dispatch</span>
+</label>
+<label class="flex items-center space-x-3 cursor-pointer">
+<input checked="" class="rounded border-slate-300 text-teal-600 focus:ring-teal-600 h-4 w-4" type="checkbox"/>
+<span class="text-sm text-slate-800 font-medium">SMS Gateway</span>
+</label>
+<label class="flex items-center space-x-3 cursor-pointer">
+<input checked="" class="rounded border-slate-300 text-teal-600 focus:ring-teal-600 h-4 w-4" type="checkbox"/>
+<span class="text-sm text-slate-800 font-medium">Patient Email PDF</span>
+</label>
+</div>
+</div>
+</div>
+<!-- Card Footer -->
+<div class="bg-slate-50 px-6 py-3.5 border-t border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+<span class="text-xs text-teal-700 flex items-center space-x-1">
+<span class="material-symbols-outlined text-sm">verified_user</span>
+<span>All patient channels verified active</span>
+</span>
+<button class="inline-flex items-center justify-center space-x-1.5 bg-[#0d9488] hover:bg-[#0f766e] text-white px-4 py-2 rounded-lg font-medium text-sm transition-colors shadow-sm">
+<span class="material-symbols-outlined text-base">check</span>
+<span>Save changes</span>
+</button>
+</div>
+</div>
+<!-- Card 3: Financial & Billing Governance -->
+<div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+<div class="p-6 border-b border-slate-100">
+<h2 class="text-headline-sm font-headline-sm text-slate-900 flex items-center space-x-2">
+<span class="material-symbols-outlined text-teal-700">account_balance</span>
+<span>Financial &amp; Billing Governance</span>
+</h2>
+<p class="text-slate-500 text-sm mt-1">Monetary guardrails, refund thresholds, and counter reconciliation rules.</p>
+</div>
+<div class="p-6 space-y-6">
+<!-- Row 1: Billing hold -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-3 items-start">
+<div>
+<label class="block font-medium text-slate-900 text-sm">Billing hold</label>
+<p class="text-xs text-slate-500 mt-0.5">When active, prevents front desk from generating new invoices across all branches during audit.</p>
+</div>
+<div class="md:col-span-2 flex items-center space-x-3">
+<!-- Toggle switch OFF state -->
+<button aria-checked="false" class="bg-slate-200 relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-teal-600 focus:ring-offset-2" role="switch" type="button">
+<span class="translate-x-0 pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"></span>
+</button>
+<span class="text-xs font-medium text-slate-600">Disabled · Normal billing operations active</span>
+</div>
+</div>
+<!-- Row 2: Refund ceiling -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-3 items-start pt-4 border-t border-slate-100">
+<div>
+<div class="flex items-center space-x-2">
+<label class="block font-medium text-slate-900 text-sm">Refund ceiling</label>
+<span class="bg-slate-100 text-slate-600 text-[10px] font-semibold px-2 py-0.5 rounded border border-slate-200 uppercase">default</span>
+</div>
+<p class="text-xs text-slate-500 mt-0.5">Maximum cash or digital refund amount a branch supervisor can issue without Lab Director authorization.</p>
+</div>
+<div class="md:col-span-2">
+<div class="w-full md:w-64">
+<input class="w-full rounded-lg border border-slate-300 text-slate-900 font-data-mono text-sm px-3.5 py-2 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-teal-600 focus:border-teal-600 shadow-sm font-semibold" type="text" value="PKR 50000.00"/>
+</div>
+</div>
+</div>
+<!-- Row 3: Daily cashbox reconciliation -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-3 items-start pt-4 border-t border-slate-100">
+<div>
+<label class="block font-medium text-slate-900 text-sm">Daily cashbox reconciliation lockout</label>
+<p class="text-xs text-slate-500 mt-0.5">Automatic ledger lock at shift handover.</p>
+</div>
+<div class="md:col-span-2">
+<div class="flex items-center space-x-2">
+<span class="font-data-mono text-sm bg-slate-100 border border-slate-300 px-3 py-1.5 rounded-lg text-slate-900 font-medium">23:59 PKT</span>
+<span class="text-xs text-slate-500">(Automatic end-of-day cutover)</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Card Footer -->
+<div class="bg-slate-50 px-6 py-3.5 border-t border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-end">
+<button class="inline-flex items-center justify-center space-x-1.5 bg-[#0d9488] hover:bg-[#0f766e] text-white px-4 py-2 rounded-lg font-medium text-sm transition-colors shadow-sm">
+<span class="material-symbols-outlined text-base">check</span>
+<span>Save changes</span>
+</button>
+</div>
+</div>
+<!-- Card 4: Security & Audit Compliance -->
+<div class="bg-white border border-slate-200 rounded-xl shadow-sm p-6 space-y-4">
+<div class="flex items-start justify-between">
+<div class="flex items-center space-x-2">
+<span class="material-symbols-outlined text-teal-700">shield</span>
+<h2 class="text-headline-sm font-headline-sm text-slate-900">Security &amp; Audit Compliance</h2>
+</div>
+<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+              ISO 15189:2022 Compliant
+            </span>
+</div>
+<div class="bg-slate-50 rounded-lg p-4 border border-slate-200 space-y-3">
+<div class="flex items-center justify-between text-xs">
+<span class="text-slate-500">Tenant cryptographic integrity anchor:</span>
+<span class="font-data-mono text-slate-800 bg-white px-2 py-0.5 rounded border border-slate-200">SHA-256: 4f98...912a</span>
+</div>
+<div class="flex items-start space-x-2 text-xs text-slate-600 pt-2 border-t border-slate-200">
+<span class="material-symbols-outlined text-emerald-600 text-sm">lock</span>
+<span>Two-factor authentication enforcement: <strong class="text-slate-900 font-medium">Enforced for all staff roles (Owner, Pathologist, Technician, Receptionist)</strong></span>
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+<!-- TOAST NOTIFICATION -->
+<div class="fixed bottom-6 right-6 z-50 transition-all duration-300">
+<div class="bg-white rounded-xl shadow-lg border border-slate-200 p-4 flex items-start space-x-3 w-80">
+<span class="material-symbols-outlined text-emerald-600 text-xl" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+<div class="flex-1">
+<h4 class="text-sm font-semibold text-slate-900">Settings updated</h4>
+<p class="text-xs text-slate-500 mt-0.5">Default language saved</p>
+<span class="inline-block mt-2 text-[10px] text-slate-400 font-data-mono">Auto-dismiss in 5s</span>
+</div>
+<button class="text-slate-400 hover:text-slate-600 text-sm font-bold p-1 leading-none" onclick="this.parentElement.parentElement.remove()">
+        ✕
+      </button>
+</div>
+</div>
+</body></html>
