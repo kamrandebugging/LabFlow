@@ -14,6 +14,8 @@ from config.settings.base import *  # noqa: F403
 if not os.environ.get("DJANGO_SECRET_KEY"):
     SECRET_KEY = "ci-test-secret-key-32-chars-minimum-length-for-testing"
 
+ALLOWED_HOSTS = ["*"]
+
 # Hard-ban SQLite before any database connection attempt
 _db_url = os.environ.get("DATABASE_URL", "")
 if _db_url:

@@ -11,8 +11,12 @@ from drf_spectacular.views import (
     SpectacularSwaggerView,
 )
 
+from apps.platform.tls import tls_check_view
+
 urlpatterns = [
     path("admin/", admin.site.urls),
+    path("internal/tls-check", tls_check_view, name="internal-tls-check"),
+    path("internal/tls-check/", tls_check_view, name="internal-tls-check-slash"),
     # OpenAPI Schema & API Documentation
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     path(

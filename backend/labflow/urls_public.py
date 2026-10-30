@@ -1,35 +1,5 @@
-from django.contrib import admin
-from django.http import JsonResponse
-from django.urls import path
+"""Re-export public schema URLs from config.urls_public (Doc 04 §6.4)."""
 
-from apps.platform.views import PlatformTenantCreateView
+from config.urls_public import urlpatterns
 
-
-def healthz_view(_request: object) -> JsonResponse:
-    return JsonResponse({"status": "ok"})
-
-
-urlpatterns = [
-    path("admin/", admin.site.urls),
-    path("healthz", healthz_view, name="public-healthz"),
-    path(
-        "api/v1/platform/tenants",
-        PlatformTenantCreateView.as_view(),
-        name="platform-tenants-create",
-    ),
-    path(
-        "api/v1/platform/tenants/",
-        PlatformTenantCreateView.as_view(),
-        name="platform-tenants-create-slash",
-    ),
-    path(
-        "platform/tenants",
-        PlatformTenantCreateView.as_view(),
-        name="platform-tenants-create-short",
-    ),
-    path(
-        "platform/tenants/",
-        PlatformTenantCreateView.as_view(),
-        name="platform-tenants-create-short-slash",
-    ),
-]
+__all__ = ["urlpatterns"]
