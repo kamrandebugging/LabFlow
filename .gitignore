@@ -69,3 +69,9 @@ Thumbs.db
 *.swp
 *.swo
 
+# Local AI harness & documentation assets
+.agents/
+docs/screen-pack/
+docs/jira_backup/
+
+

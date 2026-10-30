@@ -140,10 +140,27 @@ TEMPLATES = [
 REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "DEFAULT_AUTHENTICATION_CLASSES": (
+        "apps.accounts.authentication.JWTAuthentication",
         "rest_framework.authentication.SessionAuthentication",
     ),
     "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.IsAuthenticated",),
 }
+
+# -----------------------------------------------------------------------------
+# Security & Auth Engine Configuration (Doc 01 §14, Doc 08 §4, Doc 08 §10)
+# -----------------------------------------------------------------------------
+
+PASSWORD_HASHERS = [
+    "django.contrib.auth.hashers.Argon2PasswordHasher",
+    "django.contrib.auth.hashers.PBKDF2PasswordHasher",
+    "django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher",
+]
+
+JWT_SIGNING_KEY = env("JWT_SIGNING_KEY", default=SECRET_KEY)
+JWT_ACCESS_TOKEN_LIFETIME_SECONDS = 900  # 15 minutes (Doc 08 §4.3)
+JWT_REFRESH_TOKEN_LIFETIME_SECONDS = 7 * 86400  # 7 days (Doc 08 §4.3)
+AUTH_COOKIE_NAME = "refresh_token"
+AUTH_CHALLENGE_COOKIE_NAME = "auth_challenge"
 
 SPECTACULAR_SETTINGS = {
     "TITLE": "LabFlow Platform API",
