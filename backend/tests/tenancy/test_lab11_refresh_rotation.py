@@ -119,7 +119,10 @@ class TestLAB11RefreshRotationAndReuse:
                 actor_id=receptionist.id, action="auth.sessions_revoked"
             )
             assert audit_rows.exists()
-            assert audit_rows.first().after_jsonb.get("reason") == "refresh_reuse"
+            audit_row = audit_rows.first()
+            assert audit_row is not None
+            assert audit_row.after_jsonb is not None
+            assert audit_row.after_jsonb.get("reason") == "refresh_reuse"
 
         # Legitimate token_v2 is now ALSO revoked
         client.cookies["refresh_token"] = token_v2
