@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Settlements — City Diagnostic Lab (LabFlow)</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Manrope:wght@600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "surface-variant": "#dae2fd",
+            "on-tertiary-container": "#b3f7f0",
+            "secondary-fixed": "#89f5e7",
+            "inverse-on-surface": "#eef0ff",
+            "on-primary-fixed-variant": "#00504a",
+            "surface-dim": "#d2d9f4",
+            "primary-container": "#0f766e",
+            "on-surface": "#131b2e",
+            "surface-container": "#eaedff",
+            "on-secondary": "#ffffff",
+            "on-tertiary-fixed": "#00201e",
+            "on-background": "#131b2e",
+            "surface-container-highest": "#dae2fd",
+            "surface-container-lowest": "#ffffff",
+            "on-tertiary": "#ffffff",
+            "tertiary-fixed-dim": "#8fd3cc",
+            "outline": "#6e7977",
+            "primary-fixed-dim": "#80d5cb",
+            "on-tertiary-fixed-variant": "#00504b",
+            "error": "#ba1a1a",
+            "tertiary-container": "#2f746f",
+            "secondary": "#006a61",
+            "on-primary": "#ffffff",
+            "tertiary-fixed": "#abefe8",
+            "surface": "#faf8ff",
+            "outline-variant": "#bdc9c6",
+            "on-primary-container": "#a3faef",
+            "on-primary-fixed": "#00201d",
+            "on-surface-variant": "#3e4947",
+            "on-error": "#ffffff",
+            "surface-container-low": "#f2f3ff",
+            "surface-bright": "#faf8ff",
+            "background": "#faf8ff",
+            "primary": "#005c55",
+            "secondary-fixed-dim": "#6bd8cb",
+            "surface-tint": "#006a63",
+            "on-secondary-fixed": "#00201d",
+            "on-error-container": "#93000a",
+            "error-container": "#ffdad6",
+            "secondary-container": "#86f2e4",
+            "on-secondary-container": "#006f66",
+            "inverse-surface": "#283044",
+            "inverse-primary": "#80d5cb",
+            "tertiary": "#0c5b56",
+            "surface-container-high": "#e2e7ff",
+            "on-secondary-fixed-variant": "#005049",
+            "primary-fixed": "#9cf2e8"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.25rem",
+            "lg": "0.5rem",
+            "xl": "0.75rem",
+            "full": "9999px"
+          },
+          "spacing": {
+            "space-xs": "0.25rem",
+            "margin-md": "1.5rem",
+            "space-md": "1rem",
+            "space-2xl": "3rem",
+            "gutter": "1rem",
+            "space-sm": "0.5rem",
+            "margin": "1rem",
+            "space-xl": "2rem",
+            "margin-lg": "2rem",
+            "gutter-md": "1.25rem",
+            "space-lg": "1.5rem",
+            "gutter-lg": "1.5rem"
+          },
+          "fontFamily": {
+            "body-sm": ["Inter", "sans-serif"],
+            "headline-md": ["Manrope", "sans-serif"],
+            "label-md": ["Inter", "sans-serif"],
+            "display-lg": ["Manrope", "sans-serif"],
+            "label-sm": ["Inter", "sans-serif"],
+            "body-md": ["Inter", "sans-serif"],
+            "display-lg-mobile": ["Manrope", "sans-serif"],
+            "body-lg": ["Inter", "sans-serif"],
+            "headline-sm": ["Manrope", "sans-serif"],
+            "headline-lg": ["Manrope", "sans-serif"],
+            "data-mono": ["ui-monospace", "SFMono-Regular", "Menlo", "Monaco", "Consolas", "monospace"]
+          },
+          "fontSize": {
+            "body-sm": ["12px", { "lineHeight": "16px", "letterSpacing": "0.01em", "fontWeight": "400" }],
+            "headline-md": ["20px", { "lineHeight": "28px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+            "label-md": ["13px", { "lineHeight": "18px", "letterSpacing": "0.01em", "fontWeight": "500" }],
+            "display-lg": ["36px", { "lineHeight": "44px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+            "label-sm": ["11px", { "lineHeight": "14px", "letterSpacing": "0.03em", "fontWeight": "600" }],
+            "body-md": ["14px", { "lineHeight": "20px", "letterSpacing": "0em", "fontWeight": "400" }],
+            "display-lg-mobile": ["28px", { "lineHeight": "36px", "letterSpacing": "-0.015em", "fontWeight": "700" }],
+            "body-lg": ["16px", { "lineHeight": "24px", "letterSpacing": "0em", "fontWeight": "400" }],
+            "headline-sm": ["16px", { "lineHeight": "24px", "letterSpacing": "-0.005em", "fontWeight": "600" }],
+            "headline-lg": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.015em", "fontWeight": "600" }],
+            "data-mono": ["13px", { "lineHeight": "18px", "letterSpacing": "-0.01em", "fontWeight": "500" }]
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+      font-size: 18px;
+      line-height: 1;
+      display: inline-block;
+      vertical-align: middle;
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-900 antialiased font-body-md min-h-screen flex flex-col">
+<!-- TOP NAV BAR (Shared Components Token Matching) -->
+<header class="h-14 flex items-center justify-between px-space-lg w-full bg-surface-container-lowest border-b border-slate-200 sticky top-0 z-40 select-none">
+<div class="flex items-center space-x-3">
+<span class="text-headline-sm font-headline-sm font-semibold text-slate-900 tracking-tight">City Diagnostic Lab</span>
+<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-label-sm font-label-sm bg-slate-100 border border-slate-200 text-slate-700">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
+        Main Branch — Gulberg, Lahore
+      </span>
+</div>
+<div class="flex items-center space-x-4">
+<button class="text-label-md font-label-md text-on-surface-variant hover:text-slate-900 transition-colors flex items-center gap-1 px-2 py-1 rounded" type="button">
+<span>All branches</span>
+<span class="material-symbols-outlined text-[16px]">expand_more</span>
+</button>
+<div class="h-4 w-px bg-slate-200"></div>
+<button class="text-label-md font-label-md text-slate-700 hover:text-slate-900 px-2 py-1 rounded border border-slate-200 bg-white" type="button">
+        English | اردو
+      </button>
+<button class="p-1.5 rounded-lg text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors relative" title="Notifications" type="button">
+<span class="material-symbols-outlined">notifications</span>
+<span class="absolute top-1 right-1 w-2 h-2 bg-[#0d9488] rounded-full"></span>
+</button>
+<button class="p-1.5 rounded-lg text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors" title="Help &amp; documentation" type="button">
+<span class="material-symbols-outlined">help_outline</span>
+</button>
+<div class="h-4 w-px bg-slate-200"></div>
+<!-- User avatar pill & logout -->
+<div class="flex items-center gap-2">
+<div class="flex items-center gap-2 pl-1 pr-2.5 py-1 rounded-full bg-slate-100 border border-slate-200">
+<div class="w-6 h-6 rounded-full bg-slate-800 text-white flex items-center justify-center text-label-sm font-bold">
+            AR
+          </div>
+<span class="text-label-md font-label-md text-slate-900">Ali Raza (Owner)</span>
+</div>
+<button class="text-label-sm font-label-sm text-slate-600 hover:text-red-700 ml-1 font-medium transition-colors" type="button">
+          Logout
+        </button>
+</div>
+</div>
+</header>
+<!-- WORKSPACE VIEWPORT -->
+<div class="flex flex-1 w-full overflow-hidden">
+<!-- LEFT SIDEBAR -->
+<aside class="w-60 shrink-0 bg-white border-r border-slate-200 flex flex-col justify-between h-[calc(100vh-3.5rem)] sticky top-14 left-0 overflow-y-auto">
+<div class="py-3 px-2">
+<!-- SECTION: CLINICAL / LAB OPERATIONS -->
+<div class="px-2 pb-1.5 pt-1 text-[11px] font-semibold text-slate-400 tracking-wider uppercase">
+          Clinical / Operations
+        </div>
+<nav class="space-y-0.5">
+<a class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-slate-700 hover:bg-slate-100 text-label-md font-label-md" href="#">
+<span class="material-symbols-outlined text-slate-500">dashboard</span>
+<span>Home</span>
+</a>
+<a class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-slate-700 hover:bg-slate-100 text-label-md font-label-md" href="#">
+<span class="material-symbols-outlined text-slate-500">personal_injury</span>
+<span>Patients</span>
+</a>
+<a class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-slate-700 hover:bg-slate-100 text-label-md font-label-md" href="#">
+<span class="material-symbols-outlined text-slate-500">receipt_long</span>
+<span>Invoices</span>
+</a>
+<a class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-slate-700 hover:bg-slate-100 text-label-md font-label-md" href="#">
+<span class="material-symbols-outlined text-slate-500">biotech</span>
+<span>Samples</span>
+</a>
+<a class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-slate-700 hover:bg-slate-100 text-label-md font-label-md" href="#">
+<span class="material-symbols-outlined text-slate-500">assignment</span>
+<span>Worklist</span>
+</a>
+<a class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-slate-700 hover:bg-slate-100 text-label-md font-label-md" href="#">
+<span class="material-symbols-outlined text-slate-500">edit_note</span>
+<span>Results</span>
+</a>
+<a class="flex items-center justify-between px-2.5 py-1.5 rounded-lg text-slate-700 hover:bg-slate-100 text-label-md font-label-md" href="#">
+<div class="flex items-center gap-2.5">
+<span class="material-symbols-outlined text-slate-500">verified</span>
+<span>Approvals</span>
+</div>
+<span class="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-[#e8a33d]/20 text-[#8f5d0f]">9</span>
+</a>
+<a class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-slate-700 hover:bg-slate-100 text-label-md font-label-md" href="#">
+<span class="material-symbols-outlined text-slate-500">description</span>
+<span>Reports</span>
+</a>
+<a class="flex items-center justify-between px-2.5 py-1.5 rounded-lg text-slate-700 hover:bg-slate-100 text-label-md font-label-md" href="#">
+<div class="flex items-center gap-2.5">
+<span class="material-symbols-outlined text-slate-500">report_problem</span>
+<span>Exceptions</span>
+</div>
+<span class="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-700">5</span>
+</a>
+<a class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-slate-700 hover:bg-slate-100 text-label-md font-label-md" href="#">
+<span class="material-symbols-outlined text-slate-500">inventory_2</span>
+<span>Catalog</span>
+</a>
+</nav>
+<!-- SECTION: MANAGEMENT -->
+<div class="px-2 pb-1.5 pt-4 text-[11px] font-semibold text-slate-400 tracking-wider uppercase">
+          Management
+        </div>
+<nav class="space-y-0.5">
+<a class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-slate-700 hover:bg-slate-100 text-label-md font-label-md" href="#">
+<span class="material-symbols-outlined text-slate-500">store</span>
+<span>Branches</span>
+</a>
+<a class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-slate-700 hover:bg-slate-100 text-label-md font-label-md" href="#">
+<span class="material-symbols-outlined text-slate-500">badge</span>
+<span>Staff</span>
+</a>
+<a class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-slate-700 hover:bg-slate-100 text-label-md font-label-md" href="#">
+<span class="material-symbols-outlined text-slate-500">handshake</span>
+<span>Partners</span>
+</a>
+<!-- ACTIVE TAB: Settlements -->
+<a class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg bg-teal-50 text-[#0d9488] font-semibold border-l-4 border-[#0d9488] text-label-md font-label-md" href="#">
+<span class="material-symbols-outlined text-[#0d9488]">account_balance_wallet</span>
+<span>Settlements</span>
+</a>
+<a class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-slate-700 hover:bg-slate-100 text-label-md font-label-md" href="#">
+<span class="material-symbols-outlined text-slate-500">settings</span>
+<span>Tenant Settings</span>
+</a>
+<a class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-slate-700 hover:bg-slate-100 text-label-md font-label-md" href="#">
+<span class="material-symbols-outlined text-slate-500">ios_share</span>
+<span>Exports</span>
+</a>
+</nav>
+</div>
+<!-- SIDEBAR FOOTER -->
+<div class="p-3 border-t border-slate-200 bg-slate-50/50">
+<a class="flex items-center gap-2 text-label-sm font-label-sm text-slate-600 hover:text-slate-900 py-1" href="#">
+<span class="material-symbols-outlined text-[16px]">help</span>
+<span>Help &amp; docs</span>
+</a>
+<div class="mt-2 pt-2 border-t border-slate-200 flex items-center gap-1.5 text-[10px] text-slate-500 font-medium">
+<span class="w-2 h-2 rounded-full bg-teal-600 inline-block"></span>
+<span>ISO 15189 Compliant LabFlow</span>
+</div>
+</div>
+</aside>
+<!-- MAIN SCROLLABLE CONTENT CANVAS -->
+<main class="flex-1 overflow-y-auto px-8 py-6 bg-slate-50">
+<div class="max-w-[1240px] mx-auto space-y-6">
+<!-- PAGE HEADER -->
+<div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+<div>
+<h1 class="text-headline-lg font-headline-lg font-bold text-slate-900">Settlements</h1>
+<p class="text-body-md font-body-md text-slate-600 mt-0.5">Monthly revenue-share settlements with referral partners</p>
+</div>
+<div class="flex items-center gap-2.5">
+<button class="inline-flex items-center gap-1.5 px-3 py-2 bg-white border border-slate-200 rounded-lg text-slate-700 text-label-md font-label-md hover:bg-slate-50 hover:border-slate-300 shadow-sm transition-colors" type="button">
+<span class="material-symbols-outlined text-slate-600">download</span>
+<span>Export CSV</span>
+</button>
+<button class="inline-flex items-center gap-1.5 px-4 py-2 bg-[#0d9488] hover:bg-[#0f766e] text-white rounded-lg text-label-md font-label-md shadow-sm transition-colors" type="button">
+<span class="material-symbols-outlined text-white">add</span>
+<span>Generate settlement batch</span>
+</button>
+</div>
+</div>
+<!-- METRIC SUMMARY CARDS ROW -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+<!-- Card 1 -->
+<div class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+<div class="flex items-center justify-between">
+<span class="text-label-sm font-label-sm uppercase tracking-wider text-slate-500 font-medium">Pending review (Oct 2026)</span>
+<span class="material-symbols-outlined text-[#e8a33d]">pending_actions</span>
+</div>
+<div class="mt-2 text-2xl font-bold font-data-mono text-slate-900">
+              PKR 22140.00
+            </div>
+<div class="mt-1 text-body-sm font-body-sm text-slate-500 flex items-center gap-1.5">
+<span class="w-1.5 h-1.5 rounded-full bg-[#e8a33d]"></span>
+<span>1 draft settlement awaiting sign-off</span>
+</div>
+</div>
+<!-- Card 2 -->
+<div class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+<div class="flex items-center justify-between">
+<span class="text-label-sm font-label-sm uppercase tracking-wider text-slate-500 font-medium">Disbursed YTD</span>
+<span class="material-symbols-outlined text-[#0d9488]">task_alt</span>
+</div>
+<div class="mt-2 text-2xl font-bold font-data-mono text-slate-900">
+              PKR 284100.00
+            </div>
+<div class="mt-1 text-body-sm font-body-sm text-slate-500">
+              Settled across active partners
+            </div>
+</div>
+<!-- Card 3 -->
+<div class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+<div class="flex items-center justify-between">
+<span class="text-label-sm font-label-sm uppercase tracking-wider text-slate-500 font-medium">Active partners</span>
+<span class="material-symbols-outlined text-slate-400">group</span>
+</div>
+<div class="mt-2 text-2xl font-bold text-slate-900">
+              14 Partners
+            </div>
+<div class="mt-1 text-body-sm font-body-sm text-slate-500">
+              Across 3 operational branches
+            </div>
+</div>
+</div>
+<!-- FILTERS AND CONTROLS BAR -->
+<div class="bg-white border border-slate-200 rounded-xl p-3 shadow-sm flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+<!-- Status Tabs -->
+<div class="inline-flex p-1 bg-slate-100 rounded-lg self-start">
+<button class="px-3 py-1 rounded-md text-label-md font-label-md bg-white text-slate-900 shadow-sm border border-slate-200">All</button>
+<button class="px-3 py-1 rounded-md text-label-md font-label-md text-slate-600 hover:text-slate-900">Draft</button>
+<button class="px-3 py-1 rounded-md text-label-md font-label-md text-slate-600 hover:text-slate-900">Approved</button>
+<button class="px-3 py-1 rounded-md text-label-md font-label-md text-slate-600 hover:text-slate-900">Sent</button>
+<button class="px-3 py-1 rounded-md text-label-md font-label-md text-slate-600 hover:text-slate-900">Paid</button>
+</div>
+<!-- Right Filters: Search and Period Select -->
+<div class="flex items-center gap-3">
+<div class="relative w-72">
+<span class="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-[18px]">search</span>
+<input class="w-full pl-9 pr-3 py-1.5 text-body-md font-body-md rounded-lg border border-slate-300 bg-white placeholder-slate-400 focus:outline-none focus:border-[#0d9488] focus:ring-1 focus:ring-[#0d9488]" placeholder="Search by partner name or reference..." type="text"/>
+</div>
+<div class="relative">
+<select class="pl-3 pr-8 py-1.5 text-label-md font-label-md rounded-lg border border-slate-300 bg-white text-slate-800 focus:outline-none focus:border-[#0d9488] focus:ring-1 focus:ring-[#0d9488] appearance-none cursor-pointer">
+<option selected="">All periods</option>
+<option>Oct 2026</option>
+<option>Sep 2026</option>
+<option>Aug 2026</option>
+</select>
+<span class="material-symbols-outlined absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500 text-[18px]">arrow_drop_down</span>
+</div>
+</div>
+</div>
+<!-- SETTLEMENTS TABLE -->
+<div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-slate-50 border-b border-slate-200 text-label-sm font-label-sm text-slate-500 uppercase tracking-wider">
+<th class="py-3 px-4">Period</th>
+<th class="py-3 px-4">Settlement Ref</th>
+<th class="py-3 px-4">Partner</th>
+<th class="py-3 px-4">Status</th>
+<th class="py-3 px-4">Invoices Count</th>
+<th class="py-3 px-4">Total Amount</th>
+<th class="py-3 px-4 text-right">Actions</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-slate-100 text-body-md font-body-md">
+<!-- ROW 1 (Oct 2026 - Draft Needs Review) -->
+<tr class="hover:bg-slate-50 transition-colors">
+<td class="py-3.5 px-4 font-medium text-slate-900">Oct 2026</td>
+<td class="py-3.5 px-4">
+<span class="font-data-mono text-label-md text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">STL-202610-001</span>
+</td>
+<td class="py-3.5 px-4">
+<div class="font-medium text-slate-900">Dr. Farhan Qureshi</div>
+<div class="text-body-sm font-body-sm text-slate-500">Doctor · Internal Medicine</div>
+</td>
+<td class="py-3.5 px-4">
+<div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-label-sm font-semibold bg-[#e8a33d]/15 text-[#8f5d0f] border border-[#e8a33d]/30">
+<span class="w-1.5 h-1.5 rounded-full bg-[#e8a33d]"></span>
+                      DRAFT · Needs review
+                    </div>
+</td>
+<td class="py-3.5 px-4 text-slate-600">34 invoices</td>
+<td class="py-3.5 px-4 font-data-mono font-medium text-black">
+                    PKR 22140.00
+                  </td>
+<td class="py-3.5 px-4 text-right whitespace-nowrap">
+<a class="text-[#0d9488] hover:text-[#0f766e] font-semibold text-label-md mr-3 inline-flex items-center" href="#">
+                      View details <span class="ml-0.5">→</span>
+</a>
+<button class="p-1 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-100">
+<span class="material-symbols-outlined text-[18px]">more_vert</span>
+</button>
+</td>
+</tr>
+<!-- ROW 2 (Sep 2026 - Paid) -->
+<tr class="hover:bg-slate-50 transition-colors">
+<td class="py-3.5 px-4 font-medium text-slate-900">Sep 2026</td>
+<td class="py-3.5 px-4">
+<span class="font-data-mono text-label-md text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">STL-202609-001</span>
+</td>
+<td class="py-3.5 px-4">
+<div class="font-medium text-slate-900">Dr. Farhan Qureshi</div>
+<div class="text-body-sm font-body-sm text-slate-500">Doctor · Internal Medicine</div>
+</td>
+<td class="py-3.5 px-4">
+<div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-label-sm font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
+                      PAID
+                    </div>
+</td>
+<td class="py-3.5 px-4 text-slate-600">31 invoices</td>
+<td class="py-3.5 px-4 font-data-mono font-medium text-black">
+                    PKR 19875.00
+                  </td>
+<td class="py-3.5 px-4 text-right whitespace-nowrap">
+<a class="text-[#0d9488] hover:text-[#0f766e] font-semibold text-label-md mr-3 inline-flex items-center" href="#">
+                      View details <span class="ml-0.5">→</span>
+</a>
+<button class="p-1 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-100">
+<span class="material-symbols-outlined text-[18px]">more_vert</span>
+</button>
+</td>
+</tr>
+<!-- ROW 3 (Sep 2026 - Sent) -->
+<tr class="hover:bg-slate-50 transition-colors">
+<td class="py-3.5 px-4 font-medium text-slate-900">Sep 2026</td>
+<td class="py-3.5 px-4">
+<span class="font-data-mono text-label-md text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">STL-202609-002</span>
+</td>
+<td class="py-3.5 px-4">
+<div class="font-medium text-slate-900">Al-Shifa Clinic</div>
+<div class="text-body-sm font-body-sm text-slate-500">Clinic · Referral Centre</div>
+</td>
+<td class="py-3.5 px-4">
+<div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-label-sm font-semibold bg-blue-50 text-blue-700 border border-blue-200">
+<span class="w-1.5 h-1.5 rounded-full bg-blue-600"></span>
+                      SENT
+                    </div>
+</td>
+<td class="py-3.5 px-4 text-slate-600">48 invoices</td>
+<td class="py-3.5 px-4 font-data-mono font-medium text-black">
+                    PKR 31200.00
+                  </td>
+<td class="py-3.5 px-4 text-right whitespace-nowrap">
+<a class="text-[#0d9488] hover:text-[#0f766e] font-semibold text-label-md mr-3 inline-flex items-center" href="#">
+                      View details <span class="ml-0.5">→</span>
+</a>
+<button class="p-1 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-100">
+<span class="material-symbols-outlined text-[18px]">more_vert</span>
+</button>
+</td>
+</tr>
+<!-- ROW 4 (Aug 2026 - Approved) -->
+<tr class="hover:bg-slate-50 transition-colors">
+<td class="py-3.5 px-4 font-medium text-slate-900">Aug 2026</td>
+<td class="py-3.5 px-4">
+<span class="font-data-mono text-label-md text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">STL-202608-004</span>
+</td>
+<td class="py-3.5 px-4">
+<div class="font-medium text-slate-900">Dr. Nadia Aslam</div>
+<div class="text-body-sm font-body-sm text-slate-500">Doctor · Gynecology</div>
+</td>
+<td class="py-3.5 px-4">
+<div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-label-sm font-semibold bg-blue-50 text-blue-700 border border-blue-200">
+<span class="w-1.5 h-1.5 rounded-full bg-blue-600"></span>
+                      APPROVED
+                    </div>
+</td>
+<td class="py-3.5 px-4 text-slate-600">22 invoices</td>
+<td class="py-3.5 px-4 font-data-mono font-medium text-black">
+                    PKR 15420.00
+                  </td>
+<td class="py-3.5 px-4 text-right whitespace-nowrap">
+<a class="text-[#0d9488] hover:text-[#0f766e] font-semibold text-label-md mr-3 inline-flex items-center" href="#">
+                      View details <span class="ml-0.5">→</span>
+</a>
+<button class="p-1 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-100">
+<span class="material-symbols-outlined text-[18px]">more_vert</span>
+</button>
+</td>
+</tr>
+<!-- ROW 5 (Aug 2026 - Paid) -->
+<tr class="hover:bg-slate-50 transition-colors">
+<td class="py-3.5 px-4 font-medium text-slate-900">Aug 2026</td>
+<td class="py-3.5 px-4">
+<span class="font-data-mono text-label-md text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">STL-202608-001</span>
+</td>
+<td class="py-3.5 px-4">
+<div class="font-medium text-slate-900">Dr. Farhan Qureshi</div>
+<div class="text-body-sm font-body-sm text-slate-500">Doctor · Internal Medicine</div>
+</td>
+<td class="py-3.5 px-4">
+<div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-label-sm font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
+                      PAID
+                    </div>
+</td>
+<td class="py-3.5 px-4 text-slate-600">28 invoices</td>
+<td class="py-3.5 px-4 font-data-mono font-medium text-black">
+                    PKR 18000.00
+                  </td>
+<td class="py-3.5 px-4 text-right whitespace-nowrap">
+<a class="text-[#0d9488] hover:text-[#0f766e] font-semibold text-label-md mr-3 inline-flex items-center" href="#">
+                      View details <span class="ml-0.5">→</span>
+</a>
+<button class="p-1 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-100">
+<span class="material-symbols-outlined text-[18px]">more_vert</span>
+</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- TABLE FOOTER & PAGINATION -->
+<div class="py-3 px-4 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3 text-body-sm font-body-sm text-slate-600">
+<div>
+              Showing <span class="font-semibold text-slate-900">5</span> of <span class="font-semibold text-slate-900">28</span> settlements
+            </div>
+<div class="inline-flex items-center gap-1">
+<button class="px-2.5 py-1 rounded border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 disabled:opacity-50 text-label-sm" disabled="">
+                Previous
+              </button>
+<button class="px-2.5 py-1 rounded border border-[#0d9488] bg-[#0d9488] text-white font-semibold text-label-sm">
+                1
+              </button>
+<button class="px-2.5 py-1 rounded border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 text-label-sm">
+                2
+              </button>
+<button class="px-2.5 py-1 rounded border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 text-label-sm">
+                3
+              </button>
+<button class="px-2.5 py-1 rounded border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 text-label-sm">
+                Next
+              </button>
+</div>
+</div>
+</div>
+<!-- COMPLIANCE AUDIT FOOTER BANNER -->
+<div class="p-4 rounded-xl border border-slate-200 bg-white shadow-sm flex items-start gap-3">
+<div class="p-2 rounded-lg bg-slate-100 text-slate-700 shrink-0">
+<span class="material-symbols-outlined text-[20px]">policy</span>
+</div>
+<div>
+<h4 class="text-label-md font-label-md font-semibold text-slate-900">ISO 15189 &amp; Pakistan Clinical Governance Audit Trail</h4>
+<p class="text-body-sm font-body-sm text-slate-600 mt-0.5">
+              Settlements generated through LabFlow comply with referral transparency standards under Pakistan Healthcare Commission regulations. Every settlement draft, adjustment, and sign-off is logged with timestamp (PKT) and user credentials for forensic review.
+            </p>
+</div>
+</div>
+</div>
+</main>
+</div>
+<!-- EMPTY TOAST CONTAINER BOTTOM-RIGHT -->
+<div class="fixed bottom-4 right-4 z-50 pointer-events-none flex flex-col gap-2" id="toast-container"></div>
+</body></html>

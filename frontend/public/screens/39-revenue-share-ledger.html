@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Revenue Share Ledger — City Diagnostic Lab (LabFlow)</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Manrope:wght@500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "surface-container-low": "#f2f3ff",
+            "surface-tint": "#006a63",
+            "on-primary-fixed": "#00201d",
+            "on-secondary-fixed": "#00201d",
+            "error": "#ba1a1a",
+            "on-primary-container": "#a3faef",
+            "surface-variant": "#dae2fd",
+            "inverse-on-surface": "#eef0ff",
+            "tertiary-fixed-dim": "#8fd3cc",
+            "error-container": "#ffdad6",
+            "on-error-container": "#93000a",
+            "surface-container-highest": "#dae2fd",
+            "inverse-primary": "#80d5cb",
+            "secondary-fixed": "#89f5e7",
+            "outline": "#6e7977",
+            "on-primary": "#ffffff",
+            "primary-container": "#0f766e",
+            "on-secondary": "#ffffff",
+            "surface-bright": "#faf8ff",
+            "inverse-surface": "#283044",
+            "surface-container-lowest": "#ffffff",
+            "on-tertiary": "#ffffff",
+            "primary-fixed-dim": "#80d5cb",
+            "tertiary": "#0c5b56",
+            "on-primary-fixed-variant": "#00504a",
+            "on-error": "#ffffff",
+            "on-tertiary-container": "#b3f7f0",
+            "background": "#faf8ff",
+            "tertiary-fixed": "#abefe8",
+            "secondary-fixed-dim": "#6bd8cb",
+            "surface-dim": "#d2d9f4",
+            "primary-fixed": "#9cf2e8",
+            "on-secondary-container": "#006f66",
+            "on-surface-variant": "#3e4947",
+            "on-background": "#131b2e",
+            "surface-container": "#eaedff",
+            "surface": "#faf8ff",
+            "on-tertiary-fixed-variant": "#00504b",
+            "secondary-container": "#86f2e4",
+            "primary": "#005c55",
+            "on-tertiary-fixed": "#00201e",
+            "on-secondary-fixed-variant": "#005049",
+            "tertiary-container": "#2f746f",
+            "outline-variant": "#bdc9c6",
+            "surface-container-high": "#e2e7ff",
+            "secondary": "#006a61",
+            "on-surface": "#131b2e"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.25rem",
+            "lg": "0.5rem",
+            "xl": "0.75rem",
+            "full": "9999px"
+          },
+          "spacing": {
+            "space-xl": "2rem",
+            "space-lg": "1.5rem",
+            "margin-lg": "2rem",
+            "gutter": "1rem",
+            "space-xs": "0.25rem",
+            "space-md": "1rem",
+            "space-sm": "0.5rem",
+            "gutter-md": "1.25rem",
+            "space-2xl": "3rem",
+            "gutter-lg": "1.5rem",
+            "margin-md": "1.5rem",
+            "margin": "1rem"
+          },
+          "fontFamily": {
+            "headline-lg": ["Manrope"],
+            "data-mono": ["Inter"],
+            "body-lg": ["Inter"],
+            "headline-md": ["Manrope"],
+            "label-sm": ["Inter"],
+            "body-sm": ["Inter"],
+            "label-md": ["Inter"],
+            "display-lg-mobile": ["Manrope"],
+            "headline-sm": ["Manrope"],
+            "display-lg": ["Manrope"],
+            "body-md": ["Inter"]
+          },
+          "fontSize": {
+            "headline-lg": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.015em", "fontWeight": "600" }],
+            "data-mono": ["13px", { "lineHeight": "18px", "letterSpacing": "-0.01em", "fontWeight": "500" }],
+            "body-lg": ["16px", { "lineHeight": "24px", "letterSpacing": "0em", "fontWeight": "400" }],
+            "headline-md": ["20px", { "lineHeight": "28px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+            "label-sm": ["11px", { "lineHeight": "14px", "letterSpacing": "0.03em", "fontWeight": "600" }],
+            "body-sm": ["12px", { "lineHeight": "16px", "letterSpacing": "0.01em", "fontWeight": "400" }],
+            "label-md": ["13px", { "lineHeight": "18px", "letterSpacing": "0.01em", "fontWeight": "500" }],
+            "display-lg-mobile": ["28px", { "lineHeight": "36px", "letterSpacing": "-0.015em", "fontWeight": "700" }],
+            "headline-sm": ["16px", { "lineHeight": "24px", "letterSpacing": "-0.005em", "fontWeight": "600" }],
+            "display-lg": ["36px", { "lineHeight": "44px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+            "body-md": ["14px", { "lineHeight": "20px", "letterSpacing": "0em", "fontWeight": "400" }]
+          }
+        },
+      },
+    }
+  </script>
+</head>
+<body class="bg-slate-50 text-slate-900 antialiased font-body-md text-body-md min-h-screen flex flex-col selection:bg-teal-100 selection:text-teal-900">
+<!-- TOP HEADER (Desktop TopNavBar Anchor) -->
+<header class="bg-surface-container-lowest dark:bg-surface-dim h-14 flex items-center justify-between px-space-lg w-full docked full-width top-0 z-40 border-b border-outline-variant dark:border-outline shadow-sm dark:shadow-none sticky">
+<!-- Brand + Branch Context -->
+<div class="flex items-center gap-space-md">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-xl" data-icon="biotech">biotech</span>
+<span class="text-headline-sm font-headline-sm font-semibold text-primary dark:text-primary-fixed tracking-tight">City Diagnostic Lab</span>
+</div>
+<div class="h-4 w-[1px] bg-slate-200"></div>
+<div class="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-slate-100 border border-slate-200 text-label-sm font-label-sm text-slate-700">
+<span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
+<span>Main Branch — Gulberg, Lahore</span>
+</div>
+</div>
+<!-- Center/Trailing Navigation & User Context -->
+<div class="flex items-center gap-space-lg">
+<div class="flex items-center gap-4 text-label-md font-label-md">
+<button class="text-on-surface-variant dark:text-outline-variant font-medium hover:bg-surface-container-low dark:hover:bg-surface-container hover:text-on-surface dark:hover:text-on-surface-variant px-2 py-1 rounded transition-colors duration-150">All branches</button>
+<button class="text-on-surface-variant dark:text-outline-variant font-medium hover:bg-surface-container-low dark:hover:bg-surface-container hover:text-on-surface dark:hover:text-on-surface-variant px-2 py-1 rounded transition-colors duration-150">English / اردو</button>
+</div>
+<div class="flex items-center gap-2 text-slate-500">
+<button class="p-1.5 rounded-md hover:bg-slate-100 hover:text-slate-800 transition-colors" title="Notifications">
+<span class="material-symbols-outlined text-xl" data-icon="notifications">notifications</span>
+</button>
+<button class="p-1.5 rounded-md hover:bg-slate-100 hover:text-slate-800 transition-colors" title="Help &amp; Documentation">
+<span class="material-symbols-outlined text-xl" data-icon="help_outline">help_outline</span>
+</button>
+</div>
+<div class="h-4 w-[1px] bg-slate-200"></div>
+<!-- User Profile & Session -->
+<div class="flex items-center gap-space-sm">
+<div class="h-8 w-8 rounded-full bg-primary-container text-white flex items-center justify-center font-semibold text-xs tracking-wider">
+          AR
+        </div>
+<div class="flex flex-col text-left">
+<span class="text-label-sm font-label-sm font-semibold text-slate-900 leading-tight">Ali Raza</span>
+<span class="text-[10px] text-slate-500 font-medium leading-none">Owner</span>
+</div>
+<button class="ml-2 text-label-sm font-label-sm text-slate-500 hover:text-rose-600 px-2 py-1 rounded transition-colors">
+          Logout
+        </button>
+</div>
+</div>
+</header>
+<!-- WORKSPACE BODY WITH SIDE NAVIGATION -->
+<div class="flex flex-1 w-full max-w-[1440px] mx-auto overflow-hidden">
+<!-- LEFT SIDEBAR (SideNavBar Component Blueprint) -->
+<aside class="bg-surface-container-lowest dark:bg-surface-dim border-r border-outline-variant dark:border-outline w-60 shrink-0 h-[calc(100vh-3.5rem)] sticky top-14 left-0 flex flex-col justify-between py-space-md px-space-sm overflow-y-auto">
+<div class="flex flex-col space-y-4">
+<!-- Clinical Section -->
+<div>
+<div class="px-space-sm mb-1.5 text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
+            Clinical / Lab Operations
+          </div>
+<nav class="space-y-0.5">
+<a class="flex items-center gap-2.5 text-on-surface-variant dark:text-outline-variant hover:text-on-surface dark:hover:text-surface-bright hover:bg-surface-container-low dark:hover:bg-surface-container font-medium px-space-sm py-1.5 rounded-lg text-label-md font-label-md transition-all duration-150" href="#">
+<span class="material-symbols-outlined text-[18px]" data-icon="dashboard">dashboard</span>
+<span>Home</span>
+</a>
+<a class="flex items-center gap-2.5 text-on-surface-variant dark:text-outline-variant hover:text-on-surface dark:hover:text-surface-bright hover:bg-surface-container-low dark:hover:bg-surface-container font-medium px-space-sm py-1.5 rounded-lg text-label-md font-label-md transition-all duration-150" href="#">
+<span class="material-symbols-outlined text-[18px]" data-icon="personal_injury">personal_injury</span>
+<span>Patients</span>
+</a>
+<a class="flex items-center gap-2.5 text-on-surface-variant dark:text-outline-variant hover:text-on-surface dark:hover:text-surface-bright hover:bg-surface-container-low dark:hover:bg-surface-container font-medium px-space-sm py-1.5 rounded-lg text-label-md font-label-md transition-all duration-150" href="#">
+<span class="material-symbols-outlined text-[18px]" data-icon="receipt_long">receipt_long</span>
+<span>Invoices</span>
+</a>
+<a class="flex items-center gap-2.5 text-on-surface-variant dark:text-outline-variant hover:text-on-surface dark:hover:text-surface-bright hover:bg-surface-container-low dark:hover:bg-surface-container font-medium px-space-sm py-1.5 rounded-lg text-label-md font-label-md transition-all duration-150" href="#">
+<span class="material-symbols-outlined text-[18px]" data-icon="biotech">biotech</span>
+<span>Samples</span>
+</a>
+<a class="flex items-center gap-2.5 text-on-surface-variant dark:text-outline-variant hover:text-on-surface dark:hover:text-surface-bright hover:bg-surface-container-low dark:hover:bg-surface-container font-medium px-space-sm py-1.5 rounded-lg text-label-md font-label-md transition-all duration-150" href="#">
+<span class="material-symbols-outlined text-[18px]" data-icon="assignment">assignment</span>
+<span>Worklist</span>
+</a>
+<a class="flex items-center gap-2.5 text-on-surface-variant dark:text-outline-variant hover:text-on-surface dark:hover:text-surface-bright hover:bg-surface-container-low dark:hover:bg-surface-container font-medium px-space-sm py-1.5 rounded-lg text-label-md font-label-md transition-all duration-150" href="#">
+<span class="material-symbols-outlined text-[18px]" data-icon="edit_note">edit_note</span>
+<span>Results</span>
+</a>
+<a class="flex items-center justify-between text-on-surface-variant dark:text-outline-variant hover:text-on-surface dark:hover:text-surface-bright hover:bg-surface-container-low dark:hover:bg-surface-container font-medium px-space-sm py-1.5 rounded-lg text-label-md font-label-md transition-all duration-150" href="#">
+<div class="flex items-center gap-2.5">
+<span class="material-symbols-outlined text-[18px]" data-icon="verified">verified</span>
+<span>Approvals</span>
+</div>
+<span class="px-1.5 py-0.5 text-[10px] font-semibold rounded bg-[#fef3c7] text-[#b45309] border border-[#fde68a]">9</span>
+</a>
+<a class="flex items-center gap-2.5 text-on-surface-variant dark:text-outline-variant hover:text-on-surface dark:hover:text-surface-bright hover:bg-surface-container-low dark:hover:bg-surface-container font-medium px-space-sm py-1.5 rounded-lg text-label-md font-label-md transition-all duration-150" href="#">
+<span class="material-symbols-outlined text-[18px]" data-icon="description">description</span>
+<span>Reports</span>
+</a>
+<a class="flex items-center justify-between text-on-surface-variant dark:text-outline-variant hover:text-on-surface dark:hover:text-surface-bright hover:bg-surface-container-low dark:hover:bg-surface-container font-medium px-space-sm py-1.5 rounded-lg text-label-md font-label-md transition-all duration-150" href="#">
+<div class="flex items-center gap-2.5">
+<span class="material-symbols-outlined text-[18px]" data-icon="report_problem">report_problem</span>
+<span>Exceptions</span>
+</div>
+<span class="px-1.5 py-0.5 text-[10px] font-semibold rounded bg-red-100 text-red-600 border border-red-200">5</span>
+</a>
+<a class="flex items-center gap-2.5 text-on-surface-variant dark:text-outline-variant hover:text-on-surface dark:hover:text-surface-bright hover:bg-surface-container-low dark:hover:bg-surface-container font-medium px-space-sm py-1.5 rounded-lg text-label-md font-label-md transition-all duration-150" href="#">
+<span class="material-symbols-outlined text-[18px]" data-icon="inventory_2">inventory_2</span>
+<span>Catalog</span>
+</a>
+</nav>
+</div>
+<!-- Management Section -->
+<div>
+<div class="px-space-sm mb-1.5 text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
+            Management
+          </div>
+<nav class="space-y-0.5">
+<a class="flex items-center gap-2.5 text-on-surface-variant dark:text-outline-variant hover:text-on-surface dark:hover:text-surface-bright hover:bg-surface-container-low dark:hover:bg-surface-container font-medium px-space-sm py-1.5 rounded-lg text-label-md font-label-md transition-all duration-150" href="#">
+<span class="material-symbols-outlined text-[18px]" data-icon="store">store</span>
+<span>Branches</span>
+</a>
+<a class="flex items-center gap-2.5 text-on-surface-variant dark:text-outline-variant hover:text-on-surface dark:hover:text-surface-bright hover:bg-surface-container-low dark:hover:bg-surface-container font-medium px-space-sm py-1.5 rounded-lg text-label-md font-label-md transition-all duration-150" href="#">
+<span class="material-symbols-outlined text-[18px]" data-icon="group">group</span>
+<span>Staff</span>
+</a>
+<!-- ACTIVE TAB: Partners / Share Ledger -->
+<a class="bg-teal-50 text-teal-800 font-semibold border-l-4 border-teal-600 rounded-r-lg px-space-sm py-1.5 flex items-center gap-2.5 text-label-md font-label-md" href="#">
+<span class="material-symbols-outlined text-[18px] text-teal-700" data-icon="handshake">handshake</span>
+<span>Partners</span>
+</a>
+<a class="flex items-center gap-2.5 text-on-surface-variant dark:text-outline-variant hover:text-on-surface dark:hover:text-surface-bright hover:bg-surface-container-low dark:hover:bg-surface-container font-medium px-space-sm py-1.5 rounded-lg text-label-md font-label-md transition-all duration-150" href="#">
+<span class="material-symbols-outlined text-[18px]" data-icon="account_balance_wallet">account_balance_wallet</span>
+<span>Settlements</span>
+</a>
+<a class="flex items-center gap-2.5 text-on-surface-variant dark:text-outline-variant hover:text-on-surface dark:hover:text-surface-bright hover:bg-surface-container-low dark:hover:bg-surface-container font-medium px-space-sm py-1.5 rounded-lg text-label-md font-label-md transition-all duration-150" href="#">
+<span class="material-symbols-outlined text-[18px]" data-icon="settings">settings</span>
+<span>Tenant Settings</span>
+</a>
+<a class="flex items-center gap-2.5 text-on-surface-variant dark:text-outline-variant hover:text-on-surface dark:hover:text-surface-bright hover:bg-surface-container-low dark:hover:bg-surface-container font-medium px-space-sm py-1.5 rounded-lg text-label-md font-label-md transition-all duration-150" href="#">
+<span class="material-symbols-outlined text-[18px]" data-icon="download">download</span>
+<span>Exports</span>
+</a>
+</nav>
+</div>
+</div>
+<!-- Footer navigation info -->
+<div class="pt-4 border-t border-slate-200 space-y-1">
+<a class="flex items-center gap-2 px-space-sm py-1.5 text-slate-500 hover:text-slate-900 rounded-lg text-label-sm font-label-sm transition-colors" href="#">
+<span class="material-symbols-outlined text-base" data-icon="help">help</span>
+<span>Help &amp; docs</span>
+</a>
+<div class="px-space-sm py-1 text-[10px] text-slate-400 font-mono">
+          ISO 15189 v2022 Validated
+        </div>
+</div>
+</aside>
+<!-- MAIN SCROLLABLE CONTENT CANVAS -->
+<main class="flex-1 overflow-y-auto bg-slate-50 p-space-lg">
+<div class="max-w-[1140px] mx-auto space-y-space-md">
+<!-- Breadcrumbs & Header -->
+<div>
+<nav class="flex items-center gap-1.5 text-label-sm font-label-sm text-slate-500 mb-1">
+<span>Management</span>
+<span class="material-symbols-outlined text-xs text-slate-400" data-icon="chevron_right">chevron_right</span>
+<span>Partners</span>
+<span class="material-symbols-outlined text-xs text-slate-400" data-icon="chevron_right">chevron_right</span>
+<span class="text-slate-900 font-medium">Share Ledger</span>
+</nav>
+<div class="flex items-center justify-between">
+<div>
+<h1 class="text-headline-lg font-headline-lg text-slate-900 font-semibold tracking-tight">Revenue Share Ledger</h1>
+<p class="text-body-sm font-body-sm text-slate-600 mt-0.5">Every revenue-share entry, per payment</p>
+</div>
+<div class="flex items-center gap-2">
+<div class="px-2.5 py-1 rounded-md bg-slate-200/70 border border-slate-300 text-slate-700 text-label-sm font-label-sm flex items-center gap-1.5">
+<span class="material-symbols-outlined text-sm" data-icon="verified_user">verified_user</span>
+<span>Audit Lock: Active</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Audit Banner (Immutable Ledger Compliance) -->
+<div class="p-3.5 bg-sky-50/80 border border-sky-200 rounded-xl flex items-start gap-3 text-sky-900 shadow-sm">
+<span class="material-symbols-outlined text-sky-700 text-xl shrink-0 mt-0.5" data-icon="security">security</span>
+<div class="text-body-sm font-body-sm space-y-0.5">
+<p class="font-semibold text-slate-900">Append-only — entries cannot be edited or deleted.</p>
+<p class="text-slate-600">Immutable financial audit log complying with ISO 15189 §5.7 and multi-tenant laboratory fiscal governance.</p>
+</div>
+</div>
+<!-- Summary Stat Bento Cards (3 cards) -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-space-md">
+<!-- Stat Card 1 -->
+<div class="bg-surface-container-lowest border border-slate-200 rounded-xl p-space-md shadow-sm">
+<div class="flex items-center justify-between text-slate-500 mb-2">
+<span class="text-label-md font-label-md">Recorded Shares (Oct 2026)</span>
+<span class="material-symbols-outlined text-slate-400 text-lg" data-icon="receipt">receipt</span>
+</div>
+<div class="text-headline-lg font-headline-lg text-slate-900 font-bold tracking-tight">
+              PKR 22140.00
+            </div>
+<div class="text-body-sm font-body-sm text-slate-500 mt-1">
+              48 total ledger entries
+            </div>
+</div>
+<!-- Stat Card 2 -->
+<div class="bg-surface-container-lowest border border-slate-200 rounded-xl p-space-md shadow-sm">
+<div class="flex items-center justify-between text-slate-500 mb-2">
+<span class="text-label-md font-label-md">Active Referral Partners</span>
+<span class="material-symbols-outlined text-slate-400 text-lg" data-icon="hub">hub</span>
+</div>
+<div class="text-headline-lg font-headline-lg text-slate-900 font-bold tracking-tight">
+              14 Partners
+            </div>
+<div class="text-body-sm font-body-sm text-slate-500 mt-1">
+              Across 3 operational branches
+            </div>
+</div>
+<!-- Stat Card 3 -->
+<div class="bg-surface-container-lowest border border-slate-200 rounded-xl p-space-md shadow-sm">
+<div class="flex items-center justify-between text-slate-500 mb-2">
+<span class="text-label-md font-label-md">Pending Settlement</span>
+<span class="material-symbols-outlined text-slate-400 text-lg" data-icon="pending_actions">pending_actions</span>
+</div>
+<div class="text-headline-lg font-headline-lg text-slate-900 font-bold tracking-tight">
+              PKR 22140.00
+            </div>
+<div class="text-body-sm font-body-sm text-slate-500 mt-1">
+              Cycle cut-off: 31 Oct 2026
+            </div>
+</div>
+</div>
+<!-- Filter & Search Toolbar -->
+<div class="bg-surface-container-lowest border border-slate-200 rounded-xl p-3 shadow-sm flex flex-wrap items-center justify-between gap-3">
+<div class="flex flex-wrap items-center gap-2.5 flex-1 min-w-[620px]">
+<!-- Search Input -->
+<div class="relative min-w-[280px] flex-1">
+<span class="material-symbols-outlined absolute left-2.5 top-2.5 text-slate-400 text-lg pointer-events-none" data-icon="search">search</span>
+<input class="w-full bg-slate-50/70 border border-slate-200 rounded-lg pl-9 pr-3 py-1.5 text-body-sm font-body-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-600 focus:border-teal-600 focus:bg-white transition-all" placeholder="Search invoice ref, partner or entry ID..." type="text"/>
+</div>
+<!-- Partner Dropdown -->
+<div class="relative">
+<select class="appearance-none bg-slate-50/70 border border-slate-200 rounded-lg pl-3 pr-8 py-1.5 text-label-md font-label-md text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-600 focus:border-teal-600 cursor-pointer">
+<option selected="">All partners</option>
+<option>Dr. Farhan Qureshi</option>
+<option>Shifa Medical Centre</option>
+<option>Dr. Nadia Aslam</option>
+<option>City Care Hospital</option>
+</select>
+<span class="material-symbols-outlined absolute right-2 top-2 text-slate-400 text-base pointer-events-none" data-icon="expand_more">expand_more</span>
+</div>
+<!-- Date Range Picker -->
+<div class="flex items-center gap-1.5 bg-slate-50/70 border border-slate-200 rounded-lg px-2.5 py-1.5 text-label-md font-label-md text-slate-700">
+<span class="material-symbols-outlined text-slate-400 text-base" data-icon="calendar_today">calendar_today</span>
+<span>01 Oct 2026 - 20 Oct 2026</span>
+</div>
+<!-- Branch Filter -->
+<div class="relative">
+<select class="appearance-none bg-slate-50/70 border border-slate-200 rounded-lg pl-3 pr-8 py-1.5 text-label-md font-label-md text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-600 focus:border-teal-600 cursor-pointer">
+<option selected="">Main Branch — Gulberg</option>
+<option>DHA Phase 5 Collection Centre</option>
+<option>Johar Town Diagnostic Hub</option>
+</select>
+<span class="material-symbols-outlined absolute right-2 top-2 text-slate-400 text-base pointer-events-none" data-icon="expand_more">expand_more</span>
+</div>
+</div>
+<!-- Actions -->
+<div class="flex items-center gap-2">
+<button class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-label-md text-label-md transition-colors shadow-sm">
+<span class="material-symbols-outlined text-base text-slate-500" data-icon="file_download">file_download</span>
+<span>Export CSV</span>
+</button>
+</div>
+</div>
+<!-- Ledger Table Card -->
+<div class="bg-surface-container-lowest border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-slate-50/80 border-b border-slate-200 text-slate-600 text-label-sm font-label-sm uppercase tracking-wider">
+<th class="py-2.5 px-3 font-semibold">Entry ID</th>
+<th class="py-2.5 px-3 font-semibold">Date &amp; Time</th>
+<th class="py-2.5 px-3 font-semibold">Partner</th>
+<th class="py-2.5 px-3 font-semibold">Invoice Ref</th>
+<th class="py-2.5 px-3 font-semibold">Patient / MRN</th>
+<th class="py-2.5 px-3 font-semibold text-right">Paid Amount</th>
+<th class="py-2.5 px-3 font-semibold text-right">Share %</th>
+<th class="py-2.5 px-3 font-semibold text-right">Share Amount</th>
+<th class="py-2.5 px-3 font-semibold text-center">Status</th>
+<th class="py-2.5 px-3 font-semibold">Notes / Reference</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-slate-100 text-body-sm font-body-sm text-slate-800">
+<!-- Row 1 -->
+<tr class="hover:bg-slate-50/70 transition-colors">
+<td class="py-2.5 px-3 font-mono font-medium text-slate-900">#1048</td>
+<td class="py-2.5 px-3 text-slate-600 whitespace-nowrap">20 Oct 2026 11:25 PKT</td>
+<td class="py-2.5 px-3">
+<div class="font-medium text-slate-900 leading-snug">Dr. Farhan Qureshi</div>
+<div class="text-[11px] text-slate-500">Doctor</div>
+</td>
+<td class="py-2.5 px-3 font-mono text-slate-700">INV-2026-00891</td>
+<td class="py-2.5 px-3">
+<div class="font-medium text-slate-900">Muhammad Imran</div>
+<div class="text-[11px] font-mono text-slate-500">MRN-2026-00417</div>
+</td>
+<td class="py-2.5 px-3 text-right font-mono font-medium text-slate-900 whitespace-nowrap">PKR 2000.00</td>
+<td class="py-2.5 px-3 text-right font-mono text-slate-700">12.00%</td>
+<td class="py-2.5 px-3 text-right font-mono font-semibold text-slate-900 whitespace-nowrap">PKR 240.00</td>
+<td class="py-2.5 px-3 text-center whitespace-nowrap">
+<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-label-sm font-label-sm bg-emerald-50 text-emerald-700 border border-emerald-200">
+<span class="h-1.5 w-1.5 rounded-full bg-emerald-600"></span>
+                      Recorded
+                    </span>
+</td>
+<td class="py-2.5 px-3 text-slate-600 text-body-sm">CBC, HbA1c</td>
+</tr>
+<!-- Row 2 -->
+<tr class="hover:bg-slate-50/70 transition-colors">
+<td class="py-2.5 px-3 font-mono font-medium text-slate-900">#1047</td>
+<td class="py-2.5 px-3 text-slate-600 whitespace-nowrap">20 Oct 2026 10:40 PKT</td>
+<td class="py-2.5 px-3">
+<div class="font-medium text-slate-900 leading-snug">Shifa Medical Centre</div>
+<div class="text-[11px] text-slate-500">Clinic</div>
+</td>
+<td class="py-2.5 px-3 font-mono text-slate-700">INV-2026-00888</td>
+<td class="py-2.5 px-3">
+<div class="font-medium text-slate-900">Zainab Bibi</div>
+<div class="text-[11px] font-mono text-slate-500">MRN-2026-00415</div>
+</td>
+<td class="py-2.5 px-3 text-right font-mono font-medium text-slate-900 whitespace-nowrap">PKR 6400.00</td>
+<td class="py-2.5 px-3 text-right font-mono text-slate-700">10.00%</td>
+<td class="py-2.5 px-3 text-right font-mono font-semibold text-slate-900 whitespace-nowrap">PKR 640.00</td>
+<td class="py-2.5 px-3 text-center whitespace-nowrap">
+<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-label-sm font-label-sm bg-emerald-50 text-emerald-700 border border-emerald-200">
+<span class="h-1.5 w-1.5 rounded-full bg-emerald-600"></span>
+                      Recorded
+                    </span>
+</td>
+<td class="py-2.5 px-3 text-slate-600 text-body-sm">LFT, RFT</td>
+</tr>
+<!-- Row 3 -->
+<tr class="hover:bg-slate-50/70 transition-colors">
+<td class="py-2.5 px-3 font-mono font-medium text-slate-900">#1046</td>
+<td class="py-2.5 px-3 text-slate-600 whitespace-nowrap">19 Oct 2026 17:15 PKT</td>
+<td class="py-2.5 px-3">
+<div class="font-medium text-slate-900 leading-snug">Dr. Farhan Qureshi</div>
+<div class="text-[11px] text-slate-500">Doctor</div>
+</td>
+<td class="py-2.5 px-3 font-mono text-slate-700">INV-2026-00874</td>
+<td class="py-2.5 px-3">
+<div class="font-medium text-slate-900">Tariq Mahmood Khan</div>
+<div class="text-[11px] font-mono text-slate-500">MRN-2026-00392</div>
+</td>
+<td class="py-2.5 px-3 text-right font-mono font-medium text-slate-900 whitespace-nowrap">PKR 4050.00</td>
+<td class="py-2.5 px-3 text-right font-mono text-slate-700">12.00%</td>
+<td class="py-2.5 px-3 text-right font-mono font-semibold text-slate-900 whitespace-nowrap">PKR 486.00</td>
+<td class="py-2.5 px-3 text-center whitespace-nowrap">
+<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-label-sm font-label-sm bg-emerald-50 text-emerald-700 border border-emerald-200">
+<span class="h-1.5 w-1.5 rounded-full bg-emerald-600"></span>
+                      Recorded
+                    </span>
+</td>
+<td class="py-2.5 px-3 text-slate-600 text-body-sm">Lipid Profile, LFT</td>
+</tr>
+<!-- Row 4 -->
+<tr class="hover:bg-slate-50/70 transition-colors">
+<td class="py-2.5 px-3 font-mono font-medium text-slate-900">#1045</td>
+<td class="py-2.5 px-3 text-slate-600 whitespace-nowrap">19 Oct 2026 14:10 PKT</td>
+<td class="py-2.5 px-3">
+<div class="font-medium text-slate-900 leading-snug">Dr. Nadia Aslam</div>
+<div class="text-[11px] text-slate-500">Doctor</div>
+</td>
+<td class="py-2.5 px-3 font-mono text-slate-700">INV-2026-00870</td>
+<td class="py-2.5 px-3">
+<div class="font-medium text-slate-900">Sana Malik</div>
+<div class="text-[11px] font-mono text-slate-500">MRN-2026-00431</div>
+</td>
+<td class="py-2.5 px-3 text-right font-mono font-medium text-slate-900 whitespace-nowrap">PKR 1500.00</td>
+<td class="py-2.5 px-3 text-right font-mono text-slate-700">15.00%</td>
+<td class="py-2.5 px-3 text-right font-mono font-semibold text-slate-900 whitespace-nowrap">PKR 225.00</td>
+<td class="py-2.5 px-3 text-center whitespace-nowrap">
+<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-label-sm font-label-sm bg-emerald-50 text-emerald-700 border border-emerald-200">
+<span class="h-1.5 w-1.5 rounded-full bg-emerald-600"></span>
+                      Recorded
+                    </span>
+</td>
+<td class="py-2.5 px-3 text-slate-600 text-body-sm">Urine Complete</td>
+</tr>
+<!-- Row 5 (Reversal Entry) -->
+<tr class="bg-rose-50/20 hover:bg-rose-50/40 transition-colors">
+<td class="py-2.5 px-3 font-mono font-medium text-slate-900">#1044</td>
+<td class="py-2.5 px-3 text-slate-600 whitespace-nowrap">19 Oct 2026 11:05 PKT</td>
+<td class="py-2.5 px-3">
+<div class="font-medium text-slate-900 leading-snug">City Care Hospital</div>
+<div class="text-[11px] text-slate-500">Hospital</div>
+</td>
+<td class="py-2.5 px-3 font-mono text-slate-700">INV-2026-00862</td>
+<td class="py-2.5 px-3">
+<div class="font-medium text-slate-900">Khurram Shahzad</div>
+<div class="text-[11px] font-mono text-slate-500">MRN-2026-00289</div>
+</td>
+<td class="py-2.5 px-3 text-right font-mono font-medium text-slate-900 whitespace-nowrap">PKR 3500.00</td>
+<td class="py-2.5 px-3 text-right font-mono text-slate-700">8.00%</td>
+<td class="py-2.5 px-3 text-right font-mono font-semibold text-slate-900 whitespace-nowrap">-PKR 280.00</td>
+<td class="py-2.5 px-3 text-center whitespace-nowrap">
+<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-label-sm font-label-sm bg-rose-50 text-rose-700 border border-rose-200">
+<span class="h-1.5 w-1.5 rounded-full bg-rose-600"></span>
+                      Reversed
+                    </span>
+</td>
+<td class="py-2.5 px-3 text-slate-600 text-body-sm">Reversal of entry #1042 (Refund issued)</td>
+</tr>
+<!-- Row 6 (Baseline accession) -->
+<tr class="hover:bg-slate-50/70 transition-colors">
+<td class="py-2.5 px-3 font-mono font-medium text-slate-900">#1042</td>
+<td class="py-2.5 px-3 text-slate-600 whitespace-nowrap">18 Oct 2026 16:30 PKT</td>
+<td class="py-2.5 px-3">
+<div class="font-medium text-slate-900 leading-snug">City Care Hospital</div>
+<div class="text-[11px] text-slate-500">Hospital</div>
+</td>
+<td class="py-2.5 px-3 font-mono text-slate-700">INV-2026-00862</td>
+<td class="py-2.5 px-3">
+<div class="font-medium text-slate-900">Khurram Shahzad</div>
+<div class="text-[11px] font-mono text-slate-500">MRN-2026-00289</div>
+</td>
+<td class="py-2.5 px-3 text-right font-mono font-medium text-slate-900 whitespace-nowrap">PKR 3500.00</td>
+<td class="py-2.5 px-3 text-right font-mono text-slate-700">8.00%</td>
+<td class="py-2.5 px-3 text-right font-mono font-semibold text-slate-900 whitespace-nowrap">PKR 280.00</td>
+<td class="py-2.5 px-3 text-center whitespace-nowrap">
+<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-label-sm font-label-sm bg-emerald-50 text-emerald-700 border border-emerald-200">
+<span class="h-1.5 w-1.5 rounded-full bg-emerald-600"></span>
+                      Recorded
+                    </span>
+</td>
+<td class="py-2.5 px-3 text-slate-600 text-body-sm">Baseline accession (Referenced by #1044 reversal)</td>
+</tr>
+<!-- Row 7 -->
+<tr class="hover:bg-slate-50/70 transition-colors">
+<td class="py-2.5 px-3 font-mono font-medium text-slate-900">#1041</td>
+<td class="py-2.5 px-3 text-slate-600 whitespace-nowrap">18 Oct 2026 12:20 PKT</td>
+<td class="py-2.5 px-3">
+<div class="font-medium text-slate-900 leading-snug">Shifa Medical Centre</div>
+<div class="text-[11px] text-slate-500">Clinic</div>
+</td>
+<td class="py-2.5 px-3 font-mono text-slate-700">INV-2026-00859</td>
+<td class="py-2.5 px-3">
+<div class="font-medium text-slate-900">Rashid Mehmood</div>
+<div class="text-[11px] font-mono text-slate-500">MRN-2026-00093</div>
+</td>
+<td class="py-2.5 px-3 text-right font-mono font-medium text-slate-900 whitespace-nowrap">PKR 3800.00</td>
+<td class="py-2.5 px-3 text-right font-mono text-slate-700">12.50%</td>
+<td class="py-2.5 px-3 text-right font-mono font-semibold text-slate-900 whitespace-nowrap">PKR 475.00</td>
+<td class="py-2.5 px-3 text-center whitespace-nowrap">
+<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-label-sm font-label-sm bg-emerald-50 text-emerald-700 border border-emerald-200">
+<span class="h-1.5 w-1.5 rounded-full bg-emerald-600"></span>
+                      Recorded
+                    </span>
+</td>
+<td class="py-2.5 px-3 text-slate-600 text-body-sm">Thyroid Profile</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Table Footer Pagination -->
+<div class="py-3 px-4 bg-slate-50/80 border-t border-slate-200 flex items-center justify-between text-body-sm font-body-sm text-slate-600">
+<div>
+              Showing <span class="font-medium text-slate-900">7</span> of <span class="font-medium text-slate-900">48</span> entries
+            </div>
+<div class="flex items-center gap-2">
+<button class="px-3 py-1 rounded-md border border-slate-200 bg-white text-slate-400 cursor-not-allowed text-label-md font-label-md">
+                Previous
+              </button>
+<div class="flex items-center gap-1">
+<button class="px-2.5 py-1 rounded-md bg-teal-600 text-white font-medium text-label-sm font-label-sm">1</button>
+<button class="px-2.5 py-1 rounded-md hover:bg-slate-100 text-slate-700 font-medium text-label-sm font-label-sm">2</button>
+<button class="px-2.5 py-1 rounded-md hover:bg-slate-100 text-slate-700 font-medium text-label-sm font-label-sm">3</button>
+<span class="px-1 text-slate-400">...</span>
+<button class="px-2.5 py-1 rounded-md hover:bg-slate-100 text-slate-700 font-medium text-label-sm font-label-sm">7</button>
+</div>
+<button class="px-3 py-1 rounded-md border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-label-md text-label-md transition-colors shadow-sm">
+                Next
+              </button>
+</div>
+</div>
+</div>
+<!-- Ledger Integrity & Disclaimer Note -->
+<div class="flex items-center justify-between text-[11px] text-slate-400 pt-1 pb-4">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-sm text-slate-400" data-icon="lock">lock</span>
+<span>Cryptographic hash ledger integrity: SHA-256 anchored per cycle</span>
+</div>
+<div>Tenant ID: PK-LHE-CDL-001 (City Diagnostic Lab)</div>
+</div>
+</div>
+</main>
+</div>
+<!-- FIXED BOTTOM-RIGHT TOAST NOTIFICATION CONTAINER ANCHOR -->
+<div class="fixed bottom-4 right-4 z-50 pointer-events-none flex flex-col gap-2" id="toast-container"></div>
+</body></html>

@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+
+<html lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><meta content="web_dashboard" name="shell-type"/><link href="https://fonts.googleapis.com" rel="preconnect"/><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Manrope:wght@600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config={darkMode:"class",theme:{extend:{colors:{"surface-container-high":"#e2e7ff","secondary-fixed-dim":"#6bd8cb","primary-fixed":"#9cf2e8","on-background":"#131b2e","on-secondary-container":"#006f66","error":"#ba1a1a","on-primary-container":"#a3faef","background":"#faf8ff","on-tertiary-fixed-variant":"#00504b","on-tertiary-fixed":"#00201e","on-secondary-fixed":"#00201d","secondary-container":"#86f2e4","primary":"#005c55","on-primary-fixed-variant":"#00504a","outline-variant":"#bdc9c6","surface-container-low":"#f2f3ff","on-secondary-fixed-variant":"#005049","surface-variant":"#dae2fd","tertiary-container":"#2f746f","secondary-fixed":"#89f5e7","outline":"#6e7977","tertiary-fixed-dim":"#8fd3cc","on-primary-fixed":"#00201d","inverse-surface":"#283044","surface-tint":"#006a63","surface-bright":"#faf8ff","surface-container-lowest":"#ffffff","surface-container-highest":"#dae2fd","primary-container":"#0f766e","on-primary":"#ffffff","on-error":"#ffffff","surface-dim":"#d2d9f4","inverse-primary":"#80d5cb","primary-fixed-dim":"#80d5cb","inverse-on-surface":"#eef0ff","secondary":"#006a61","on-secondary":"#ffffff","on-tertiary":"#ffffff","surface-container":"#eaedff","error-container":"#ffdad6","on-surface-variant":"#3e4947","surface":"#faf8ff","on-error-container":"#93000a","on-surface":"#131b2e","tertiary-fixed":"#abefe8","on-tertiary-container":"#b3f7f0","tertiary":"#0c5b56"},borderRadius:{"DEFAULT":"0.25rem","lg":"0.5rem","xl":"0.75rem","full":"9999px"},spacing:{"margin-md":"1.5rem","margin":"1rem","space-lg":"1.5rem","space-xl":"2rem","space-2xl":"3rem","gutter":"1rem","gutter-md":"1.25rem","space-sm":"0.5rem","space-xs":"0.25rem","gutter-lg":"1.5rem","margin-lg":"2rem","space-md":"1rem"},fontFamily:{"display-lg-mobile":["Manrope"],"label-md":["Inter"],"headline-md":["Manrope"],"body-sm":["Inter"],"label-sm":["Inter"],"body-lg":["Inter"],"body-md":["Inter"],"headline-lg":["Manrope"],"display-lg":["Manrope"],"data-mono":["Inter"],"headline-sm":["Manrope"]},fontSize:{"display-lg-mobile":["28px",{lineHeight:"36px",letterSpacing:"-0.015em",fontWeight:"700"}],"label-md":["13px",{lineHeight:"18px",letterSpacing:"0.01em",fontWeight:"500"}],"headline-md":["20px",{lineHeight:"28px",letterSpacing:"-0.01em",fontWeight:"600"}],"body-sm":["12px",{lineHeight:"16px",letterSpacing:"0.01em",fontWeight:"400"}],"label-sm":["11px",{lineHeight:"14px",letterSpacing:"0.03em",fontWeight:"600"}],"body-lg":["16px",{lineHeight:"24px",letterSpacing:"0em",fontWeight:"400"}],"body-md":["14px",{lineHeight:"20px",letterSpacing:"0em",fontWeight:"400"}],"headline-lg":["24px",{lineHeight:"32px",letterSpacing:"-0.015em",fontWeight:"600"}],"display-lg":["36px",{lineHeight:"44px",letterSpacing:"-0.02em",fontWeight:"700"}],"data-mono":["13px",{lineHeight:"18px",letterSpacing:"-0.01em",fontWeight:"500"}],"headline-sm":["16px",{lineHeight:"24px",letterSpacing:"-0.005em",fontWeight:"600"}]}}}}</script></head><body class="bg-background font-body-md text-on-surface antialiased"><header class="fixed top-0 left-0 right-0 z-50 h-14 bg-surface-container-lowest border-b border-outline-variant/30"><div class="w-full h-full px-space-md flex items-center justify-between"><div class="flex items-center gap-space-xs"><span class="font-headline-sm text-headline-sm font-semibold text-on-surface">City Diagnostic Lab</span><span class="font-body-sm text-body-sm text-outline ml-space-xs">Gulberg Branch</span></div><div class="flex items-center gap-space-md"><div class="flex items-center bg-surface-container-low p-0.5 rounded-lg border border-outline-variant/30"><button class="px-space-sm py-0.5 rounded font-label-sm text-label-sm bg-surface-container-lowest text-on-surface shadow-sm" type="button">English</button><button class="px-space-sm py-0.5 rounded font-label-sm text-label-sm text-outline hover:text-on-surface transition-colors" type="button">اردو</button></div><div class="h-4 w-[1px] bg-outline-variant/40"></div><div class="flex items-center gap-space-sm"><div class="w-8 h-8 rounded-full bg-secondary-container text-on-secondary-container font-headline-sm text-headline-sm font-semibold flex items-center justify-center"><span class="font-label-md text-label-md font-semibold">UT</span></div><div class="flex flex-col text-left"><span class="font-body-md text-body-md font-medium text-on-surface leading-tight">Usman Tariq</span><span class="font-body-sm text-body-sm text-outline leading-none">Technician</span></div></div><a class="px-space-sm py-1 rounded-lg text-outline hover:text-error hover:bg-error-container/20 transition-colors font-label-md text-label-md" data-path="login" href="#">Log out</a></div></div></header><aside class="fixed left-0 top-14 bottom-0 w-60 bg-surface-container-lowest border-r border-outline-variant/30 z-40 p-space-sm"><nav class="flex flex-col gap-0.5 w-full" data-active-classes="bg-secondary-container/30 text-primary font-medium rounded-lg"><a class="block px-space-md py-2 rounded-lg text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-all font-body-md text-body-md" data-path="home" href="#">Home</a><a class="block px-space-md py-2 rounded-lg text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-all font-body-md text-body-md" data-path="patients" href="#">Patients</a><a class="block px-space-md py-2 rounded-lg text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-all font-body-md text-body-md" data-path="invoices-and-payments" href="#">Invoices &amp; payments</a><a class="block px-space-md py-2 rounded-lg text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-all font-body-md text-body-md" data-path="samples" href="#">Samples</a><a aria-current="page" class="block px-space-md py-2 transition-all bg-secondary-container/30 text-primary font-medium rounded-lg" data-path="worklist" href="#">Worklist</a><a class="block px-space-md py-2 rounded-lg text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-all font-body-md text-body-md" data-path="results-entry" href="#">Results entry</a><a class="block px-space-md py-2 rounded-lg text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-all font-body-md text-body-md" data-path="reports" href="#">Reports</a><a class="block px-space-md py-2 rounded-lg text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-all font-body-md text-body-md" data-path="catalog" href="#">Catalog</a></nav></aside><div class="pl-60"><main class="w-full pt-14 min-h-screen bg-background relative"><div class="flex flex-col w-full">
+<div class="p-space-lg max-w-[1360px] mx-auto w-full flex flex-col gap-space-md">
+<!-- Header Section -->
+<div class="flex flex-col sm:flex-row sm:items-baseline justify-between gap-space-xs">
+<div>
+<h1 class="font-headline-lg text-headline-lg font-bold text-on-surface tracking-tight">Worklist</h1>
+<p class="font-body-sm text-body-sm text-outline mt-0.5">Oldest first · 20 Oct 2026 · times are PKT</p>
+</div>
+<div class="flex items-center gap-space-sm text-outline font-data-mono text-body-sm bg-surface-container-low px-space-sm py-1 rounded-lg">
+<span class="inline-block w-2 h-2 rounded-full bg-primary animate-pulse"></span>
+<span>Live Telemetry Synchronized</span>
+</div>
+</div>
+<!-- Filter Bar (shadcn-inspired selects, strictly non-sortable) -->
+<div class="bg-surface-container-lowest p-space-sm rounded-xl shadow-sm flex flex-wrap items-center gap-space-md">
+<!-- Branch Select -->
+<div class="flex items-center gap-space-xs min-w-[200px]">
+<label class="font-label-sm text-label-sm text-outline uppercase tracking-wider pl-1">Branch</label>
+<div class="relative w-full">
+<select aria-label="Branch filter" class="w-full appearance-none bg-surface-container-low text-on-surface font-body-md text-body-md rounded-lg px-3 py-2 pr-8 focus:outline-none focus:ring-2 focus:ring-primary focus:bg-surface-container-lowest transition-all cursor-pointer">
+<option selected="" value="gulberg">Gulberg Branch</option>
+<option value="dha">DHA Phase 5 Branch</option>
+<option value="johar">Johar Town Branch</option>
+</select>
+<span class="material-symbols-outlined pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-outline text-[18px]">expand_more</span>
+</div>
+</div>
+<!-- Sample Status Select -->
+<div class="flex items-center gap-space-xs min-w-[190px]">
+<label class="font-label-sm text-label-sm text-outline uppercase tracking-wider pl-1">Status</label>
+<div class="relative w-full">
+<select aria-label="Sample status filter" class="w-full appearance-none bg-surface-container-low text-on-surface font-body-md text-body-md rounded-lg px-3 py-2 pr-8 focus:outline-none focus:ring-2 focus:ring-primary focus:bg-surface-container-lowest transition-all cursor-pointer">
+<option selected="" value="all">All</option>
+<option value="ready">Ready for entry</option>
+<option value="process">In process</option>
+<option value="rejected">Sample rejected</option>
+</select>
+<span class="material-symbols-outlined pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-outline text-[18px]">expand_more</span>
+</div>
+</div>
+<!-- Test Select -->
+<div class="flex items-center gap-space-xs min-w-[180px]">
+<label class="font-label-sm text-label-sm text-outline uppercase tracking-wider pl-1">Test</label>
+<div class="relative w-full">
+<select aria-label="Test panel filter" class="w-full appearance-none bg-surface-container-low text-on-surface font-body-md text-body-md rounded-lg px-3 py-2 pr-8 focus:outline-none focus:ring-2 focus:ring-primary focus:bg-surface-container-lowest transition-all cursor-pointer">
+<option selected="" value="all">All</option>
+<option value="cbc">CBC</option>
+<option value="lipid">Lipid Profile</option>
+<option value="lft">LFT</option>
+<option value="tsh">TSH</option>
+<option value="hba1c">HbA1c</option>
+<option value="urine">Urine R/E</option>
+</select>
+<span class="material-symbols-outlined pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-outline text-[18px]">expand_more</span>
+</div>
+</div>
+<!-- Queue Ordering Metadata Indicator (Enforcing no client-side sort controls) -->
+<div class="ml-auto flex items-center gap-1.5 text-outline text-body-sm font-label-md pr-2">
+<span class="material-symbols-outlined text-[16px]">schedule</span>
+<span>Ordered by oldest specimen collection</span>
+</div>
+</div>
+<!-- Clinical Worklist Table Panel -->
+<div class="bg-surface-container-lowest rounded-xl shadow-sm overflow-hidden flex flex-col">
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container-low text-outline font-label-sm text-label-sm tracking-wider uppercase select-none">
+<th class="py-3.5 px-6" scope="col">Accession ID</th>
+<th class="py-3.5 px-6" scope="col">Patient</th>
+<th class="py-3.5 px-6" scope="col">Test</th>
+<th class="py-3.5 px-6" scope="col">Collected</th>
+<th class="py-3.5 px-6" scope="col">Waiting</th>
+<th class="py-3.5 px-6" scope="col">Status</th>
+<th class="py-3.5 px-6 text-right" scope="col">Action</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-surface-container-high/40 font-body-md text-body-md text-on-surface">
+<!-- Row 1: Oldest Row (Waiting highlighted in orange) -->
+<tr class="hover:bg-surface-container-low/60 transition-colors">
+<td class="py-4 px-6 font-data-mono text-data-mono font-semibold text-on-surface tracking-wide">
+                CDL20261020000041
+              </td>
+<td class="py-4 px-6 font-headline-sm text-body-md font-semibold text-on-surface">
+                Muhammad Imran
+              </td>
+<td class="py-4 px-6 font-body-md text-on-surface-variant">
+                CBC
+              </td>
+<td class="py-4 px-6 font-data-mono text-body-sm text-outline">
+                09:15
+              </td>
+<td class="py-4 px-6">
+<span class="font-data-mono font-semibold text-orange-600 bg-orange-50 px-2 py-0.5 rounded">
+                  2h 5m
+                </span>
+</td>
+<td class="py-4 px-6">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-label-sm font-label-md bg-blue-50 text-blue-700">
+<span class="w-1.5 h-1.5 rounded-full bg-blue-600"></span>
+                  Ready for entry
+                </span>
+</td>
+<td class="py-4 px-6 text-right">
+<a class="text-primary font-label-md text-label-md font-semibold hover:text-on-secondary-container hover:underline inline-flex items-center gap-1 transition-colors" data-path="results-entry" href="#">
+<span>Enter results</span>
+<span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+</a>
+</td>
+</tr>
+<!-- Row 2 -->
+<tr class="hover:bg-surface-container-low/60 transition-colors">
+<td class="py-4 px-6 font-data-mono text-data-mono font-semibold text-on-surface tracking-wide">
+                CDL20261020000038
+              </td>
+<td class="py-4 px-6 font-headline-sm text-body-md font-semibold text-on-surface">
+                Fatima Noor
+              </td>
+<td class="py-4 px-6 font-body-md text-on-surface-variant">
+                Lipid Profile
+              </td>
+<td class="py-4 px-6 font-data-mono text-body-sm text-outline">
+                09:40
+              </td>
+<td class="py-4 px-6 font-data-mono text-body-sm text-outline">
+                1h 40m
+              </td>
+<td class="py-4 px-6">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-label-sm font-label-md bg-blue-50 text-blue-700">
+<span class="w-1.5 h-1.5 rounded-full bg-blue-600"></span>
+                  Ready for entry
+                </span>
+</td>
+<td class="py-4 px-6 text-right">
+<a class="text-primary font-label-md text-label-md font-semibold hover:text-on-secondary-container hover:underline inline-flex items-center gap-1 transition-colors" data-path="results-entry" href="#">
+<span>Enter results</span>
+<span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+</a>
+</td>
+</tr>
+<!-- Row 3 -->
+<tr class="hover:bg-surface-container-low/60 transition-colors">
+<td class="py-4 px-6 font-data-mono text-data-mono font-semibold text-on-surface tracking-wide">
+                CDL20261020000035
+              </td>
+<td class="py-4 px-6 font-headline-sm text-body-md font-semibold text-on-surface">
+                Ahmed Raza
+              </td>
+<td class="py-4 px-6 font-body-md text-on-surface-variant">
+                LFT
+              </td>
+<td class="py-4 px-6 font-data-mono text-body-sm text-outline">
+                10:05
+              </td>
+<td class="py-4 px-6 font-data-mono text-body-sm text-outline">
+                1h 15m
+              </td>
+<td class="py-4 px-6">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-label-sm font-label-md bg-blue-50 text-blue-700">
+<span class="w-1.5 h-1.5 rounded-full bg-blue-600"></span>
+                  Ready for entry
+                </span>
+</td>
+<td class="py-4 px-6 text-right">
+<a class="text-primary font-label-md text-label-md font-semibold hover:text-on-secondary-container hover:underline inline-flex items-center gap-1 transition-colors" data-path="results-entry" href="#">
+<span>Enter results</span>
+<span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+</a>
+</td>
+</tr>
+<!-- Row 4: Sample Rejected (Action is dash, red pill) -->
+<tr class="hover:bg-surface-container-low/60 transition-colors bg-error-container/10">
+<td class="py-4 px-6 font-data-mono text-data-mono font-semibold text-on-surface tracking-wide">
+                CDL20261020000033
+              </td>
+<td class="py-4 px-6 font-headline-sm text-body-md font-semibold text-on-surface">
+                Ayesha Siddiqui
+              </td>
+<td class="py-4 px-6 font-body-md text-on-surface-variant">
+                CBC
+              </td>
+<td class="py-4 px-6 font-data-mono text-body-sm text-outline">
+                10:20
+              </td>
+<td class="py-4 px-6 font-data-mono text-body-sm text-outline">
+                1h 0m
+              </td>
+<td class="py-4 px-6">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-label-sm font-label-md bg-error-container text-error">
+<span class="w-1.5 h-1.5 rounded-full bg-error"></span>
+                  Sample rejected
+                </span>
+</td>
+<td class="py-4 px-6 text-right font-data-mono text-outline select-none pr-9">
+                —
+              </td>
+</tr>
+<!-- Row 5 -->
+<tr class="hover:bg-surface-container-low/60 transition-colors">
+<td class="py-4 px-6 font-data-mono text-data-mono font-semibold text-on-surface tracking-wide">
+                CDL20261020000030
+              </td>
+<td class="py-4 px-6 font-headline-sm text-body-md font-semibold text-on-surface">
+                Bilal Hussain
+              </td>
+<td class="py-4 px-6 font-body-md text-on-surface-variant">
+                TSH
+              </td>
+<td class="py-4 px-6 font-data-mono text-body-sm text-outline">
+                10:35
+              </td>
+<td class="py-4 px-6 font-data-mono text-body-sm text-outline">
+                45m
+              </td>
+<td class="py-4 px-6">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-label-sm font-label-md bg-blue-50 text-blue-700">
+<span class="w-1.5 h-1.5 rounded-full bg-blue-600"></span>
+                  Ready for entry
+                </span>
+</td>
+<td class="py-4 px-6 text-right">
+<a class="text-primary font-label-md text-label-md font-semibold hover:text-on-secondary-container hover:underline inline-flex items-center gap-1 transition-colors" data-path="results-entry" href="#">
+<span>Enter results</span>
+<span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+</a>
+</td>
+</tr>
+<!-- Row 6: In Process (Orange pill) -->
+<tr class="hover:bg-surface-container-low/60 transition-colors">
+<td class="py-4 px-6 font-data-mono text-data-mono font-semibold text-on-surface tracking-wide">
+                CDL20261020000029
+              </td>
+<td class="py-4 px-6 font-headline-sm text-body-md font-semibold text-on-surface">
+                Sana Tariq
+              </td>
+<td class="py-4 px-6 font-body-md text-on-surface-variant">
+                HbA1c
+              </td>
+<td class="py-4 px-6 font-data-mono text-body-sm text-outline">
+                10:42
+              </td>
+<td class="py-4 px-6 font-data-mono text-body-sm text-outline">
+                38m
+              </td>
+<td class="py-4 px-6">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-label-sm font-label-md bg-orange-50 text-orange-700">
+<span class="w-1.5 h-1.5 rounded-full bg-orange-600"></span>
+                  In process
+                </span>
+</td>
+<td class="py-4 px-6 text-right">
+<a class="text-primary font-label-md text-label-md font-semibold hover:text-on-secondary-container hover:underline inline-flex items-center gap-1 transition-colors" data-path="results-entry" href="#">
+<span>Enter results</span>
+<span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+</a>
+</td>
+</tr>
+<!-- Row 7 -->
+<tr class="hover:bg-surface-container-low/60 transition-colors">
+<td class="py-4 px-6 font-data-mono text-data-mono font-semibold text-on-surface tracking-wide">
+                CDL20261020000028
+              </td>
+<td class="py-4 px-6 font-headline-sm text-body-md font-semibold text-on-surface">
+                Usman Khalid
+              </td>
+<td class="py-4 px-6 font-body-md text-on-surface-variant">
+                Urine R/E
+              </td>
+<td class="py-4 px-6 font-data-mono text-body-sm text-outline">
+                10:50
+              </td>
+<td class="py-4 px-6 font-data-mono text-body-sm text-outline">
+                30m
+              </td>
+<td class="py-4 px-6">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-label-sm font-label-md bg-blue-50 text-blue-700">
+<span class="w-1.5 h-1.5 rounded-full bg-blue-600"></span>
+                  Ready for entry
+                </span>
+</td>
+<td class="py-4 px-6 text-right">
+<a class="text-primary font-label-md text-label-md font-semibold hover:text-on-secondary-container hover:underline inline-flex items-center gap-1 transition-colors" data-path="results-entry" href="#">
+<span>Enter results</span>
+<span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+</a>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Table Footer Strip -->
+<div class="px-6 py-4 flex items-center justify-between bg-surface-container-low/40">
+<span class="font-body-sm text-body-sm text-outline font-medium">
+          Showing 7 of 23
+        </span>
+<button class="text-primary font-label-md text-label-md font-semibold hover:text-on-secondary-container inline-flex items-center gap-1 transition-colors cursor-pointer group" type="button">
+<span>Next</span>
+<span class="material-symbols-outlined text-[16px] group-hover:translate-x-0.5 transition-transform">arrow_forward</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Toast Notification (Fixed Bottom-Right) -->
+<div class="fixed bottom-6 right-6 z-50 transition-all duration-300 transform translate-y-0 opacity-100" id="worklist-toast">
+<div class="bg-surface-container-lowest rounded-xl shadow-xl p-4 max-w-sm w-80 flex flex-col gap-2.5">
+<div class="flex items-start gap-3">
+<div class="w-8 h-8 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 mt-0.5">
+<span class="material-symbols-outlined text-[20px]">info</span>
+</div>
+<div class="flex-1 min-w-0">
+<h2 class="font-headline-sm text-headline-sm font-semibold text-on-surface leading-snug">Worklist refreshed</h2>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-0.5">7 pending rows, oldest first.</p>
+</div>
+<button aria-label="Dismiss notification" class="text-outline hover:text-on-surface transition-colors p-1 rounded-md -mr-1 -mt-1 cursor-pointer" id="dismiss-toast-btn" type="button">
+<span class="material-symbols-outlined text-[18px]">close</span>
+</button>
+</div>
+<!-- Auto-dismiss bar and label -->
+<div class="flex flex-col gap-1 pt-1">
+<div class="flex justify-between items-center text-[10px] font-label-sm text-outline">
+<span>Telemetry sync</span>
+<span id="toast-timer-label">Auto-dismiss in 5s</span>
+</div>
+<div class="w-full bg-surface-container-low h-1 rounded-full overflow-hidden">
+<div class="h-full bg-primary rounded-full w-full transition-all duration-[5000ms] ease-linear" id="toast-progress-bar"></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<script>
+  (function () {
+    const toast = document.getElementById('worklist-toast');
+    const dismissBtn = document.getElementById('dismiss-toast-btn');
+    const progressBar = document.getElementById('toast-progress-bar');
+    const timerLabel = document.getElementById('toast-timer-label');
+
+    if (!toast) return;
+
+    let timeLeft = 5;
+    const interval = setInterval(() => {
+      timeLeft -= 1;
+      if (timerLabel && timeLeft > 0) {
+        timerLabel.textContent = `Auto-dismiss in ${timeLeft}s`;
+      }
+    }, 1000);
+
+    // Trigger transition animation
+    setTimeout(() => {
+      if (progressBar) {
+        progressBar.style.width = '0%';
+      }
+    }, 50);
+
+    function dismissToast() {
+      clearInterval(interval);
+      toast.classList.remove('translate-y-0', 'opacity-100');
+      toast.classList.add('translate-y-4', 'opacity-0');
+      setTimeout(() => {
+        toast.remove();
+      }, 350);
+    }
+
+    if (dismissBtn) {
+      dismissBtn.addEventListener('click', dismissToast);
+    }
+
+    // Auto-dismiss after 5 seconds
+    setTimeout(dismissToast, 5000);
+  })();
+</script><div class="fixed bottom-space-lg right-space-lg z-50 flex flex-col gap-space-xs pointer-events-none" id="toast-container"><div class="pointer-events-auto hidden px-space-md py-space-sm bg-inverse-surface text-inverse-on-surface rounded-lg shadow-md font-body-sm text-body-sm items-center gap-space-sm" id="toast-template"><span>Notification message</span></div></div></main></div></body></html>

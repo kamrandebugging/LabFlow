@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Collect Sample - LabFlow</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            teal: {
+              600: '#0d9488',
+              700: '#0f766e',
+              50: '#f0fdfa',
+              100: '#ccfbf1',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+      vertical-align: middle;
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-900 font-sans antialiased min-h-screen flex flex-col">
+
+  <!-- TOP HEADER (white, slate-200 bottom border) -->
+  <header class="h-14 bg-white border-b border-slate-200 px-6 flex items-center justify-between sticky top-0 z-30 shrink-0">
+    <div class="flex items-center gap-3">
+      <div class="flex items-center gap-2">
+        <span class="w-7 h-7 rounded-md bg-teal-600 text-white flex items-center justify-center font-bold text-sm">LF</span>
+        <span class="font-semibold text-slate-900 tracking-tight text-base">City Diagnostic Lab</span>
+      </div>
+      <span class="text-slate-300">/</span>
+      <span class="text-slate-500 text-sm font-normal">Gulberg Branch</span>
+    </div>
+
+    <div class="flex items-center gap-5">
+      <!-- Segmented English | اردو toggle -->
+      <div class="inline-flex rounded-lg border border-slate-200 p-0.5 bg-slate-50 text-xs font-medium text-slate-600">
+        <button type="button" class="px-2.5 py-1 rounded-md bg-white text-slate-900 shadow-sm font-medium">English</button>
+        <button type="button" class="px-2.5 py-1 rounded-md text-slate-500 hover:text-slate-800">اردو</button>
+      </div>
+
+      <!-- User menu (avatar "BA", "Bilal Ahmed", muted "Receptionist", Log out) -->
+      <div class="flex items-center gap-3 pl-3 border-l border-slate-200">
+        <div class="w-8 h-8 rounded-full bg-teal-50 border border-teal-200 text-teal-700 font-medium text-xs flex items-center justify-center">
+          BA
+        </div>
+        <div class="flex flex-col text-left leading-tight">
+          <span class="text-xs font-semibold text-slate-900">Bilal Ahmed</span>
+          <span class="text-[11px] text-slate-500">Receptionist</span>
+        </div>
+        <button type="button" class="text-xs text-slate-500 hover:text-slate-900 flex items-center gap-1 ml-2 transition-colors">
+          <span class="material-symbols-outlined text-[18px]">logout</span>
+          <span>Log out</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- BODY: SIDEBAR + MAIN AREA -->
+  <div class="flex flex-1 overflow-hidden">
+    
+    <!-- LEFT SIDEBAR ~240px (white, slate-200 right border) -->
+    <aside class="w-60 bg-white border-r border-slate-200 flex flex-col justify-between py-4 px-3 shrink-0">
+      <nav class="space-y-1">
+        <!-- Home -->
+        <a href="#" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition-colors">
+          <span class="material-symbols-outlined text-[20px] text-slate-500">home</span>
+          <span>Home</span>
+        </a>
+
+        <!-- Patients -->
+        <a href="#" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition-colors">
+          <span class="material-symbols-outlined text-[20px] text-slate-500">person</span>
+          <span>Patients</span>
+        </a>
+
+        <!-- Invoices & payments -->
+        <a href="#" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition-colors">
+          <span class="material-symbols-outlined text-[20px] text-slate-500">receipt_long</span>
+          <span>Invoices & payments</span>
+        </a>
+
+        <!-- Samples (ACTIVE — teal-600 #0d9488 text + pale teal pill) -->
+        <a href="#" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-semibold text-teal-600 bg-teal-50 transition-colors">
+          <span class="material-symbols-outlined text-[20px] text-teal-600">science</span>
+          <span>Samples</span>
+        </a>
+
+        <!-- Reports -->
+        <a href="#" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition-colors">
+          <span class="material-symbols-outlined text-[20px] text-slate-500">description</span>
+          <span>Reports</span>
+        </a>
+
+        <!-- Catalog -->
+        <a href="#" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition-colors">
+          <span class="material-symbols-outlined text-[20px] text-slate-500">menu_book</span>
+          <span>Catalog</span>
+        </a>
+      </nav>
+
+      <!-- Sidebar footer / System status -->
+      <div class="pt-4 border-t border-slate-100 px-3">
+        <div class="flex items-center justify-between text-[11px] text-slate-400">
+          <span>LabFlow Core</span>
+          <span class="font-mono">v2.4.1</span>
+        </div>
+        <div class="flex items-center gap-1.5 mt-1 text-[11px] text-emerald-600 font-medium">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
+          <span>Phlebotomy Desk #02 · PKT</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- MAIN AREA (slate-50, one scroll region) -->
+    <main class="flex-1 bg-slate-50 overflow-y-auto p-8 flex flex-col items-start">
+      <div class="w-full max-w-[720px] mx-auto">
+        
+        <!-- Breadcrumb & Header info -->
+        <div class="mb-6">
+          <nav class="flex items-center gap-2 text-xs text-slate-500 mb-1.5">
+            <a href="#" class="hover:text-slate-800 transition-colors">Samples</a>
+            <span class="text-slate-300">/</span>
+            <span class="text-slate-900 font-medium">New</span>
+            <span class="text-slate-300 ml-1">·</span>
+            <span class="text-slate-500 font-normal">20 Oct 2026 · times are PKT</span>
+          </nav>
+          <div class="flex items-center justify-between">
+            <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Collect sample</h1>
+            <div class="flex items-center gap-2 text-xs font-mono text-slate-500 bg-white border border-slate-200 px-2.5 py-1 rounded-md shadow-xs">
+              <span class="text-slate-400">BENCH:</span>
+              <span class="font-semibold text-slate-700">SPECIMEN-INTAKE-GLB</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- FORM CARD (White card, max-width 720px, rounded-xl, slate-200 border) -->
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-6 sm:p-7 space-y-6">
+
+          <!-- SECTION 1: INVOICE PICKER -->
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">
+              Invoice
+            </label>
+            
+            <!-- Search bar with integrated selection chip -->
+            <div class="space-y-2.5">
+              <div class="relative">
+                <span class="material-symbols-outlined absolute left-3 top-2.5 text-slate-400 text-[18px]">search</span>
+                <input 
+                  type="text" 
+                  value="INV-2026-0891" 
+                  placeholder="Search invoice number, patient name or MRN..." 
+                  class="w-full pl-9 pr-24 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 font-mono placeholder:font-sans placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-600/20 focus:border-teal-600"
+                />
+                <button type="button" class="absolute right-2 top-2 px-2 py-0.5 text-xs text-slate-500 hover:text-slate-800 bg-slate-100 hover:bg-slate-200 rounded transition-colors">
+                  Change
+                </button>
+              </div>
+
+              <!-- Selected Invoice Chip -->
+              <div class="inline-flex items-center gap-2 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
+                <span class="font-mono font-medium text-slate-900">INV-2026-0891</span>
+                <span class="text-slate-300">—</span>
+                <span class="font-medium text-slate-800">Muhammad Imran</span>
+                <span class="text-slate-400 ml-1">· Paid (PKR 2450.00)</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- SECTION 2: PATIENT (Read-only line) -->
+          <div class="pt-4 border-t border-slate-100">
+            <span class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">
+              Patient
+            </span>
+            <div class="bg-slate-50 border border-slate-200/80 rounded-lg px-3.5 py-2.5 flex items-center justify-between text-sm">
+              <div class="flex items-center gap-2 flex-wrap">
+                <span class="font-semibold text-slate-900">Muhammad Imran</span>
+                <span class="text-slate-300">·</span>
+                <span class="font-mono text-xs text-slate-700 bg-white border border-slate-200 px-1.5 py-0.5 rounded">MRN-2026-00417</span>
+                <span class="text-slate-300">·</span>
+                <span class="text-slate-600 text-xs">Male, 34 years</span>
+              </div>
+              <div class="flex items-center gap-1.5 text-xs text-emerald-700 font-medium bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md shrink-0">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
+                <span>Verified identity</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- SECTION 3: TESTS FROM INVOICE (checkbox list) -->
+          <div class="pt-4 border-t border-slate-100">
+            <div class="flex items-center justify-between mb-2.5">
+              <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                Tests from invoice
+              </label>
+              <span class="text-xs text-slate-500 font-normal">2 tests billed · Select samples to collect</span>
+            </div>
+
+            <div class="space-y-2">
+              <!-- Item 1: CBC -->
+              <label class="flex items-start gap-3 p-3 rounded-lg border border-slate-200 hover:border-slate-300 bg-white cursor-pointer transition-colors group">
+                <input 
+                  type="checkbox" 
+                  checked 
+                  class="mt-1 w-4 h-4 rounded border-slate-300 text-teal-600 focus:ring-teal-600 focus:ring-offset-0 focus:ring-2 accent-teal-600"
+                />
+                <div class="flex-1 flex items-center justify-between">
+                  <div>
+                    <div class="flex items-center gap-2">
+                      <span class="text-sm font-semibold text-slate-900">CBC (Complete Blood Count)</span>
+                      <span class="text-[11px] font-mono text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">HAEM-001</span>
+                    </div>
+                    <p class="text-xs text-slate-500 mt-0.5">Specimen: EDTA Whole Blood (Purple Top) · 3.0 mL</p>
+                  </div>
+                  <div class="text-right">
+                    <span class="inline-flex items-center gap-1.5 text-xs text-slate-600 font-medium bg-slate-50 border border-slate-200 px-2 py-0.5 rounded">
+                      <span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+                      Pending collection
+                    </span>
+                  </div>
+                </div>
+              </label>
+
+              <!-- Item 2: HbA1c -->
+              <label class="flex items-start gap-3 p-3 rounded-lg border border-slate-200 hover:border-slate-300 bg-white cursor-pointer transition-colors group">
+                <input 
+                  type="checkbox" 
+                  checked 
+                  class="mt-1 w-4 h-4 rounded border-slate-300 text-teal-600 focus:ring-teal-600 focus:ring-offset-0 focus:ring-2 accent-teal-600"
+                />
+                <div class="flex-1 flex items-center justify-between">
+                  <div>
+                    <div class="flex items-center gap-2">
+                      <span class="text-sm font-semibold text-slate-900">HbA1c (Glycated Hemoglobin)</span>
+                      <span class="text-[11px] font-mono text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">BIO-014</span>
+                    </div>
+                    <p class="text-xs text-slate-500 mt-0.5">Specimen: Fluoride Plasma / EDTA (Grey/Purple Top) · 2.0 mL</p>
+                  </div>
+                  <div class="text-right">
+                    <span class="inline-flex items-center gap-1.5 text-xs text-slate-600 font-medium bg-slate-50 border border-slate-200 px-2 py-0.5 rounded">
+                      <span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+                      Pending collection
+                    </span>
+                  </div>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <!-- SECTION 4: COLLECTION DETAILS -->
+          <div class="pt-4 border-t border-slate-100 space-y-4">
+            <span class="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
+              Collection details
+            </span>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <!-- Collected at datetime field -->
+              <div>
+                <label class="block text-xs font-medium text-slate-700 mb-1.5">
+                  Collected at <span class="text-slate-400 font-normal">(PKT)</span>
+                </label>
+                <div class="relative">
+                  <span class="material-symbols-outlined absolute left-3 top-2.5 text-slate-400 text-[18px]">calendar_today</span>
+                  <input 
+                    type="text" 
+                    value="20 Oct 2026 11:05" 
+                    class="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 font-mono focus:outline-none focus:ring-2 focus:ring-teal-600/20 focus:border-teal-600"
+                  />
+                </div>
+                <p class="text-[11px] text-slate-500 mt-1">Current collection timestamp</p>
+              </div>
+
+              <!-- Collected by -->
+              <div>
+                <label class="block text-xs font-medium text-slate-700 mb-1.5">
+                  Collected by
+                </label>
+                <div class="relative">
+                  <span class="material-symbols-outlined absolute left-3 top-2.5 text-slate-400 text-[18px]">badge</span>
+                  <input 
+                    type="text" 
+                    value="Bilal Ahmed" 
+                    readonly 
+                    class="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-900 cursor-not-allowed"
+                  />
+                </div>
+                <p class="text-[11px] text-slate-500 mt-1">Authenticated intake operator</p>
+              </div>
+            </div>
+
+            <!-- Notes textarea (optional) -->
+            <div>
+              <div class="flex items-center justify-between mb-1.5">
+                <label class="block text-xs font-medium text-slate-700">
+                  Notes <span class="text-slate-400 font-normal">(optional)</span>
+                </label>
+                <span class="text-[11px] text-slate-400">Specimen integrity & phlebotomy observations</span>
+              </div>
+              <textarea 
+                rows="3" 
+                placeholder="e.g. Venipuncture completed on right antecubital fossa without hemolysis. Patient tolerated well."
+                class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-600/20 focus:border-teal-600 resize-none"
+              ></textarea>
+            </div>
+          </div>
+
+          <!-- MUTED INFO BOX -->
+          <div class="rounded-lg bg-slate-50 border border-slate-200 p-3.5 flex items-start gap-3">
+            <span class="material-symbols-outlined text-slate-500 text-[20px] shrink-0 mt-0.5">info</span>
+            <div class="text-xs text-slate-600 leading-relaxed">
+              <span class="font-medium text-slate-700">Next workflow step:</span> After collection the label screen opens next — printing the label is the next physical act.
+            </div>
+          </div>
+
+          <!-- FOOTER: ACTIONS -->
+          <div class="pt-4 border-t border-slate-100 flex items-center justify-end gap-3">
+            <button 
+              type="button" 
+              class="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 hover:border-slate-300 transition-colors"
+            >
+              Cancel
+            </button>
+            <button 
+              type="button" 
+              class="px-5 py-2 text-sm font-semibold text-white bg-teal-600 hover:bg-teal-700 rounded-lg shadow-sm transition-colors flex items-center gap-2"
+            >
+              <span class="material-symbols-outlined text-[18px]">science</span>
+              <span>Collect sample</span>
+            </button>
+          </div>
+
+        </div>
+
+        <!-- Secondary helper text below card -->
+        <p class="text-center text-xs text-slate-400 mt-4">
+          LabFlow LIMS · Specimen Chain of Custody & Traceability Protocol
+        </p>
+
+      </div>
+    </main>
+
+  </div>
+
+  <!-- Toast container bottom-right, empty -->
+  <div id="toast-container" class="fixed bottom-4 right-4 z-50 pointer-events-none flex flex-col gap-2" aria-live="polite"></div>
+
+</body>
+</html>
