@@ -10,7 +10,8 @@ import {
 } from "react-router-dom";
 import { StaffLoginScreen } from "./features/auth/StaffLoginScreen";
 import { TwoFactorAuthScreen } from "./features/auth/TwoFactorAuthScreen";
-import { Shield, Smartphone, CheckCircle } from "lucide-react";
+import { ScreenCatalogViewer } from "./features/screens/ScreenCatalogViewer";
+import { Shield, Smartphone, CheckCircle, LayoutGrid } from "lucide-react";
 
 function StaffLoginWrapper(): JSX.Element {
   const navigate = useNavigate();
@@ -35,13 +36,22 @@ function StaffLoginWrapper(): JSX.Element {
           <div className="p-3 bg-slate-50 rounded text-xs font-mono text-slate-600 text-left overflow-x-auto mb-6">
             In-memory access token stored securely (Doc 07 §5.2).
           </div>
-          <button
-            type="button"
-            onClick={() => setSuccessSession(null)}
-            className="w-full py-2 px-4 rounded-lg bg-teal-700 text-white font-medium hover:bg-teal-800 transition"
-          >
-            Sign out / Return to Login
-          </button>
+          <div className="flex flex-col gap-2">
+            <Link
+              to="/screens"
+              className="w-full py-2 px-4 rounded-lg bg-slate-900 text-white font-medium hover:bg-slate-800 transition flex items-center justify-center gap-2 text-sm"
+            >
+              <LayoutGrid className="w-4 h-4" />
+              Open All 43 Screens Master Catalog
+            </Link>
+            <button
+              type="button"
+              onClick={() => setSuccessSession(null)}
+              className="w-full py-2 px-4 rounded-lg bg-teal-700 text-white font-medium hover:bg-teal-800 transition text-sm"
+            >
+              Sign out / Return to Login
+            </button>
+          </div>
         </div>
       </main>
     );
@@ -83,16 +93,25 @@ function TwoFactorAuthWrapper(): JSX.Element {
             Clinical session verified for{" "}
             <span className="font-semibold text-slate-800">{emailParam}</span>
           </p>
-          <button
-            type="button"
-            onClick={() => {
-              setVerifiedSession(false);
-              navigate("/login");
-            }}
-            className="w-full py-2 px-4 rounded-lg bg-teal-700 text-white font-medium hover:bg-teal-800 transition"
-          >
-            Return to Staff Login
-          </button>
+          <div className="flex flex-col gap-2">
+            <Link
+              to="/screens"
+              className="w-full py-2 px-4 rounded-lg bg-slate-900 text-white font-medium hover:bg-slate-800 transition flex items-center justify-center gap-2 text-sm"
+            >
+              <LayoutGrid className="w-4 h-4" />
+              Open All 43 Screens Master Catalog
+            </Link>
+            <button
+              type="button"
+              onClick={() => {
+                setVerifiedSession(false);
+                navigate("/login");
+              }}
+              className="w-full py-2 px-4 rounded-lg bg-teal-700 text-white font-medium hover:bg-teal-800 transition text-sm"
+            >
+              Return to Staff Login
+            </button>
+          </div>
         </div>
       </main>
     );
@@ -107,20 +126,25 @@ function TwoFactorAuthWrapper(): JSX.Element {
   );
 }
 
-function ScreenSwitcherBanner(): JSX.Element {
+function ScreenSwitcherBanner(): JSX.Element | null {
   const location = useLocation();
   const currentPath = location.pathname;
+
+  // If already on /screens, keep it compact or hide to avoid obstruction
+  if (currentPath.startsWith("/screens")) {
+    return null;
+  }
 
   return (
     <nav
       aria-label="Screen preview switcher"
-      className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 bg-slate-900/90 text-white backdrop-blur-md px-4 py-2 rounded-full shadow-xl flex items-center gap-3 text-xs border border-slate-700"
+      className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 bg-slate-900/95 text-white backdrop-blur-md px-4 py-2 rounded-full shadow-2xl flex items-center gap-3 text-xs border border-slate-700"
     >
       <span className="font-semibold text-teal-300 flex items-center gap-1.5">
         <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
         LabFlow Preview
       </span>
-      <span className="text-slate-500">|</span>
+      <span className="text-slate-600">|</span>
       <Link
         to="/login"
         className={`flex items-center gap-1 px-2.5 py-1 rounded-full transition-colors ${
@@ -130,7 +154,7 @@ function ScreenSwitcherBanner(): JSX.Element {
         }`}
       >
         <Shield className="w-3.5 h-3.5" />
-        01: Staff Login
+        01: Login (React)
       </Link>
       <Link
         to="/login/2fa"
@@ -141,7 +165,15 @@ function ScreenSwitcherBanner(): JSX.Element {
         }`}
       >
         <Smartphone className="w-3.5 h-3.5" />
-        02: 2FA TOTP
+        02: 2FA (React)
+      </Link>
+      <span className="text-slate-600">|</span>
+      <Link
+        to="/screens"
+        className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-700 hover:bg-emerald-600 text-white font-semibold shadow-sm transition-colors"
+      >
+        <LayoutGrid className="w-3.5 h-3.5" />
+        All 43 Screens Catalog
       </Link>
     </nav>
   );
@@ -154,6 +186,8 @@ function App(): JSX.Element {
         <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="/login" element={<StaffLoginWrapper />} />
         <Route path="/login/2fa" element={<TwoFactorAuthWrapper />} />
+        <Route path="/screens" element={<ScreenCatalogViewer />} />
+        <Route path="/screens/:screenId" element={<ScreenCatalogViewer />} />
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
       <ScreenSwitcherBanner />
