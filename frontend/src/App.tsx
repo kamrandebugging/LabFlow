@@ -31,7 +31,10 @@ function StaffLoginWrapper(): JSX.Element {
             Authentication Successful
           </h2>
           <p className="text-sm text-slate-600 mb-4">
-            Signed in as <span className="font-semibold text-slate-800">{successSession.email}</span>
+            Signed in as{" "}
+            <span className="font-semibold text-slate-800">
+              {successSession.email}
+            </span>
           </p>
           <div className="p-3 bg-slate-50 rounded text-xs font-mono text-slate-600 text-left overflow-x-auto mb-6">
             In-memory access token stored securely (Doc 07 §5.2).

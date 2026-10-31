@@ -489,7 +489,10 @@ class TotpVerifyView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def post(self, request: Request) -> Response:
-        challenge_token = request.COOKIES.get(CHALLENGE_COOKIE_NAME) or request.data.get("challenge_token")
+        data = request.data if isinstance(request.data, dict) else {}
+        challenge_token = request.COOKIES.get(CHALLENGE_COOKIE_NAME) or data.get(
+            "challenge_token"
+        )
         if not challenge_token:
             return Response(
                 {
@@ -532,7 +535,10 @@ class TotpVerifyView(APIView):
                     {
                         "error": {
                             "code": "totp_challenge_expired",
-                            "message": "Verification challenge expired or max attempts reached.",
+                            "message": (
+                                "Verification challenge expired "
+                                "or max attempts reached."
+                            ),
                         }
                     },
                     status=status.HTTP_401_UNAUTHORIZED,
@@ -598,7 +604,12 @@ class StaffTotpResetView(APIView):
 
         if not success:
             return Response(
-                {"error": {"code": "forbidden", "message": "Only Lab Owner can reset staff TOTP"}},
+                {
+                    "error": {
+                        "code": "forbidden",
+                        "message": "Only Lab Owner can reset staff TOTP",
+                    }
+                },
                 status=status.HTTP_403_FORBIDDEN,
             )
 
@@ -606,4 +617,3 @@ class StaffTotpResetView(APIView):
             {"status": "ok", "message": "Staff TOTP reset successfully"},
             status=status.HTTP_200_OK,
         )
-

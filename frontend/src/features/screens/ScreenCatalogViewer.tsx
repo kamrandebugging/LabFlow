@@ -20,7 +20,8 @@ export function ScreenCatalogViewer(): JSX.Element {
   const navigate = useNavigate();
 
   const initialId = screenId ? parseInt(screenId, 10) : 1;
-  const validInitialId = isNaN(initialId) || initialId < 1 || initialId > 43 ? 1 : initialId;
+  const validInitialId =
+    isNaN(initialId) || initialId < 1 || initialId > 43 ? 1 : initialId;
 
   const [selectedId, setSelectedId] = useState<number>(validInitialId);
   const [viewMode, setViewMode] = useState<"html" | "png" | "split">("html");
@@ -94,7 +95,8 @@ export function ScreenCatalogViewer(): JSX.Element {
             <ChevronLeft className="w-4 h-4" />
           </button>
           <span className="text-xs font-semibold px-2 py-1 rounded bg-slate-800 border border-slate-700 text-slate-200">
-            Screen {String(currentScreen.id).padStart(2, "0")}: {currentScreen.title.split(" - ")[0]}
+            Screen {String(currentScreen.id).padStart(2, "0")}:{" "}
+            {currentScreen.title.split(" - ")[0]}
           </span>
           <button
             type="button"
@@ -115,7 +117,11 @@ export function ScreenCatalogViewer(): JSX.Element {
               to={currentScreen.id === 1 ? "/login" : "/login/2fa"}
               className="flex items-center gap-1 text-xs px-2.5 py-1 rounded bg-teal-600 hover:bg-teal-500 text-white font-medium transition"
             >
-              {currentScreen.id === 1 ? <Shield className="w-3.5 h-3.5" /> : <Smartphone className="w-3.5 h-3.5" />}
+              {currentScreen.id === 1 ? (
+                <Shield className="w-3.5 h-3.5" />
+              ) : (
+                <Smartphone className="w-3.5 h-3.5" />
+              )}
               Live React Component
             </Link>
           )}
@@ -353,7 +359,8 @@ export function ScreenCatalogViewer(): JSX.Element {
                   <div className="px-3 py-1.5 bg-slate-900 border-b border-slate-800 text-[11px] font-semibold text-teal-400 flex items-center justify-between">
                     <span className="flex items-center gap-1">
                       <ImageIcon className="w-3.5 h-3.5" />
-                      Visual Reference Spec PNG (/screens-png/{currentScreen.pngFile})
+                      Visual Reference Spec PNG (/screens-png/
+                      {currentScreen.pngFile})
                     </span>
                     <a
                       href={`/screens-png/${currentScreen.pngFile}`}

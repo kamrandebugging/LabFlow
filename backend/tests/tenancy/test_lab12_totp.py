@@ -4,17 +4,15 @@ Governed strictly by Doc 08 §4.4 (SE-02, SE-03, SE-04) and Doc 07 §17 A-25.
 """
 
 from typing import Any
-import uuid
-from unittest.mock import patch
 
+import pyotp
+import pytest
 from cryptography.fernet import Fernet
 from django.conf import settings
 from django.contrib.auth.hashers import make_password
 from django.core.cache import cache
 from django.test import Client
 from django_tenants.utils import schema_context
-import pyotp
-import pytest
 
 from apps.accounts.auth_service import AuthService
 from apps.accounts.models import AuditLog, Role, StaffUser
@@ -56,10 +54,10 @@ def client(tenant_a: Any) -> Client:
     return Client(HTTP_HOST="tenant-a.localhost")
 
 
-def _get_auth_headers(user: StaffUser, tenant_slug: str) -> dict[str, str]:
+def _auth_header(user: StaffUser, tenant_slug: str) -> str:
     with schema_context(tenant_slug):
         session = AuthService.create_session(user, tenant_id=tenant_slug)
-    return {"HTTP_AUTHORIZATION": f"Bearer {session['access']}"}
+    return f"Bearer {session['access']}"
 
 
 @pytest.mark.tenancy
@@ -71,22 +69,34 @@ class TestLAB12TotpEnrolmentAndVerification:
         self, client: Client, receptionist: StaffUser, tenant_a: Any
     ) -> None:
         """Doc 08 §4.4 step 1: POST /api/v1/auth/totp/enroll."""
-        headers = _get_auth_headers(receptionist, tenant_a.schema_name)
-        response = client.post("/api/v1/auth/totp/enroll", **headers)
+        auth_hdr = _auth_header(receptionist, tenant_a.schema_name)
+        response = client.post(
+            "/api/v1/auth/totp/enroll",
+            HTTP_AUTHORIZATION=auth_hdr,
+        )
 
         assert response.status_code == 200
         data = response.json()
         assert "secret" in data
         assert "otpauth_uri" in data
         assert data["otpauth_uri"].startswith("otpauth://totp/")
-        assert "receptionist%40lab12.com" in data["otpauth_uri"] or "receptionist@lab12.com" in data["otpauth_uri"]
+        assert (
+            "receptionist%40lab12.com" in data["otpauth_uri"]
+            or "receptionist@lab12.com" in data["otpauth_uri"]
+        )
 
     def test_totp_enrol_confirm_activates_totp_and_issues_10_backup_codes(
         self, client: Client, receptionist: StaffUser, tenant_a: Any
     ) -> None:
-        """Doc 08 §4.4 steps 2-4: Confirm secret, store Fernet-encrypted & return 10 codes."""
-        headers = _get_auth_headers(receptionist, tenant_a.schema_name)
-        enrol_res = client.post("/api/v1/auth/totp/enroll", **headers)
+        """Doc 08 §4.4 steps 2-4: Confirm secret.
+
+        Store Fernet-encrypted & return 10 codes.
+        """
+        auth_hdr = _auth_header(receptionist, tenant_a.schema_name)
+        enrol_res = client.post(
+            "/api/v1/auth/totp/enroll",
+            HTTP_AUTHORIZATION=auth_hdr,
+        )
         secret = enrol_res.json()["secret"]
 
         # Generate valid TOTP code
@@ -96,7 +106,7 @@ class TestLAB12TotpEnrolmentAndVerification:
             "/api/v1/auth/totp/enroll/confirm",
             data={"code": code},
             content_type="application/json",
-            **headers,
+            HTTP_AUTHORIZATION=auth_hdr,
         )
 
         assert confirm_res.status_code == 200
@@ -116,6 +126,7 @@ class TestLAB12TotpEnrolmentAndVerification:
             assert decrypted == secret
 
             # 10 hashed backup codes stored
+            assert user.totp_backup_codes_hash is not None
             assert len(user.totp_backup_codes_hash) == 10
 
             # Audit log emitted without secret or backup codes
@@ -130,14 +141,17 @@ class TestLAB12TotpEnrolmentAndVerification:
         self, client: Client, receptionist: StaffUser, tenant_a: Any
     ) -> None:
         """Invalid TOTP code on confirm returns 400 invalid_code."""
-        headers = _get_auth_headers(receptionist, tenant_a.schema_name)
-        client.post("/api/v1/auth/totp/enroll", **headers)
+        auth_hdr = _auth_header(receptionist, tenant_a.schema_name)
+        client.post(
+            "/api/v1/auth/totp/enroll",
+            HTTP_AUTHORIZATION=auth_hdr,
+        )
 
         confirm_res = client.post(
             "/api/v1/auth/totp/enroll/confirm",
             data={"code": "000000"},
             content_type="application/json",
-            **headers,
+            HTTP_AUTHORIZATION=auth_hdr,
         )
         assert confirm_res.status_code == 400
         assert confirm_res.json()["error"]["code"] == "invalid_code"
@@ -166,7 +180,7 @@ class TestLAB12TotpEnrolmentAndVerification:
         assert login_res.status_code == 200
         assert login_res.json()["totp_required"] is True
         assert "auth_challenge" in login_res.cookies
-        challenge_token = login_res.cookies["auth_challenge"].value
+        assert login_res.cookies["auth_challenge"].value != ""
 
         # Step 2: Verify with TOTP code (+1 window drift)
         totp = pyotp.TOTP(secret)
@@ -196,7 +210,10 @@ class TestLAB12TotpEnrolmentAndVerification:
         with schema_context(tenant_a.schema_name):
             owner.totp_secret_encrypted = encrypted_secret
             owner.totp_enabled = True
-            owner.totp_backup_codes_hash = [make_password(backup_code), make_password("CODE2")]
+            owner.totp_backup_codes_hash = [
+                make_password(backup_code),
+                make_password("CODE2"),
+            ]
             owner.save()
 
         # Step 1: Login -> Challenge
@@ -218,6 +235,7 @@ class TestLAB12TotpEnrolmentAndVerification:
         # Verify hash was consumed (only 1 remaining)
         with schema_context(tenant_a.schema_name):
             u = StaffUser.objects.get(id=owner.id)
+            assert u.totp_backup_codes_hash is not None
             assert len(u.totp_backup_codes_hash) == 1
 
         # Re-using the same backup code fails
@@ -236,7 +254,10 @@ class TestLAB12TotpEnrolmentAndVerification:
     def test_totp_challenge_expires_after_5_failed_attempts(
         self, client: Client, owner: StaffUser, tenant_a: Any
     ) -> None:
-        """Doc 08 §4.4: 5 failed attempts destroy challenge -> 401 totp_challenge_expired."""
+        """Doc 08 §4.4: 5 failed attempts destroy challenge.
+
+        Returns 401 totp_challenge_expired.
+        """
         with schema_context(tenant_a.schema_name):
             owner.totp_enabled = True
             owner.save()
@@ -277,10 +298,10 @@ class TestLAB12TotpEnrolmentAndVerification:
             receptionist.totp_backup_codes_hash = ["hash1"]
             receptionist.save()
 
-        owner_headers = _get_auth_headers(owner, tenant_a.schema_name)
+        auth_hdr = _auth_header(owner, tenant_a.schema_name)
         reset_res = client.post(
             f"/api/v1/staff/{receptionist.id}/reset-totp",
-            **owner_headers,
+            HTTP_AUTHORIZATION=auth_hdr,
         )
         assert reset_res.status_code == 200
 

@@ -16,13 +16,13 @@ import uuid
 from datetime import UTC, datetime
 from typing import Any, Final
 
+import pyotp
 from cryptography.fernet import Fernet
 from django.conf import settings
 from django.contrib.auth.hashers import check_password, make_password
 from django.core.cache import cache
 from django.db import transaction
 from django_tenants.utils import schema_context
-import pyotp
 
 from apps.accounts.jwt_engine import (
     ACCESS_TOKEN_LIFETIME_SECONDS,
@@ -533,7 +533,14 @@ class AuthService:
             user.totp_secret_encrypted = encrypted_secret
             user.totp_backup_codes_hash = hashed_codes
             user.totp_enabled = True
-            user.save(update_fields=["totp_secret_encrypted", "totp_backup_codes_hash", "totp_enabled", "updated_at"])
+            user.save(
+                update_fields=[
+                    "totp_secret_encrypted",
+                    "totp_backup_codes_hash",
+                    "totp_enabled",
+                    "updated_at",
+                ]
+            )
 
             AuditLog.objects.create(
                 actor_id=user.id,
@@ -557,7 +564,10 @@ class AuthService:
         user_agent: str | None = None,
         tenant_id: str | None = None,
     ) -> tuple[bool, dict[str, Any] | None, str | None]:
-        """Verify code against 5-min challenge with ±1 window drift & backup fallback."""
+        """Verify code against 5-min challenge.
+
+        Supports ±1 window drift and single-use backup code fallback.
+        """
         cache_key = f"auth:challenge:{challenge_token}"
         challenge = cache.get(cache_key)
         if not challenge:
@@ -582,7 +592,9 @@ class AuthService:
         if user.totp_secret_encrypted:
             try:
                 fernet = cls._get_fernet()
-                raw_secret = fernet.decrypt(user.totp_secret_encrypted.encode()).decode()
+                raw_secret = fernet.decrypt(
+                    user.totp_secret_encrypted.encode()
+                ).decode()
                 totp = pyotp.TOTP(raw_secret)
                 if totp.verify(code, valid_window=1):
                     is_matched = True
@@ -643,7 +655,14 @@ class AuthService:
             target_user.totp_secret_encrypted = None
             target_user.totp_backup_codes_hash = None
             target_user.totp_enabled = False
-            target_user.save(update_fields=["totp_secret_encrypted", "totp_backup_codes_hash", "totp_enabled", "updated_at"])
+            target_user.save(
+                update_fields=[
+                    "totp_secret_encrypted",
+                    "totp_backup_codes_hash",
+                    "totp_enabled",
+                    "updated_at",
+                ]
+            )
 
             AuditLog.objects.create(
                 actor_id=actor.id,
@@ -655,4 +674,3 @@ class AuthService:
                 user_agent=user_agent,
             )
         return True, None
-
