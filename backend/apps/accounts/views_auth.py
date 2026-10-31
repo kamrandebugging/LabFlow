@@ -5,13 +5,16 @@ import uuid
 from typing import cast
 
 from django.conf import settings
+from django.contrib.auth.hashers import make_password
+from django.db import transaction
 from rest_framework import permissions, status
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.accounts.auth_service import AuthService
-from apps.accounts.models import LoginEvent, StaffUser
+from apps.accounts.models import AuditLog, LoginEvent, PasswordResetToken, StaffUser
+from apps.accounts.password_policy import validate_password_policy
 from apps.accounts.serializers_auth import (
     LoginRequestSerializer,
     PasswordChangeRequestSerializer,
@@ -21,7 +24,10 @@ from apps.accounts.serializers_auth import (
 )
 from apps.accounts.throttling import (
     check_and_record_login_throttle,
+    check_and_record_password_reset_throttle,
 )
+from apps.accounts.token_service import InvalidResetTokenError, TokenService
+from apps.notifications.models import Notification
 
 logger = logging.getLogger(__name__)
 
@@ -615,5 +621,166 @@ class StaffTotpResetView(APIView):
 
         return Response(
             {"status": "ok", "message": "Staff TOTP reset successfully"},
+            status=status.HTTP_200_OK,
+        )
+
+
+class PasswordResetRequestView(APIView):
+    """POST /api/v1/auth/password-reset/request (Doc 08 §4.5, §17 A-26).
+
+    Always returns HTTP 202 {"accepted": true} (non-enumerating).
+    Throttled: 3 / hour per (tenant, email), 10 / hour per (tenant, IP).
+    Fails closed silently on Redis failure (returns 202 without minting token).
+    """
+
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request: Request) -> Response:
+        data = request.data if isinstance(request.data, dict) else {}
+        raw_email = str(data.get("email", "")).strip().lower()
+
+        accepted_response = Response(
+            {"accepted": True},
+            status=status.HTTP_202_ACCEPTED,
+        )
+
+        if not raw_email:
+            return accepted_response
+
+        tenant_id = _get_tenant_id(request)
+        ip = _get_client_ip(request)
+
+        # Check rate limits per Doc 08 §10.1 (fail-closed silently)
+        is_throttled, _ = check_and_record_password_reset_throttle(
+            tenant_id=tenant_id,
+            email=raw_email,
+            ip=ip,
+        )
+        if is_throttled:
+            return accepted_response
+
+        # Look up active staff user inside tenant schema
+        user = StaffUser.objects.filter(email=raw_email, is_active=True).first()
+        if not user:
+            return accepted_response
+
+        # Generate token (Doc 08 §4.5: supersedes prior live reset token)
+        TokenService.generate(
+            user=user,
+            purpose=PasswordResetToken.Purpose.PASSWORD_RESET,
+        )
+
+        # Enqueue reset notification email (Doc 08 §17 A-27)
+        Notification.objects.create(
+            template_key="password_reset",
+            recipient_type=Notification.RecipientType.STAFF,
+            recipient_id=user.id,
+            channel=Notification.Channel.EMAIL,
+            status=Notification.Status.PENDING,
+        )
+
+        return accepted_response
+
+
+class PasswordResetConfirmView(APIView):
+    """POST /api/v1/auth/password-reset/confirm (Doc 08 §4.5, §17 A-26).
+
+    Verifies hash, purpose, unconsumed, unexpired status.
+    One uniform error for all token failures: 400 invalid_reset_token.
+    Validates password policy (12-128 chars, blocklist, != email).
+    On policy failure: 422 WITHOUT consuming token!
+    On success: rehashes password (Argon2id), marks used_at, revokes all user sessions,
+    writes audit log auth.password_reset.
+    """
+
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request: Request) -> Response:
+        data = request.data if isinstance(request.data, dict) else {}
+        token = str(data.get("token", "")).strip()
+        new_password = str(data.get("new_password", ""))
+
+        invalid_token_response = Response(
+            {
+                "error": {
+                    "code": "invalid_reset_token",
+                    "message": "Invalid or expired reset token",
+                }
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+        if not token:
+            return invalid_token_response
+
+        # Pre-lookup candidate token row
+        candidate = TokenService.find_valid_token(
+            token=token,
+            purpose=PasswordResetToken.Purpose.PASSWORD_RESET,
+        )
+        if candidate is None:
+            return invalid_token_response
+
+        # Password policy check against candidate's staff user email (Doc 08 §4.5)
+        # CRITICAL: Token must NOT be consumed if password policy fails!
+        is_valid, err_code, err_msg = validate_password_policy(
+            password=new_password,
+            user_email=candidate.staff_user.email,
+        )
+        if not is_valid:
+            return Response(
+                {
+                    "error": {
+                        "code": err_code,
+                        "message": err_msg,
+                    }
+                },
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+
+        # Atomically consume token and update password hash (Doc 08 §4.5)
+        try:
+            with transaction.atomic():
+                user = TokenService.consume(
+                    token=token,
+                    purpose=PasswordResetToken.Purpose.PASSWORD_RESET,
+                    candidate_id=candidate.id,
+                )
+                user.password_hash = make_password(new_password)
+                user.save(update_fields=["password_hash", "updated_at"])
+        except InvalidResetTokenError:
+            return invalid_token_response
+
+        # Revoke all sessions for this user (Doc 08 §4.6)
+        tenant_id = _get_tenant_id(request)
+        ip = _get_client_ip(request)
+        user_agent = request.META.get("HTTP_USER_AGENT", "")
+
+        AuthService.revoke_all_sessions(
+            staff_user_id=user.id,
+            tenant_id=tenant_id,
+            reason="password_reset",
+            ip=ip,
+            user_agent=user_agent,
+        )
+
+        # Audit log (account security change - audited; no token, no password material)
+        valid_ip = (
+            ip if ip and ip != "unknown_ip" and not ip.startswith("unknown") else None
+        )
+        AuditLog.objects.create(
+            actor_id=user.id,
+            action="auth.password_reset",
+            entity_type="staff_user",
+            entity_id=user.id,
+            ip=valid_ip,
+            user_agent=user_agent or None,
+        )
+
+        return Response(
+            {
+                "status": "success",
+                "message": "Password reset successfully",
+            },
             status=status.HTTP_200_OK,
         )
