@@ -11,6 +11,7 @@ help:
 	@echo "  make lint           Run backend and frontend linters"
 	@echo "  make format         Run backend and frontend code formatters"
 	@echo "  make typecheck      Run Mypy strict type checks"
+	@echo "  make seed           Seed local demo tenants and platform harness (Doc 09 §16.3)"
 	@echo "  make migrate        Run shared then tenant schema migrations (Doc 02 §15)"
 
 up:
@@ -22,6 +23,9 @@ down:
 migrate:
 	cd backend && poetry run python manage.py migrate_schemas --shared
 	cd backend && poetry run python manage.py migrate_schemas --tenant
+
+seed:
+	cd backend && python manage.py seed_demo_tenant
 
 test-backend:
 	@echo "==> Running LabFlow backend test suite against PostgreSQL & Redis..."
