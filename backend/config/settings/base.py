@@ -177,3 +177,11 @@ SPECTACULAR_SETTINGS = {
 # PostgreSQL supports 63-character identifiers (Doc 02 §7 & §18).
 # Silence Django's 30-character Oracle compatibility check E034.
 SILENCED_SYSTEM_CHECKS = ["models.E034"]
+
+# Celery Beat Scheduled Tasks (Doc 02 §5.11, Doc 04 §13.2, Doc 08 §4.5)
+CELERY_BEAT_SCHEDULE = {
+    "accounts-cleanup-expired-tokens-daily": {
+        "task": "accounts.cleanup_expired_tokens",
+        "schedule": 86400.0,  # Run daily
+    },
+}

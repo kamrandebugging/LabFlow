@@ -6,6 +6,8 @@ from apps.accounts.views_auth import (
     LoginView,
     LogoutView,
     PasswordChangeView,
+    PasswordResetConfirmView,
+    PasswordResetRequestView,
     RefreshView,
     RevokeAllSessionsView,
     SessionDetailView,
@@ -71,5 +73,26 @@ urlpatterns = [
         "password/change/",
         PasswordChangeView.as_view(),
         name="auth-password-change-slash",
+    ),
+    # Password reset (Doc 08 §4.5, §17 A-26)
+    path(
+        "password-reset/request",
+        PasswordResetRequestView.as_view(),
+        name="auth-password-reset-request",
+    ),
+    path(
+        "password-reset/request/",
+        PasswordResetRequestView.as_view(),
+        name="auth-password-reset-request-slash",
+    ),
+    path(
+        "password-reset/confirm",
+        PasswordResetConfirmView.as_view(),
+        name="auth-password-reset-confirm",
+    ),
+    path(
+        "password-reset/confirm/",
+        PasswordResetConfirmView.as_view(),
+        name="auth-password-reset-confirm-slash",
     ),
 ]

@@ -137,7 +137,10 @@ class TestStepsP6AndP7SeedingAndA10Exclusion:
                             assert NotificationTemplate.objects.filter(
                                 key=key, locale=loc, channel=ch
                             ).exists()
-                assert NotificationTemplate.objects.count() == 16
+                assert (
+                    NotificationTemplate.objects.filter(key__in=expected_keys).count()
+                    == 16
+                )
 
                 # 6. Tenant settings registry defaults (Doc 04 §10.2)
                 settings_map = dict(TenantSetting.objects.values_list("key", "value"))

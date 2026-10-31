@@ -29,3 +29,16 @@ class TotpEnrollConfirmSerializer(serializers.Serializer):
 class TotpVerifySerializer(serializers.Serializer):
     code = serializers.CharField(required=True, min_length=6, max_length=32)
     is_backup_code = serializers.BooleanField(required=False, default=False)
+
+
+class PasswordResetRequestSerializer(serializers.Serializer):
+    email = serializers.EmailField(required=True)
+
+
+class PasswordResetConfirmSerializer(serializers.Serializer):
+    token = serializers.CharField(required=True, allow_blank=False)
+    new_password = serializers.CharField(
+        required=True,
+        write_only=True,
+        allow_blank=False,
+    )

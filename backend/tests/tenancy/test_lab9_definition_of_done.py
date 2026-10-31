@@ -214,9 +214,17 @@ class TestLab9DefinitionOfDoneVerification:
                 assert TestPrice.objects.count() == 9  # 4 panels + 5 standalone
                 # 37 M + 37 F + 27 B (unisex)
                 assert ReferenceRange.objects.count() == 101
+                starter_keys = {
+                    "sample_collected",
+                    "report_ready",
+                    "report_link_resend",
+                    "settlement_ready",
+                }
                 assert (
-                    NotificationTemplate.objects.count() == 16
+                    NotificationTemplate.objects.filter(key__in=starter_keys).count()
+                    == 16
                 )  # 4 keys * 2 loc * 2 ch
+                assert NotificationTemplate.objects.count() >= 16
                 assert TenantSetting.objects.count() == 6
                 assert RevenueShareRule.objects.count() == 0
 
@@ -462,7 +470,17 @@ class TestLab9DefinitionOfDoneVerification:
                 assert Panel.objects.count() == 4
                 assert Test.objects.count() == 37
                 assert PanelTest.objects.count() == 32
-                assert NotificationTemplate.objects.count() == 16
+                starter_keys = {
+                    "sample_collected",
+                    "report_ready",
+                    "report_link_resend",
+                    "settlement_ready",
+                }
+                assert (
+                    NotificationTemplate.objects.filter(key__in=starter_keys).count()
+                    == 16
+                )
+                assert NotificationTemplate.objects.count() >= 16
                 assert RevenueShareRule.objects.count() == 0
                 assert StaffUser.objects.count() == 1
         finally:
