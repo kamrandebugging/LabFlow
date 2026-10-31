@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Diagnostic Report - City Diagnostic Lab</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Manrope:wght@600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "surface-dim": "#d2d9f4",
+            "surface-container-lowest": "#ffffff",
+            "surface": "#faf8ff",
+            "outline-variant": "#bdc9c6",
+            "on-secondary-container": "#006f66",
+            "primary-fixed-dim": "#80d5cb",
+            "on-tertiary-fixed": "#00201e",
+            "inverse-primary": "#80d5cb",
+            "inverse-on-surface": "#eef0ff",
+            "outline": "#6e7977",
+            "on-secondary-fixed": "#00201d",
+            "tertiary": "#0c5b56",
+            "secondary-fixed-dim": "#6bd8cb",
+            "on-error": "#ffffff",
+            "surface-container-low": "#f2f3ff",
+            "tertiary-fixed-dim": "#8fd3cc",
+            "on-primary-fixed-variant": "#00504a",
+            "on-primary-container": "#a3faef",
+            "on-error-container": "#93000a",
+            "primary-fixed": "#9cf2e8",
+            "primary-container": "#0f766e",
+            "secondary": "#006a61",
+            "surface-bright": "#faf8ff",
+            "on-primary-fixed": "#00201d",
+            "secondary-fixed": "#89f5e7",
+            "inverse-surface": "#283044",
+            "secondary-container": "#86f2e4",
+            "on-secondary-fixed-variant": "#005049",
+            "on-background": "#131b2e",
+            "error-container": "#ffdad6",
+            "tertiary-fixed": "#abefe8",
+            "on-tertiary": "#ffffff",
+            "surface-container-high": "#e2e7ff",
+            "error": "#ba1a1a",
+            "primary": "#005c55",
+            "surface-tint": "#006a63",
+            "on-tertiary-container": "#b3f7f0",
+            "surface-variant": "#dae2fd",
+            "on-primary": "#ffffff",
+            "on-surface": "#131b2e",
+            "on-tertiary-fixed-variant": "#00504b",
+            "surface-container": "#eaedff",
+            "background": "#faf8ff",
+            "tertiary-container": "#2f746f",
+            "surface-container-highest": "#dae2fd",
+            "on-surface-variant": "#3e4947",
+            "on-secondary": "#ffffff"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.25rem",
+            "lg": "0.5rem",
+            "xl": "0.75rem",
+            "full": "9999px"
+          },
+          "spacing": {
+            "space-xs": "0.25rem",
+            "space-sm": "0.5rem",
+            "space-md": "1rem",
+            "space-lg": "1.5rem",
+            "space-xl": "2rem",
+            "space-2xl": "3rem"
+          },
+          "fontFamily": {
+            "headline-lg": ["Manrope"],
+            "headline-md": ["Manrope"],
+            "headline-sm": ["Manrope"],
+            "display-lg": ["Manrope"],
+            "label-md": ["Inter"],
+            "label-sm": ["Inter"],
+            "body-lg": ["Inter"],
+            "body-md": ["Inter"],
+            "body-sm": ["Inter"],
+            "data-mono": ["Inter"]
+          },
+          "fontSize": {
+            "headline-lg": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.015em", "fontWeight": "600" }],
+            "headline-md": ["20px", { "lineHeight": "28px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+            "headline-sm": ["16px", { "lineHeight": "24px", "letterSpacing": "-0.005em", "fontWeight": "600" }],
+            "label-md": ["13px", { "lineHeight": "18px", "letterSpacing": "0.01em", "fontWeight": "500" }],
+            "label-sm": ["11px", { "lineHeight": "14px", "letterSpacing": "0.03em", "fontWeight": "600" }],
+            "body-lg": ["16px", { "lineHeight": "24px", "letterSpacing": "0em", "fontWeight": "400" }],
+            "body-md": ["14px", { "lineHeight": "20px", "letterSpacing": "0em", "fontWeight": "400" }],
+            "body-sm": ["12px", { "lineHeight": "16px", "letterSpacing": "0.01em", "fontWeight": "400" }],
+            "data-mono": ["13px", { "lineHeight": "18px", "letterSpacing": "-0.01em", "fontWeight": "500" }]
+          }
+        }
+      }
+    };
+  </script>
+</head>
+<body class="bg-slate-50 text-slate-900 antialiased min-h-screen py-10 px-4 md:px-8 flex justify-center">
+<main class="w-full max-w-[880px] flex flex-col gap-6">
+<!-- 1. Minimal Header -->
+<header class="flex flex-col sm:flex-row items-start sm:items-center justify-between pb-4 border-b border-slate-200 gap-4">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-lg bg-teal-700 flex items-center justify-center text-white shadow-sm shrink-0">
+<span class="material-symbols-outlined text-[24px]">biotech</span>
+</div>
+<div>
+<h1 class="text-slate-900 font-headline-md text-headline-md">City Diagnostic Lab</h1>
+<p class="text-slate-500 font-body-sm text-body-sm">Secure Diagnostic Document Portal · ISO 15189 Accredited</p>
+</div>
+</div>
+<div class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-teal-50 border border-teal-200 text-teal-800 text-label-sm font-label-sm shrink-0">
+<span class="material-symbols-outlined text-[16px] text-teal-700">lock</span>
+<span>Direct Token Access · Verified</span>
+</div>
+</header>
+<!-- 2. Loading & Status Strip -->
+<section aria-live="polite" class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex flex-col gap-3">
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+<div class="flex items-center gap-2">
+<span class="inline-block w-2.5 h-2.5 rounded-full bg-teal-600 animate-pulse"></span>
+<span class="font-headline-sm text-headline-sm text-slate-800">Opening your report…</span>
+</div>
+<span class="text-slate-500 font-body-sm text-body-sm">Your official diagnostic report is ready for viewing and download.</span>
+</div>
+<div class="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+<div class="bg-teal-700 h-full w-full rounded-full transition-all duration-500" style="animation: decryptProgress 2s ease-in-out infinite alternate;"></div>
+</div>
+<div class="flex items-center justify-between text-slate-500 font-body-sm text-body-sm pt-0.5">
+<div class="flex items-center gap-1.5 font-mono text-[11px]">
+<span class="material-symbols-outlined text-[14px] text-teal-700">verified_user</span>
+<span>Verifying digital signature &amp; decrypting document (SHA-256)…</span>
+</div>
+<span class="text-[11px] font-medium text-slate-400">Status: 200 OK</span>
+</div>
+</section>
+<!-- 3. Printed A4 Clinical PDF Document Card -->
+<article class="bg-white border border-slate-200 rounded-xl shadow-md p-8 md:p-12 relative flex flex-col">
+<!-- Watermark / Confidential Stamp -->
+<div class="absolute top-8 right-8 pointer-events-none select-none">
+<div class="border-2 border-teal-700/20 text-teal-800/25 uppercase font-headline-md text-[13px] tracking-wider font-bold px-3 py-1 rounded rotate-[-6deg]">
+          Official Medical Record
+        </div>
+</div>
+<!-- Clinical Letterhead -->
+<div class="border-b-2 border-slate-800 pb-5 mb-6">
+<div class="flex items-start justify-between">
+<div>
+<h2 class="text-slate-900 font-headline-lg text-headline-lg tracking-tight font-extrabold uppercase">
+              CITY DIAGNOSTIC LAB
+            </h2>
+<p class="text-slate-600 font-body-md text-body-md font-medium mt-0.5">
+              Central Pathology &amp; Molecular Diagnostics · Main Boulevard, Gulberg III, Lahore
+            </p>
+<p class="text-slate-500 font-body-sm text-body-sm mt-1">
+              Phone: +92 42 35712345 · UAN: 111-000-CDL · ISO 15189:2022 Certified Lab #PK-LAB-8910
+            </p>
+</div>
+<div class="text-right hidden sm:block">
+<span class="inline-block bg-slate-100 text-slate-800 font-label-sm text-label-sm px-2.5 py-1 rounded border border-slate-200">
+              PATIENT ACCESSION COPY
+            </span>
+</div>
+</div>
+</div>
+<!-- Patient & Accession Demographics Grid -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-px bg-slate-200 border border-slate-200 rounded-lg overflow-hidden mb-6 text-body-sm font-body-sm">
+<!-- Col 1 -->
+<div class="bg-white p-3 flex flex-col gap-1.5">
+<div class="flex justify-between">
+<span class="text-slate-500">Patient Name:</span>
+<span class="font-semibold text-slate-900">Muhammad Imran</span>
+</div>
+<div class="flex justify-between">
+<span class="text-slate-500">Age / Gender:</span>
+<span class="font-medium text-slate-800">42 Yrs / Male</span>
+</div>
+<div class="flex justify-between">
+<span class="text-slate-500">Patient MRN:</span>
+<span class="font-mono text-slate-700">MRN-2026-00417</span>
+</div>
+</div>
+<!-- Col 2 -->
+<div class="bg-white p-3 flex flex-col gap-1.5">
+<div class="flex justify-between">
+<span class="text-slate-500">Accession No:</span>
+<span class="font-mono font-semibold text-teal-800">CDL20261020000041</span>
+</div>
+<div class="flex justify-between">
+<span class="text-slate-500">Referred By:</span>
+<span class="font-medium text-slate-800">Self / Dr. Farhan Qureshi</span>
+</div>
+<div class="flex justify-between">
+<span class="text-slate-500">Specimen:</span>
+<span class="text-slate-700">Whole Blood (EDTA) + Fluoride</span>
+</div>
+</div>
+<!-- Col 3 -->
+<div class="bg-white p-3 flex flex-col gap-1.5">
+<div class="flex justify-between">
+<span class="text-slate-500">Collected:</span>
+<span class="text-slate-800">20 Oct 2026, 08:30 PKT</span>
+</div>
+<div class="flex justify-between">
+<span class="text-slate-500">Reported:</span>
+<span class="text-slate-800 font-medium">20 Oct 2026, 11:05 PKT</span>
+</div>
+<div class="flex justify-between">
+<span class="text-slate-500">Status:</span>
+<span class="text-teal-700 font-semibold">Validated &amp; Released</span>
+</div>
+</div>
+</div>
+<!-- Investigation Header -->
+<div class="bg-slate-100/70 border-l-4 border-teal-700 px-4 py-2.5 mb-4 rounded-r">
+<h3 class="font-headline-sm text-headline-sm text-slate-900">
+          Complete Blood Count (CBC) &amp; Glycated Hemoglobin (HbA1c)
+        </h3>
+<p class="text-slate-600 font-body-sm text-body-sm mt-0.5">
+          Methodology: Automated 5-Part Cell Counter &amp; High Performance Liquid Chromatography (HPLC)
+        </p>
+</div>
+<!-- Diagnostic Test Results Table -->
+<div class="overflow-x-auto border border-slate-200 rounded-lg mb-6">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-slate-50 border-b border-slate-200 text-slate-600 font-label-sm text-label-sm">
+<th class="py-2.5 px-4 font-semibold">TEST / INVESTIGATION</th>
+<th class="py-2.5 px-4 font-semibold text-right">OBSERVED VALUE</th>
+<th class="py-2.5 px-4 font-semibold">REFERENCE INTERVAL</th>
+<th class="py-2.5 px-4 font-semibold">UNIT</th>
+<th class="py-2.5 px-4 font-semibold text-center">STATUS / FLAG</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-slate-100 font-body-sm text-body-sm text-slate-800">
+<tr class="hover:bg-slate-50/50 transition-colors">
+<td class="py-2.5 px-4 font-medium text-slate-900">Hemoglobin (Hb)</td>
+<td class="py-2.5 px-4 text-right font-mono font-bold text-slate-900">14.8</td>
+<td class="py-2.5 px-4 text-slate-600">13.5 - 17.5</td>
+<td class="py-2.5 px-4 text-slate-500 font-mono text-xs">g/dL</td>
+<td class="py-2.5 px-4 text-center">
+<span class="inline-block px-2 py-0.5 rounded text-[11px] font-semibold bg-teal-50 text-teal-700 border border-teal-200">Normal</span>
+</td>
+</tr>
+<tr class="hover:bg-slate-50/50 transition-colors">
+<td class="py-2.5 px-4 font-medium text-slate-900">Total Leukocyte Count (TLC)</td>
+<td class="py-2.5 px-4 text-right font-mono font-bold text-slate-900">7,400</td>
+<td class="py-2.5 px-4 text-slate-600">4,000 - 11,000</td>
+<td class="py-2.5 px-4 text-slate-500 font-mono text-xs">/cumm</td>
+<td class="py-2.5 px-4 text-center">
+<span class="inline-block px-2 py-0.5 rounded text-[11px] font-semibold bg-teal-50 text-teal-700 border border-teal-200">Normal</span>
+</td>
+</tr>
+<tr class="hover:bg-slate-50/50 transition-colors">
+<td class="py-2.5 px-4 font-medium text-slate-900">Platelet Count</td>
+<td class="py-2.5 px-4 text-right font-mono font-bold text-slate-900">265,000</td>
+<td class="py-2.5 px-4 text-slate-600">150,000 - 450,000</td>
+<td class="py-2.5 px-4 text-slate-500 font-mono text-xs">/cumm</td>
+<td class="py-2.5 px-4 text-center">
+<span class="inline-block px-2 py-0.5 rounded text-[11px] font-semibold bg-teal-50 text-teal-700 border border-teal-200">Normal</span>
+</td>
+</tr>
+<tr class="hover:bg-slate-50/50 transition-colors">
+<td class="py-2.5 px-4 font-medium text-slate-900">Hematocrit (PCV)</td>
+<td class="py-2.5 px-4 text-right font-mono font-bold text-slate-900">44.2</td>
+<td class="py-2.5 px-4 text-slate-600">40.0 - 52.0</td>
+<td class="py-2.5 px-4 text-slate-500 font-mono text-xs">%</td>
+<td class="py-2.5 px-4 text-center">
+<span class="inline-block px-2 py-0.5 rounded text-[11px] font-semibold bg-teal-50 text-teal-700 border border-teal-200">Normal</span>
+</td>
+</tr>
+<tr class="hover:bg-slate-50/50 transition-colors bg-teal-50/20">
+<td class="py-2.5 px-4 font-medium text-slate-900">Glycated Hemoglobin (HbA1c)</td>
+<td class="py-2.5 px-4 text-right font-mono font-bold text-slate-900">5.6</td>
+<td class="py-2.5 px-4 text-slate-600">&lt; 5.7 (Normal), 5.7-6.4 (Prediabetes)</td>
+<td class="py-2.5 px-4 text-slate-500 font-mono text-xs">%</td>
+<td class="py-2.5 px-4 text-center">
+<span class="inline-block px-2 py-0.5 rounded text-[11px] font-semibold bg-teal-50 text-teal-700 border border-teal-200">Normal</span>
+</td>
+</tr>
+<tr class="hover:bg-slate-50/50 transition-colors">
+<td class="py-2.5 px-4 font-medium text-slate-900">Estimated Average Glucose (eAG)</td>
+<td class="py-2.5 px-4 text-right font-mono font-bold text-slate-900">114</td>
+<td class="py-2.5 px-4 text-slate-600">90 - 120</td>
+<td class="py-2.5 px-4 text-slate-500 font-mono text-xs">mg/dL</td>
+<td class="py-2.5 px-4 text-center">
+<span class="inline-block px-2 py-0.5 rounded text-[11px] font-semibold bg-teal-50 text-teal-700 border border-teal-200">Normal</span>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Clinical Interpretation / Footnote -->
+<div class="border border-slate-200 bg-slate-50/50 rounded-lg p-3.5 mb-6 text-slate-700 font-body-sm text-body-sm">
+<span class="font-semibold text-slate-900">Clinical Comment: </span>
+<span>Specimen integrity verified. No micro-clots detected. HbA1c assay performed via NGSP certified method. Findings correlate with euglycemic status.</span>
+</div>
+<!-- Pathologist Signatures & Cryptographic Audit -->
+<div class="border-t border-slate-200 pt-5 mt-auto">
+<div class="flex flex-col sm:flex-row items-start sm:items-end justify-between gap-6">
+<div class="flex items-center gap-6">
+<div>
+<div class="h-9 font-serif text-teal-800 text-lg italic tracking-wider flex items-end">Dr. Ayesha K.</div>
+<p class="font-semibold text-slate-900 text-body-sm font-body-sm">Dr. Ayesha Khan</p>
+<p class="text-slate-500 font-body-sm text-[11px]">Consultant Pathologist (PMDC #48192-P)</p>
+</div>
+<div class="border-l border-slate-200 pl-6">
+<div class="h-9 font-serif text-teal-800 text-lg italic tracking-wider flex items-end">Dr. Tariq M.</div>
+<p class="font-semibold text-slate-900 text-body-sm font-body-sm">Dr. Tariq Mahmood</p>
+<p class="text-slate-500 font-body-sm text-[11px]">Head of Hematology (PMDC #31049-P)</p>
+</div>
+</div>
+<div class="flex items-center gap-3 bg-slate-50 border border-slate-200 p-2.5 rounded-lg shrink-0">
+<!-- Simulated QR Code placeholder -->
+<div class="w-12 h-12 bg-white border border-slate-300 p-1 flex flex-col justify-between shrink-0">
+<div class="flex justify-between"><div class="w-2.5 h-2.5 bg-slate-900"></div><div class="w-2.5 h-2.5 bg-slate-900"></div></div>
+<div class="flex justify-center"><div class="w-2 h-2 bg-slate-900"></div></div>
+<div class="flex justify-between"><div class="w-2.5 h-2.5 bg-slate-900"></div><div class="w-1 h-1 bg-slate-900"></div></div>
+</div>
+<div class="text-[10px] font-mono text-slate-500 leading-tight">
+<div class="font-bold text-slate-700">SHA-256 Verified</div>
+<div class="text-slate-400 truncate max-w-[130px]">7f8c9b20e11894d3e88a…</div>
+<div class="text-teal-700 font-medium">Electronically Validated</div>
+</div>
+</div>
+</div>
+</div>
+</article>
+<!-- 4. Fallback Action & Download Strip -->
+<section class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
+<div>
+<p class="font-headline-sm text-headline-sm text-slate-900">Need an offline copy?</p>
+<p class="text-slate-500 font-body-sm text-body-sm">If your report does not open automatically in your viewer, click below.</p>
+</div>
+<div class="flex items-center gap-3 w-full sm:w-auto">
+<button class="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-teal-700 hover:bg-teal-600 active:bg-teal-800 text-white rounded-lg font-label-md text-label-md font-medium shadow-sm transition-colors duration-150" onclick="window.print()" type="button">
+<span class="material-symbols-outlined text-[18px]">download</span>
+<span>Download PDF (384 KB)</span>
+</button>
+<button class="inline-flex items-center justify-center p-2.5 border border-slate-200 rounded-lg hover:bg-slate-50 text-slate-700 transition-colors" onclick="window.print()" title="Print document" type="button">
+<span class="material-symbols-outlined text-[20px]">print</span>
+</button>
+</div>
+</section>
+<!-- Security & Contact Footnote -->
+<footer class="text-center text-slate-500 font-body-sm text-body-sm flex flex-col gap-2 pt-2 pb-8">
+<p class="text-[12px] max-w-xl mx-auto leading-relaxed">
+        This document was accessed via an authorized secure delivery token sent to your registered phone number. For any queries or clinical verification, call <span class="text-slate-700 font-medium">+92 42 35712345</span>.
+      </p>
+<p class="text-[11px] text-slate-400">
+        © 2026 City Diagnostic Lab · Powered by LabFlow Diagnostic Cloud
+      </p>
+</footer>
+</main>
+<style>
+    @keyframes decryptProgress {
+      0% { width: 35%; }
+      50% { width: 78%; }
+      100% { width: 100%; }
+    }
+  </style>
+</body></html>

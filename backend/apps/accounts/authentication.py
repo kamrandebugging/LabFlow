@@ -70,7 +70,14 @@ class JWTAuthentication(authentication.BaseAuthentication):
             raise exceptions.AuthenticationFailed("Token tenant mismatch")
 
         # Resolve user in active tenant schema
-        user = StaffUser.objects.filter(id=user_id, is_active=True).first()
+        tenant_to_use = req_tenant or token_tenant
+        if tenant_to_use:
+            from django_tenants.utils import schema_context
+
+            with schema_context(tenant_to_use):
+                user = StaffUser.objects.filter(id=user_id, is_active=True).first()
+        else:
+            user = StaffUser.objects.filter(id=user_id, is_active=True).first()
         if not user:
             raise exceptions.AuthenticationFailed("User not found or deactivated")
 

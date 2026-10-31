@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>LabFlow — Test Panels | City Diagnostic Lab</title>
+<!-- Google Fonts: Inter & Manrope -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Manrope:wght@600;700;800&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols Outlined -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS v3 -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "on-tertiary-fixed-variant": "#00504b",
+            "on-secondary-fixed": "#00201d",
+            "error": "#ba1a1a",
+            "on-error-container": "#93000a",
+            "secondary-container": "#86f2e4",
+            "surface-container-highest": "#dae2fd",
+            "on-secondary": "#ffffff",
+            "surface-bright": "#faf8ff",
+            "tertiary-container": "#2f746f",
+            "surface": "#faf8ff",
+            "error-container": "#ffdad6",
+            "tertiary": "#0c5b56",
+            "on-error": "#ffffff",
+            "tertiary-fixed": "#abefe8",
+            "on-primary": "#ffffff",
+            "on-secondary-fixed-variant": "#005049",
+            "on-primary-fixed-variant": "#00504a",
+            "on-primary-fixed": "#00201d",
+            "primary-container": "#0f766e",
+            "on-tertiary-fixed": "#00201e",
+            "on-surface-variant": "#3e4947",
+            "surface-dim": "#d2d9f4",
+            "on-tertiary": "#ffffff",
+            "tertiary-fixed-dim": "#8fd3cc",
+            "primary": "#005c55",
+            "secondary-fixed": "#89f5e7",
+            "primary-fixed-dim": "#80d5cb",
+            "on-secondary-container": "#006f66",
+            "surface-variant": "#dae2fd",
+            "primary-fixed": "#9cf2e8",
+            "surface-container": "#eaedff",
+            "on-surface": "#131b2e",
+            "inverse-surface": "#283044",
+            "outline-variant": "#bdc9c6",
+            "surface-tint": "#006a63",
+            "surface-container-high": "#e2e7ff",
+            "secondary": "#006a61",
+            "surface-container-lowest": "#ffffff",
+            "background": "#faf8ff",
+            "inverse-on-surface": "#eef0ff",
+            "on-background": "#131b2e",
+            "secondary-fixed-dim": "#6bd8cb",
+            "outline": "#6e7977",
+            "surface-container-low": "#f2f3ff",
+            "on-tertiary-container": "#b3f7f0",
+            "inverse-primary": "#80d5cb",
+            "on-primary-container": "#a3faef"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.25rem",
+            "lg": "0.5rem",
+            "xl": "0.75rem",
+            "full": "9999px"
+          },
+          "spacing": {
+            "space-sm": "0.5rem",
+            "space-xl": "2rem",
+            "margin": "1rem",
+            "margin-lg": "2rem",
+            "gutter-lg": "1.5rem",
+            "space-xs": "0.25rem",
+            "gutter-md": "1.25rem",
+            "space-2xl": "3rem",
+            "margin-md": "1.5rem",
+            "space-md": "1rem",
+            "gutter": "1rem",
+            "space-lg": "1.5rem"
+          },
+          "fontFamily": {
+            "data-mono": ["Inter"],
+            "headline-lg": ["Manrope"],
+            "label-md": ["Inter"],
+            "display-lg-mobile": ["Manrope"],
+            "body-lg": ["Inter"],
+            "label-sm": ["Inter"],
+            "display-lg": ["Manrope"],
+            "headline-md": ["Manrope"],
+            "headline-sm": ["Manrope"],
+            "body-md": ["Inter"],
+            "body-sm": ["Inter"]
+          },
+          "fontSize": {
+            "data-mono": ["13px", { "lineHeight": "18px", "letterSpacing": "-0.01em", "fontWeight": "500" }],
+            "headline-lg": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.015em", "fontWeight": "600" }],
+            "label-md": ["13px", { "lineHeight": "18px", "letterSpacing": "0.01em", "fontWeight": "500" }],
+            "display-lg-mobile": ["28px", { "lineHeight": "36px", "letterSpacing": "-0.015em", "fontWeight": "700" }],
+            "body-lg": ["16px", { "lineHeight": "24px", "letterSpacing": "0em", "fontWeight": "400" }],
+            "label-sm": ["11px", { "lineHeight": "14px", "letterSpacing": "0.03em", "fontWeight": "600" }],
+            "display-lg": ["36px", { "lineHeight": "44px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+            "headline-md": ["20px", { "lineHeight": "28px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+            "headline-sm": ["16px", { "lineHeight": "24px", "letterSpacing": "-0.005em", "fontWeight": "600" }],
+            "body-md": ["14px", { "lineHeight": "20px", "letterSpacing": "0em", "fontWeight": "400" }],
+            "body-sm": ["12px", { "lineHeight": "16px", "letterSpacing": "0.01em", "fontWeight": "400" }]
+          }
+        },
+      },
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+      vertical-align: middle;
+      line-height: 1;
+      font-size: 18px;
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 5px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-900 antialiased min-h-screen flex flex-col font-body-md text-body-md select-none">
+<!-- TOP APP BAR (Shared Component Anchor) -->
+<header class="bg-surface-container-lowest text-primary docked full-width top-0 z-40 border-b border-outline-variant shadow-sm h-14 flex items-center justify-between px-space-lg w-full shrink-0">
+<!-- Left: Brand & Context -->
+<div class="flex items-center gap-space-lg">
+<div class="flex items-center gap-space-sm">
+<span class="material-symbols-outlined text-primary text-xl" data-icon="biotech">biotech</span>
+<span class="text-headline-sm font-headline-sm font-semibold text-primary tracking-tight">City Diagnostic Lab</span>
+</div>
+<div class="h-4 w-px bg-slate-200"></div>
+<div class="flex items-center gap-1.5 text-slate-600 font-label-md text-label-md">
+<span class="material-symbols-outlined text-slate-400" data-icon="store">store</span>
+<span class="font-medium text-slate-700">Main Branch — Gulberg, Lahore</span>
+</div>
+</div>
+<!-- Center/Right: Language Toggle & User Actions -->
+<div class="flex items-center gap-space-md">
+<div class="flex items-center text-label-md font-label-md text-on-surface-variant font-medium px-2 py-1 rounded bg-slate-100 hover:bg-slate-200 transition-colors cursor-pointer">
+<span class="material-symbols-outlined mr-1 text-slate-500" data-icon="language">language</span>
+<span>English / اردو</span>
+</div>
+<div class="h-4 w-px bg-slate-200"></div>
+<!-- Trailing Action Icons -->
+<button class="relative p-1.5 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors" title="Notifications">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+<span class="absolute top-1 right-1 w-2 h-2 bg-red-600 rounded-full"></span>
+</button>
+<button class="p-1.5 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors" title="Help">
+<span class="material-symbols-outlined" data-icon="help_outline">help_outline</span>
+</button>
+<!-- User Profile Badge & Logout -->
+<div class="flex items-center pl-2 gap-space-sm border-l border-slate-200">
+<div class="w-8 h-8 rounded-full bg-teal-100 text-teal-800 flex items-center justify-center font-semibold text-label-sm font-label-sm border border-teal-200">
+          AR
+        </div>
+<div class="flex flex-col text-left">
+<span class="font-semibold text-slate-900 font-label-md text-label-md leading-tight">Ali Raza</span>
+<span class="text-slate-500 font-body-sm text-body-sm leading-tight">Owner</span>
+</div>
+<button class="ml-2 text-slate-600 hover:text-red-600 font-label-md text-label-md px-2 py-1 rounded hover:bg-red-50 transition-colors flex items-center gap-1" title="Logout">
+<span class="material-symbols-outlined text-slate-500 hover:text-red-600" data-icon="logout">logout</span>
+<span class="hidden sm:inline">Logout</span>
+</button>
+</div>
+</div>
+</header>
+<!-- WORKSPACE VIEWPORT -->
+<div class="flex flex-1 overflow-hidden">
+<!-- LEFT SIDEBAR (Shared Component: SideNavBar) -->
+<aside class="sticky top-14 left-0 flex flex-col h-[calc(100vh-3.5rem)] py-space-md px-space-sm overflow-y-auto w-60 shrink-0 bg-surface-container-lowest border-r border-outline-variant flat no shadows custom-scrollbar select-none">
+<!-- Operational CTA -->
+<div class="px-2 mb-space-md">
+<button class="w-full flex items-center justify-center gap-2 bg-teal-600 hover:bg-teal-700 text-white font-label-md text-label-md py-2 px-3 rounded-lg shadow-sm transition-colors">
+<span class="material-symbols-outlined text-white" data-icon="receipt_long">receipt_long</span>
+<span>New invoice</span>
+</button>
+</div>
+<!-- Section: Lab Operations -->
+<div class="px-2 pb-1.5">
+<span class="font-label-sm text-label-sm tracking-wider text-slate-600 uppercase font-semibold">Lab Operations</span>
+</div>
+<nav class="space-y-0.5 mb-space-lg">
+<a class="text-on-surface-variant hover:text-on-surface font-medium px-space-sm py-2 rounded-lg flex items-center gap-2.5 hover:bg-slate-100 transition-colors" href="#">
+<span class="material-symbols-outlined text-slate-500" data-icon="dashboard">dashboard</span>
+<span class="font-label-md text-label-md">Home</span>
+</a>
+<a class="text-on-surface-variant hover:text-on-surface font-medium px-space-sm py-2 rounded-lg flex items-center gap-2.5 hover:bg-slate-100 transition-colors" href="#">
+<span class="material-symbols-outlined text-slate-500" data-icon="personal_injury">personal_injury</span>
+<span class="font-label-md text-label-md">Patients</span>
+</a>
+<a class="text-on-surface-variant hover:text-on-surface font-medium px-space-sm py-2 rounded-lg flex items-center gap-2.5 hover:bg-slate-100 transition-colors" href="#">
+<span class="material-symbols-outlined text-slate-500" data-icon="receipt_long">receipt_long</span>
+<span class="font-label-md text-label-md">Invoices &amp; payments</span>
+</a>
+<a class="text-on-surface-variant hover:text-on-surface font-medium px-space-sm py-2 rounded-lg flex items-center gap-2.5 hover:bg-slate-100 transition-colors" href="#">
+<span class="material-symbols-outlined text-slate-500" data-icon="biotech">biotech</span>
+<span class="font-label-md text-label-md">Samples</span>
+</a>
+<a class="text-on-surface-variant hover:text-on-surface font-medium px-space-sm py-2 rounded-lg flex items-center gap-2.5 hover:bg-slate-100 transition-colors" href="#">
+<span class="material-symbols-outlined text-slate-500" data-icon="assignment">assignment</span>
+<span class="font-label-md text-label-md">Worklist</span>
+</a>
+<a class="text-on-surface-variant hover:text-on-surface font-medium px-space-sm py-2 rounded-lg flex items-center gap-2.5 hover:bg-slate-100 transition-colors" href="#">
+<span class="material-symbols-outlined text-slate-500" data-icon="edit_note">edit_note</span>
+<span class="font-label-md text-label-md">Results entry</span>
+</a>
+<a class="text-on-surface-variant hover:text-on-surface font-medium px-space-sm py-2 rounded-lg flex items-center justify-between hover:bg-slate-100 transition-colors" href="#">
+<div class="flex items-center gap-2.5">
+<span class="material-symbols-outlined text-slate-500" data-icon="verified">verified</span>
+<span class="font-label-md text-label-md">Approvals</span>
+</div>
+<span class="bg-[#e8a33d] text-white font-label-sm text-label-sm font-semibold px-1.5 py-0.5 rounded-full text-center min-w-[20px]">9</span>
+</a>
+<a class="text-on-surface-variant hover:text-on-surface font-medium px-space-sm py-2 rounded-lg flex items-center gap-2.5 hover:bg-slate-100 transition-colors" href="#">
+<span class="material-symbols-outlined text-slate-500" data-icon="description">description</span>
+<span class="font-label-md text-label-md">Reports</span>
+</a>
+<a class="text-on-surface-variant hover:text-on-surface font-medium px-space-sm py-2 rounded-lg flex items-center justify-between hover:bg-slate-100 transition-colors" href="#">
+<div class="flex items-center gap-2.5">
+<span class="material-symbols-outlined text-slate-500" data-icon="report_problem">report_problem</span>
+<span class="font-label-md text-label-md">Exceptions</span>
+</div>
+<span class="bg-red-600 text-white font-label-sm text-label-sm font-semibold px-1.5 py-0.5 rounded-full text-center min-w-[20px]">5</span>
+</a>
+<!-- ACTIVE: Catalog -->
+<a class="bg-teal-50 text-teal-800 font-semibold border-l-4 border-teal-600 rounded-r-lg px-space-sm py-2 flex items-center gap-2.5 transition-all" href="#">
+<span class="material-symbols-outlined text-teal-700" data-icon="inventory_2">inventory_2</span>
+<span class="font-label-md text-label-md">Catalog</span>
+</a>
+</nav>
+<!-- Section: Management -->
+<div class="px-2 pb-1.5 border-t border-slate-100 pt-3">
+<span class="font-label-sm text-label-sm tracking-wider text-slate-600 uppercase font-semibold">Management</span>
+</div>
+<nav class="space-y-0.5 mb-space-md">
+<a class="text-on-surface-variant hover:text-on-surface font-medium px-space-sm py-1.5 rounded-lg flex items-center gap-2.5 hover:bg-slate-100 transition-colors" href="#">
+<span class="material-symbols-outlined text-slate-500" data-icon="location_city">location_city</span>
+<span class="font-label-md text-label-md">Branches</span>
+</a>
+<a class="text-on-surface-variant hover:text-on-surface font-medium px-space-sm py-1.5 rounded-lg flex items-center gap-2.5 hover:bg-slate-100 transition-colors" href="#">
+<span class="material-symbols-outlined text-slate-500" data-icon="badge">badge</span>
+<span class="font-label-md text-label-md">Staff</span>
+</a>
+<a class="text-on-surface-variant hover:text-on-surface font-medium px-space-sm py-1.5 rounded-lg flex items-center gap-2.5 hover:bg-slate-100 transition-colors" href="#">
+<span class="material-symbols-outlined text-slate-500" data-icon="handshake">handshake</span>
+<span class="font-label-md text-label-md">Partners &amp; share ledger</span>
+</a>
+<a class="text-on-surface-variant hover:text-on-surface font-medium px-space-sm py-1.5 rounded-lg flex items-center gap-2.5 hover:bg-slate-100 transition-colors" href="#">
+<span class="material-symbols-outlined text-slate-500" data-icon="account_balance_wallet">account_balance_wallet</span>
+<span class="font-label-md text-label-md">Settlements</span>
+</a>
+<a class="text-on-surface-variant hover:text-on-surface font-medium px-space-sm py-1.5 rounded-lg flex items-center gap-2.5 hover:bg-slate-100 transition-colors" href="#">
+<span class="material-symbols-outlined text-slate-500" data-icon="settings">settings</span>
+<span class="font-label-md text-label-md">Tenant Settings</span>
+</a>
+<a class="text-on-surface-variant hover:text-on-surface font-medium px-space-sm py-1.5 rounded-lg flex items-center gap-2.5 hover:bg-slate-100 transition-colors" href="#">
+<span class="material-symbols-outlined text-slate-500" data-icon="file_download">file_download</span>
+<span class="font-label-md text-label-md">Exports</span>
+</a>
+</nav>
+<!-- Sidebar Footer -->
+<div class="mt-auto pt-3 border-t border-slate-200 space-y-1">
+<a class="text-on-surface-variant hover:text-on-surface font-medium px-space-sm py-1.5 rounded-lg flex items-center gap-2 hover:bg-slate-100 transition-colors" href="#">
+<span class="material-symbols-outlined text-slate-500" data-icon="help">help</span>
+<span class="font-label-md text-label-md">Help &amp; docs</span>
+</a>
+<a class="text-on-surface-variant hover:text-red-600 font-medium px-space-sm py-1.5 rounded-lg flex items-center gap-2 hover:bg-red-50 transition-colors" href="#">
+<span class="material-symbols-outlined text-slate-500" data-icon="logout">logout</span>
+<span class="font-label-md text-label-md">Logout</span>
+</a>
+</div>
+</aside>
+<!-- MAIN SCROLLABLE CONTENT CANVAS -->
+<main class="flex-1 bg-slate-50 overflow-y-auto px-space-xl py-space-lg flex flex-col gap-space-lg">
+<!-- BREADCRUMB / CATALOG SUBNAVIGATION -->
+<div>
+<div class="flex items-center gap-2 text-body-sm font-body-sm text-slate-600 mb-2">
+<span class="hover:text-slate-900 cursor-pointer">Catalog</span>
+<span class="text-slate-400">/</span>
+<span class="text-slate-900 font-medium">Panels</span>
+</div>
+<!-- Category Subnav Tabs -->
+<div class="border-b border-slate-200 flex items-center gap-space-lg font-label-md text-label-md">
+<a class="py-2.5 text-slate-600 hover:text-slate-900 font-medium border-b-2 border-transparent transition-colors" href="#">
+            Tests
+          </a>
+<a class="py-2.5 text-teal-700 font-semibold border-b-2 border-teal-600 transition-colors flex items-center gap-1.5" href="#">
+<span>Panels</span>
+<span class="bg-teal-100 text-teal-800 text-label-sm font-label-sm px-1.5 py-0.2 rounded-full">4</span>
+</a>
+<a class="py-2.5 text-slate-600 hover:text-slate-900 font-medium border-b-2 border-transparent transition-colors" href="#">
+            Specimens
+          </a>
+<a class="py-2.5 text-slate-600 hover:text-slate-900 font-medium border-b-2 border-transparent transition-colors" href="#">
+            Reference Ranges
+          </a>
+</div>
+</div>
+<!-- PAGE HEADER -->
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-space-md">
+<div>
+<h1 class="text-headline-lg font-headline-lg font-bold text-slate-900 tracking-tight">Test Panels</h1>
+<p class="text-body-md font-body-md text-slate-600 mt-0.5">Bundled tests with panel pricing</p>
+</div>
+<div class="flex items-center gap-space-sm">
+<!-- Secondary Action: Export CSV -->
+<button class="bg-surface-container-lowest text-slate-900 border border-slate-200 hover:bg-slate-100 font-label-md text-label-md rounded-lg px-3.5 py-2 flex items-center gap-1.5 shadow-sm transition-colors">
+<span class="material-symbols-outlined text-slate-600 text-base" data-icon="file_download">file_download</span>
+<span>Export CSV</span>
+</button>
+<!-- Primary Action: + Add panel -->
+<button class="bg-teal-600 hover:bg-teal-700 text-white font-label-md text-label-md rounded-lg px-4 py-2 flex items-center gap-1.5 shadow-sm transition-colors font-medium">
+<span class="material-symbols-outlined text-white text-base" data-icon="add">add</span>
+<span>+ Add panel</span>
+</button>
+</div>
+</div>
+<!-- FILTER & SEARCH TOOLBAR -->
+<div class="bg-surface-container-lowest border border-slate-200 rounded-xl p-space-md shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-space-md">
+<div class="flex flex-1 flex-col sm:flex-row items-center gap-space-md">
+<!-- Search input -->
+<div class="relative w-full sm:w-80">
+<span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+<span class="material-symbols-outlined" data-icon="search">search</span>
+</span>
+<input class="w-full pl-9 pr-3 py-1.5 bg-white border border-slate-300 rounded-lg font-body-md text-body-md text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-teal-600 focus:ring-1 focus:ring-teal-600 transition-colors" placeholder="Search panels or bundled tests..." type="text"/>
+</div>
+<!-- Status Filter Dropdown -->
+<div class="w-full sm:w-44">
+<select class="w-full py-1.5 px-3 bg-white border border-slate-300 rounded-lg font-body-md text-body-md text-slate-700 focus:outline-none focus:border-teal-600 focus:ring-1 focus:ring-teal-600 transition-colors">
+<option value="">All Statuses</option>
+<option value="active">Active</option>
+<option value="inactive">Inactive</option>
+</select>
+</div>
+<!-- Specimen Requirement Dropdown -->
+<div class="w-full sm:w-48">
+<select class="w-full py-1.5 px-3 bg-white border border-slate-300 rounded-lg font-body-md text-body-md text-slate-700 focus:outline-none focus:border-teal-600 focus:ring-1 focus:ring-teal-600 transition-colors">
+<option value="">All Specimens</option>
+<option value="edta">Whole Blood EDTA</option>
+<option value="serum">Serum</option>
+<option value="urine">Urine</option>
+<option value="fluoride">Fluoride Plasma</option>
+</select>
+</div>
+</div>
+<!-- Showing counter -->
+<div class="text-label-md font-label-md text-slate-600 font-medium shrink-0">
+          Showing 4 panels
+        </div>
+</div>
+<!-- TEST PANELS TABLE -->
+<div class="bg-surface-container-lowest border border-slate-200 rounded-xl shadow-sm overflow-hidden flex flex-col">
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-slate-50 border-b border-slate-200 font-label-sm text-label-sm text-slate-600 uppercase">
+<th class="py-3 px-4 font-semibold tracking-wider">Panel Name</th>
+<th class="py-3 px-4 font-semibold tracking-wider">Bundled Tests</th>
+<th class="py-3 px-4 font-semibold tracking-wider">Specimen Matrix</th>
+<th class="py-3 px-4 font-semibold tracking-wider">Panel Price</th>
+<th class="py-3 px-4 font-semibold tracking-wider">Status</th>
+<th class="py-3 px-4 font-semibold tracking-wider text-right">Actions</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-slate-100 font-body-md text-body-md">
+<!-- Row 1: Executive Health Panel -->
+<tr class="hover:bg-slate-50/80 transition-colors">
+<td class="py-3.5 px-4">
+<div class="flex flex-col">
+<span class="font-semibold text-slate-900">Executive Health Panel</span>
+<span class="font-data-mono text-data-mono text-slate-600">PNL-001</span>
+</div>
+</td>
+<td class="py-3.5 px-4 max-w-sm">
+<div class="text-slate-800 leading-snug">
+                    CBC, Lipid Profile, HbA1c, TSH, Urine Complete 
+                    <span class="inline-block ml-1 font-semibold text-slate-600 text-label-sm font-label-sm bg-slate-100 px-1.5 py-0.5 rounded">5 tests</span>
+</div>
+</td>
+<td class="py-3.5 px-4">
+<div class="flex flex-wrap gap-1">
+<span class="inline-flex items-center px-2 py-0.5 rounded text-label-sm font-label-sm font-medium bg-slate-100 text-slate-700 border border-slate-200">
+                      Whole Blood EDTA
+                    </span>
+<span class="inline-flex items-center px-2 py-0.5 rounded text-label-sm font-label-sm font-medium bg-slate-100 text-slate-700 border border-slate-200">
+                      Serum Fasting
+                    </span>
+<span class="inline-flex items-center px-2 py-0.5 rounded text-label-sm font-label-sm font-medium bg-slate-100 text-slate-700 border border-slate-200">
+                      Urine
+                    </span>
+</div>
+</td>
+<td class="py-3.5 px-4 whitespace-nowrap">
+<span class="font-data-mono text-data-mono font-semibold text-black">PKR 5200.00</span>
+</td>
+<td class="py-3.5 px-4 whitespace-nowrap">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-label-sm font-label-sm font-medium bg-teal-50 text-teal-700 border border-teal-200">
+<span class="w-1.5 h-1.5 rounded-full bg-teal-600"></span>
+                    Active
+                  </span>
+</td>
+<td class="py-3.5 px-4 text-right whitespace-nowrap">
+<div class="flex items-center justify-end gap-1">
+<button class="px-2.5 py-1 text-slate-700 hover:text-teal-700 font-label-md text-label-md font-medium hover:bg-slate-100 rounded transition-colors">
+                      Edit
+                    </button>
+<button class="p-1 text-slate-400 hover:text-slate-700 rounded hover:bg-slate-100 transition-colors" title="More options">
+<span class="material-symbols-outlined text-base" data-icon="more_vert">more_vert</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 2: Diabetes Care Panel -->
+<tr class="hover:bg-slate-50/80 transition-colors">
+<td class="py-3.5 px-4">
+<div class="flex flex-col">
+<span class="font-semibold text-slate-900">Diabetes Care Panel</span>
+<span class="font-data-mono text-data-mono text-slate-600">PNL-002</span>
+</div>
+</td>
+<td class="py-3.5 px-4 max-w-sm">
+<div class="text-slate-800 leading-snug">
+                    Fasting Glucose, HbA1c, Urine Complete 
+                    <span class="inline-block ml-1 font-semibold text-slate-600 text-label-sm font-label-sm bg-slate-100 px-1.5 py-0.5 rounded">3 tests</span>
+</div>
+</td>
+<td class="py-3.5 px-4">
+<div class="flex flex-wrap gap-1">
+<span class="inline-flex items-center px-2 py-0.5 rounded text-label-sm font-label-sm font-medium bg-slate-100 text-slate-700 border border-slate-200">
+                      Fluoride Plasma
+                    </span>
+<span class="inline-flex items-center px-2 py-0.5 rounded text-label-sm font-label-sm font-medium bg-slate-100 text-slate-700 border border-slate-200">
+                      Whole Blood EDTA
+                    </span>
+<span class="inline-flex items-center px-2 py-0.5 rounded text-label-sm font-label-sm font-medium bg-slate-100 text-slate-700 border border-slate-200">
+                      Urine
+                    </span>
+</div>
+</td>
+<td class="py-3.5 px-4 whitespace-nowrap">
+<span class="font-data-mono text-data-mono font-semibold text-black">PKR 2200.00</span>
+</td>
+<td class="py-3.5 px-4 whitespace-nowrap">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-label-sm font-label-sm font-medium bg-teal-50 text-teal-700 border border-teal-200">
+<span class="w-1.5 h-1.5 rounded-full bg-teal-600"></span>
+                    Active
+                  </span>
+</td>
+<td class="py-3.5 px-4 text-right whitespace-nowrap">
+<div class="flex items-center justify-end gap-1">
+<button class="px-2.5 py-1 text-slate-700 hover:text-teal-700 font-label-md text-label-md font-medium hover:bg-slate-100 rounded transition-colors">
+                      Edit
+                    </button>
+<button class="p-1 text-slate-400 hover:text-slate-700 rounded hover:bg-slate-100 transition-colors" title="More options">
+<span class="material-symbols-outlined text-base" data-icon="more_vert">more_vert</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 3: Antenatal Panel -->
+<tr class="hover:bg-slate-50/80 transition-colors">
+<td class="py-3.5 px-4">
+<div class="flex flex-col">
+<span class="font-semibold text-slate-900">Antenatal Panel</span>
+<span class="font-data-mono text-data-mono text-slate-600">PNL-003</span>
+</div>
+</td>
+<td class="py-3.5 px-4 max-w-sm">
+<div class="text-slate-800 leading-snug">
+                    CBC, Blood Group, HBsAg, Anti-HCV 
+                    <span class="inline-block ml-1 font-semibold text-slate-600 text-label-sm font-label-sm bg-slate-100 px-1.5 py-0.5 rounded">4 tests</span>
+</div>
+</td>
+<td class="py-3.5 px-4">
+<div class="flex flex-wrap gap-1">
+<span class="inline-flex items-center px-2 py-0.5 rounded text-label-sm font-label-sm font-medium bg-slate-100 text-slate-700 border border-slate-200">
+                      Whole Blood EDTA
+                    </span>
+<span class="inline-flex items-center px-2 py-0.5 rounded text-label-sm font-label-sm font-medium bg-slate-100 text-slate-700 border border-slate-200">
+                      Serum
+                    </span>
+</div>
+</td>
+<td class="py-3.5 px-4 whitespace-nowrap">
+<span class="font-data-mono text-data-mono font-semibold text-black">PKR 3100.00</span>
+</td>
+<td class="py-3.5 px-4 whitespace-nowrap">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-label-sm font-label-sm font-medium bg-teal-50 text-teal-700 border border-teal-200">
+<span class="w-1.5 h-1.5 rounded-full bg-teal-600"></span>
+                    Active
+                  </span>
+</td>
+<td class="py-3.5 px-4 text-right whitespace-nowrap">
+<div class="flex items-center justify-end gap-1">
+<button class="px-2.5 py-1 text-slate-700 hover:text-teal-700 font-label-md text-label-md font-medium hover:bg-slate-100 rounded transition-colors">
+                      Edit
+                    </button>
+<button class="p-1 text-slate-400 hover:text-slate-700 rounded hover:bg-slate-100 transition-colors" title="More options">
+<span class="material-symbols-outlined text-base" data-icon="more_vert">more_vert</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 4: Fever Panel -->
+<tr class="hover:bg-slate-50/80 transition-colors">
+<td class="py-3.5 px-4">
+<div class="flex flex-col">
+<span class="font-semibold text-slate-900">Fever Panel</span>
+<span class="font-data-mono text-data-mono text-slate-600">PNL-004</span>
+</div>
+</td>
+<td class="py-3.5 px-4 max-w-sm">
+<div class="text-slate-800 leading-snug">
+                    CBC, Dengue NS1, Typhidot 
+                    <span class="inline-block ml-1 font-semibold text-slate-600 text-label-sm font-label-sm bg-slate-100 px-1.5 py-0.5 rounded">3 tests</span>
+</div>
+</td>
+<td class="py-3.5 px-4">
+<div class="flex flex-wrap gap-1">
+<span class="inline-flex items-center px-2 py-0.5 rounded text-label-sm font-label-sm font-medium bg-slate-100 text-slate-700 border border-slate-200">
+                      Whole Blood EDTA
+                    </span>
+<span class="inline-flex items-center px-2 py-0.5 rounded text-label-sm font-label-sm font-medium bg-slate-100 text-slate-700 border border-slate-200">
+                      Serum
+                    </span>
+</div>
+</td>
+<td class="py-3.5 px-4 whitespace-nowrap">
+<span class="font-data-mono text-data-mono font-semibold text-black">PKR 2800.00</span>
+</td>
+<td class="py-3.5 px-4 whitespace-nowrap">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-label-sm font-label-sm font-medium bg-slate-100 text-slate-600 border border-slate-200">
+<span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+                    Inactive
+                  </span>
+</td>
+<td class="py-3.5 px-4 text-right whitespace-nowrap">
+<div class="flex items-center justify-end gap-1">
+<button class="px-2.5 py-1 text-slate-700 hover:text-teal-700 font-label-md text-label-md font-medium hover:bg-slate-100 rounded transition-colors">
+                      Edit
+                    </button>
+<button class="p-1 text-slate-400 hover:text-slate-700 rounded hover:bg-slate-100 transition-colors" title="More options">
+<span class="material-symbols-outlined text-base" data-icon="more_vert">more_vert</span>
+</button>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Table Footer -->
+<div class="bg-slate-50 border-t border-slate-200 px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-body-sm font-body-sm text-slate-600">
+<div class="font-medium text-slate-700">
+            Showing 4 of 4 panels
+          </div>
+<div class="flex items-center gap-1.5 text-slate-600">
+<span class="material-symbols-outlined text-slate-500 text-base" data-icon="info">info</span>
+<span>All bundled prices include specimen handling and consolidated report delivery.</span>
+</div>
+</div>
+</div>
+</main>
+</div>
+<!-- EMPTY TOAST CONTAINER (Bottom-Right Anchor) -->
+<aside aria-live="polite" class="fixed bottom-4 right-4 z-50 pointer-events-none flex flex-col gap-2" id="toast-container"></aside>
+</body></html>

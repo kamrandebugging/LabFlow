@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>City Diagnostic Lab - Invoices</title>
+<!-- Material Symbols Outlined -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Google Fonts: Inter & Manrope -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Manrope:wght@600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS v3 -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "surface-container-high": "#e2e7ff",
+            "primary-fixed-dim": "#80d5cb",
+            "surface": "#faf8ff",
+            "on-surface-variant": "#3e4947",
+            "outline-variant": "#bdc9c6",
+            "primary": "#005c55",
+            "on-primary": "#ffffff",
+            "background": "#faf8ff",
+            "on-primary-fixed-variant": "#00504a",
+            "secondary-fixed-dim": "#6bd8cb",
+            "error": "#ba1a1a",
+            "error-container": "#ffdad6",
+            "tertiary": "#0c5b56",
+            "on-secondary-fixed": "#00201d",
+            "surface-dim": "#d2d9f4",
+            "secondary-fixed": "#89f5e7",
+            "on-secondary-fixed-variant": "#005049",
+            "on-tertiary": "#ffffff",
+            "inverse-on-surface": "#eef0ff",
+            "outline": "#6e7977",
+            "on-background": "#131b2e",
+            "on-tertiary-fixed-variant": "#00504b",
+            "surface-bright": "#faf8ff",
+            "on-primary-container": "#a3faef",
+            "inverse-surface": "#283044",
+            "surface-tint": "#006a63",
+            "on-primary-fixed": "#00201d",
+            "on-secondary": "#ffffff",
+            "tertiary-fixed-dim": "#8fd3cc",
+            "surface-container": "#eaedff",
+            "primary-fixed": "#9cf2e8",
+            "on-tertiary-fixed": "#00201e",
+            "on-tertiary-container": "#b3f7f0",
+            "tertiary-container": "#2f746f",
+            "primary-container": "#0f766e",
+            "on-error-container": "#93000a",
+            "tertiary-fixed": "#abefe8",
+            "surface-container-low": "#f2f3ff",
+            "secondary-container": "#86f2e4",
+            "inverse-primary": "#80d5cb",
+            "surface-variant": "#dae2fd",
+            "on-error": "#ffffff",
+            "surface-container-highest": "#dae2fd",
+            "secondary": "#006a61",
+            "on-surface": "#131b2e",
+            "surface-container-lowest": "#ffffff",
+            "on-secondary-container": "#006f66"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.25rem",
+            "lg": "0.5rem",
+            "xl": "0.75rem",
+            "full": "9999px"
+          },
+          "spacing": {
+            "space-xs": "0.25rem",
+            "space-sm": "0.5rem",
+            "space-md": "1rem",
+            "space-lg": "1.5rem",
+            "space-xl": "2rem",
+            "space-2xl": "3rem",
+            "margin": "1rem",
+            "margin-md": "1.5rem",
+            "margin-lg": "2rem",
+            "gutter": "1rem",
+            "gutter-md": "1.25rem",
+            "gutter-lg": "1.5rem"
+          },
+          "fontFamily": {
+            "label-md": ["Inter"],
+            "body-lg": ["Inter"],
+            "label-sm": ["Inter"],
+            "headline-md": ["Manrope"],
+            "body-sm": ["Inter"],
+            "display-lg": ["Manrope"],
+            "body-md": ["Inter"],
+            "headline-sm": ["Manrope"],
+            "data-mono": ["Inter"],
+            "display-lg-mobile": ["Manrope"],
+            "headline-lg": ["Manrope"]
+          },
+          "fontSize": {
+            "label-md": ["13px", { "lineHeight": "18px", "letterSpacing": "0.01em", "fontWeight": "500" }],
+            "body-lg": ["16px", { "lineHeight": "24px", "letterSpacing": "0em", "fontWeight": "400" }],
+            "label-sm": ["11px", { "lineHeight": "14px", "letterSpacing": "0.03em", "fontWeight": "600" }],
+            "headline-md": ["20px", { "lineHeight": "28px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+            "body-sm": ["12px", { "lineHeight": "16px", "letterSpacing": "0.01em", "fontWeight": "400" }],
+            "display-lg": ["36px", { "lineHeight": "44px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+            "body-md": ["14px", { "lineHeight": "20px", "letterSpacing": "0em", "fontWeight": "400" }],
+            "headline-sm": ["16px", { "lineHeight": "24px", "letterSpacing": "-0.005em", "fontWeight": "600" }],
+            "data-mono": ["13px", { "lineHeight": "18px", "letterSpacing": "-0.01em", "fontWeight": "500" }],
+            "display-lg-mobile": ["28px", { "lineHeight": "36px", "letterSpacing": "-0.015em", "fontWeight": "700" }],
+            "headline-lg": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.015em", "fontWeight": "600" }]
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-slate-50 text-slate-900 font-body-md text-body-md antialiased min-h-screen flex flex-col selection:bg-teal-100 selection:text-teal-900">
+<!-- Desktop TopAppBar matching JSON specification verbatim -->
+<header class="bg-surface-container-lowest dark:bg-surface-dim docked full-width top-0 z-40 border-b border-outline-variant dark:border-outline shadow-sm dark:shadow-none h-14 flex items-center justify-between px-space-lg w-full sticky">
+<!-- Left Logo & Navigation Links -->
+<div class="flex items-center space-x-6">
+<div class="flex items-center space-x-3">
+<span class="text-headline-sm font-headline-sm font-semibold text-primary dark:text-primary-fixed tracking-tight">
+          City Diagnostic Lab
+        </span>
+<span class="text-slate-300">|</span>
+<span class="text-on-surface-variant dark:text-outline-variant font-medium text-body-sm font-body-sm flex items-center gap-1.5">
+<span class="w-1.5 h-1.5 rounded-full bg-teal-600"></span>
+          All branches
+        </span>
+</div>
+</div>
+<!-- Right Controls: Language Segment, User Profile & Actions -->
+<div class="flex items-center space-x-4">
+<!-- Segmented Language Toggle -->
+<div class="bg-slate-100 p-0.5 rounded-lg border border-slate-200 flex items-center text-label-md font-label-md">
+<button class="bg-white text-slate-900 px-2.5 py-1 rounded shadow-sm font-medium">English</button>
+<button class="text-slate-600 px-2.5 py-1 hover:text-slate-900 font-medium">اردو</button>
+</div>
+<div class="h-4 w-[1px] bg-slate-200"></div>
+<!-- Trailing Icon Actions -->
+<div class="flex items-center space-x-1">
+<button class="p-1.5 text-slate-600 hover:text-slate-900 rounded-lg hover:bg-slate-100 transition-colors" title="Notifications">
+<span class="material-symbols-outlined text-[20px]">notifications</span>
+</button>
+<button class="p-1.5 text-slate-600 hover:text-slate-900 rounded-lg hover:bg-slate-100 transition-colors" title="Help &amp; Support">
+<span class="material-symbols-outlined text-[20px]">help_outline</span>
+</button>
+</div>
+<div class="h-4 w-[1px] bg-slate-200"></div>
+<!-- User Menu -->
+<div class="flex items-center space-x-3">
+<div class="w-8 h-8 rounded-full bg-teal-800 text-white flex items-center justify-center font-semibold text-label-sm font-label-sm shadow-sm ring-1 ring-slate-200">
+          AR
+        </div>
+<div class="flex flex-col text-left">
+<span class="text-label-md font-label-md font-semibold text-slate-900 leading-tight">Ali Raza</span>
+<span class="text-label-sm font-label-sm text-slate-500 leading-tight">Owner</span>
+</div>
+</div>
+<!-- Trailing Action: Logout -->
+<button class="text-label-md font-label-md font-medium text-slate-600 hover:text-red-700 hover:bg-slate-100 px-2.5 py-1 rounded-lg transition-colors border border-transparent hover:border-slate-200">
+        Logout
+      </button>
+</div>
+</header>
+<!-- Shell Wrapper -->
+<div class="flex flex-1 w-full max-w-[1440px] mx-auto overflow-hidden">
+<!-- SideNav Anchor - matching JSON labels, icons, style_shell_layout & tokens verbatim -->
+<aside class="bg-surface-container-lowest dark:bg-surface-dim h-[calc(100vh-3.5rem)] w-60 flex flex-col justify-between shrink-0 border-r border-outline-variant dark:border-outline sticky top-14 left-0 py-space-md px-space-sm overflow-y-auto select-none">
+<div class="space-y-4">
+<!-- Sub-header metadata -->
+<div class="px-2 pb-1 border-b border-slate-100">
+<div class="text-label-sm font-label-sm uppercase tracking-wider text-slate-400 font-bold">Lab Operations</div>
+<div class="text-label-md font-label-md font-medium text-slate-700">Management Console</div>
+</div>
+<!-- Primary Clinical Navigation Section -->
+<nav class="space-y-0.5">
+<!-- Home -->
+<a class="text-on-surface-variant dark:text-outline-variant hover:text-on-surface dark:hover:text-surface-bright font-medium px-space-sm py-2 rounded-lg hover:bg-surface-container-low transition-colors duration-150 flex items-center gap-3" href="#">
+<span class="material-symbols-outlined text-[19px]">dashboard</span>
+<span class="text-label-md font-label-md">Home</span>
+</a>
+<!-- Patients -->
+<a class="text-on-surface-variant dark:text-outline-variant hover:text-on-surface dark:hover:text-surface-bright font-medium px-space-sm py-2 rounded-lg hover:bg-surface-container-low transition-colors duration-150 flex items-center gap-3" href="#">
+<span class="material-symbols-outlined text-[19px]">personal_injury</span>
+<span class="text-label-md font-label-md">Patients</span>
+</a>
+<!-- Invoices & payments (ACTIVE ROUTE /invoices) -->
+<a class="bg-surface-container-low dark:bg-surface-container text-primary dark:text-primary-fixed font-semibold border-l-4 border-primary dark:border-primary-fixed rounded-r-lg px-space-sm py-2 flex items-center justify-between" href="#">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-[19px] text-teal-700" style="font-variation-settings: 'FILL' 1;">receipt_long</span>
+<span class="text-label-md font-label-md text-teal-800 font-semibold">Invoices &amp; payments</span>
+</div>
+<span class="w-1.5 h-1.5 rounded-full bg-teal-600"></span>
+</a>
+<!-- Samples -->
+<a class="text-on-surface-variant dark:text-outline-variant hover:text-on-surface dark:hover:text-surface-bright font-medium px-space-sm py-2 rounded-lg hover:bg-surface-container-low transition-colors duration-150 flex items-center gap-3" href="#">
+<span class="material-symbols-outlined text-[19px]">biotech</span>
+<span class="text-label-md font-label-md">Samples</span>
+</a>
+<!-- Worklist -->
+<a class="text-on-surface-variant dark:text-outline-variant hover:text-on-surface dark:hover:text-surface-bright font-medium px-space-sm py-2 rounded-lg hover:bg-surface-container-low transition-colors duration-150 flex items-center gap-3" href="#">
+<span class="material-symbols-outlined text-[19px]">assignment</span>
+<span class="text-label-md font-label-md">Worklist</span>
+</a>
+<!-- Results entry -->
+<a class="text-on-surface-variant dark:text-outline-variant hover:text-on-surface dark:hover:text-surface-bright font-medium px-space-sm py-2 rounded-lg hover:bg-surface-container-low transition-colors duration-150 flex items-center gap-3" href="#">
+<span class="material-symbols-outlined text-[19px]">edit_note</span>
+<span class="text-label-md font-label-md">Results entry</span>
+</a>
+<!-- Approvals with Amber badge -->
+<a class="text-on-surface-variant dark:text-outline-variant hover:text-on-surface dark:hover:text-surface-bright font-medium px-space-sm py-2 rounded-lg hover:bg-surface-container-low transition-colors duration-150 flex items-center justify-between" href="#">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-[19px]">verified</span>
+<span class="text-label-md font-label-md">Approvals</span>
+</div>
+<span class="px-1.5 py-0.2 rounded text-[11px] font-bold text-white bg-[#e8a33d]">9</span>
+</a>
+<!-- Critical notifications -->
+<a class="text-on-surface-variant dark:text-outline-variant hover:text-on-surface dark:hover:text-surface-bright font-medium px-space-sm py-2 rounded-lg hover:bg-surface-container-low transition-colors duration-150 flex items-center gap-3" href="#">
+<span class="material-symbols-outlined text-[19px]">warning</span>
+<span class="text-label-md font-label-md">Critical notifications</span>
+</a>
+<!-- Reports -->
+<a class="text-on-surface-variant dark:text-outline-variant hover:text-on-surface dark:hover:text-surface-bright font-medium px-space-sm py-2 rounded-lg hover:bg-surface-container-low transition-colors duration-150 flex items-center gap-3" href="#">
+<span class="material-symbols-outlined text-[19px]">description</span>
+<span class="text-label-md font-label-md">Reports</span>
+</a>
+<!-- Exceptions with Red badge -->
+<a class="text-on-surface-variant dark:text-outline-variant hover:text-on-surface dark:hover:text-surface-bright font-medium px-space-sm py-2 rounded-lg hover:bg-surface-container-low transition-colors duration-150 flex items-center justify-between" href="#">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-[19px]">report_problem</span>
+<span class="text-label-md font-label-md">Exceptions</span>
+</div>
+<span class="px-1.5 py-0.2 rounded text-[11px] font-bold text-white bg-red-600">5</span>
+</a>
+</nav>
+<!-- Management Section Group -->
+<div class="pt-3 border-t border-slate-100">
+<div class="px-2 pb-1.5 text-label-sm font-label-sm font-bold uppercase tracking-wider text-slate-400">
+            MANAGEMENT
+          </div>
+<nav class="space-y-0.5">
+<!-- Partners & share ledger -->
+<a class="text-on-surface-variant dark:text-outline-variant hover:text-on-surface dark:hover:text-surface-bright font-medium px-space-sm py-2 rounded-lg hover:bg-surface-container-low transition-colors duration-150 flex items-center gap-3" href="#">
+<span class="material-symbols-outlined text-[19px]">handshake</span>
+<span class="text-label-md font-label-md truncate">Partners &amp; share ledger</span>
+</a>
+<!-- Settlements with Amber badge -->
+<a class="text-on-surface-variant dark:text-outline-variant hover:text-on-surface dark:hover:text-surface-bright font-medium px-space-sm py-2 rounded-lg hover:bg-surface-container-low transition-colors duration-150 flex items-center justify-between" href="#">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-[19px]">account_balance_wallet</span>
+<span class="text-label-md font-label-md">Settlements</span>
+</div>
+<span class="px-1.5 py-0.2 rounded text-[11px] font-bold text-white bg-[#e8a33d]">2</span>
+</a>
+<!-- Catalog -->
+<a class="text-on-surface-variant dark:text-outline-variant hover:text-on-surface dark:hover:text-surface-bright font-medium px-space-sm py-2 rounded-lg hover:bg-surface-container-low transition-colors duration-150 flex items-center gap-3" href="#">
+<span class="material-symbols-outlined text-[19px]">inventory_2</span>
+<span class="text-label-md font-label-md">Catalog</span>
+</a>
+<!-- Settings -->
+<a class="text-on-surface-variant dark:text-outline-variant hover:text-on-surface dark:hover:text-surface-bright font-medium px-space-sm py-2 rounded-lg hover:bg-surface-container-low transition-colors duration-150 flex items-center gap-3" href="#">
+<span class="material-symbols-outlined text-[19px]">settings</span>
+<span class="text-label-md font-label-md">Settings</span>
+</a>
+</nav>
+</div>
+</div>
+<!-- SideNav Footer Actions from JSON blueprint -->
+<div class="pt-3 border-t border-slate-100 space-y-1">
+<a class="text-slate-500 hover:text-slate-900 font-medium px-2 py-1.5 rounded-lg hover:bg-slate-100 flex items-center gap-3 text-label-md font-label-md transition-colors" href="#">
+<span class="material-symbols-outlined text-[18px]">help</span>
+<span>Help &amp; docs</span>
+</a>
+<a class="text-slate-500 hover:text-red-700 font-medium px-2 py-1.5 rounded-lg hover:bg-slate-100 flex items-center gap-3 text-label-md font-label-md transition-colors" href="#">
+<span class="material-symbols-outlined text-[18px]">logout</span>
+<span>Logout</span>
+</a>
+</div>
+</aside>
+<!-- Main Content Canvas (Single scroll container) -->
+<main class="flex-1 overflow-y-auto px-6 py-6 space-y-5 bg-slate-50">
+<!-- Top Title Bar & Metas -->
+<div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+<div>
+<h1 class="text-2xl font-semibold text-slate-900 tracking-tight font-headline-lg">Invoices</h1>
+<p class="text-sm text-slate-500 font-body-sm mt-0.5">20 Oct 2026 · times are PKT</p>
+</div>
+<!-- Summary Chip Badge: Daily Total (strictly no commas) -->
+<div class="flex items-center self-start md:self-auto gap-2">
+<div class="bg-slate-100 border border-slate-200 rounded-lg px-3 py-1.5 flex items-center gap-2 shadow-sm">
+<span class="text-label-sm font-label-sm uppercase tracking-wider text-slate-500 font-semibold">Daily Total:</span>
+<span class="font-data-mono text-data-mono font-semibold text-slate-900">PKR 23350.00</span>
+</div>
+</div>
+</div>
+<!-- Action & Filter Bar -->
+<div class="bg-white rounded-xl border border-slate-200 p-3 shadow-sm flex flex-wrap items-center justify-between gap-3">
+<div class="flex flex-wrap items-center gap-3 flex-1 min-w-[320px]">
+<!-- Status Dropdown -->
+<div class="relative min-w-[140px]">
+<select class="w-full bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-body-md font-body-md text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-600 focus:border-teal-600 transition-all appearance-none cursor-pointer pr-8">
+<option value="all">All statuses</option>
+<option value="paid">Paid</option>
+<option value="unpaid">Unpaid</option>
+<option value="partial">Partial</option>
+<option value="refunded">Refunded</option>
+</select>
+<span class="material-symbols-outlined absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-[18px]">expand_more</span>
+</div>
+<!-- Date Range Input -->
+<div class="relative">
+<span class="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-[18px] pointer-events-none">calendar_today</span>
+<input class="bg-white border border-slate-300 rounded-lg pl-8 pr-3 py-1.5 text-body-md font-body-md text-slate-800 w-56 focus:outline-none focus:ring-2 focus:ring-teal-600 focus:border-teal-600 cursor-pointer text-center" readonly="" type="text" value="20 Oct 2026 - 20 Oct 2026"/>
+</div>
+<!-- Search Input -->
+<div class="relative flex-1 min-w-[220px]">
+<span class="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-[18px]">search</span>
+<input class="w-full bg-white border border-slate-300 rounded-lg pl-8 pr-3 py-1.5 text-body-md font-body-md text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-600 focus:border-teal-600" placeholder="Search Invoice # or MRN..." type="text"/>
+</div>
+</div>
+<!-- + New Invoice Button -->
+<button class="bg-teal-600 hover:bg-[#0f766e] text-white px-4 py-2 rounded-lg font-medium text-label-md font-label-md flex items-center gap-1.5 transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-600 focus:ring-offset-2">
+<span class="material-symbols-outlined text-[18px]">add</span>
+<span>New invoice</span>
+</button>
+</div>
+<!-- Main Data Table Card -->
+<div class="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-slate-50 border-b border-slate-200 text-label-sm font-label-sm text-slate-600 uppercase tracking-wider">
+<th class="py-3 px-4" scope="col">INVOICE #</th>
+<th class="py-3 px-4" scope="col">PATIENT</th>
+<th class="py-3 px-4" scope="col">DATE</th>
+<th class="py-3 px-4" scope="col">TESTS</th>
+<th class="py-3 px-4" scope="col">TOTAL</th>
+<th class="py-3 px-4" scope="col">STATUS</th>
+<th class="py-3 px-4 text-right" scope="col">ACTION</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-slate-100 text-body-sm font-body-sm">
+<!-- Row 1 -->
+<tr class="hover:bg-slate-50 transition-colors">
+<td class="py-3.5 px-4 font-mono font-medium text-slate-900">INV-2026-0891</td>
+<td class="py-3.5 px-4">
+<div class="font-medium text-slate-900 text-body-md font-body-md">Muhammad Imran</div>
+<div class="font-mono text-xs text-slate-500">MRN-2026-00417</div>
+</td>
+<td class="py-3.5 px-4 text-slate-600">20 Oct 2026 · 10:15 PKT</td>
+<td class="py-3.5 px-4 text-slate-700 max-w-xs truncate" title="CBC (Complete Blood Count) &amp; Fasting Blood Glucose">
+                  CBC (Complete Blood Count) &amp; Fasting Blood Glucose
+                </td>
+<td class="py-3.5 px-4">
+<span class="bg-slate-50 border border-slate-200 rounded px-2.5 py-1 font-mono text-sm font-medium text-black inline-block">
+                    PKR 3200.00
+                  </span>
+</td>
+<td class="py-3.5 px-4">
+<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-700">
+<span class="w-1.5 h-1.5 rounded-full bg-green-600"></span>
+                    Paid
+                  </span>
+</td>
+<td class="py-3.5 px-4 text-right">
+<a class="text-teal-600 font-medium hover:text-teal-700 text-label-md font-label-md transition-colors" href="#">View →</a>
+</td>
+</tr>
+<!-- Row 2 -->
+<tr class="hover:bg-slate-50 transition-colors">
+<td class="py-3.5 px-4 font-mono font-medium text-slate-900">INV-2026-0890</td>
+<td class="py-3.5 px-4">
+<div class="font-medium text-slate-900 text-body-md font-body-md">Fatima Noor</div>
+<div class="font-mono text-xs text-slate-500">MRN-2026-00418</div>
+</td>
+<td class="py-3.5 px-4 text-slate-600">20 Oct 2026 · 10:35 PKT</td>
+<td class="py-3.5 px-4 text-slate-700 max-w-xs truncate" title="Serum Electrolytes Panel &amp; Troponin I">
+                  Serum Electrolytes Panel &amp; Troponin I
+                </td>
+<td class="py-3.5 px-4">
+<span class="bg-slate-50 border border-slate-200 rounded px-2.5 py-1 font-mono text-sm font-medium text-black inline-block">
+                    PKR 4500.00
+                  </span>
+</td>
+<td class="py-3.5 px-4">
+<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium bg-red-50 text-red-700">
+<span class="w-1.5 h-1.5 rounded-full bg-red-600"></span>
+                    Unpaid
+                  </span>
+</td>
+<td class="py-3.5 px-4 text-right">
+<a class="text-teal-600 font-medium hover:text-teal-700 text-label-md font-label-md transition-colors" href="#">View →</a>
+</td>
+</tr>
+<!-- Row 3 -->
+<tr class="hover:bg-slate-50 transition-colors">
+<td class="py-3.5 px-4 font-mono font-medium text-slate-900">INV-2026-0889</td>
+<td class="py-3.5 px-4">
+<div class="font-medium text-slate-900 text-body-md font-body-md">Tariq Mahmood Khan</div>
+<div class="font-mono text-xs text-slate-500">MRN-2026-00392</div>
+</td>
+<td class="py-3.5 px-4 text-slate-600">20 Oct 2026 · 09:50 PKT</td>
+<td class="py-3.5 px-4 text-slate-700 max-w-xs truncate" title="HbA1c &amp; Fasting Lipid Profile">
+                  HbA1c &amp; Fasting Lipid Profile
+                </td>
+<td class="py-3.5 px-4">
+<span class="bg-slate-50 border border-slate-200 rounded px-2.5 py-1 font-mono text-sm font-medium text-black inline-block">
+                    PKR 1850.00
+                  </span>
+</td>
+<td class="py-3.5 px-4">
+<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium bg-orange-50 text-orange-700">
+<span class="w-1.5 h-1.5 rounded-full bg-orange-600"></span>
+                    Partial
+                  </span>
+</td>
+<td class="py-3.5 px-4 text-right">
+<a class="text-teal-600 font-medium hover:text-teal-700 text-label-md font-label-md transition-colors" href="#">View →</a>
+</td>
+</tr>
+<!-- Row 4 -->
+<tr class="hover:bg-slate-50 transition-colors">
+<td class="py-3.5 px-4 font-mono font-medium text-slate-900">INV-2026-0888</td>
+<td class="py-3.5 px-4">
+<div class="font-medium text-slate-900 text-body-md font-body-md">Zainab Bibi</div>
+<div class="font-mono text-xs text-slate-500">MRN-2026-00415</div>
+</td>
+<td class="py-3.5 px-4 text-slate-600">20 Oct 2026 · 09:20 PKT</td>
+<td class="py-3.5 px-4 text-slate-700 max-w-xs truncate" title="Liver Function Test (LFT) &amp; Renal Function Test (RFT)">
+                  Liver Function Test (LFT) &amp; Renal Function Test (RFT)
+                </td>
+<td class="py-3.5 px-4">
+<span class="bg-slate-50 border border-slate-200 rounded px-2.5 py-1 font-mono text-sm font-medium text-black inline-block">
+                    PKR 6400.00
+                  </span>
+</td>
+<td class="py-3.5 px-4">
+<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-700">
+<span class="w-1.5 h-1.5 rounded-full bg-green-600"></span>
+                    Paid
+                  </span>
+</td>
+<td class="py-3.5 px-4 text-right">
+<a class="text-teal-600 font-medium hover:text-teal-700 text-label-md font-label-md transition-colors" href="#">View →</a>
+</td>
+</tr>
+<!-- Row 5 -->
+<tr class="hover:bg-slate-50 transition-colors">
+<td class="py-3.5 px-4 font-mono font-medium text-slate-900">INV-2026-0887</td>
+<td class="py-3.5 px-4">
+<div class="font-medium text-slate-900 text-body-md font-body-md">Bilal Ahmed Qureshi</div>
+<div class="font-mono text-xs text-slate-500">MRN-2026-00401</div>
+</td>
+<td class="py-3.5 px-4 text-slate-600">20 Oct 2026 · 08:45 PKT</td>
+<td class="py-3.5 px-4 text-slate-700 max-w-xs truncate" title="Dengue NS1 Antigen &amp; Platelet Count">
+                  Dengue NS1 Antigen &amp; Platelet Count
+                </td>
+<td class="py-3.5 px-4">
+<span class="bg-slate-50 border border-slate-200 rounded px-2.5 py-1 font-mono text-sm font-medium text-black inline-block">
+                    PKR 2100.00
+                  </span>
+</td>
+<td class="py-3.5 px-4">
+<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-700">
+<span class="w-1.5 h-1.5 rounded-full bg-slate-500"></span>
+                    Refunded
+                  </span>
+</td>
+<td class="py-3.5 px-4 text-right">
+<a class="text-teal-600 font-medium hover:text-teal-700 text-label-md font-label-md transition-colors" href="#">View →</a>
+</td>
+</tr>
+<!-- Row 6 -->
+<tr class="hover:bg-slate-50 transition-colors">
+<td class="py-3.5 px-4 font-mono font-medium text-slate-900">INV-2026-0886</td>
+<td class="py-3.5 px-4">
+<div class="font-medium text-slate-900 text-body-md font-body-md">Rashid Mehmood</div>
+<div class="font-mono text-xs text-slate-500">MRN-2026-00093</div>
+</td>
+<td class="py-3.5 px-4 text-slate-600">20 Oct 2026 · 08:15 PKT</td>
+<td class="py-3.5 px-4 text-slate-700 max-w-xs truncate" title="Thyroid Profile (T3, T4, TSH Ultra)">
+                  Thyroid Profile (T3, T4, TSH Ultra)
+                </td>
+<td class="py-3.5 px-4">
+<span class="bg-slate-50 border border-slate-200 rounded px-2.5 py-1 font-mono text-sm font-medium text-black inline-block">
+                    PKR 3800.00
+                  </span>
+</td>
+<td class="py-3.5 px-4">
+<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-700">
+<span class="w-1.5 h-1.5 rounded-full bg-green-600"></span>
+                    Paid
+                  </span>
+</td>
+<td class="py-3.5 px-4 text-right">
+<a class="text-teal-600 font-medium hover:text-teal-700 text-label-md font-label-md transition-colors" href="#">View →</a>
+</td>
+</tr>
+<!-- Row 7 -->
+<tr class="hover:bg-slate-50 transition-colors">
+<td class="py-3.5 px-4 font-mono font-medium text-slate-900">INV-2026-0885</td>
+<td class="py-3.5 px-4">
+<div class="font-medium text-slate-900 text-body-md font-body-md">Sana Malik</div>
+<div class="font-mono text-xs text-slate-500">MRN-2026-00431</div>
+</td>
+<td class="py-3.5 px-4 text-slate-600">20 Oct 2026 · 07:55 PKT</td>
+<td class="py-3.5 px-4 text-slate-700 max-w-xs truncate" title="Complete Urine Examination &amp; Urine Culture">
+                  Complete Urine Examination &amp; Urine Culture
+                </td>
+<td class="py-3.5 px-4">
+<span class="bg-slate-50 border border-slate-200 rounded px-2.5 py-1 font-mono text-sm font-medium text-black inline-block">
+                    PKR 1500.00
+                  </span>
+</td>
+<td class="py-3.5 px-4">
+<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium bg-red-50 text-red-700">
+<span class="w-1.5 h-1.5 rounded-full bg-red-600"></span>
+                    Unpaid
+                  </span>
+</td>
+<td class="py-3.5 px-4 text-right">
+<a class="text-teal-600 font-medium hover:text-teal-700 text-label-md font-label-md transition-colors" href="#">View →</a>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Card Footer with Exact Cursor Pagination -->
+<div class="border-t border-slate-200 px-4 py-3 flex items-center justify-between bg-white">
+<div class="text-sm text-slate-600 font-body-sm">
+            Showing 7 of 214
+          </div>
+<div class="flex items-center space-x-2">
+<!-- Disabled Previous button -->
+<button class="border border-slate-200 text-slate-400 px-3 py-1.5 rounded-lg text-sm font-body-sm bg-slate-50 cursor-not-allowed select-none" disabled="">
+              ← Previous
+            </button>
+<!-- Active Next button -->
+<button class="border border-slate-200 text-slate-700 px-3 py-1.5 rounded-lg text-sm font-body-sm hover:bg-slate-50 hover:text-slate-900 transition-colors">
+              Next →
+            </button>
+</div>
+</div>
+</div>
+</main>
+</div>
+<!-- Toast Notification Container (empty as requested) -->
+<div class="fixed bottom-4 right-4 z-50 pointer-events-none flex flex-col gap-2" id="toast-container"></div>
+</body></html>

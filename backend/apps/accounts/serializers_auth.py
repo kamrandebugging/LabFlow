@@ -20,3 +20,12 @@ class SessionItemSerializer(serializers.Serializer):
     created_at = serializers.DateTimeField(read_only=True)
     last_active = serializers.DateTimeField(read_only=True)
     current = serializers.BooleanField(read_only=True)
+
+
+class TotpEnrollConfirmSerializer(serializers.Serializer):
+    code = serializers.CharField(required=True, min_length=6, max_length=16)
+
+
+class TotpVerifySerializer(serializers.Serializer):
+    code = serializers.CharField(required=True, min_length=6, max_length=32)
+    is_backup_code = serializers.BooleanField(required=False, default=False)

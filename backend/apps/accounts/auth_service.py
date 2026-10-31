@@ -10,12 +10,17 @@ Pure business logic:
 """
 
 import logging
+import secrets
 import time
 import uuid
 from datetime import UTC, datetime
 from typing import Any, Final
 
+import pyotp
+from cryptography.fernet import Fernet
+from django.conf import settings
 from django.contrib.auth.hashers import check_password, make_password
+from django.core.cache import cache
 from django.db import transaction
 from django_tenants.utils import schema_context
 
@@ -162,7 +167,8 @@ class AuthService:
             session_id=session_id,
         )
 
-        branch_ids = [str(sb.branch_id) for sb in user.staff_branches.all()]
+        with schema_context(tenant_slug):
+            branch_ids = [str(sb.branch_id) for sb in user.staff_branches.all()]
         if user.branch_id and str(user.branch_id) not in branch_ids:
             branch_ids.append(str(user.branch_id))
 
@@ -464,4 +470,207 @@ class AuthService:
             ip=ip,
             user_agent=user_agent,
         )
+        return True, None
+
+    # --------------------------------------------------------------------------
+    # LAB-12: MFA TOTP Enrolment, Verification & Reset (Doc 08 §4.4)
+    # --------------------------------------------------------------------------
+
+    @classmethod
+    def _get_fernet(cls) -> Fernet:
+        key = getattr(settings, "LABFLOW_TOTP_ENCRYPTION_KEY", None)
+        if not key:
+            raise RuntimeError("LABFLOW_TOTP_ENCRYPTION_KEY is not configured")
+        if isinstance(key, str):
+            key = key.encode()
+        return Fernet(key)
+
+    @classmethod
+    def create_totp_challenge(cls, user_id: str) -> str:
+        """Create a 5-minute TOTP challenge in Redis tracking attempts (Doc 08 §4.4)."""
+        challenge_token = str(uuid.uuid4())
+        cache_key = f"auth:challenge:{challenge_token}"
+        cache.set(cache_key, {"user_id": user_id, "attempts": 0}, timeout=300)
+        return challenge_token
+
+    @classmethod
+    def enroll_totp(cls, user: StaffUser) -> tuple[str, str]:
+        """Generate pending secret and otpauth URI (Doc 08 §4.4, §17 A-25)."""
+        secret = pyotp.random_base32()
+        otpauth_uri = pyotp.totp.TOTP(secret).provisioning_uri(
+            name=user.email,
+            issuer_name="LabFlow",
+        )
+        # Store pending secret in Redis for 15 minutes
+        cache.set(f"auth:totp_pending:{user.id}", secret, timeout=900)
+        return secret, otpauth_uri
+
+    @classmethod
+    def confirm_totp_enrollment(
+        cls,
+        user: StaffUser,
+        code: str,
+        ip: str | None = None,
+        user_agent: str | None = None,
+    ) -> tuple[bool, list[str] | None, str | None]:
+        """Confirm pending TOTP secret with code and issue 10 backup codes."""
+        pending_secret = cache.get(f"auth:totp_pending:{user.id}")
+        if not pending_secret:
+            return False, None, "enrolment_expired"
+
+        totp = pyotp.TOTP(pending_secret)
+        if not totp.verify(code, valid_window=1):
+            return False, None, "invalid_code"
+
+        fernet = cls._get_fernet()
+        encrypted_secret = fernet.encrypt(pending_secret.encode()).decode()
+
+        # Generate 10 single-use alphanumeric backup codes (Doc 08 §4.4)
+        raw_codes = [secrets.token_hex(4).upper() for _ in range(10)]
+        hashed_codes = [make_password(c) for c in raw_codes]
+
+        with transaction.atomic():
+            user.totp_secret_encrypted = encrypted_secret
+            user.totp_backup_codes_hash = hashed_codes
+            user.totp_enabled = True
+            user.save(
+                update_fields=[
+                    "totp_secret_encrypted",
+                    "totp_backup_codes_hash",
+                    "totp_enabled",
+                    "updated_at",
+                ]
+            )
+
+            AuditLog.objects.create(
+                actor_id=user.id,
+                action="auth.totp_enrolled",
+                entity_type="staff_user",
+                entity_id=user.id,
+                after_jsonb={"totp_enabled": True},
+                ip=ip,
+                user_agent=user_agent,
+            )
+
+        cache.delete(f"auth:totp_pending:{user.id}")
+        return True, raw_codes, None
+
+    @classmethod
+    def verify_totp_challenge(
+        cls,
+        challenge_token: str,
+        code: str,
+        ip: str | None = None,
+        user_agent: str | None = None,
+        tenant_id: str | None = None,
+    ) -> tuple[bool, dict[str, Any] | None, str | None]:
+        """Verify code against 5-min challenge.
+
+        Supports ±1 window drift and single-use backup code fallback.
+        """
+        cache_key = f"auth:challenge:{challenge_token}"
+        challenge = cache.get(cache_key)
+        if not challenge:
+            return False, None, "totp_challenge_expired"
+
+        attempts = challenge.get("attempts", 0) + 1
+        challenge["attempts"] = attempts
+
+        if attempts > 5:
+            cache.delete(cache_key)
+            return False, None, "totp_challenge_expired"
+
+        user_id = challenge.get("user_id")
+        user = StaffUser.objects.filter(id=user_id, is_active=True).first()
+        if not user:
+            cache.delete(cache_key)
+            return False, None, "invalid_credentials"
+
+        is_matched = False
+
+        # 1. Try TOTP secret match if enrolled
+        if user.totp_secret_encrypted:
+            try:
+                fernet = cls._get_fernet()
+                raw_secret = fernet.decrypt(
+                    user.totp_secret_encrypted.encode()
+                ).decode()
+                totp = pyotp.TOTP(raw_secret)
+                if totp.verify(code, valid_window=1):
+                    is_matched = True
+            except Exception as exc:
+                logger.error("Failed decrypting TOTP secret: %s", exc)
+
+        # 2. Try single-use backup code match if not matched by TOTP
+        if not is_matched and user.totp_backup_codes_hash:
+            matched_hash = None
+            for h in user.totp_backup_codes_hash:
+                if check_password(code, h):
+                    matched_hash = h
+                    is_matched = True
+                    break
+
+            if matched_hash:
+                with transaction.atomic():
+                    user.totp_backup_codes_hash.remove(matched_hash)
+                    user.save(update_fields=["totp_backup_codes_hash", "updated_at"])
+
+        if not is_matched:
+            if attempts >= 5:
+                cache.delete(cache_key)
+                return False, None, "totp_challenge_expired"
+            cache.set(cache_key, challenge, timeout=300)
+            return False, None, "invalid_credentials"
+
+        # Verification succeeded
+        cache.delete(cache_key)
+        session_data = cls.create_session(
+            user,
+            ip=ip,
+            user_agent=user_agent,
+            tenant_id=tenant_id,
+        )
+        LoginEvent.objects.create(
+            staff_user=user,
+            email_attempted=user.email,
+            success=True,
+            ip=ip,
+            user_agent=user_agent,
+        )
+        return True, session_data, None
+
+    @classmethod
+    def reset_staff_totp(
+        cls,
+        actor: StaffUser,
+        target_user: StaffUser,
+        ip: str | None = None,
+        user_agent: str | None = None,
+    ) -> tuple[bool, str | None]:
+        """Owner resets staff TOTP (Doc 08 §4.4, LAB-52)."""
+        if actor.role != Role.OWNER:
+            return False, "forbidden"
+
+        with transaction.atomic():
+            target_user.totp_secret_encrypted = None
+            target_user.totp_backup_codes_hash = None
+            target_user.totp_enabled = False
+            target_user.save(
+                update_fields=[
+                    "totp_secret_encrypted",
+                    "totp_backup_codes_hash",
+                    "totp_enabled",
+                    "updated_at",
+                ]
+            )
+
+            AuditLog.objects.create(
+                actor_id=actor.id,
+                action="auth.totp_reset",
+                entity_type="staff_user",
+                entity_id=target_user.id,
+                after_jsonb={"totp_enabled": False, "reset_by": str(actor.id)},
+                ip=ip,
+                user_agent=user_agent,
+            )
         return True, None

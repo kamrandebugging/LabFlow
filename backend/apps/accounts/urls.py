@@ -10,6 +10,9 @@ from apps.accounts.views_auth import (
     RevokeAllSessionsView,
     SessionDetailView,
     SessionListView,
+    TotpEnrollConfirmView,
+    TotpEnrollView,
+    TotpVerifyView,
 )
 
 urlpatterns = [
@@ -20,6 +23,21 @@ urlpatterns = [
     path("refresh/", RefreshView.as_view(), name="auth-refresh-slash"),
     path("logout", LogoutView.as_view(), name="auth-logout"),
     path("logout/", LogoutView.as_view(), name="auth-logout-slash"),
+    # TOTP MFA (Doc 08 §4.4, §17 A-25)
+    path("totp/enroll", TotpEnrollView.as_view(), name="auth-totp-enroll"),
+    path("totp/enroll/", TotpEnrollView.as_view(), name="auth-totp-enroll-slash"),
+    path(
+        "totp/enroll/confirm",
+        TotpEnrollConfirmView.as_view(),
+        name="auth-totp-enroll-confirm",
+    ),
+    path(
+        "totp/enroll/confirm/",
+        TotpEnrollConfirmView.as_view(),
+        name="auth-totp-enroll-confirm-slash",
+    ),
+    path("totp/verify", TotpVerifyView.as_view(), name="auth-totp-verify"),
+    path("totp/verify/", TotpVerifyView.as_view(), name="auth-totp-verify-slash"),
     # Session management
     path("sessions", SessionListView.as_view(), name="auth-sessions-list"),
     path("sessions/", SessionListView.as_view(), name="auth-sessions-list-slash"),
