@@ -16,6 +16,8 @@ from apps.accounts.serializers_auth import (
     LoginRequestSerializer,
     PasswordChangeRequestSerializer,
     SessionItemSerializer,
+    TotpEnrollConfirmSerializer,
+    TotpVerifySerializer,
 )
 from apps.accounts.throttling import (
     check_and_record_login_throttle,
@@ -134,10 +136,11 @@ class LoginView(APIView):
 
         # 3. TOTP Challenge required?
         if payload.get("totp_required"):
+            challenge_token = AuthService.create_totp_challenge(payload["user_id"])
             response = Response({"totp_required": True}, status=status.HTTP_200_OK)
             response.set_cookie(
                 key=CHALLENGE_COOKIE_NAME,
-                value=payload["user_id"],
+                value=challenge_token,
                 max_age=FIVE_MINUTES_SECONDS,
                 httponly=True,
                 secure=getattr(settings, "SESSION_COOKIE_SECURE", False),
@@ -404,3 +407,203 @@ class PasswordChangeView(APIView):
             {"status": "ok", "message": "Password changed successfully"},
             status=status.HTTP_200_OK,
         )
+
+
+class TotpEnrollView(APIView):
+    """POST /api/v1/auth/totp/enroll (Doc 08 §4.4, §17 A-25)."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request: Request) -> Response:
+        user = cast(StaffUser, request.user)
+        secret, otpauth_uri = AuthService.enroll_totp(user)
+        return Response(
+            {
+                "secret": secret,
+                "otpauth_uri": otpauth_uri,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class TotpEnrollConfirmView(APIView):
+    """POST /api/v1/auth/totp/enroll/confirm (Doc 08 §4.4, §17 A-25)."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request: Request) -> Response:
+        serializer = TotpEnrollConfirmSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(
+                {
+                    "error": {
+                        "code": "invalid_code",
+                        "message": "Invalid code format",
+                    }
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        code = serializer.validated_data["code"]
+        user = cast(StaffUser, request.user)
+        ip = _get_client_ip(request)
+        user_agent = request.META.get("HTTP_USER_AGENT", "")
+
+        success, backup_codes, err_code = AuthService.confirm_totp_enrollment(
+            user=user,
+            code=code,
+            ip=ip,
+            user_agent=user_agent,
+        )
+
+        if not success or backup_codes is None:
+            if err_code == "enrolment_expired":
+                return Response(
+                    {
+                        "error": {
+                            "code": "enrolment_expired",
+                            "message": "Enrolment session expired. Please start again.",
+                        }
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            return Response(
+                {
+                    "error": {
+                        "code": "invalid_code",
+                        "message": "Code does not match pending secret",
+                    }
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response(
+            {"backup_codes": backup_codes},
+            status=status.HTTP_200_OK,
+        )
+
+
+class TotpVerifyView(APIView):
+    """POST /api/v1/auth/totp/verify (Doc 08 §4.4)."""
+
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request: Request) -> Response:
+        challenge_token = request.COOKIES.get(CHALLENGE_COOKIE_NAME) or request.data.get("challenge_token")
+        if not challenge_token:
+            return Response(
+                {
+                    "error": {
+                        "code": "totp_challenge_expired",
+                        "message": "Challenge missing or expired. Please login again.",
+                    }
+                },
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+
+        serializer = TotpVerifySerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(
+                {
+                    "error": {
+                        "code": "invalid_credentials",
+                        "message": "Email, password or code is not correct",
+                    }
+                },
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+
+        code = serializer.validated_data["code"]
+        ip = _get_client_ip(request)
+        user_agent = request.META.get("HTTP_USER_AGENT", "")
+        tenant_id = _get_tenant_id(request)
+
+        success, payload, err_code = AuthService.verify_totp_challenge(
+            challenge_token=challenge_token,
+            code=code,
+            ip=ip,
+            user_agent=user_agent,
+            tenant_id=tenant_id,
+        )
+
+        if not success or payload is None:
+            if err_code == "totp_challenge_expired":
+                res = Response(
+                    {
+                        "error": {
+                            "code": "totp_challenge_expired",
+                            "message": "Verification challenge expired or max attempts reached.",
+                        }
+                    },
+                    status=status.HTTP_401_UNAUTHORIZED,
+                )
+                res.delete_cookie(CHALLENGE_COOKIE_NAME, path=COOKIE_PATH)
+                return res
+
+            return Response(
+                {
+                    "error": {
+                        "code": "invalid_credentials",
+                        "message": "Email, password or code is not correct",
+                    }
+                },
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+
+        # Success: Set httpOnly refresh cookie and clear challenge cookie
+        refresh_token = payload["refresh_token"]
+        body_data = {
+            "access": payload["access"],
+            "expires_in": payload["expires_in"],
+            "user": payload["user"],
+        }
+
+        response = Response(body_data, status=status.HTTP_200_OK)
+        response.set_cookie(
+            key=REFRESH_COOKIE_NAME,
+            value=refresh_token,
+            max_age=SEVEN_DAYS_SECONDS,
+            httponly=True,
+            secure=getattr(settings, "SESSION_COOKIE_SECURE", False),
+            samesite="Lax",
+            path=COOKIE_PATH,
+        )
+        response.delete_cookie(CHALLENGE_COOKIE_NAME, path=COOKIE_PATH)
+        return response
+
+
+class StaffTotpResetView(APIView):
+    """POST /api/v1/staff/<uuid:user_id>/reset-totp (Doc 08 §4.4, LAB-52)."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request: Request, user_id: uuid.UUID) -> Response:
+        actor = cast(StaffUser, request.user)
+        target_user = StaffUser.objects.filter(id=user_id).first()
+        if not target_user:
+            return Response(
+                {"error": {"code": "not_found", "message": "Staff user not found"}},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        ip = _get_client_ip(request)
+        user_agent = request.META.get("HTTP_USER_AGENT", "")
+
+        success, err = AuthService.reset_staff_totp(
+            actor=actor,
+            target_user=target_user,
+            ip=ip,
+            user_agent=user_agent,
+        )
+
+        if not success:
+            return Response(
+                {"error": {"code": "forbidden", "message": "Only Lab Owner can reset staff TOTP"}},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        return Response(
+            {"status": "ok", "message": "Staff TOTP reset successfully"},
+            status=status.HTTP_200_OK,
+        )
+
