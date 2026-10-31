@@ -10,7 +10,7 @@ class LoginRequestSerializer(serializers.Serializer):
 
 class PasswordChangeRequestSerializer(serializers.Serializer):
     current_password = serializers.CharField(required=True, write_only=True)
-    new_password = serializers.CharField(required=True, min_length=8, write_only=True)
+    new_password = serializers.CharField(required=True, write_only=True)
 
 
 class SessionItemSerializer(serializers.Serializer):

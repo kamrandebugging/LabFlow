@@ -372,6 +372,23 @@ class PasswordChangeView(APIView):
         user = cast(StaffUser, request.user)
         current_password = serializer.validated_data["current_password"]
         new_password = serializer.validated_data["new_password"]
+
+        # Password policy check against staff user email (Doc 08 §4.5)
+        is_valid, err_code, err_msg = validate_password_policy(
+            password=new_password,
+            user_email=user.email,
+        )
+        if not is_valid:
+            return Response(
+                {
+                    "error": {
+                        "code": err_code,
+                        "message": err_msg,
+                    }
+                },
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+
         tenant_id = _get_tenant_id(request)
         ip = _get_client_ip(request)
         user_agent = request.META.get("HTTP_USER_AGENT", "")
