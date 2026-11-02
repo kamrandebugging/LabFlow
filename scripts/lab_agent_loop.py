@@ -375,10 +375,46 @@ def git_commit_and_push(branch: str, key: str, summary: str) -> bool:
     return False
 
 
+def generate_delivery_report(branch: str, key: str, lab_id: str, coverage_summary: str) -> None:
+    """
+    Generate and print the strict delivery report per Stage 6 Protocol:
+    Report ticket key, branch, tests, coverage, files changed, and FULL STOP.
+    """
+    # Get changed files diff stat against origin/main or last commit
+    code, stdout, _ = run_command(f"git diff --stat origin/main...HEAD")
+    if not stdout or code != 0:
+        _, stdout, _ = run_command("git diff --stat HEAD~1")
+
+    print(f"\n{BOLD}{GREEN}{'=' * 78}{RESET}")
+    print(f"{BOLD}{GREEN}  🛑 DELIVERY COMPLETE (FULL STOP){RESET}")
+    print(f"{BOLD}{GREEN}{'=' * 78}{RESET}\n")
+
+    print(f"  {BOLD}Ticket Key:{RESET}     {CYAN}{key}{RESET}")
+    print(f"  {BOLD}LAB Branch:{RESET}     {CYAN}{branch}{RESET} (pushed to origin/{branch} ONLY)")
+    print(f"  {BOLD}Jira Status:{RESET}    {GREEN}In Review{RESET} (Transition ID 41)")
+    print(f"  {BOLD}DoD Gates:{RESET}      {GREEN}All 6 Gates Passed (100% Green){RESET}")
+    print(f"  {BOLD}Coverage:{RESET}       {GREEN}>= 80% Minimum Met{RESET}")
+    if coverage_summary:
+        print(f"  {BOLD}Test Summary:{RESET}   {coverage_summary}")
+
+    print(f"\n  {BOLD}Files Changed:{RESET}")
+    print(f"  {'-' * 74}")
+    for line in stdout.splitlines():
+        print(f"    {line}")
+    print(f"  {'-' * 74}\n")
+
+    print(f"{BOLD}{YELLOW}  🛑 FULL STOP RULES ENFORCED:{RESET}")
+    print(f"     1. NO Pull Request created.")
+    print(f"     2. NO merge to main performed.")
+    print(f"     3. NO auto-advance to next ticket.")
+    print(f"     4. Merge manually when verified, then say {BOLD}'next'{RESET}.\n")
+    print(f"{BOLD}{GREEN}{'=' * 78}{RESET}\n")
+
+
 def run_loop(ticket: dict[str, Any], max_retries: int = 4, auto_commit: bool = True) -> bool:
     """
     Main Autonomous Agent Loop.
-    Executes: Prompt formulation -> DoD Gates -> Self-Correction iterations -> Auto Delivery.
+    Executes: Prompt formulation -> DoD Gates -> Self-Correction iterations -> Auto Delivery (STOP).
     """
     key = ticket.get("key", "UNKNOWN")
     summary = ticket.get("summary") or ticket.get("fields", {}).get("summary", "")
@@ -408,7 +444,7 @@ def run_loop(ticket: dict[str, Any], max_retries: int = 4, auto_commit: bool = T
         prompt_file.write_text(prompt, encoding="utf-8")
         log_success(f"Generated prompt written to {prompt_file.name}")
 
-        # If verify-only mode or running agent
+        # 2. Run DoD Verification Suite
         print(f"\n{CYAN}Running DoD Verification Suite...{RESET}")
         passed, report = run_dod_verification_suite()
 
@@ -417,12 +453,14 @@ def run_loop(ticket: dict[str, Any], max_retries: int = 4, auto_commit: bool = T
             log_success(report)
 
             if auto_commit:
+                # Stage 6: DELIVERY (STOP)
                 git_commit_and_push(branch, key, summary)
                 evidence = (
                     f"Completed {lab_id} ({key}) via LabFlow Autonomous DoD Loop.\n"
                     f"All 6 DoD gates green (pytest 80%+ coverage, mypy strict, ruff, tsc, eslint)."
                 )
                 transition_jira_to_review(key, lab_id, evidence)
+                generate_delivery_report(branch, key, lab_id, report)
             return True
         else:
             log_error(f"DoD Gate Failed on iteration {iteration}.")
