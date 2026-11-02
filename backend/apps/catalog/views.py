@@ -1,4 +1,4 @@
-"""DRF Views for Diagnostic Catalog & Pricing (Doc 03 §5.2, §6.3, KAN-118).
+"""DRF Views for Diagnostic Catalog & Pricing (Doc 03 §5.2, §6.3, KAN-118, KAN-119).
 
 Enforces:
 - BS-5: Tenant-wide catalog read matrix (O, M, R, T, P).
@@ -6,6 +6,8 @@ Enforces:
 - CT-V1 & T-12 money string validation (422 money_must_be_string).
 - CT-V3 empty/inactive panel validation (422 empty_panel / inactive_component).
 - CT-2 effective dating of price changes.
+- KAN-119: reference range CRUD; Owner + Pathologist writes; CT-4/CT-V2
+  overlap rejection (422 overlapping_range); Doc 08 error envelope.
 """
 
 import uuid
@@ -19,24 +21,36 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.accounts.models import Role, StaffUser
-from apps.catalog.models import Panel, Test, TestPrice
+from apps.catalog.models import Panel, ReferenceRange, Test, TestPrice
 from apps.catalog.serializers import (
     PanelCreateSerializer,
     PanelSerializer,
     PanelUpdateSerializer,
+    ReferenceRangeCreateSerializer,
+    ReferenceRangeSerializer,
+    ReferenceRangeUpdateSerializer,
     TestCreateSerializer,
     TestPriceCreateSerializer,
     TestPriceSerializer,
     TestSerializer,
     TestUpdateSerializer,
 )
-from apps.catalog.services import CatalogService
+from apps.catalog.services import (
+    CatalogService,
+    OverlappingRangeError,
+    RangeWindowError,
+)
 
 CATALOG_READ_ROLES = {
     Role.OWNER,
     Role.MANAGER,
     Role.RECEPTION,
     Role.TECHNICIAN,
+    Role.PATHOLOGIST,
+}
+
+RANGE_WRITE_ROLES = {
+    Role.OWNER,
     Role.PATHOLOGIST,
 }
 
@@ -468,4 +482,144 @@ class PanelPriceListCreateView(APIView):
         return Response(
             TestPriceSerializer(price).data,
             status=status.HTTP_201_CREATED,
+        )
+
+
+class ReferenceRangeListCreateView(APIView):
+    """GET /api/v1/tests/{id}/ranges & POST /api/v1/tests/{id}/ranges (KAN-119)."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request: Request, pk: uuid.UUID) -> Response:
+        user = cast(StaffUser, request.user)
+        if user.role not in CATALOG_READ_ROLES:
+            return Response(
+                _format_error(
+                    "forbidden", "You do not have permission to view ranges."
+                ),
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        get_object_or_404(Test, pk=pk)
+        ranges = ReferenceRange.objects.filter(test_id=pk).order_by(
+            "-effective_from", "sex", "age_min_days"
+        )
+        serializer = ReferenceRangeSerializer(ranges, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def post(self, request: Request, pk: uuid.UUID) -> Response:
+        user = cast(StaffUser, request.user)
+        if user.role not in RANGE_WRITE_ROLES:
+            return Response(
+                _format_error(
+                    "forbidden",
+                    "Only the Owner or Pathologist may create reference ranges.",
+                ),
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        get_object_or_404(Test, pk=pk)
+        serializer = ReferenceRangeCreateSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(
+                _format_error(
+                    "validation_error", "Invalid payload.", serializer.errors
+                ),
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+
+        data = serializer.validated_data
+        ip = _get_client_ip(request)
+        user_agent = request.META.get("HTTP_USER_AGENT", "")
+
+        try:
+            range_obj = CatalogService.create_reference_range(
+                test_id=pk,
+                sex=data["sex"],
+                age_min_days=data["age_min_days"],
+                age_max_days=data["age_max_days"],
+                low=data["low"],
+                high=data["high"],
+                critical_low=data["critical_low"],
+                critical_high=data["critical_high"],
+                unit=data["unit"],
+                effective_from=data["effective_from"],
+                effective_to=data["effective_to"],
+                actor=user,
+                ip=ip,
+                user_agent=user_agent,
+            )
+        except OverlappingRangeError as exc:
+            return Response(
+                _format_error("overlapping_range", str(exc)),
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+        except RangeWindowError as exc:
+            return Response(
+                _format_error("validation_error", str(exc)),
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+        return Response(
+            ReferenceRangeSerializer(range_obj).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class ReferenceRangeDetailView(APIView):
+    """PATCH /api/v1/tests/{id}/ranges/{range_id} (KAN-119).
+
+    Supersedes the range (Doc 03 §5.2): the old row is closed and a new row
+    opened, preserving history. A payload with only effective_to retires the
+    row without a successor.
+    """
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def patch(self, request: Request, pk: uuid.UUID, range_id: uuid.UUID) -> Response:
+        user = cast(StaffUser, request.user)
+        if user.role not in RANGE_WRITE_ROLES:
+            return Response(
+                _format_error(
+                    "forbidden",
+                    "Only the Owner or Pathologist may update reference ranges.",
+                ),
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        get_object_or_404(Test, pk=pk)
+        range_obj = get_object_or_404(ReferenceRange, pk=range_id, test_id=pk)
+
+        serializer = ReferenceRangeUpdateSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(
+                _format_error(
+                    "validation_error", "Invalid payload.", serializer.errors
+                ),
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+
+        ip = _get_client_ip(request)
+        user_agent = request.META.get("HTTP_USER_AGENT", "")
+
+        try:
+            updated = CatalogService.supersede_reference_range(
+                range_obj=range_obj,
+                data=serializer.validated_data,
+                actor=user,
+                ip=ip,
+                user_agent=user_agent,
+            )
+        except OverlappingRangeError as exc:
+            return Response(
+                _format_error("overlapping_range", str(exc)),
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+        except RangeWindowError as exc:
+            return Response(
+                _format_error("invalid_effective_window", str(exc)),
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+        return Response(
+            ReferenceRangeSerializer(updated).data,
+            status=status.HTTP_200_OK,
         )

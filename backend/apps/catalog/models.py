@@ -306,6 +306,13 @@ class ReferenceRange(models.Model):
                 ),
                 name="chk_reference_range_crit_low_le_crit_high",
             ),
+            models.CheckConstraint(
+                condition=(
+                    Q(effective_to__isnull=True)
+                    | Q(effective_to__gte=F("effective_from"))
+                ),
+                name="chk_reference_range_effective_window",
+            ),
         ]
         indexes = [
             models.Index(
