@@ -1,4 +1,7 @@
-"""URL routing for Diagnostic Catalog endpoints (Doc 03 §5.2, §6.3, KAN-118)."""
+"""URL routing for Diagnostic Catalog endpoints (Doc 03 §5.2, §6.3).
+
+Covers KAN-118 (tests, panels, prices) and KAN-119 (reference ranges).
+"""
 
 from django.urls import path
 
@@ -6,6 +9,8 @@ from apps.catalog.views import (
     PanelDetailView,
     PanelListCreateView,
     PanelPriceListCreateView,
+    ReferenceRangeDetailView,
+    ReferenceRangeListCreateView,
     TestDetailView,
     TestListCreateView,
     TestPriceListCreateView,
@@ -26,6 +31,26 @@ urlpatterns = [
         "tests/<uuid:pk>/prices/",
         TestPriceListCreateView.as_view(),
         name="test-prices-slash",
+    ),
+    path(
+        "tests/<uuid:pk>/ranges",
+        ReferenceRangeListCreateView.as_view(),
+        name="test-ranges",
+    ),
+    path(
+        "tests/<uuid:pk>/ranges/",
+        ReferenceRangeListCreateView.as_view(),
+        name="test-ranges-slash",
+    ),
+    path(
+        "tests/<uuid:pk>/ranges/<uuid:range_id>",
+        ReferenceRangeDetailView.as_view(),
+        name="test-range-detail",
+    ),
+    path(
+        "tests/<uuid:pk>/ranges/<uuid:range_id>/",
+        ReferenceRangeDetailView.as_view(),
+        name="test-range-detail-slash",
     ),
     # Panels
     path("panels", PanelListCreateView.as_view(), name="panel-list-create"),

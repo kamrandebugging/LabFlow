@@ -9,6 +9,7 @@ import {
   Tag,
 } from "lucide-react";
 import { catalogService } from "./catalogService";
+import { ReferenceRangesManager } from "./ReferenceRangesManager";
 import type { DiagnosticTest, TestCreateInput } from "./types";
 
 const CATEGORIES = [
@@ -38,6 +39,8 @@ export function TestCatalogScreen({
 
   // New Test Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
+  // Reference Ranges Modal State (KAN-119)
+  const [rangesTest, setRangesTest] = useState<DiagnosticTest | null>(null);
   const [newCode, setNewCode] = useState("");
   const [newName, setNewName] = useState("");
   const [newCategory, setNewCategory] = useState("Hematology");
@@ -252,6 +255,12 @@ export function TestCatalogScreen({
                 >
                   Status
                 </th>
+                <th
+                  scope="col"
+                  className="py-3 px-4 text-xs font-semibold uppercase tracking-wider text-slate-500 text-right"
+                >
+                  Ranges
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -312,6 +321,15 @@ export function TestCatalogScreen({
                       >
                         {test.is_active ? "Active" : "Inactive"}
                       </span>
+                    </td>
+                    <td className="py-3.5 px-4 align-middle text-right">
+                      <button
+                        type="button"
+                        onClick={() => setRangesTest(test)}
+                        className="px-2.5 py-1 text-xs font-medium text-teal-800 bg-teal-50 hover:bg-teal-100 border border-teal-200 rounded-md transition-colors cursor-pointer"
+                      >
+                        Ranges
+                      </button>
                     </td>
                   </tr>
                 ))
@@ -465,6 +483,39 @@ export function TestCatalogScreen({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* 6. Reference Ranges Modal (KAN-119) */}
+      {rangesTest && (
+        <div
+          className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50"
+          role="dialog"
+          aria-modal="true"
+          aria-label={`Reference ranges for ${rangesTest.code}`}
+        >
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-3xl max-h-[85vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b border-slate-100 px-5 py-4 flex items-center justify-between rounded-t-xl">
+              <h2 className="text-base font-bold text-slate-900">
+                Reference Ranges — {rangesTest.code}
+              </h2>
+              <button
+                type="button"
+                onClick={() => setRangesTest(null)}
+                className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                aria-label="Close ranges"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-5">
+              <ReferenceRangesManager
+                testId={rangesTest.id}
+                testCode={rangesTest.code}
+                service={service}
+              />
+            </div>
           </div>
         </div>
       )}

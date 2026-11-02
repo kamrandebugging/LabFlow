@@ -1,8 +1,10 @@
-"""Serializers for Diagnostic Catalog (Doc 03 §5.2, §6.3, KAN-118).
+"""Serializers for Diagnostic Catalog (Doc 03 §5.2, §6.3, KAN-118, KAN-119).
 
 Enforces:
 - CT-V1 & T-12: Money values must be decimal strings with at most 2 decimal places.
 - CT-V3: Panels cannot be empty or contain inactive tests.
+- KAN-119: Reference range stratification fields, cross-field validation and
+  strict unknown-field rejection.
 """
 
 import re
@@ -13,7 +15,7 @@ from typing import Any, cast
 from rest_framework import serializers
 
 from apps.branches.models import Branch
-from apps.catalog.models import Panel, Test, TestPrice
+from apps.catalog.models import Panel, ReferenceRange, Test, TestPrice
 
 
 class MoneyField(serializers.Field):
@@ -267,3 +269,177 @@ class TestPriceCreateSerializer(serializers.Serializer):
         if value is not None and not Branch.objects.filter(id=value).exists():
             raise serializers.ValidationError("Branch does not exist.")
         return value
+
+
+class ReferenceRangeSerializer(serializers.ModelSerializer[ReferenceRange]):
+    """Read serializer for reference ranges (KAN-119).
+
+    Decimal bounds render as 3-decimal strings; nulls stay null.
+    """
+
+    low = serializers.DecimalField(
+        max_digits=10, decimal_places=3, coerce_to_string=True, allow_null=True
+    )
+    high = serializers.DecimalField(
+        max_digits=10, decimal_places=3, coerce_to_string=True, allow_null=True
+    )
+    critical_low = serializers.DecimalField(
+        max_digits=10, decimal_places=3, coerce_to_string=True, allow_null=True
+    )
+    critical_high = serializers.DecimalField(
+        max_digits=10, decimal_places=3, coerce_to_string=True, allow_null=True
+    )
+
+    class Meta:
+        model = ReferenceRange
+        fields = [
+            "id",
+            "test_id",
+            "sex",
+            "age_min_days",
+            "age_max_days",
+            "low",
+            "high",
+            "critical_low",
+            "critical_high",
+            "unit",
+            "effective_from",
+            "effective_to",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = fields
+
+
+def _reject_unknown_fields(
+    serializer: serializers.Serializer, attrs: dict[str, Any]
+) -> dict[str, Any]:
+    """Strict request serialization: unknown parameters are rejected (KAN-119)."""
+    initial = serializer.initial_data
+    known = set(serializer.fields)
+    unknown = set(initial.keys()) - known if isinstance(initial, dict) else set()
+    if unknown:
+        raise serializers.ValidationError(
+            f"Unknown fields: {', '.join(sorted(str(u) for u in unknown))}."
+        )
+    return attrs
+
+
+def _validate_range_cross_fields(attrs: dict[str, Any]) -> dict[str, Any]:
+    """Cross-field validation shared by range create/update (KAN-119)."""
+    age_min = attrs.get("age_min_days")
+    age_max = attrs.get("age_max_days")
+    if age_min is not None and age_max is not None and age_max < age_min:
+        raise serializers.ValidationError(
+            {"age_max_days": "age_max_days cannot be less than age_min_days."}
+        )
+
+    low = attrs.get("low")
+    high = attrs.get("high")
+    if low is not None and high is not None and low > high:
+        raise serializers.ValidationError({"low": "low cannot be greater than high."})
+
+    critical_low = attrs.get("critical_low")
+    critical_high = attrs.get("critical_high")
+    if (
+        critical_low is not None
+        and critical_high is not None
+        and critical_low > critical_high
+    ):
+        raise serializers.ValidationError(
+            {"critical_low": "critical_low cannot be greater than critical_high."}
+        )
+
+    effective_from = attrs.get("effective_from")
+    effective_to = attrs.get("effective_to")
+    if (
+        effective_from is not None
+        and effective_to is not None
+        and effective_to < effective_from
+    ):
+        raise serializers.ValidationError(
+            {"effective_to": "effective_to cannot be before effective_from."}
+        )
+    return attrs
+
+
+class ReferenceRangeCreateSerializer(serializers.Serializer):
+    sex = serializers.ChoiceField(choices=["M", "F", "B"], required=True)
+    age_min_days = serializers.IntegerField(min_value=0, required=True)
+    age_max_days = serializers.IntegerField(
+        min_value=0, required=False, allow_null=True, default=None
+    )
+    low = serializers.DecimalField(
+        max_digits=10,
+        decimal_places=3,
+        required=False,
+        allow_null=True,
+        default=None,
+    )
+    high = serializers.DecimalField(
+        max_digits=10,
+        decimal_places=3,
+        required=False,
+        allow_null=True,
+        default=None,
+    )
+    critical_low = serializers.DecimalField(
+        max_digits=10,
+        decimal_places=3,
+        required=False,
+        allow_null=True,
+        default=None,
+    )
+    critical_high = serializers.DecimalField(
+        max_digits=10,
+        decimal_places=3,
+        required=False,
+        allow_null=True,
+        default=None,
+    )
+    unit = serializers.CharField(max_length=64, required=True)
+    effective_from = serializers.DateField(required=True)
+    effective_to = serializers.DateField(required=False, allow_null=True, default=None)
+
+    def validate_unit(self, value: str) -> str:
+        unit = value.strip()
+        if not unit:
+            raise serializers.ValidationError("Unit cannot be empty.")
+        return unit
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        attrs = _reject_unknown_fields(self, attrs)
+        return _validate_range_cross_fields(attrs)
+
+
+class ReferenceRangeUpdateSerializer(serializers.Serializer):
+    sex = serializers.ChoiceField(choices=["M", "F", "B"], required=False)
+    age_min_days = serializers.IntegerField(min_value=0, required=False)
+    age_max_days = serializers.IntegerField(
+        min_value=0, required=False, allow_null=True
+    )
+    low = serializers.DecimalField(
+        max_digits=10, decimal_places=3, required=False, allow_null=True
+    )
+    high = serializers.DecimalField(
+        max_digits=10, decimal_places=3, required=False, allow_null=True
+    )
+    critical_low = serializers.DecimalField(
+        max_digits=10, decimal_places=3, required=False, allow_null=True
+    )
+    critical_high = serializers.DecimalField(
+        max_digits=10, decimal_places=3, required=False, allow_null=True
+    )
+    unit = serializers.CharField(max_length=64, required=False)
+    effective_from = serializers.DateField(required=False)
+    effective_to = serializers.DateField(required=False, allow_null=True)
+
+    def validate_unit(self, value: str) -> str:
+        unit = value.strip()
+        if not unit:
+            raise serializers.ValidationError("Unit cannot be empty.")
+        return unit
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        attrs = _reject_unknown_fields(self, attrs)
+        return _validate_range_cross_fields(attrs)
