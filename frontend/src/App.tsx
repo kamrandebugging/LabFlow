@@ -16,6 +16,8 @@ import { RegisterPatientScreen } from "./features/patients/RegisterPatientScreen
 import { PatientDetailsScreen } from "./features/patients/PatientDetailsScreen";
 import { PatientEditScreen } from "./features/patients/PatientEditScreen";
 import { PatientHistoryScreen } from "./features/patients/PatientHistoryScreen";
+import { TestCatalogScreen } from "./features/catalog/TestCatalogScreen";
+import { TestPanelsScreen } from "./features/catalog/TestPanelsScreen";
 import { ScreenCatalogViewer } from "./features/screens/ScreenCatalogViewer";
 import {
   Shield,
@@ -24,6 +26,8 @@ import {
   LayoutGrid,
   Users,
   UserPlus,
+  FlaskConical,
+  Layers,
 } from "lucide-react";
 
 function StaffLoginWrapper(): JSX.Element {
@@ -212,6 +216,24 @@ function PatientHistoryWrapper(): JSX.Element {
   );
 }
 
+function TestCatalogWrapper(): JSX.Element {
+  const navigate = useNavigate();
+  return (
+    <main className="min-h-screen bg-slate-50 py-6">
+      <TestCatalogScreen onSwitchToPanels={() => navigate("/catalog/panels")} />
+    </main>
+  );
+}
+
+function TestPanelsWrapper(): JSX.Element {
+  const navigate = useNavigate();
+  return (
+    <main className="min-h-screen bg-slate-50 py-6">
+      <TestPanelsScreen onSwitchToTests={() => navigate("/catalog/tests")} />
+    </main>
+  );
+}
+
 function ScreenSwitcherBanner(): JSX.Element | null {
   const location = useLocation();
   const currentPath = location.pathname;
@@ -278,6 +300,30 @@ function ScreenSwitcherBanner(): JSX.Element | null {
       </Link>
       <span className="text-slate-600">|</span>
       <Link
+        to="/catalog/tests"
+        className={`flex items-center gap-1 px-2.5 py-1 rounded-full transition-colors ${
+          currentPath === "/catalog/tests" || currentPath === "/settings/tests"
+            ? "bg-teal-600 text-white font-medium"
+            : "text-slate-300 hover:text-white"
+        }`}
+      >
+        <FlaskConical className="w-3.5 h-3.5" />
+        31: Tests
+      </Link>
+      <Link
+        to="/catalog/panels"
+        className={`flex items-center gap-1 px-2.5 py-1 rounded-full transition-colors ${
+          currentPath === "/catalog/panels" ||
+          currentPath === "/settings/panels"
+            ? "bg-indigo-600 text-white font-medium"
+            : "text-slate-300 hover:text-white"
+        }`}
+      >
+        <Layers className="w-3.5 h-3.5" />
+        32: Panels
+      </Link>
+      <span className="text-slate-600">|</span>
+      <Link
         to="/screens"
         className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-700 hover:bg-emerald-600 text-white font-semibold shadow-sm transition-colors"
       >
@@ -303,6 +349,10 @@ function App(): JSX.Element {
           path="/patients/:id/history"
           element={<PatientHistoryWrapper />}
         />
+        <Route path="/catalog/tests" element={<TestCatalogWrapper />} />
+        <Route path="/catalog/panels" element={<TestPanelsWrapper />} />
+        <Route path="/settings/tests" element={<TestCatalogWrapper />} />
+        <Route path="/settings/panels" element={<TestPanelsWrapper />} />
         <Route path="/screens" element={<ScreenCatalogViewer />} />
         <Route path="/screens/:screenId" element={<ScreenCatalogViewer />} />
         <Route path="*" element={<Navigate to="/login" replace />} />
