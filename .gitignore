@@ -35,6 +35,7 @@ wheels/
 .ruff_cache/
 .coverage
 htmlcov/
+.agent_prompt.md
 
 # Node & Frontend
 node_modules/

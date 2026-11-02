@@ -70,6 +70,16 @@ This document is the **strict, authoritative operating manual** for executing en
 - Commit body must enumerate subtask components, validation rules, and testing coverage.
 - Push only to `origin/LAB-<NUMBER>` with `--force-with-lease`. Never push directly to `main`.
 
+### RULE 6: Strict Delivery & Full Stop Protocol
+- **LAB Branch ONLY**: Commit changes and push strictly to `origin/LAB-<NUMBER>`.
+- **Transition Jira**: Move ticket to 'In Review' (Transition ID 41) with structured evidence comment.
+- **FULL STOP**: 
+  - NO Pull Request creation.
+  - NO merging to `main`.
+  - NO auto-advancing to the next ticket.
+- **Delivery Report**: Output ticket key, branch, tests, coverage %, and list of changed files.
+- **Human Gate**: The user reviews code, verifies in the browser, merges manually into `main`, and then says "next".
+
 ---
 
 ## 3. Coding Style & Quality Guidelines
