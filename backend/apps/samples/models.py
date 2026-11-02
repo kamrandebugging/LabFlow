@@ -371,3 +371,22 @@ class SampleTransfer(models.Model):
 
     def __str__(self) -> str:
         return f"Transfer({self.id}) Sample({self.sample_id}) [{self.status}]"
+
+
+class AccessionCounter(models.Model):
+    """Date-keyed per-day accession sequence counter (Doc 02 §9).
+
+    One row per calendar day (Asia/Karachi). Lives in the tenant schema, so
+    the sequence is per-tenant. The row is locked with SELECT FOR UPDATE
+    inside the sample-creation transaction — concurrent collection cannot
+    mint a duplicate accession ID.
+    """
+
+    date = models.DateField(primary_key=True)
+    last_seq = models.IntegerField(default=0)
+
+    class Meta:
+        db_table = "accession_counter"
+
+    def __str__(self) -> str:
+        return f"AccessionCounter({self.date}) -> {self.last_seq}"

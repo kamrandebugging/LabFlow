@@ -28,6 +28,8 @@ urlpatterns = [
     # Billing: Invoices (Doc 03 §5.3, §6.4, KAN-124 / LAB-18)
     path("api/v1/", include("apps.billing.urls")),
     path("api/v1/billing/", include("apps.billing.urls")),
+    # Samples: accessioning + labels (Doc 03 §5.4, KAN-137 / LAB-21)
+    path("api/v1/", include("apps.samples.urls")),
     # Staff Administration & TOTP Recovery (Doc 04 §15.2, Doc 08 §4.4, LAB-52)
     path(
         "api/v1/staff/<uuid:user_id>/reset-totp",
