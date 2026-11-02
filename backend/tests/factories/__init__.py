@@ -64,6 +64,7 @@ from tests.factories.results import (
     ResultFactory,
 )
 from tests.factories.samples import (
+    AccessionCounterFactory,
     SampleEventFactory,
     SampleFactory,
     SampleTestFactory,
@@ -75,6 +76,7 @@ from tests.factories.tenant_setting import TenantSettingFactory
 from tests.factories.tenants import TenantFixtureFactory
 
 __all__ = [
+    "AccessionCounterFactory",
     "AuditLogFactory",
     "BaseTenantFixtureFactory",
     "BranchFactory",
