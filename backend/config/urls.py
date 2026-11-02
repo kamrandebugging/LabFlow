@@ -22,6 +22,9 @@ urlpatterns = [
     # Patients (Doc 03 §5.1, §6.2, Doc 04 §8.5)
     path("api/v1/patients", include("apps.patients.urls")),
     path("api/v1/patients/", include("apps.patients.urls")),
+    # Diagnostic Catalog: Tests, Panels, Prices (Doc 03 §5.2, §6.3, KAN-118)
+    path("api/v1/", include("apps.catalog.urls")),
+    path("api/v1/catalog/", include("apps.catalog.urls")),
     # Staff Administration & TOTP Recovery (Doc 04 §15.2, Doc 08 §4.4, LAB-52)
     path(
         "api/v1/staff/<uuid:user_id>/reset-totp",
