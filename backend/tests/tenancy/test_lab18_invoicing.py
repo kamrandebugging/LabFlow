@@ -114,7 +114,7 @@ def _post_invoice(
         INVOICES_URL,
         data=json.dumps(body),
         content_type="application/json",
-        **extra,
+        headers=extra,
     )
 
 
@@ -327,7 +327,7 @@ class TestInvoiceValidation:
         self, tenant_a: Any, billing_setup: dict[str, Any], auth_headers: Any
     ) -> None:
         headers = auth_headers(billing_setup["manager"])
-        body = _base_body(billing_setup, discount_amount=100.00)  # type: ignore[arg-type]
+        body = _base_body(billing_setup, discount_amount=100.00)
         resp = _post_invoice(Client(), headers, body, idem_key="money-001")
         assert resp.status_code == 422
         assert resp.json()["error"]["code"] == "money_must_be_string"
@@ -416,4 +416,6 @@ class TestInvoiceAudit:
                 action="invoice.created", entity_id=uuid.UUID(resp.json()["id"])
             )
             assert row.actor_id == billing_setup["manager"].id
-            assert row.after_jsonb["idempotency_key"] == "aud-001"
+            after = row.after_jsonb
+            assert isinstance(after, dict)
+            assert after["idempotency_key"] == "aud-001"
