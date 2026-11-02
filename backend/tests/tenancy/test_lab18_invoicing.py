@@ -43,8 +43,8 @@ def auth_headers() -> Any:
             tenant_id=tenant_id,
         )
         return {
-            "HTTP_AUTHORIZATION": f"Bearer {session['access']}",
-            "HTTP_HOST": f"{slug}.localhost",
+            "Authorization": f"Bearer {session['access']}",
+            "Host": f"{slug}.localhost",
         }
 
     return _make_headers
@@ -107,7 +107,7 @@ def _post_invoice(
 ) -> Any:
     extra = dict(headers)
     if idem_key is not None:
-        extra["HTTP_IDEMPOTENCY_KEY"] = idem_key
+        extra["Idempotency-Key"] = idem_key
     import json
 
     return client.post(

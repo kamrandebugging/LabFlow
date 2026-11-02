@@ -126,3 +126,47 @@ class InvoiceSerializer(serializers.Serializer):
     discount_reason = serializers.CharField(allow_null=True)
     total = MoneyField()
     items = InvoiceItemSerializer(many=True)
+
+
+class PositiveMoneyField(MoneyField):
+    """MoneyField variant requiring >= 0.01 (BL-V1 for payments/refunds)."""
+
+    default_error_messages = {
+        **MoneyField.default_error_messages,
+        "too_small": "Amount must be at least 0.01.",
+    }
+
+    def to_internal_value(self, data: Any) -> Decimal:
+        val = super().to_internal_value(data)
+        if val < Decimal("0.01"):
+            self.fail("too_small")
+        return val
+
+
+class PaymentCreateSerializer(serializers.Serializer):
+    """POST /api/v1/invoices/{id}/payments body (BL-5, BL-7, BL-10, BL-V1)."""
+
+    kind = serializers.ChoiceField(choices=["payment", "refund"])
+    method = serializers.ChoiceField(
+        choices=["cash", "card", "bank_transfer", "easypaisa", "jazzcash", "other"]
+    )
+    amount = PositiveMoneyField()
+    reference = serializers.CharField(
+        required=False, allow_null=True, allow_blank=True, default=None
+    )
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        return _reject_unknown_fields(self, attrs)
+
+
+class PaymentSerializer(serializers.Serializer):
+    """Response shape for a recorded / replayed payment."""
+
+    id = serializers.UUIDField()
+    invoice_id = serializers.UUIDField()
+    kind = serializers.CharField()
+    method = serializers.CharField()
+    amount = MoneyField()
+    reference = serializers.CharField(allow_null=True)
+    received_by = serializers.UUIDField(source="received_by_id", allow_null=True)
+    created_at = serializers.DateTimeField()
