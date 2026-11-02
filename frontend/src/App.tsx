@@ -6,12 +6,16 @@ import {
   Navigate,
   useNavigate,
   useLocation,
+  useParams,
   Link,
 } from "react-router-dom";
 import { StaffLoginScreen } from "./features/auth/StaffLoginScreen";
 import { TwoFactorAuthScreen } from "./features/auth/TwoFactorAuthScreen";
 import { PatientListScreen } from "./features/patients/PatientListScreen";
 import { RegisterPatientScreen } from "./features/patients/RegisterPatientScreen";
+import { PatientDetailsScreen } from "./features/patients/PatientDetailsScreen";
+import { PatientEditScreen } from "./features/patients/PatientEditScreen";
+import { PatientHistoryScreen } from "./features/patients/PatientHistoryScreen";
 import { ScreenCatalogViewer } from "./features/screens/ScreenCatalogViewer";
 import {
   Shield,
@@ -144,7 +148,7 @@ function PatientListWrapper(): JSX.Element {
     <main className="min-h-screen bg-slate-50">
       <PatientListScreen
         onNewPatient={() => navigate("/patients/new")}
-        onSelectPatient={() => navigate(`/screens/10-patient-details`)}
+        onSelectPatient={(id) => navigate(`/patients/${id}`)}
       />
     </main>
   );
@@ -157,6 +161,52 @@ function RegisterPatientWrapper(): JSX.Element {
       <RegisterPatientScreen
         onCancel={() => navigate("/patients")}
         onSuccess={() => navigate("/patients")}
+      />
+    </main>
+  );
+}
+
+function PatientDetailsWrapper(): JSX.Element {
+  const navigate = useNavigate();
+  const { id } = useParams<{ id: string }>();
+  return (
+    <main className="min-h-screen bg-slate-50 py-6">
+      <PatientDetailsScreen
+        patientId={id || ""}
+        onBack={() => navigate("/patients")}
+        onEdit={(patientId) => navigate(`/patients/${patientId}/edit`)}
+        onViewHistory={(patientId) =>
+          navigate(`/patients/${patientId}/history`)
+        }
+        onNewVisit={() => navigate("/patients")}
+      />
+    </main>
+  );
+}
+
+function PatientEditWrapper(): JSX.Element {
+  const navigate = useNavigate();
+  const { id } = useParams<{ id: string }>();
+  return (
+    <main className="min-h-screen bg-slate-50 py-6">
+      <PatientEditScreen
+        patientId={id || ""}
+        onBack={() => navigate(`/patients/${id}`)}
+        onCancel={() => navigate(`/patients/${id}`)}
+        onSuccess={() => navigate(`/patients/${id}`)}
+      />
+    </main>
+  );
+}
+
+function PatientHistoryWrapper(): JSX.Element {
+  const navigate = useNavigate();
+  const { id } = useParams<{ id: string }>();
+  return (
+    <main className="min-h-screen bg-slate-50 py-6">
+      <PatientHistoryScreen
+        patientId={id || ""}
+        onBack={() => navigate(`/patients/${id}`)}
       />
     </main>
   );
@@ -247,6 +297,12 @@ function App(): JSX.Element {
         <Route path="/login/2fa" element={<TwoFactorAuthWrapper />} />
         <Route path="/patients" element={<PatientListWrapper />} />
         <Route path="/patients/new" element={<RegisterPatientWrapper />} />
+        <Route path="/patients/:id" element={<PatientDetailsWrapper />} />
+        <Route path="/patients/:id/edit" element={<PatientEditWrapper />} />
+        <Route
+          path="/patients/:id/history"
+          element={<PatientHistoryWrapper />}
+        />
         <Route path="/screens" element={<ScreenCatalogViewer />} />
         <Route path="/screens/:screenId" element={<ScreenCatalogViewer />} />
         <Route path="*" element={<Navigate to="/login" replace />} />
