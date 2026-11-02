@@ -74,6 +74,7 @@ class Invoice(models.Model):
         db_default=Decimal("0.00"),
     )
     idempotency_key = models.TextField(null=True, blank=True)  # noqa: DJ001
+    payload_sha256 = models.TextField(null=True, blank=True)  # noqa: DJ001
     created_at = models.DateTimeField(
         auto_now_add=True,
         db_default=Now(),
