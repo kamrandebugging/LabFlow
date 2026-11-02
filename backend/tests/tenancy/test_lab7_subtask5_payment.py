@@ -47,6 +47,7 @@ class TestPaymentModelSchemaAndConstraints:
                 "received_by",
                 "reference",
                 "idempotency_key",
+                "payload_sha256",  # LAB-19: idempotency payload fingerprint
                 "created_at",
             }
             assert set(cols.keys()) == expected_cols
