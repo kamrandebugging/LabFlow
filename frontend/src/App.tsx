@@ -10,8 +10,17 @@ import {
 } from "react-router-dom";
 import { StaffLoginScreen } from "./features/auth/StaffLoginScreen";
 import { TwoFactorAuthScreen } from "./features/auth/TwoFactorAuthScreen";
+import { PatientListScreen } from "./features/patients/PatientListScreen";
+import { RegisterPatientScreen } from "./features/patients/RegisterPatientScreen";
 import { ScreenCatalogViewer } from "./features/screens/ScreenCatalogViewer";
-import { Shield, Smartphone, CheckCircle, LayoutGrid } from "lucide-react";
+import {
+  Shield,
+  Smartphone,
+  CheckCircle,
+  LayoutGrid,
+  Users,
+  UserPlus,
+} from "lucide-react";
 
 function StaffLoginWrapper(): JSX.Element {
   const navigate = useNavigate();
@@ -129,6 +138,30 @@ function TwoFactorAuthWrapper(): JSX.Element {
   );
 }
 
+function PatientListWrapper(): JSX.Element {
+  const navigate = useNavigate();
+  return (
+    <main className="min-h-screen bg-slate-50">
+      <PatientListScreen
+        onNewPatient={() => navigate("/patients/new")}
+        onSelectPatient={() => navigate(`/screens/10-patient-details`)}
+      />
+    </main>
+  );
+}
+
+function RegisterPatientWrapper(): JSX.Element {
+  const navigate = useNavigate();
+  return (
+    <main className="min-h-screen bg-slate-50 py-6">
+      <RegisterPatientScreen
+        onCancel={() => navigate("/patients")}
+        onSuccess={() => navigate("/patients")}
+      />
+    </main>
+  );
+}
+
 function ScreenSwitcherBanner(): JSX.Element | null {
   const location = useLocation();
   const currentPath = location.pathname;
@@ -172,6 +205,29 @@ function ScreenSwitcherBanner(): JSX.Element | null {
       </Link>
       <span className="text-slate-600">|</span>
       <Link
+        to="/patients"
+        className={`flex items-center gap-1 px-2.5 py-1 rounded-full transition-colors ${
+          currentPath === "/patients"
+            ? "bg-teal-600 text-white font-medium"
+            : "text-slate-300 hover:text-white"
+        }`}
+      >
+        <Users className="w-3.5 h-3.5" />
+        08: Patients
+      </Link>
+      <Link
+        to="/patients/new"
+        className={`flex items-center gap-1 px-2.5 py-1 rounded-full transition-colors ${
+          currentPath === "/patients/new"
+            ? "bg-teal-600 text-white font-medium"
+            : "text-slate-300 hover:text-white"
+        }`}
+      >
+        <UserPlus className="w-3.5 h-3.5" />
+        09: Register
+      </Link>
+      <span className="text-slate-600">|</span>
+      <Link
         to="/screens"
         className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-700 hover:bg-emerald-600 text-white font-semibold shadow-sm transition-colors"
       >
@@ -189,6 +245,8 @@ function App(): JSX.Element {
         <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="/login" element={<StaffLoginWrapper />} />
         <Route path="/login/2fa" element={<TwoFactorAuthWrapper />} />
+        <Route path="/patients" element={<PatientListWrapper />} />
+        <Route path="/patients/new" element={<RegisterPatientWrapper />} />
         <Route path="/screens" element={<ScreenCatalogViewer />} />
         <Route path="/screens/:screenId" element={<ScreenCatalogViewer />} />
         <Route path="*" element={<Navigate to="/login" replace />} />
