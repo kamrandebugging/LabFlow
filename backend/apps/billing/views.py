@@ -1,14 +1,22 @@
-"""DRF views for Billing — invoice creation + payments (Doc 03 §5.3, §6.4,
-KAN-124 / LAB-18, KAN-130 / LAB-19).
+"""DRF views for Billing — invoice create/read/cancel + payments (Doc 03 §5.3,
+§6.4, KAN-124 / LAB-18, KAN-130 / LAB-19, KAN-132 / LAB-20).
 
 POST /api/v1/invoices — roles Owner, Manager, Receptionist.
+GET /api/v1/invoices — roles Owner, Manager, Receptionist, Technician,
+Pathologist (cursor-paginated).
+GET /api/v1/invoices/{id} — same read roles.
+POST /api/v1/invoices/{id}/cancel — roles Owner, Manager, Receptionist.
 POST /api/v1/invoices/{id}/payments — roles Owner, Manager, Receptionist
 (refunds: Owner, Manager only).
-Thin views: all business logic lives in BillingService / PaymentService.
+Thin views: all business logic lives in BillingService / PaymentService /
+InvoiceQueryService.
 """
 
+import uuid
+from datetime import UTC, datetime
 from typing import Any, cast
 
+from django.http import QueryDict
 from rest_framework import permissions, status
 from rest_framework.request import Request
 from rest_framework.response import Response
@@ -16,16 +24,22 @@ from rest_framework.views import APIView
 
 from apps.accounts.models import StaffUser
 from apps.billing.serializers import (
+    InvoiceCancelSerializer,
     InvoiceCreateSerializer,
+    InvoiceDetailSerializer,
     InvoiceSerializer,
+    InvoiceSummarySerializer,
     PaymentCreateSerializer,
     PaymentSerializer,
 )
 from apps.billing.services import (
+    BILLING_READ_ROLES,
     BILLING_WRITE_ROLES,
     PAYMENT_WRITE_ROLES,
     BillingError,
     BillingService,
+    InvalidFilterError,
+    InvoiceQueryService,
     PaymentService,
 )
 from apps.catalog.services import TestNotPricedError
@@ -45,10 +59,37 @@ def _format_error(code: str, message: str, details: Any = None) -> dict[str, Any
     return {"error": err}
 
 
-class InvoiceCreateView(APIView):
-    """POST /api/v1/invoices — create an invoice (BL-1..BL-4, BL-6, BL-V1..BL-V3)."""
+class InvoiceCollectionView(APIView):
+    """GET /api/v1/invoices — cursor-paginated list (Doc 03 §6.1).
+
+    POST /api/v1/invoices — create an invoice (BL-1..BL-4, BL-6, BL-V1..BL-V3).
+    """
 
     permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request: Request) -> Response:
+        user = cast(StaffUser, request.user)
+        if user.role not in BILLING_READ_ROLES:
+            return Response(
+                _format_error(
+                    "forbidden",
+                    "Only staff may list invoices.",
+                ),
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        try:
+            filters = _parse_list_params(request.query_params)
+            rows, next_cursor = InvoiceQueryService.list_invoices(**filters)
+        except BillingError as exc:
+            return Response(
+                _format_error(exc.error_code, str(exc) or exc.error_code),
+                status=exc.status_code,
+            )
+        body = {
+            "results": InvoiceSummarySerializer(rows, many=True).data,
+            "next_cursor": next_cursor,
+        }
+        return Response(body, status=status.HTTP_200_OK)
 
     def post(self, request: Request) -> Response:
         user = cast(StaffUser, request.user)
@@ -200,3 +241,170 @@ class PaymentCreateView(APIView):
             body,
             status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
         )
+
+
+def _parse_uuid_param(value: Any, field: str) -> uuid.UUID | None:
+    """Parse a UUID query param; invalid → 422 invalid_filter (raised)."""
+    if value is None:
+        return None
+    try:
+        return uuid.UUID(str(value))
+    except (ValueError, AttributeError, TypeError):
+        raise InvalidFilterError(f"Invalid {field}.") from None
+
+
+def _parse_datetime_param(value: Any, field: str) -> datetime | None:
+    """Parse an ISO 8601 query param; invalid → 422 invalid_filter (raised)."""
+    if value is None:
+        return None
+    try:
+        parsed = datetime.fromisoformat(str(value))
+    except ValueError:
+        raise InvalidFilterError(f"Invalid {field}; expected ISO 8601.") from None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=UTC)
+    return parsed
+
+
+def _parse_list_params(params: QueryDict) -> dict[str, Any]:
+    """Translate GET /invoices query params to InvoiceQueryService kwargs.
+
+    Unknown filter parameters are ignored (Doc 03 §6.1).
+    """
+    filters: dict[str, Any] = {}
+    status_val = params.get("status")
+    if status_val is not None:
+        filters["status"] = status_val
+    patient_id = _parse_uuid_param(params.get("patient_id"), "patient_id")
+    if patient_id is not None:
+        filters["patient_id"] = patient_id
+    branch_id = _parse_uuid_param(params.get("branch_id"), "branch_id")
+    if branch_id is not None:
+        filters["branch_id"] = branch_id
+    created_after = _parse_datetime_param(params.get("created_after"), "created_after")
+    if created_after is not None:
+        filters["created_after"] = created_after
+    created_before = _parse_datetime_param(
+        params.get("created_before"), "created_before"
+    )
+    if created_before is not None:
+        filters["created_before"] = created_before
+    raw_cursor = params.get("cursor")
+    if raw_cursor is not None:
+        filters["cursor"] = raw_cursor
+    raw_limit = params.get("limit")
+    if raw_limit is not None:
+        try:
+            filters["limit"] = int(raw_limit)
+        except (ValueError, TypeError):
+            raise InvalidFilterError("Invalid limit.") from None
+    return filters
+
+
+def _parse_path_uuid(value: Any) -> uuid.UUID | None:
+    try:
+        return uuid.UUID(str(value))
+    except (ValueError, AttributeError, TypeError):
+        return None
+
+
+class InvoiceDetailView(APIView):
+    """GET /api/v1/invoices/{id} — detail with items, payments, net_paid."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request: Request, invoice_id: Any) -> Response:
+        user = cast(StaffUser, request.user)
+        if user.role not in BILLING_READ_ROLES:
+            return Response(
+                _format_error("forbidden", "Only staff may view invoices."),
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        iid = _parse_path_uuid(invoice_id)
+        if iid is None:
+            return Response(
+                _format_error("not_found", "Invoice not found."),
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        try:
+            detail = InvoiceQueryService.get_invoice_detail(invoice_id=iid)
+        except BillingError as exc:
+            return Response(
+                _format_error(exc.error_code, str(exc) or exc.error_code),
+                status=exc.status_code,
+            )
+        invoice = detail["invoice"]
+        payload: dict[str, Any] = {
+            "id": invoice.id,
+            "patient_id": invoice.patient_id,
+            "branch_id": invoice.branch_id,
+            "referral_partner_id": invoice.referral_partner_id,
+            "status": invoice.status,
+            "subtotal": invoice.subtotal,
+            "discount_amount": invoice.discount_amount,
+            "discount_reason": invoice.discount_reason,
+            "total": invoice.total,
+            "items": list(invoice.items.all()),
+            "payments": list(invoice.payments.all()),
+            "net_paid": detail["net_paid"],
+            "created_at": invoice.created_at,
+        }
+        return Response(
+            InvoiceDetailSerializer(payload).data, status=status.HTTP_200_OK
+        )
+
+
+class InvoiceCancelView(APIView):
+    """POST /api/v1/invoices/{id}/cancel — cancel an unpaid invoice (BL-8)."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request: Request, invoice_id: Any) -> Response:
+        user = cast(StaffUser, request.user)
+        if user.role not in BILLING_WRITE_ROLES:
+            return Response(
+                _format_error(
+                    "forbidden",
+                    "Only Owner, Manager or Receptionist may cancel invoices.",
+                ),
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        iid = _parse_path_uuid(invoice_id)
+        if iid is None:
+            return Response(
+                _format_error("not_found", "Invoice not found."),
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        serializer = InvoiceCancelSerializer(data=request.data)
+        if not serializer.is_valid():
+            err_dict = serializer.errors
+            if "reason" in err_dict:
+                return Response(
+                    _format_error(
+                        "cancel_reason_required",
+                        "A reason is required to cancel an invoice.",
+                        err_dict,
+                    ),
+                    status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                )
+            return Response(
+                _format_error("validation_error", "Invalid payload.", err_dict),
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+        data = serializer.validated_data
+        ip = _get_client_ip(request)
+        user_agent = request.META.get("HTTP_USER_AGENT", "")
+        try:
+            invoice = InvoiceQueryService.cancel_invoice(
+                invoice_id=iid,
+                reason=data["reason"],
+                actor=user,
+                ip=ip,
+                user_agent=user_agent,
+            )
+        except BillingError as exc:
+            return Response(
+                _format_error(exc.error_code, str(exc) or exc.error_code),
+                status=exc.status_code,
+            )
+        return Response(InvoiceSerializer(invoice).data, status=status.HTTP_200_OK)
