@@ -19,6 +19,9 @@ urlpatterns = [
     path("internal/tls-check/", tls_check_view, name="internal-tls-check-slash"),
     # Authentication & Sessions (Doc 07 §5, Doc 08 §4)
     path("api/v1/auth/", include("apps.accounts.urls")),
+    # Patients (Doc 03 §5.1, §6.2, Doc 04 §8.5)
+    path("api/v1/patients", include("apps.patients.urls")),
+    path("api/v1/patients/", include("apps.patients.urls")),
     # Staff Administration & TOTP Recovery (Doc 04 §15.2, Doc 08 §4.4, LAB-52)
     path(
         "api/v1/staff/<uuid:user_id>/reset-totp",

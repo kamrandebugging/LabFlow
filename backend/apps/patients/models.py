@@ -42,6 +42,7 @@ class Patient(models.Model):
         db_default=Now(),
     )
     deleted_at = models.DateTimeField(null=True, blank=True)
+    _is_cross_branch: bool = False
 
     class Meta:
         db_table = "patient"
