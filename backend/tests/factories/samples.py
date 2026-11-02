@@ -1,7 +1,15 @@
+from datetime import timedelta
+
 import factory
 from django.utils import timezone
 
-from apps.samples.models import Sample, SampleEvent, SampleTest, SampleTransfer
+from apps.samples.models import (
+    AccessionCounter,
+    Sample,
+    SampleEvent,
+    SampleTest,
+    SampleTransfer,
+)
 from tests.factories.accounts import StaffUserFactory
 from tests.factories.base import TenantModelFactory
 from tests.factories.billing import InvoiceFactory, InvoiceItemFactory
@@ -55,3 +63,11 @@ class SampleTransferFactory(TenantModelFactory):
     status = SampleTransfer.Status.OPEN
     dispatched_at = factory.LazyFunction(timezone.now)
     received_at = None
+
+
+class AccessionCounterFactory(TenantModelFactory):
+    class Meta:
+        model = AccessionCounter
+
+    date = factory.Sequence(lambda n: (timezone.now() + timedelta(days=n)).date())
+    last_seq = 0
