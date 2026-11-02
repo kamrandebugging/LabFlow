@@ -82,3 +82,52 @@ export interface PriceCreateInput {
   effective_from?: string;
   branch_id?: string | null;
 }
+
+/**
+ * Biological Reference Range Types (Doc 03 §5.2, §8.2, KAN-119).
+ */
+
+export type RangeSex = "M" | "F" | "B";
+
+export interface ReferenceRange {
+  id: string;
+  test_id: string;
+  sex: RangeSex;
+  age_min_days: number;
+  age_max_days: number | null;
+  low: string | null;
+  high: string | null;
+  critical_low: string | null;
+  critical_high: string | null;
+  unit: string;
+  effective_from: string;
+  effective_to: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ReferenceRangeCreateInput {
+  sex: RangeSex;
+  age_min_days: number;
+  age_max_days?: number | null;
+  low?: string | null;
+  high?: string | null;
+  critical_low?: string | null;
+  critical_high?: string | null;
+  unit: string;
+  effective_from: string;
+  effective_to?: string | null;
+}
+
+export interface ReferenceRangeUpdateInput {
+  sex?: RangeSex;
+  age_min_days?: number;
+  age_max_days?: number | null;
+  low?: string | null;
+  high?: string | null;
+  critical_low?: string | null;
+  critical_high?: string | null;
+  unit?: string;
+  effective_from?: string;
+  effective_to?: string | null;
+}

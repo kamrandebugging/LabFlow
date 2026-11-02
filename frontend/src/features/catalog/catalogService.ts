@@ -10,6 +10,9 @@ import type {
   PanelCreateInput,
   PanelUpdateInput,
   PriceCreateInput,
+  ReferenceRange,
+  ReferenceRangeCreateInput,
+  ReferenceRangeUpdateInput,
   TestCreateInput,
   TestUpdateInput,
 } from "./types";
@@ -171,6 +174,72 @@ export const catalogService = {
       throw new Error(
         err?.amount?.[0] || `Failed to set price (${res.status})`,
       );
+    }
+
+    return res.json();
+  },
+
+  // Reference ranges (KAN-119)
+  async listTestRanges(testId: string): Promise<ReferenceRange[]> {
+    const res = await fetch(`${API_BASE}/tests/${testId}/ranges`, {
+      method: "GET",
+      headers: getAuthHeaders(),
+      credentials: "include",
+    });
+
+    if (!res.ok) {
+      throw new Error(`Failed to load reference ranges (${res.status})`);
+    }
+
+    return res.json();
+  },
+
+  async createTestRange(
+    testId: string,
+    input: ReferenceRangeCreateInput,
+  ): Promise<ReferenceRange> {
+    const res = await fetch(`${API_BASE}/tests/${testId}/ranges`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+      credentials: "include",
+      body: JSON.stringify(input),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      const code = err?.error?.code;
+      const message =
+        err?.error?.message ||
+        `Failed to create reference range (${res.status})`;
+      const error = new Error(String(message));
+      (error as Error & { code?: string }).code = code;
+      throw error;
+    }
+
+    return res.json();
+  },
+
+  async updateTestRange(
+    testId: string,
+    rangeId: string,
+    input: ReferenceRangeUpdateInput,
+  ): Promise<ReferenceRange> {
+    const res = await fetch(`${API_BASE}/tests/${testId}/ranges/${rangeId}`, {
+      method: "PATCH",
+      headers: getAuthHeaders(),
+      credentials: "include",
+      body: JSON.stringify(input),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      const code = err?.error?.code;
+      const message =
+        err?.error?.message ||
+        `Failed to update reference range (${res.status})`;
+      const error = new Error(String(message));
+      (error as Error & { code?: string }).code = code;
+      throw error;
     }
 
     return res.json();
