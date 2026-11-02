@@ -37,12 +37,16 @@ Payments + refunds (original LAB-21):
   (BL-V3: received_by = authenticated actor).
 """
 
+import base64
+import binascii
 import hashlib
 import json
 import uuid
+from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 
+from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from django.db.models import Q, Sum
 
@@ -53,8 +57,16 @@ from apps.catalog.models import Panel, Test
 from apps.catalog.services import CatalogService
 from apps.partners.models import ReferralPartner
 from apps.patients.models import Patient
+from apps.samples.models import Sample
 
 BILLING_WRITE_ROLES = {Role.OWNER, Role.MANAGER, Role.RECEPTION}
+BILLING_READ_ROLES = {
+    Role.OWNER,
+    Role.MANAGER,
+    Role.RECEPTION,
+    Role.TECHNICIAN,
+    Role.PATHOLOGIST,
+}
 DISCOUNT_ROLES = {Role.OWNER, Role.MANAGER}
 PAYMENT_WRITE_ROLES = {Role.OWNER, Role.MANAGER, Role.RECEPTION}
 REFUND_ROLES = {Role.OWNER, Role.MANAGER}
@@ -127,6 +139,16 @@ class ReferenceRequiredError(BillingError):
 class InvalidStateTransitionError(BillingError):
     status_code = 409
     error_code = "invalid_state_transition"
+
+
+class CancelReasonRequiredError(BillingError):
+    status_code = 422
+    error_code = "cancel_reason_required"
+
+
+class InvalidFilterError(BillingError):
+    status_code = 422
+    error_code = "invalid_filter"
 
 
 def _canonical_payload(
@@ -564,3 +586,156 @@ class PaymentService:
                 user_agent=user_agent,
             )
             return payment, True
+
+
+# ---------------------------------------------------------------------------
+# LAB-20 — Invoice cancel + reads (original LAB-22, Doc 03 §5.3 BL-8, §6.4)
+# ---------------------------------------------------------------------------
+
+LIST_DEFAULT_LIMIT = 50
+LIST_MAX_LIMIT = 200
+
+
+def _encode_cursor(created_at: datetime, invoice_id: uuid.UUID) -> str:
+    """Opaque cursor: base64url JSON of the last row's (created_at, id)."""
+    payload = {"created_at": created_at.isoformat(), "id": str(invoice_id)}
+    raw = json.dumps(payload).encode("utf-8")
+    return base64.urlsafe_b64encode(raw).decode("ascii")
+
+
+def _decode_cursor(cursor: str) -> tuple[datetime, uuid.UUID]:
+    """Decode a cursor; raises InvalidFilterError on any malformed input."""
+    try:
+        raw = base64.urlsafe_b64decode(cursor.encode("ascii")).decode("utf-8")
+        payload = json.loads(raw)
+        created_at = datetime.fromisoformat(str(payload["created_at"]))
+        invoice_id = uuid.UUID(str(payload["id"]))
+    except (ValueError, KeyError, TypeError, binascii.Error) as exc:
+        raise InvalidFilterError("Invalid cursor.") from exc
+    if created_at.tzinfo is None:
+        created_at = created_at.replace(tzinfo=UTC)
+    return created_at, invoice_id
+
+
+class InvoiceQueryService:
+    """Read + cancel operations on invoices (LAB-20, original LAB-22)."""
+
+    __test__ = False
+
+    @staticmethod
+    def list_invoices(
+        *,
+        status: str | None = None,
+        patient_id: uuid.UUID | None = None,
+        branch_id: uuid.UUID | None = None,
+        created_after: datetime | None = None,
+        created_before: datetime | None = None,
+        cursor: str | None = None,
+        limit: int = LIST_DEFAULT_LIMIT,
+    ) -> tuple[list[Invoice], str | None]:
+        """Cursor-paginated invoice list (Doc 03 §6.1).
+
+        Stable ordering: created_at DESC, id DESC. Returns (rows, next_cursor).
+        Unknown enum filter values → 422 (InvalidFilterError).
+        """
+        qs = Invoice.objects.all().order_by("-created_at", "-id")
+        if status is not None:
+            if status not in Invoice.Status.values:
+                raise InvalidFilterError(f"Unknown status filter: {status}.")
+            qs = qs.filter(status=status)
+        if patient_id is not None:
+            qs = qs.filter(patient_id=patient_id)
+        if branch_id is not None:
+            qs = qs.filter(branch_id=branch_id)
+        if created_after is not None:
+            qs = qs.filter(created_at__gte=created_after)
+        if created_before is not None:
+            qs = qs.filter(created_at__lte=created_before)
+        if cursor is not None:
+            c_created, c_id = _decode_cursor(cursor)
+            qs = qs.filter(
+                Q(created_at__lt=c_created) | Q(created_at=c_created, id__lt=c_id)
+            )
+        limit = max(1, min(limit, LIST_MAX_LIMIT))
+        rows = list(qs[: limit + 1])
+        next_cursor: str | None = None
+        if len(rows) > limit:
+            last = rows[limit - 1]
+            next_cursor = _encode_cursor(last.created_at, last.id)
+            rows = rows[:limit]
+        return rows, next_cursor
+
+    @staticmethod
+    def get_invoice_detail(*, invoice_id: uuid.UUID) -> dict[str, Any]:
+        """Invoice + items + payments + computed net_paid (read-only)."""
+        try:
+            invoice = Invoice.objects.prefetch_related("items", "payments").get(
+                pk=invoice_id
+            )
+        except (Invoice.DoesNotExist, ValidationError):
+            raise BillingNotFoundError("Invoice not found.") from None
+        agg = invoice.payments.aggregate(
+            paid=Sum("amount", filter=Q(kind=Payment.Kind.PAYMENT)),
+            refunded=Sum("amount", filter=Q(kind=Payment.Kind.REFUND)),
+        )
+        net_paid = (agg["paid"] or Decimal("0.00")) - (
+            agg["refunded"] or Decimal("0.00")
+        )
+        return {"invoice": invoice, "net_paid": net_paid}
+
+    @staticmethod
+    def cancel_invoice(
+        *,
+        invoice_id: uuid.UUID,
+        reason: str | None,
+        actor: StaffUser,
+        ip: str | None = None,
+        user_agent: str | None = None,
+    ) -> Invoice:
+        """Cancel an invoice (BL-8).
+
+        Allowed only while status = unpaid AND no (non-cancelled) sample has
+        been collected against it. Otherwise 409 invalid_state_transition.
+        Cancel is a status change + audit row, never a delete. Repeat cancel
+        on an already-cancelled invoice → 409 (state guard, no double effect).
+        """
+        if not reason or not reason.strip():
+            raise CancelReasonRequiredError(
+                "A reason is required to cancel an invoice."
+            )
+        with transaction.atomic():
+            try:
+                invoice = Invoice.objects.select_for_update().get(pk=invoice_id)
+            except (Invoice.DoesNotExist, ValidationError):
+                raise BillingNotFoundError("Invoice not found.") from None
+            if invoice.status != Invoice.Status.UNPAID:
+                raise InvalidStateTransitionError(
+                    "Only unpaid invoices can be cancelled."
+                )
+            collected = (
+                Sample.objects.filter(invoice=invoice)
+                .exclude(status=Sample.Status.CANCELLED)
+                .exists()
+            )
+            if collected:
+                raise InvalidStateTransitionError(
+                    "Cannot cancel: a sample has already been collected "
+                    "against this invoice."
+                )
+            invoice.status = Invoice.Status.CANCELLED
+            invoice.save(update_fields=["status", "updated_at"])
+            AuditLog.objects.create(
+                actor_id=actor.id,
+                action="invoice.cancelled",
+                entity_type="invoice",
+                entity_id=invoice.id,
+                before_jsonb={"status": Invoice.Status.UNPAID.value},
+                after_jsonb={
+                    "event": "invoice.cancelled",
+                    "status": Invoice.Status.CANCELLED.value,
+                    "reason": reason.strip(),
+                },
+                ip=ip,
+                user_agent=user_agent,
+            )
+            return invoice

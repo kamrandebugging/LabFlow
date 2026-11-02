@@ -170,3 +170,45 @@ class PaymentSerializer(serializers.Serializer):
     reference = serializers.CharField(allow_null=True)
     received_by = serializers.UUIDField(source="received_by_id", allow_null=True)
     created_at = serializers.DateTimeField()
+
+
+class InvoiceCancelSerializer(serializers.Serializer):
+    """Body for POST /invoices/{id}/cancel — reason required (BL-8)."""
+
+    reason = serializers.CharField(
+        required=True, allow_blank=False, trim_whitespace=True
+    )
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        return _reject_unknown_fields(self, attrs)
+
+
+class InvoiceSummarySerializer(serializers.Serializer):
+    """List row for GET /invoices (cursor page)."""
+
+    id = serializers.UUIDField()
+    patient_id = serializers.UUIDField()
+    branch_id = serializers.UUIDField()
+    status = serializers.CharField()
+    subtotal = MoneyField()
+    discount_amount = MoneyField()
+    total = MoneyField()
+    created_at = serializers.DateTimeField()
+
+
+class InvoiceDetailSerializer(serializers.Serializer):
+    """Detail for GET /invoices/{id} — items + payments + net_paid."""
+
+    id = serializers.UUIDField()
+    patient_id = serializers.UUIDField()
+    branch_id = serializers.UUIDField()
+    referral_partner_id = serializers.UUIDField(allow_null=True)
+    status = serializers.CharField()
+    subtotal = MoneyField()
+    discount_amount = MoneyField()
+    discount_reason = serializers.CharField(allow_null=True)
+    total = MoneyField()
+    items = InvoiceItemSerializer(many=True)
+    payments = PaymentSerializer(many=True)
+    net_paid = MoneyField()
+    created_at = serializers.DateTimeField()

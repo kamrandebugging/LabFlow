@@ -1,13 +1,42 @@
 """URL routing for Billing endpoints (Doc 03 §5.3, §6.4, KAN-124 / LAB-18,
-KAN-130 / LAB-19)."""
+KAN-130 / LAB-19, KAN-132 / LAB-20)."""
 
 from django.urls import path
 
-from apps.billing.views import InvoiceCreateView, PaymentCreateView
+from apps.billing.views import (
+    InvoiceCancelView,
+    InvoiceCollectionView,
+    InvoiceDetailView,
+    PaymentCreateView,
+)
 
 urlpatterns = [
-    path("invoices", InvoiceCreateView.as_view(), name="invoice-create"),
-    path("invoices/", InvoiceCreateView.as_view(), name="invoice-create-slash"),
+    path("invoices", InvoiceCollectionView.as_view(), name="invoice-collection"),
+    path(
+        "invoices/",
+        InvoiceCollectionView.as_view(),
+        name="invoice-collection-slash",
+    ),
+    path(
+        "invoices/<uuid:invoice_id>/cancel",
+        InvoiceCancelView.as_view(),
+        name="invoice-cancel",
+    ),
+    path(
+        "invoices/<uuid:invoice_id>/cancel/",
+        InvoiceCancelView.as_view(),
+        name="invoice-cancel-slash",
+    ),
+    path(
+        "invoices/<uuid:invoice_id>",
+        InvoiceDetailView.as_view(),
+        name="invoice-detail",
+    ),
+    path(
+        "invoices/<uuid:invoice_id>/",
+        InvoiceDetailView.as_view(),
+        name="invoice-detail-slash",
+    ),
     path(
         "invoices/<uuid:invoice_id>/payments",
         PaymentCreateView.as_view(),
