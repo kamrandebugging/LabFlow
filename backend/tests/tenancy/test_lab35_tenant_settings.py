@@ -233,6 +233,7 @@ def test_reset_setting_deletes_row_and_audits(tenant_a: Any, manager_user: Any) 
 @pytest.fixture
 def manager_user(tenant_a: Any) -> Any:
     from django.contrib.auth.hashers import make_password
+
     from apps.accounts.models import Role, StaffUser
 
     with schema_context(tenant_a.schema_name):
@@ -247,6 +248,7 @@ def manager_user(tenant_a: Any) -> Any:
 @pytest.fixture
 def reception_user(tenant_a: Any) -> Any:
     from django.contrib.auth.hashers import make_password
+
     from apps.accounts.models import Role, StaffUser
 
     with schema_context(tenant_a.schema_name):
