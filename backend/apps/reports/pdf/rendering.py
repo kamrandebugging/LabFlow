@@ -17,7 +17,7 @@ from __future__ import annotations
 import pathlib
 
 from django.template import Context, Template
-from weasyprint import HTML  # type: ignore[import-not-found]
+from weasyprint import HTML  # type: ignore[import-untyped]
 
 from .context import ReportContext
 

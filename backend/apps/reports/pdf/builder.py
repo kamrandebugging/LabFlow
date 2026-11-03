@@ -165,10 +165,9 @@ def build_report_context(
     Raises ValueError for a void report (T-34: a failed generation leaves no
     report_version row and the report stays draft).
     """
-    from django.utils import timezone
-
     from apps.results.models import Result, ResultApproval
     from apps.samples.models import SampleEvent
+    from django.utils import timezone
 
     if report.status == "void":
         raise ValueError(f"Report {report.id} is void; refusing to render.")

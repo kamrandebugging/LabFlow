@@ -15,8 +15,6 @@ import pathlib
 import re
 
 import pytest
-from pypdf import PdfReader  # type: ignore[import-not-found]
-
 from apps.reports.pdf.builder import build_report_context
 from apps.reports.pdf.context import (
     AmendedTestLine,
@@ -33,6 +31,7 @@ from apps.reports.pdf.context import (
 )
 from apps.reports.pdf.qr import make_qr_data_uri, qr_payload_for_report
 from apps.reports.pdf.rendering import render_report_html, render_report_pdf
+from pypdf import PdfReader
 
 URDU_RE = re.compile(r"[\u0600-\u06FF]")
 
