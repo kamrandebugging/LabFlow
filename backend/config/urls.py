@@ -32,6 +32,9 @@ urlpatterns = [
     path("api/v1/", include("apps.samples.urls")),
     # Results: batch result entry (Doc 03 §5.5, KAN-150 / LAB-25)
     path("api/v1/", include("apps.results.urls")),
+    # Branches: CRUD + close/reopen (Doc 04 §8.2, §8.3, §11.3, KAN-158 / LAB-33)
+    path("api/v1/branches", include("apps.branches.urls")),
+    path("api/v1/branches/", include("apps.branches.urls")),
     # Reports: async PDF pipeline (Doc 03 §5.6, KAN-155 / LAB-30)
     path("api/v1/", include("apps.reports.urls")),
     # Staff Administration & TOTP Recovery (Doc 04 §15.2, Doc 08 §4.4, LAB-52)
