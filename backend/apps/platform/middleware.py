@@ -49,6 +49,7 @@ class SubscriptionReadOnlyMiddleware:
         tenant = getattr(request, "tenant", None)
         if (
             tenant is not None
+            and getattr(tenant, "schema_name", "") != "public"
             and request.method in _WRITE_METHODS
             and not _is_exempt(request.path)
         ):
