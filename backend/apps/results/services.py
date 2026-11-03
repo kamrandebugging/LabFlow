@@ -12,9 +12,6 @@ import uuid
 from datetime import date, datetime
 from typing import Any
 
-from django.db import IntegrityError, transaction
-from django.utils import timezone
-
 from apps.accounts.models import AuditLog, Role, StaffUser
 from apps.catalog.models import ReferenceRange
 from apps.catalog.services import CatalogService, _to_range_row
@@ -22,6 +19,8 @@ from apps.reports.models import Report
 from apps.results.engine import evaluate_result, parse_result
 from apps.results.models import CriticalNotification, Result, ResultApproval
 from apps.samples.models import Sample, SampleEvent, SampleTest, SampleTransfer
+from django.db import IntegrityError, transaction
+from django.utils import timezone
 
 # Doc 03 §6.6: POST /api/v1/samples/{id}/results — roles cell is exactly "T P".
 RESULT_ENTRY_ROLES = {Role.TECHNICIAN, Role.PATHOLOGIST}

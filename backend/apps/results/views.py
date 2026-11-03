@@ -21,11 +21,6 @@ Thin views: all business logic lives in ResultService.
 
 from typing import Any, cast
 
-from rest_framework import permissions, status
-from rest_framework.request import Request
-from rest_framework.response import Response
-from rest_framework.views import APIView
-
 from apps.accounts.models import StaffUser
 from apps.results.serializers import (
     CriticalNotificationSerializer,
@@ -44,6 +39,10 @@ from apps.results.services import (
     ResultError,
     ResultService,
 )
+from rest_framework import permissions, status
+from rest_framework.request import Request
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
 
 def _get_client_ip(request: Request) -> str:
