@@ -15,13 +15,18 @@ from typing import Any
 from django.db import IntegrityError, transaction
 
 from apps.accounts.models import AuditLog, Role, StaffUser
+from apps.catalog.models import ReferenceRange
 from apps.catalog.services import CatalogService, _to_range_row
-from apps.results.engine import evaluate_result
-from apps.results.models import Result
+from apps.results.engine import evaluate_result, parse_result
+from apps.results.models import Result, ResultApproval
 from apps.samples.models import Sample, SampleEvent, SampleTest, SampleTransfer
 
 # Doc 03 §6.6: POST /api/v1/samples/{id}/results — roles cell is exactly "T P".
 RESULT_ENTRY_ROLES = {Role.TECHNICIAN, Role.PATHOLOGIST}
+# Doc 03 §6.6: POST /api/v1/results/{id}/approve — roles cell is exactly "P".
+RESULT_APPROVE_ROLES = {Role.PATHOLOGIST}
+# Doc 03 §6.6: POST /api/v1/results/{id}/withdraw — roles cell "T P (author only)".
+RESULT_WITHDRAW_ROLES = {Role.TECHNICIAN, Role.PATHOLOGIST}
 
 
 class ResultError(Exception):
@@ -31,8 +36,11 @@ class ResultError(Exception):
     status_code = 422
     error_code = "result_error"
 
-    def __init__(self, message: str = "") -> None:
+    def __init__(
+        self, message: str = "", details: dict[str, Any] | None = None
+    ) -> None:
         super().__init__(message or self.error_code)
+        self.details = details
 
 
 class ResultNotFoundError(ResultError):
@@ -80,6 +88,48 @@ class ResultBatchValidationError(ResultError):
     def __init__(self, rows: list[dict[str, Any]]) -> None:
         super().__init__("One or more result rows failed validation.")
         self.rows = rows
+
+
+class ResultForbiddenError(ResultError):
+    """Caller role may not perform this verification action."""
+
+    status_code = 403
+    error_code = "forbidden"
+
+
+class SelfApprovalNotPermittedError(ResultError):
+    """RS-6: a pathologist may not approve a result they entered."""
+
+    status_code = 403
+    error_code = "self_approval_not_permitted"
+
+
+class WithdrawNotPermittedError(ResultError):
+    """RS-4: only the author may withdraw their entered result."""
+
+    status_code = 403
+    error_code = "withdraw_not_permitted"
+
+
+class NoteRequiredForRejectionError(ResultError):
+    """RS-5: decision=rejected requires a non-empty note."""
+
+    status_code = 422
+    error_code = "note_required_for_rejection"
+
+
+class OverrideNoteRequiredError(ResultError):
+    """RS-7: range_override=true requires a non-empty note."""
+
+    status_code = 422
+    error_code = "override_note_required"
+
+
+class NoteRequiredForUnparseableError(ResultError):
+    """RS-10: numeric test with unparseable value requires a note to approve."""
+
+    status_code = 422
+    error_code = "note_required_for_unparseable"
 
 
 def _get_sample(sample_id: uuid.UUID) -> Sample:
@@ -346,3 +396,274 @@ class ResultService:
                 for result, plan in created
             ],
         }
+
+    # ---- Clinical verification (RS-4/RS-5/RS-6/RS-7/RS-8/RS-10, §6.6, §10) ----
+
+    @staticmethod
+    def approve_result(
+        *,
+        result_id: uuid.UUID,
+        decision: str,
+        note: str | None,
+        range_override: bool,
+        actor: StaffUser,
+        ip: str | None = None,
+        user_agent: str | None = None,
+    ) -> dict[str, Any]:
+        """Pathologist approval / rejection of one entered result (RS-5).
+
+        Concurrency (§10, T-31): the result row is locked with
+        SELECT FOR UPDATE inside the transaction — two concurrent approvals
+        serialize; the loser sees a non-entered status and gets 409
+        invalid_state_transition naming the winner. Single-winner, no lost
+        updates.
+        """
+        clean_note = (note or "").strip()
+        if decision == ResultApproval.Decision.REJECTED and not clean_note:
+            raise NoteRequiredForRejectionError(
+                "A rejection decision requires a non-empty note."
+            )
+        if range_override and not clean_note:
+            raise OverrideNoteRequiredError(
+                "A range override requires a non-empty note."
+            )
+
+        with transaction.atomic():
+            try:
+                result = (
+                    Result.objects.select_for_update()
+                    .select_related("sample")
+                    .get(pk=result_id)
+                )
+            except Result.DoesNotExist:
+                raise ResultNotFoundError("Result not found.") from None
+
+            if result.status != Result.Status.ENTERED:
+                raise InvalidStateTransitionError(
+                    "Only an entered result can be decided.",
+                    details=_winner_details(result),
+                )
+
+            # RS-6 self-approval: the entering pathologist may not approve,
+            # unless this tenant has exactly one active pathologist account.
+            # The exception is recorded visibly in audit, never silent.
+            audit_note: str | None = None
+            if result.entered_by_id == actor.id:
+                active_pathologists = StaffUser.objects.filter(
+                    role=Role.PATHOLOGIST, is_active=True
+                ).count()
+                if active_pathologists != 1:
+                    raise SelfApprovalNotPermittedError(
+                        "A pathologist may not approve a result they entered."
+                    )
+                audit_note = "single_pathologist_self_approval"
+
+            # RS-10: NULL flag on a numeric test with an unparseable value
+            # requires a note; qualitative NULL-flag results do not.
+            if (
+                result.flag is None
+                and _is_numeric_unparseable(result)
+                and not clean_note
+            ):
+                raise NoteRequiredForUnparseableError(
+                    "Approval of an unparseable numeric value requires a note."
+                )
+
+            new_status = (
+                Result.Status.APPROVED
+                if decision == ResultApproval.Decision.APPROVED
+                else Result.Status.REJECTED
+            )
+            result.status = new_status
+            result.save(update_fields=["status", "updated_at"])
+            approval = ResultApproval.objects.create(
+                result=result,
+                pathologist=actor,
+                decision=decision,
+                note=clean_note or None,
+                range_override=range_override,
+            )
+
+            action = (
+                "result.approved"
+                if decision == ResultApproval.Decision.APPROVED
+                else "result.rejected"
+            )
+            after: dict[str, Any] = {
+                "decision": decision,
+                "note": clean_note or None,
+                "range_override": range_override,
+                "pathologist_id": str(actor.id),
+                "approval_id": str(approval.id),
+                "event": action,
+            }
+            if audit_note is not None:
+                after["audit_note"] = audit_note
+            AuditLog.objects.create(
+                actor_id=actor.id,
+                action=action,
+                entity_type="result",
+                entity_id=result.id,
+                before_jsonb={"status": "entered"},
+                after_jsonb=after,
+                ip=ip,
+                user_agent=user_agent,
+            )
+
+            # RS-8: completing the last pending test moves the sample to
+            # ready (SM-5: READY event in the same transaction). Partial
+            # approval is a normal stable state — the sample waits.
+            sample_ready = False
+            if new_status == Result.Status.APPROVED:
+                sample_ready = _maybe_complete_sample(
+                    sample_id=result.sample_id,
+                    actor=actor,
+                    ip=ip,
+                    user_agent=user_agent,
+                )
+
+        return {
+            "id": str(result.id),
+            "status": result.status,
+            "decision": decision,
+            "note": clean_note or None,
+            "range_override": range_override,
+            "approved_by": str(actor.id),
+            "sample_ready": sample_ready,
+        }
+
+    @staticmethod
+    def withdraw_result(
+        *,
+        result_id: uuid.UUID,
+        actor: StaffUser,
+        ip: str | None = None,
+        user_agent: str | None = None,
+    ) -> dict[str, Any]:
+        """Author withdrawal of an entered result (RS-4).
+
+        Sets status=withdrawn, writes NO result_approval row — the withdrawal
+        is recorded in audit_log only. The row is read-only afterwards.
+        """
+        with transaction.atomic():
+            try:
+                result = Result.objects.select_for_update().get(pk=result_id)
+            except Result.DoesNotExist:
+                raise ResultNotFoundError("Result not found.") from None
+
+            if result.entered_by_id != actor.id:
+                raise WithdrawNotPermittedError(
+                    "Only the author may withdraw this result."
+                )
+            if (
+                result.status != Result.Status.ENTERED
+                or ResultApproval.objects.filter(result=result).exists()
+            ):
+                raise InvalidStateTransitionError(
+                    "Only an entered result with no approval decision can be withdrawn."
+                )
+
+            result.status = Result.Status.WITHDRAWN
+            result.save(update_fields=["status", "updated_at"])
+            AuditLog.objects.create(
+                actor_id=actor.id,
+                action="result.withdrawn",
+                entity_type="result",
+                entity_id=result.id,
+                before_jsonb={"status": "entered"},
+                after_jsonb={
+                    "status": "withdrawn",
+                    "withdrawn_by": str(actor.id),
+                    "event": "result.withdrawn",
+                },
+                ip=ip,
+                user_agent=user_agent,
+            )
+
+        return {"id": str(result.id), "status": result.status}
+
+
+def _winner_details(result: Result) -> dict[str, Any] | None:
+    """T-31: the loser of a concurrent decision names the winner."""
+    winner = (
+        ResultApproval.objects.select_related("pathologist")
+        .filter(result=result)
+        .order_by("created_at")
+        .first()
+    )
+    if winner is None:
+        return None
+    return {
+        "decision": winner.decision,
+        "decided_by": winner.pathologist.email,
+        "approval_id": str(winner.id),
+    }
+
+
+def _is_numeric_unparseable(result: Result) -> bool:
+    """RS-10: True when the test is numeric-kind but the value is unparseable.
+
+    Numeric-kind follows the engine (§8.1): a reference range row with low
+    and high NOT NULL. parse_result decides unparseability.
+    """
+    if parse_result(result.value).value is not None:
+        return False
+    return ReferenceRange.objects.filter(
+        test_id=result.test_id, low__isnull=False, high__isnull=False
+    ).exists()
+
+
+def _maybe_complete_sample(
+    *,
+    sample_id: uuid.UUID,
+    actor: StaffUser,
+    ip: str | None,
+    user_agent: str | None,
+) -> bool:
+    """RS-8: move the sample to ready once every sample_test is approved.
+
+    Returns True when the transition happened. SM-5: the READY sample_event
+    is written in the same transaction as the status update; the audit row
+    carries the sample.ready event flag (cross-module trigger pattern —
+    there is no event bus yet).
+    """
+    test_ids = set(
+        SampleTest.objects.filter(sample_id=sample_id).values_list("test_id", flat=True)
+    )
+    if not test_ids:
+        return False
+    approved_ids = set(
+        Result.objects.filter(
+            sample_id=sample_id, status=Result.Status.APPROVED
+        ).values_list("test_id", flat=True)
+    )
+    if not test_ids <= approved_ids:
+        return False
+
+    sample = Sample.objects.select_for_update().get(pk=sample_id)
+    if sample.status == Sample.Status.READY:
+        return False
+    before_status = sample.status
+    sample.status = Sample.Status.READY
+    sample.save(update_fields=["status", "updated_at"])
+    SampleEvent.objects.create(
+        sample=sample,
+        event=SampleEvent.EventType.READY,
+        actor=actor,
+        branch=sample.branch,
+    )
+    AuditLog.objects.create(
+        actor_id=actor.id,
+        action="sample.ready",
+        entity_type="sample",
+        entity_id=sample.id,
+        before_jsonb={"status": before_status},
+        after_jsonb={
+            "accession_id": sample.accession_id,
+            "to_status": "ready",
+            "event": "sample.ready",
+        },
+        ip=ip,
+        user_agent=user_agent,
+    )
+    return True

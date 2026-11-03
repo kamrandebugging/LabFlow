@@ -1,8 +1,13 @@
 """DRF views for Results — batch result entry (Doc 03 §5.5 RS-1/RS-2/RS-3/RS-V2,
-§6.6, §8, KAN-150 / LAB-25, original LAB-30).
+§6.6, §8, KAN-150 / LAB-25, original LAB-30) and clinical verification
+(Doc 03 §5.5 RS-4–RS-10, §6.6, §10, KAN-151 / LAB-26, original LAB-31).
 
 POST /api/v1/samples/{id}/results — roles Technician, Pathologist (exact
 §6.6 roles cell: "T P").
+POST /api/v1/results/{id}/approve — roles Pathologist ONLY (exact §6.6
+roles cell: "P").
+POST /api/v1/results/{id}/withdraw — roles Technician, Pathologist, author
+only (exact §6.6 roles cell: "T P (author only)").
 
 Thin views: all business logic lives in ResultService.
 """
@@ -15,9 +20,11 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.accounts.models import StaffUser
-from apps.results.serializers import ResultEntrySerializer
+from apps.results.serializers import ResultApproveSerializer, ResultEntrySerializer
 from apps.results.services import (
+    RESULT_APPROVE_ROLES,
     RESULT_ENTRY_ROLES,
+    RESULT_WITHDRAW_ROLES,
     ResultAlreadyEnteredError,
     ResultBatchValidationError,
     ResultError,
@@ -87,3 +94,75 @@ class ResultEntryView(APIView):
                 status=exc.status_code,
             )
         return Response(payload, status=status.HTTP_201_CREATED)
+
+
+class ResultApproveView(APIView):
+    """POST /api/v1/results/{id}/approve — clinical verification (RS-5/6/7/8/10)."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request: Request, result_id: Any) -> Response:
+        user = cast(StaffUser, request.user)
+        if user.role not in RESULT_APPROVE_ROLES:
+            return Response(
+                _format_error(
+                    "forbidden",
+                    "Only a Pathologist may approve results.",
+                ),
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        serializer = ResultApproveSerializer(data=request.data)
+        if not serializer.is_valid():
+            first = next(iter(serializer.errors.values()))
+            msg = first[0] if isinstance(first, list) else str(first)
+            return Response(
+                _format_error("validation_error", str(msg)),
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+        data = serializer.validated_data
+        try:
+            payload = ResultService.approve_result(
+                result_id=result_id,
+                decision=data["decision"],
+                note=data.get("note"),
+                range_override=data.get("range_override", False),
+                actor=user,
+                ip=_get_client_ip(request),
+                user_agent=request.META.get("HTTP_USER_AGENT", ""),
+            )
+        except ResultError as exc:
+            return Response(
+                _format_error(exc.error_code, str(exc) or exc.error_code, exc.details),
+                status=exc.status_code,
+            )
+        return Response(payload, status=status.HTTP_200_OK)
+
+
+class ResultWithdrawView(APIView):
+    """POST /api/v1/results/{id}/withdraw — author withdrawal (RS-4)."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request: Request, result_id: Any) -> Response:
+        user = cast(StaffUser, request.user)
+        if user.role not in RESULT_WITHDRAW_ROLES:
+            return Response(
+                _format_error(
+                    "withdraw_not_permitted",
+                    "Only the author (Technician or Pathologist) may withdraw.",
+                ),
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        try:
+            payload = ResultService.withdraw_result(
+                result_id=result_id,
+                actor=user,
+                ip=_get_client_ip(request),
+                user_agent=request.META.get("HTTP_USER_AGENT", ""),
+            )
+        except ResultError as exc:
+            return Response(
+                _format_error(exc.error_code, str(exc) or exc.error_code, exc.details),
+                status=exc.status_code,
+            )
+        return Response(payload, status=status.HTTP_200_OK)

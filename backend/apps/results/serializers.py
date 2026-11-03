@@ -47,3 +47,16 @@ class ResultEntrySerializer(serializers.Serializer):
 
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
         return _reject_unknown_fields(self, attrs)
+
+
+class ResultApproveSerializer(serializers.Serializer):
+    """POST /api/v1/results/{id}/approve — clinical verification (RS-5/RS-6/RS-7)."""
+
+    decision = serializers.ChoiceField(choices=["approved", "rejected"])
+    note = serializers.CharField(
+        required=False, allow_null=True, allow_blank=True, max_length=2000
+    )
+    range_override = serializers.BooleanField(required=False, default=False)
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        return _reject_unknown_fields(self, attrs)
