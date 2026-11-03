@@ -108,7 +108,7 @@ def _range_payload(**overrides: Any) -> dict[str, Any]:
         "critical_low": "7.000",
         "critical_high": "20.000",
         "unit": "g/dL",
-        "effective_from": "2026-01-01",
+        "effective_from": "2027-01-01",
         "effective_to": None,
     }
     payload.update(overrides)
@@ -281,7 +281,7 @@ class TestReferenceRangeCreate:
                 _range_payload(sex="X"),  # invalid sex
                 _range_payload(unit=""),  # blank unit
                 _range_payload(
-                    effective_from="2026-06-01", effective_to="2026-01-01"
+                    effective_from="2027-06-01", effective_to="2027-01-01"
                 ),  # window inverted
                 _range_payload(evil_field="x"),  # unknown field rejected
             ]
@@ -326,7 +326,7 @@ class TestReferenceRangeOverlap:
                 headers,
                 age_min_days=100,
                 age_max_days=200,
-                effective_from="2026-06-01",
+                effective_from="2027-06-01",
             )
             assert second.status_code == 422
             assert second.json()["error"]["code"] == "overlapping_range"
@@ -384,7 +384,7 @@ class TestReferenceRangeOverlap:
             ).json()["id"]
             retire = client.patch(
                 f"/api/v1/tests/{lab_test.id}/ranges/{first_id}",
-                data={"effective_to": "2026-12-31"},
+                data={"effective_to": "2027-12-31"},
                 content_type="application/json",
                 **headers,
             )
@@ -396,7 +396,7 @@ class TestReferenceRangeOverlap:
                 sex="F",
                 age_min_days=800,
                 age_max_days=None,
-                effective_from="2027-01-01",
+                effective_from="2028-01-01",
             )
             assert r4.status_code == 201
 
@@ -437,7 +437,7 @@ class TestReferenceRangePatch:
 
             res = client.patch(
                 f"/api/v1/tests/{lab_test.id}/ranges/{old_id}",
-                data={"high": "18.000", "effective_from": "2026-11-02"},
+                data={"high": "18.000", "effective_from": "2027-06-01"},
                 content_type="application/json",
                 **headers,
             )
@@ -445,11 +445,11 @@ class TestReferenceRangePatch:
             new_data = res.json()
             assert new_data["id"] != old_id
             assert new_data["high"] == "18.000"
-            assert new_data["effective_from"] == "2026-11-02"
+            assert new_data["effective_from"] == "2027-06-01"
 
             # Old row preserved with closure date
             old_row = ReferenceRange.objects.get(id=old_id)
-            assert old_row.effective_to == date(2026, 11, 1)
+            assert old_row.effective_to == date(2027, 5, 31)
             assert old_row.high == Decimal("17.500")
 
             # Audit row for the supersede
@@ -490,7 +490,7 @@ class TestReferenceRangePatch:
             )
             ok = client.patch(
                 f"/api/v1/tests/{lab_test.id}/ranges/{range_id}",
-                data={"unit": "g/L"},
+                data={"unit": "g/L", "effective_from": "2027-06-01"},
                 content_type="application/json",
                 **path_headers,
             )
@@ -532,12 +532,12 @@ class TestReferenceRangePatch:
 
             res = client.patch(
                 f"/api/v1/tests/{lab_test.id}/ranges/{range_id}",
-                data={"effective_to": "2026-10-01"},
+                data={"effective_to": "2027-10-01"},
                 content_type="application/json",
                 **headers,
             )
             assert res.status_code == 200
-            assert res.json()["effective_to"] == "2026-10-01"
+            assert res.json()["effective_to"] == "2027-10-01"
             assert ReferenceRange.objects.count() == 1
 
     def test_patch_invalid_effective_window_422(
