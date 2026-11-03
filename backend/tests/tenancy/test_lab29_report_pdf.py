@@ -15,7 +15,7 @@ import pathlib
 import re
 
 import pytest
-from pypdf import PdfReader
+from pypdf import PdfReader  # type: ignore[import-not-found]
 
 from apps.reports.pdf.builder import build_report_context
 from apps.reports.pdf.context import (
