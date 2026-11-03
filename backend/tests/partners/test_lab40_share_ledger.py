@@ -29,9 +29,11 @@ from apps.partners.models import (
 )
 from apps.partners.services import (
     _quantize,
-    _resolve_ledger_rule as resolve_rule,
     record_reversal,
     record_share_entry,
+)
+from apps.partners.services import (
+    _resolve_ledger_rule as resolve_rule,
 )
 from tests.factories.billing import InvoiceFactory, PaymentFactory
 from tests.factories.branches import BranchFactory

@@ -3,8 +3,9 @@
 # Tracks a Lab Owner's export request: status lifecycle, bundle storage key,
 # signed download URL (7-day validity), and error text on failure.
 
-import django.db.models.deletion
 import uuid
+
+import django.db.models.deletion
 from django.db import migrations, models
 
 
