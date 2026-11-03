@@ -13,10 +13,10 @@ Verifies Doc 05 §6 (SL-1–SL-12):
 """
 
 from __future__ import annotations
-from typing import Any
 
 from datetime import date
 from decimal import Decimal
+from typing import Any
 
 import pytest
 from django_tenants.utils import schema_context
@@ -24,15 +24,16 @@ from django_tenants.utils import schema_context
 from apps.billing.models import Payment
 from apps.core.models import Tenant
 from apps.partners.models import (
-    ReferralPartner,
     Settlement,
     ShareLedgerEntry,
 )
 from apps.partners.services import (
     _quantize,
-    _resolve_ledger_rule as resolve_rule,
     record_reversal,
     record_share_entry,
+)
+from apps.partners.services import (
+    _resolve_ledger_rule as resolve_rule,
 )
 from tests.factories.billing import InvoiceFactory, PaymentFactory
 from tests.factories.branches import BranchFactory
@@ -308,9 +309,7 @@ class TestRecordShareEntry:
 class TestRecordReversal:
     """Doc 05 §6.5: Refund reversal, SL-8–SL-12."""
 
-    def _setup_payment_with_entry(
-        self, tenant_a: Tenant
-    ) -> Any:
+    def _setup_payment_with_entry(self, tenant_a: Tenant) -> Any:
         """Helper: create a payment with a ledger entry."""
         partner = ReferralPartnerFactory()
         RevenueShareRuleFactory(
