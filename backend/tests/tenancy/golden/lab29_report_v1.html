@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Lab Report 9f3a2b1c-0000-4000-8000-000000000001 v1</title>
+<style>
+  /* §9.5 — block layout + tables only; no JS, no web fonts, no external images. */
+  @page {
+    size: A4;
+    margin: 14mm 12mm 22mm 12mm;
+    @bottom-center {
+      content: element(report-footer);
+      width: 100%;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: "DejaVu Sans", "Noto Sans", sans-serif;
+    font-size: 9pt;
+    color: #111;
+    line-height: 1.35;
+    margin: 0;
+  }
+  h1 { font-size: 16pt; margin: 0 0 2pt 0; }
+  h2 { font-size: 11pt; margin: 12pt 0 4pt 0; border-bottom: 1pt solid #0e6b3a; padding-bottom: 2pt; }
+  .muted { color: #555; }
+  .small { font-size: 8pt; }
+  table { border-collapse: collapse; width: 100%; }
+  th, td { border: 0.5pt solid #999; padding: 3pt 5pt; text-align: left; vertical-align: top; }
+  thead { display: table-header-group; } /* repeat on every page (§9.5) */
+  tr { break-inside: avoid; }           /* a result row never splits (§9.5) */
+  th { background: #eef4f0; font-size: 8pt; }
+  .flag { font-weight: bold; }
+  .flag-H { color: #b45309; }
+  .flag-L { color: #1d4ed8; }
+  .flag-CRITICAL { color: #b91c1c; }
+  .panel-row td { background: #f3f6f4; font-weight: bold; }
+  .dagger { color: #b91c1c; font-weight: bold; }
+  .notice {
+    border: 1pt solid #b91c1c;
+    background: #fef2f2;
+    padding: 6pt 8pt;
+    margin: 8pt 0;
+  }
+  .notice h2 { border: none; margin: 0 0 4pt 0; color: #b91c1c; }
+  /* Footer running element — patient identity on every page (R-13). */
+  #report-footer {
+    position: running(report-footer);
+    font-size: 7pt;
+    color: #444;
+    border-top: 0.5pt solid #999;
+    padding-top: 3pt;
+    width: 100%;
+  }
+  #report-footer table { border: none; }
+  #report-footer td { border: none; padding: 0 4pt; vertical-align: middle; }
+  .pagenum::after { content: counter(page); }
+  .pagecount::after { content: counter(pages); }
+  /* §9.2 — Urdu block: single isolated RTL container. */
+  .urdu-block {
+    direction: rtl;
+    font-family: "Noto Nastaliq Urdu", "Jameel Noori Nastaleeq", serif;
+    font-size: 11pt;
+    line-height: 2;
+    border: 0.5pt solid #999;
+    padding: 8pt 10pt;
+    margin: 8pt 0;
+  }
+  .urdu-block .ltr { direction: ltr; unicode-bidi: isolate; }
+  .kv { margin: 1pt 0; }
+  .kv b { display: inline-block; min-width: 110pt; }
+</style>
+</head>
+<body>
+
+<!-- SECTION:header -->
+<section id="lab-header">
+  <h1>City Diagnostic Lab</h1>
+  <div>Gulberg Branch — 14-B Main Boulevard, Gulberg III, Lahore</div>
+  <div>Phone: +92 42 3577 1234</div>
+</section>
+
+<!-- SECTION:meta -->
+<section id="report-meta">
+  <h2>Report</h2>
+  <div class="kv"><b>Report ID:</b> 9f3a2b1c-0000-4000-8000-000000000001</div>
+  <div class="kv"><b>Version:</b> Version 1</div>
+  <div class="kv"><b>Status:</b> Final</div>
+  <div class="kv"><b>Finalised:</b> 03 Nov 2026, 15:00 PKT</div>
+</section>
+
+<!-- SECTION:patient -->
+<section id="patient-block">
+  <h2>Patient</h2>
+  <div class="kv"><b>Name:</b> Ahmed Raza</div>
+  <div class="kv"><b>MRN:</b> MRN-000123</div>
+  <div class="kv"><b>Age:</b> 34 years</div>
+  <div class="kv"><b>Sex:</b> Male</div>
+  <div class="kv"><b>Date of birth:</b> 1991-05-20</div>
+</section>
+
+<!-- SECTION:order -->
+<section id="order-block">
+  <h2>Order</h2>
+  <div class="kv"><b>Referring clinician:</b> Dr. Sana Malik</div>
+  <div class="kv"><b>Invoice:</b> INV-2026-0042</div>
+</section>
+
+<!-- SECTION:sample -->
+<section id="sample-block">
+  <h2>Sample</h2>
+  <div class="kv"><b>Accession ID:</b> CDL20261103000123</div>
+  <div class="kv"><b>Collected:</b> 03 Nov 2026, 09:15 PKT</div>
+  <div class="kv"><b>Received:</b> 03 Nov 2026, 10:02 PKT</div>
+  <div class="kv"><b>Notes:</b> Specimen accepted in good condition.</div>
+</section>
+
+
+
+<!-- SECTION:results -->
+<section id="results-block">
+  <h2>Results</h2>
+  <table id="results-table">
+    <thead>
+      <tr>
+        <th>Test</th>
+        <th>Result</th>
+        <th>Flag</th>
+        <th>Reference interval</th>
+        <th>Comments</th>
+      </tr>
+    </thead>
+    <tbody>
+      
+        
+        <tr class="panel-row"><td colspan="5">Complete Blood Count</td></tr>
+        
+        
+        <tr>
+          <td>Hemoglobin</td>
+          <td>13.2 g/dL</td>
+          <td class="flag flag-"></td>
+          <td>13.0 – 17.0</td>
+          <td></td>
+        </tr>
+        
+        <tr>
+          <td>WBC</td>
+          <td>14.5 x10^9/L</td>
+          <td class="flag flag-H">H</td>
+          <td>4.0 – 11.0</td>
+          <td></td>
+        </tr>
+        
+      
+        
+        
+        <tr>
+          <td>Glucose (Fasting)</td>
+          <td>210 mg/dL</td>
+          <td class="flag flag-CRITICAL">CRITICAL</td>
+          <td>70 – 100</td>
+          <td>Critical value — clinician notified.</td>
+        </tr>
+        
+      
+    </tbody>
+  </table>
+</section>
+
+<!-- SECTION:signatory -->
+<section id="signatory-block">
+  <h2>Verified and authorised by</h2>
+  
+  <div class="kv"><b>dr.ayesha@citylab.pk</b> — Pathologist, 03 Nov 2026, 14:30 PKT</div>
+  
+</section>
+
+
+<!-- SECTION:urdu -->
+<section id="urdu-block" class="urdu-block" dir="rtl" lang="ur">
+  <div>City Diagnostic Lab</div>
+  <div>Ahmed Raza</div>
+  <div><bdi class="ltr" dir="ltr">CDL20261103000123</bdi></div>
+  <div>آپ کی رپورٹ تیار ہے</div>
+  <div><span class="ltr" dir="ltr">+92 42 3577 1234</span></div>
+</section>
+
+
+<!-- SECTION:footer -->
+<div id="report-footer">
+  <table>
+    <tr>
+      <td>Ahmed Raza · MRN-000123<br>CDL20261103000123</td>
+      <td style="text-align:center">Page <span class="pagenum"></span> of <span class="pagecount"></span><br>9f3a2b1c-0000-4000-8000-000000000001 · v1</td>
+      <td style="text-align:right"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMYAAADGAQAAAACh4MLwAAABkklEQVR4nO2YMW7jQAxF33gEuBzfwEehbxb4ZtRR9gZUT+FvMbITZDdbbBGzCDGAILH5+OTn56iJv8d++iIBPxlAAdDDkuMAYPl6bCcwSUAPlnE/y7ukKMKbgXU5wJDCetCjCG8AbG8KU6z71V+E4M9Yjue47xfA9u32zQj+nZEcOEsL6wIMZQls7zp9HqCGTtGMMAVdPmUrqQC2E9utXdZ2vS/D56eFdW+3EjWVJE9QmORg8xTgDQU9DIyhftQXRoWaIikxBTkVIU0OS2ALcgiYZqowSWV4c8kldXkOMbzLs1C/wfAu9QDoUh0tKB5qHXq+FsHGEHOGhPWwMthODM+t5Ry5F4D9qu9F8GVMuhgCy6HHOleBNyTl8Bzeww6DqKMF+XvLze0XKzPfjj0kjzFimvea12M7sbXW2gI9yK3tFxbWs7yKFqQ+58aYvJFFavoQ5vQFBWX67XnPark1oF09WfWrwm75MWNAYgwtL0LwKY5+k0+LVzCNtUZN19Ya21tuTUG7MJ2rAG/t5x/Xf2V+A9v6Ude3U/N+AAAAAElFTkSuQmCC" width="52" height="52" alt="Verification QR"></td>
+    </tr>
+  </table>
+</div>
+
+</body>
+</html>
