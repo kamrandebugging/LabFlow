@@ -271,6 +271,10 @@ class ReportDelivery(models.Model):
                 name="idx_report_delivery_report_id",
             ),
             models.Index(
+                fields=["contact"],
+                name="idx_report_delivery_contact_id",
+            ),
+            models.Index(
                 fields=["status", "next_attempt_at"],
                 condition=Q(status__in=["PENDING", "FAILED"]),
                 name="idx_report_delivery_status_next_attempt_at",
