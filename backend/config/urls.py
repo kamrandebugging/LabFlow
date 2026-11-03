@@ -30,6 +30,8 @@ urlpatterns = [
     path("api/v1/billing/", include("apps.billing.urls")),
     # Samples: accessioning + labels (Doc 03 §5.4, KAN-137 / LAB-21)
     path("api/v1/", include("apps.samples.urls")),
+    # Results: batch result entry (Doc 03 §5.5, KAN-150 / LAB-25)
+    path("api/v1/", include("apps.results.urls")),
     # Staff Administration & TOTP Recovery (Doc 04 §15.2, Doc 08 §4.4, LAB-52)
     path(
         "api/v1/staff/<uuid:user_id>/reset-totp",
