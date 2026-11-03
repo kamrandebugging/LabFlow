@@ -88,7 +88,7 @@ def _payload(**overrides: Any) -> dict[str, Any]:
         "critical_low": "7.000",
         "critical_high": "20.000",
         "unit": "g/dL",
-        "effective_from": "2026-01-01",
+        "effective_from": "2027-01-01",
         "effective_to": None,
     }
     payload.update(overrides)
@@ -194,7 +194,7 @@ class TestLab17RbacMatrix:
 
             patch_res = client.patch(
                 f"/api/v1/tests/{test_obj.id}/ranges/{seeded.json()['id']}",
-                data={"unit": "g/L"},
+                data={"unit": "g/L", "effective_from": "2027-06-01"},
                 content_type="application/json",
                 **headers,
             )
