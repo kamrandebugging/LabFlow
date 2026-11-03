@@ -20,6 +20,7 @@ from django.utils import timezone
 
 from apps.accounts.models import AuditLog, StaffUser
 from apps.catalog.models import Panel, PanelTest, ReferenceRange, Test, TestPrice
+from apps.results.engine import RangeRow, select_range
 
 # Sentinel for open-ended age bands / effective windows in comparisons.
 _OPEN_AGE_MAX = 10**9
@@ -176,6 +177,28 @@ def _assert_no_overlap(
                 f"{existing.age_max_days or '*'}d "
                 f"{existing.effective_from}..{existing.effective_to or '*'}]."
             )
+
+
+def _to_range_row(row: ReferenceRange) -> RangeRow:
+    """Convert a DB row to plain data for the pure selection engine (KAN-144).
+
+    The engine (``apps.results.engine.select_range``) is the single
+    implementation of the Doc 03 §8.2 selection rules; this is the boundary
+    conversion.
+    """
+    return RangeRow(
+        sex=row.sex,
+        age_min_days=row.age_min_days,
+        age_max_days=row.age_max_days,
+        effective_from=row.effective_from,
+        effective_to=row.effective_to,
+        low=row.low,
+        high=row.high,
+        critical_low=row.critical_low,
+        critical_high=row.critical_high,
+        test_id=row.test_id,
+        created_at=row.created_at,
+    )
 
 
 class CatalogService:
@@ -678,6 +701,11 @@ class CatalogService:
     ) -> ReferenceRange | None:
         """Deterministic range selection (Doc 03 §8.2, T-10, KAN-119).
 
+        Delegates to the pure engine (``apps.results.engine.select_range``,
+        KAN-144) so there is exactly ONE selection implementation; this
+        method converts DB rows to plain data at the boundary and maps the
+        winner back to its model instance.
+
         T-10: a range effective after the collection date is never selected.
         Tie-breaks: specific sex (M/F) beats B; narrower age band beats wider;
         latest effective_from, then latest created row, wins any residual tie
@@ -689,40 +717,19 @@ class CatalogService:
             else collection_date
         )
 
-        candidates = ReferenceRange.objects.filter(
-            test_id=test_id,
-            effective_from__lte=as_of,
-        ).filter(
-            Q(effective_to__isnull=True) | Q(effective_to__gte=as_of),
+        # id-ordered: the engine's sort is stable, so this is the final
+        # deterministic tie-break (equivalent to the old str(id) key).
+        instances = list(ReferenceRange.objects.filter(test_id=test_id).order_by("id"))
+        pairs = [(_to_range_row(row), row) for row in instances]
+        chosen = select_range(
+            [data for data, _ in pairs],
+            patient_sex=patient_sex,
+            age_in_days=patient_age_days,
+            collection_date=as_of,
         )
-
-        if patient_sex in ("M", "F"):
-            candidates = candidates.filter(
-                Q(sex="B") | Q(sex=patient_sex),
-            )
-        else:
-            # Unknown sex degrades explicitly: only Both-buckets match.
-            candidates = candidates.filter(sex="B")
-
-        if patient_age_days is not None:
-            candidates = candidates.filter(
-                age_min_days__lte=patient_age_days,
-            ).filter(
-                Q(age_max_days__isnull=True) | Q(age_max_days__gte=patient_age_days),
-            )
-
-        def _sort_key(row: ReferenceRange) -> tuple[int, int, float, float, str]:
-            sex_rank = 0 if row.sex in ("M", "F") else 1
-            width = (
-                row.age_max_days if row.age_max_days is not None else _OPEN_AGE_MAX
-            ) - row.age_min_days
-            return (
-                sex_rank,
-                width,
-                -row.effective_from.toordinal(),
-                -row.created_at.timestamp(),
-                str(row.id),
-            )
-
-        ordered = sorted(candidates, key=_sort_key)
-        return ordered[0] if ordered else None
+        if chosen is None:
+            return None
+        for data, instance in pairs:
+            if data is chosen:
+                return instance
+        return None  # unreachable; keeps type-checkers satisfied

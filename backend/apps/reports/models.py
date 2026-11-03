@@ -17,6 +17,11 @@ class Report(models.Model):
         AMENDED = "amended", "Amended"
         VOID = "void", "Void"
 
+    class GenerationStatus(models.TextChoices):
+        IDLE = "idle", "Idle"
+        RUNNING = "running", "Running"
+        FAILED = "failed", "Failed"
+
     id = models.UUIDField(
         primary_key=True,
         default=uuid.uuid4,
@@ -40,6 +45,17 @@ class Report(models.Model):
         db_default=0,
     )
     finalised_at = models.DateTimeField(null=True, blank=True)
+    # KAN-155 / LAB-30: in-flight guard for reports.generate_pdf (§10).
+    # idle = nothing running; running = a generation task is in flight
+    # (second enqueue -> 409 generation_already_running); failed = the last
+    # attempt exhausted retries, with the error in generation_error — visible
+    # on the report screen, re-enqueue via POST /reports/{id}/regenerate.
+    generation_status = models.TextField(
+        choices=GenerationStatus.choices,
+        default=GenerationStatus.IDLE,
+        db_default=GenerationStatus.IDLE,
+    )
+    generation_error = models.TextField(null=True, blank=True)  # noqa: DJ001
     created_at = models.DateTimeField(
         auto_now_add=True,
         db_default=Now(),
@@ -62,6 +78,16 @@ class Report(models.Model):
                     ]
                 ),
                 name="chk_report_status",
+            ),
+            models.CheckConstraint(
+                condition=Q(
+                    generation_status__in=[
+                        "idle",
+                        "running",
+                        "failed",
+                    ]
+                ),
+                name="chk_report_generation_status",
             ),
         ]
         indexes = [
@@ -145,6 +171,13 @@ class ReportDelivery(models.Model):
     """
     One delivery attempt of a report link to the patient via n8n (Doc 02 §5.7).
     Includes whatsapp_url and partial retry index WHERE status IN ('PENDING','FAILED').
+
+    LAB-32 (KAN-157) additions: `contact` (the patient_contact row the
+    message goes to — backs the §6.7 channel+contact idempotency rule),
+    `sent_at` (when the hand-off was recorded; drives delivery latency
+    metrics), and a partial UNIQUE (report, channel, contact) WHERE
+    status='PENDING' so two concurrent deliver calls can never create two
+    live PENDING intents for the same channel+contact (§10).
     """
 
     class Channel(models.TextChoices):
@@ -172,6 +205,16 @@ class ReportDelivery(models.Model):
         db_index=False,
     )
     channel = models.TextField(choices=Channel.choices)
+    # LAB-32: the patient_contact row this delivery targets. Required —
+    # the §6.7 deliver body carries contact_id and idempotency is keyed on
+    # channel+contact.
+    contact = models.ForeignKey(
+        "patients.PatientContact",
+        on_delete=models.PROTECT,
+        related_name="report_deliveries",
+        db_column="contact_id",
+        db_index=False,
+    )
     status = models.TextField(
         choices=Status.choices,
         default=Status.PENDING,
@@ -184,6 +227,8 @@ class ReportDelivery(models.Model):
     )
     next_attempt_at = models.DateTimeField(null=True, blank=True)
     last_error = models.TextField(null=True, blank=True)  # noqa: DJ001
+    # LAB-32: set when the delivery hand-off is recorded (status -> SENT).
+    sent_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(
         auto_now_add=True,
         db_default=Now(),
@@ -211,6 +256,13 @@ class ReportDelivery(models.Model):
                     ]
                 ),
                 name="chk_report_delivery_status",
+            ),
+            # LAB-32: at most one live PENDING intent per (report, channel,
+            # contact) — the DB backstop for the §6.7 idempotency rule.
+            models.UniqueConstraint(
+                fields=["report", "channel", "contact"],
+                condition=Q(status="PENDING"),
+                name="uq_report_delivery_pending_report_channel_contact",
             ),
         ]
         indexes = [

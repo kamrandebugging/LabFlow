@@ -40,6 +40,7 @@ class ReportDeliveryFactory(TenantModelFactory):
 
     report = factory.SubFactory(ReportFactory)
     channel = ReportDelivery.Channel.EMAIL
+    contact = factory.SubFactory("tests.factories.patients.PatientContactFactory")
     status = ReportDelivery.Status.PENDING
     whatsapp_url = None
     attempts = 0
