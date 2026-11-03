@@ -310,7 +310,9 @@ class TestRecordShareEntry:
 class TestRecordReversal:
     """Doc 05 §6.5: Refund reversal, SL-8–SL-12."""
 
-    def _setup_payment_with_entry(...) -> Any:
+    def _setup_payment_with_entry(
+        self, tenant_a: Tenant
+    ) -> Any:
         """Helper: create a payment with a ledger entry."""
         partner = ReferralPartnerFactory()
         RevenueShareRuleFactory(
