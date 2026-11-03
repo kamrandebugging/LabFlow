@@ -89,6 +89,16 @@ class Result(models.Model):
                 ),
                 name="chk_result_status",
             ),
+            # LAB-25 (KAN-150, T-28): exactly one ENTERED result per
+            # (sample, test). Concurrent double entry is decided by this
+            # constraint — the loser gets 409 result_already_entered naming
+            # the winning author. Partial: other statuses (amended,
+            # withdrawn, ...) never block a fresh entry.
+            models.UniqueConstraint(
+                fields=["sample", "test"],
+                condition=Q(status="entered"),
+                name="uq_result_sample_test_entered",
+            ),
         ]
         indexes = [
             models.Index(
