@@ -1,11 +1,10 @@
 from typing import Any
 
 import pytest
+from apps.results.models import Result
 from django.db import IntegrityError, connection, transaction
 from django.db.models.deletion import ProtectedError
 from django_tenants.utils import tenant_context
-
-from apps.results.models import Result
 from tests.factories.accounts import StaffUserFactory
 from tests.factories.catalog import TestFactory
 from tests.factories.results import (
