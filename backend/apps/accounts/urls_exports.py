@@ -10,25 +10,14 @@ from apps.accounts.views_exports import (
 
 urlpatterns = [
     path("", ExportRequestView.as_view(), name="export-request"),
-    path("/", ExportRequestView.as_view(), name="export-request-slash"),
     path(
         "<uuid:export_id>",
         ExportDetailView.as_view(),
         name="export-detail",
     ),
     path(
-        "<uuid:export_id>/",
-        ExportDetailView.as_view(),
-        name="export-detail-slash",
-    ),
-    path(
         "<uuid:export_id>/download",
         ExportDownloadView.as_view(),
         name="export-download",
-    ),
-    path(
-        "<uuid:export_id>/download/",
-        ExportDownloadView.as_view(),
-        name="export-download-slash",
     ),
 ]
