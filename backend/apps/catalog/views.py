@@ -15,6 +15,7 @@ from typing import Any, cast
 
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from rest_framework import permissions, status
 from rest_framework.request import Request
 from rest_framework.response import Response
@@ -531,6 +532,21 @@ class ReferenceRangeListCreateView(APIView):
         data = serializer.validated_data
         ip = _get_client_ip(request)
         user_agent = request.META.get("HTTP_USER_AGENT", "")
+
+        # Governance guard (KAN-144/LAB-24): the ranges API rejects backdated
+        # rows — a past effective_from would retroactively rewrite which range
+        # was active for already-reported results. Historical seeding bypasses
+        # the API via CatalogService.create_reference_range directly (the seed
+        # path); day-to-day API use cannot rewrite history.
+        if data["effective_from"] < timezone.localdate():
+            return Response(
+                _format_error(
+                    "effective_from_in_past",
+                    "effective_from cannot be in the past. Seed historical "
+                    "ranges via the service layer.",
+                ),
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
 
         try:
             range_obj = CatalogService.create_reference_range(
