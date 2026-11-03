@@ -1,4 +1,5 @@
-"""Strict serializers for the Samples module (Doc 03 §5.4, KAN-137 / LAB-21).
+"""Strict serializers for the Samples module (Doc 03 §5.4, KAN-137 / LAB-21,
+KAN-138 / LAB-22).
 
 - Unknown fields rejected (same pattern as billing).
 - accession_id is never accepted from the client (SM-1: server-minted).
@@ -7,6 +8,8 @@
 from typing import Any
 
 from rest_framework import serializers
+
+from apps.samples.models import Sample
 
 
 def _reject_unknown_fields(
@@ -61,3 +64,32 @@ class SampleLabelSerializer(serializers.Serializer):
     collected_at = serializers.CharField()
     collected_by = serializers.EmailField(allow_null=True)
     barcode = serializers.DictField()
+
+
+class SampleRejectSerializer(serializers.Serializer):
+    """POST /api/v1/samples/{id}/reject — SM-8 reason code + note (KAN-138).
+
+    Unknown reason codes -> 422 via the view's validation handler. The
+    `other`-requires-note rule lives in the service (422
+    reject_note_required).
+    """
+
+    reason_code = serializers.ChoiceField(choices=Sample.RejectionReasonCode.choices)
+    note = serializers.CharField(required=False, allow_blank=True, default="")
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        return _reject_unknown_fields(self, attrs)
+
+
+class SampleCancelSerializer(serializers.Serializer):
+    """POST /api/v1/samples/{id}/cancel — SM-11 (KAN-138).
+
+    reason is optional at the serializer level so an empty/missing reason
+    surfaces as the domain-coded 422 cancel_reason_required from the
+    service instead of a generic validation error.
+    """
+
+    reason = serializers.CharField(required=False, allow_blank=True, default="")
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        return _reject_unknown_fields(self, attrs)

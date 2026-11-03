@@ -1,5 +1,5 @@
-"""Business logic for the Samples module — accessioning & labels
-(Doc 03 §5.4 SM-1..SM-4, Doc 02 §9, KAN-137 / LAB-21, original LAB-23).
+"""Business logic for the Samples module — accessioning, labels & lifecycle
+(Doc 03 §5.4 SM-1..SM-11, Doc 02 §9, KAN-137 / LAB-21, KAN-138 / LAB-22).
 
 Sample collection (POST /api/v1/samples):
 - SM-1: accession_id = {tenant_prefix:3}{YYYYMMDD}{seq:06d}, minted
@@ -27,6 +27,25 @@ Label (GET /api/v1/samples/{id}/label):
   free-text endpoint. barcode = {symbology: code128, payload: accession}.
 - Every print AND reprint is audited (sample.label_printed) — reprints
   matter in mislabelling investigations.
+
+Lifecycle (KAN-138 / LAB-22):
+- receive (SM-7): collected -> received only; 409 sample_not_here when the
+  caller branch does not hold the sample. A branchless Owner is tenant-wide
+  and skips the branch check.
+- reject (SM-8): reason_code from the v1 list (422 on unknown); note
+  mandatory for `other` (422 reject_note_required); 409 sample_has_results;
+  409 transfer_already_open; 409 invalid_state_transition from
+  rejected/cancelled/ready. Stores code+note (A-2), REJECTED event, audit,
+  and enqueues samples.notify_rejection via transaction.on_commit.
+- recollect (SM-9): only on rejected -> 201 new sample, fresh accession via
+  the shared _mint_accession_id helper, untested sample_test rows copied,
+  audit links old -> new accession. Never touches the invoice (no double
+  billing).
+- cancel (SM-11): O/M only, reason required (422 cancel_reason_required),
+  only from collected|received, 409 once any result exists.
+- SM-5: EVERY status change writes its sample_event in the SAME transaction
+  as the status update. Every state-changing request writes an audit_log row
+  in the same transaction.
 """
 
 import re
@@ -37,15 +56,26 @@ from zoneinfo import ZoneInfo
 
 from django.db import connection, transaction
 
-from apps.accounts.models import AuditLog, Role, StaffUser
+from apps.accounts.models import AuditLog, Role, StaffUser, TenantSetting
 from apps.billing.models import Invoice, InvoiceItem
 from apps.catalog.models import Panel, Test
-from apps.samples.models import AccessionCounter, Sample, SampleEvent, SampleTest
+from apps.results.models import Result
+from apps.samples.models import (
+    AccessionCounter,
+    Sample,
+    SampleEvent,
+    SampleTest,
+    SampleTransfer,
+)
 
 KARACHI = ZoneInfo("Asia/Karachi")
 
 SAMPLE_WRITE_ROLES = {Role.OWNER, Role.MANAGER, Role.RECEPTION}
 SAMPLE_LABEL_ROLES = {Role.OWNER, Role.MANAGER, Role.RECEPTION, Role.TECHNICIAN}
+SAMPLE_RECEIVE_ROLES = {Role.OWNER, Role.MANAGER, Role.TECHNICIAN}
+SAMPLE_REJECT_ROLES = {Role.OWNER, Role.MANAGER, Role.RECEPTION, Role.TECHNICIAN}
+SAMPLE_RECOLLECT_ROLES = {Role.OWNER, Role.MANAGER, Role.RECEPTION}
+SAMPLE_CANCEL_ROLES = {Role.OWNER, Role.MANAGER}
 
 # A sample still "live" for idempotency: cancelled/rejected samples do not
 # block recollection of their items.
@@ -88,6 +118,36 @@ class ItemsAlreadyCollectedError(SampleError):
     error_code = "items_already_collected"
 
 
+class InvalidStateTransitionError(SampleError):
+    status_code = 409
+    error_code = "invalid_state_transition"
+
+
+class SampleNotHereError(SampleError):
+    status_code = 409
+    error_code = "sample_not_here"
+
+
+class SampleHasResultsError(SampleError):
+    status_code = 409
+    error_code = "sample_has_results"
+
+
+class TransferAlreadyOpenError(SampleError):
+    status_code = 409
+    error_code = "transfer_already_open"
+
+
+class RejectNoteRequiredError(SampleError):
+    status_code = 422
+    error_code = "reject_note_required"
+
+
+class CancelReasonRequiredError(SampleError):
+    status_code = 422
+    error_code = "cancel_reason_required"
+
+
 def _tenant_prefix() -> str:
     """3-letter accession prefix from the tenant name (Doc 02 §9).
 
@@ -125,6 +185,52 @@ def _expand_item_tests(item: InvoiceItem) -> list[Test]:
         raise SampleNotFoundError("Invoice item has neither test nor panel.")
     panel = Panel.objects.prefetch_related("panel_tests__test").get(pk=item.panel_id)
     return [pt.test for pt in panel.panel_tests.all()]
+
+
+def _get_sample(sample_id: uuid.UUID) -> Sample:
+    """Fetch a tenant-scoped sample or 404 (never 403)."""
+    try:
+        return Sample.objects.select_related("invoice", "branch").get(pk=sample_id)
+    except Sample.DoesNotExist:
+        raise SampleNotFoundError("Sample not found.") from None
+
+
+def _caller_branch(actor: StaffUser) -> Any:
+    """The branch holding the caller — None for a branchless Owner."""
+    return actor.branch if actor.branch_id else None
+
+
+def _write_event_and_audit(
+    *,
+    sample: Sample,
+    event: str,
+    actor: StaffUser,
+    branch: Any,
+    action: str,
+    after_jsonb: dict[str, Any],
+    note: str | None = None,
+    ip: str | None = None,
+    user_agent: str | None = None,
+) -> SampleEvent:
+    """SM-5: status change + sample_event + audit_log in ONE transaction."""
+    event_row = SampleEvent.objects.create(
+        sample=sample,
+        event=event,
+        actor=actor,
+        branch=branch,
+        note=note,
+    )
+    AuditLog.objects.create(
+        actor_id=actor.id,
+        action=action,
+        entity_type="sample",
+        entity_id=sample.id,
+        before_jsonb=None,
+        after_jsonb=after_jsonb,
+        ip=ip,
+        user_agent=user_agent,
+    )
+    return event_row
 
 
 class SampleService:
@@ -195,8 +301,6 @@ class SampleService:
                 distinct_tests.setdefault(test.id, (test, item))
 
         # Billing hold (BL-9): notes but never blocks collection.
-        from apps.accounts.models import TenantSetting
-
         hold_row = TenantSetting.objects.filter(key="billing_hold_enabled").first()
         billing_hold = hold_row is not None and hold_row.value.lower() == "true"
 
@@ -296,3 +400,284 @@ class SampleService:
                 user_agent=user_agent,
             )
         return payload
+
+    # ------------------------------------------------------------------
+    # Lifecycle (KAN-138 / LAB-22)
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def receive_sample(
+        *,
+        sample_id: uuid.UUID,
+        actor: StaffUser,
+        ip: str | None = None,
+        user_agent: str | None = None,
+    ) -> Sample:
+        """collected -> received (SM-7). No body.
+
+        409 invalid_state_transition from any other state; 409
+        sample_not_here when the caller branch does not hold the sample.
+        A branchless Owner is tenant-wide and skips the branch check.
+        """
+        sample = _get_sample(sample_id)
+        if sample.status != Sample.Status.COLLECTED:
+            raise InvalidStateTransitionError(
+                "Only a collected sample can be received."
+            )
+        branch = _caller_branch(actor)
+        if branch is not None and branch.id != sample.branch_id:
+            raise SampleNotHereError("This branch does not hold the sample.")
+        with transaction.atomic():
+            sample.status = Sample.Status.RECEIVED
+            sample.save(update_fields=["status", "updated_at"])
+            _write_event_and_audit(
+                sample=sample,
+                event=SampleEvent.EventType.RECEIVED,
+                actor=actor,
+                branch=sample.branch,
+                action="sample.received",
+                after_jsonb={
+                    "accession_id": sample.accession_id,
+                    "from_status": "collected",
+                    "to_status": "received",
+                    "branch_id": str(sample.branch_id),
+                    "received_by": str(actor.id),
+                    "event": "sample.received",
+                },
+                ip=ip,
+                user_agent=user_agent,
+            )
+        return sample
+
+    @staticmethod
+    def reject_sample(
+        *,
+        sample_id: uuid.UUID,
+        reason_code: str,
+        note: str | None,
+        actor: StaffUser,
+        ip: str | None = None,
+        user_agent: str | None = None,
+    ) -> Sample:
+        """Reject for quality (SM-8). Stores code + note (A-2).
+
+        Guards: 409 invalid_state_transition from rejected/cancelled/ready;
+        409 sample_has_results when any result exists; 409
+        transfer_already_open when an open transfer exists; 422
+        reject_note_required when code is `other` without a note.
+        Enqueues samples.notify_rejection via transaction.on_commit.
+        """
+        sample = _get_sample(sample_id)
+        clean_note = (note or "").strip()
+        if reason_code == Sample.RejectionReasonCode.OTHER and not clean_note:
+            raise RejectNoteRequiredError(
+                "A note is required when the reason code is 'other'."
+            )
+        if sample.status in (
+            Sample.Status.REJECTED,
+            Sample.Status.CANCELLED,
+            Sample.Status.READY,
+        ):
+            raise InvalidStateTransitionError(
+                f"A sample in status '{sample.status}' cannot be rejected."
+            )
+        if Result.objects.filter(sample=sample).exists():
+            raise SampleHasResultsError(
+                "Cannot reject a sample that already has results."
+            )
+        if SampleTransfer.objects.filter(
+            sample=sample, status=SampleTransfer.Status.OPEN
+        ).exists():
+            raise TransferAlreadyOpenError(
+                "Cannot reject a sample with an open transfer."
+            )
+
+        with transaction.atomic():
+            sample.status = Sample.Status.REJECTED
+            sample.rejection_reason_code = reason_code
+            sample.rejection_note = clean_note or None
+            sample.save(
+                update_fields=[
+                    "status",
+                    "rejection_reason_code",
+                    "rejection_note",
+                    "updated_at",
+                ]
+            )
+            event_row = _write_event_and_audit(
+                sample=sample,
+                event=SampleEvent.EventType.REJECTED,
+                actor=actor,
+                branch=sample.branch,
+                action="sample.rejected",
+                after_jsonb={
+                    "accession_id": sample.accession_id,
+                    "from_status": "collected",
+                    "to_status": "rejected",
+                    "rejection_reason_code": reason_code,
+                    "rejection_note": clean_note or None,
+                    "rejected_by": str(actor.id),
+                    "event": "sample.rejected",
+                },
+                note=reason_code,
+                ip=ip,
+                user_agent=user_agent,
+            )
+            # Enqueue after commit (repo pattern: apps/platform/provisioning.py).
+            tenant = getattr(connection, "tenant", None)
+            schema_name = getattr(tenant, "schema_name", "public")
+            event_pk = str(event_row.id)
+
+            def _enqueue() -> None:
+                from apps.samples.tasks import notify_rejection_task
+
+                notify_rejection_task.delay(schema_name, event_pk)
+
+            transaction.on_commit(_enqueue)
+        return sample
+
+    @staticmethod
+    def recollect_sample(
+        *,
+        sample_id: uuid.UUID,
+        actor: StaffUser,
+        ip: str | None = None,
+        user_agent: str | None = None,
+    ) -> Sample:
+        """Recollect after rejection (SM-9) -> 201 new sample.
+
+        Only on a rejected sample. Mints a fresh accession via the shared
+        _mint_accession_id helper (per-tenant-per-day + SELECT FOR UPDATE —
+        not duplicated). Copies the still-untested sample_test rows (tests
+        with no result row). Never touches the invoice (no double billing).
+        Audit links old accession -> new accession.
+        """
+        old = _get_sample(sample_id)
+        if old.status != Sample.Status.REJECTED:
+            raise InvalidStateTransitionError(
+                "Only a rejected sample can be recollected."
+            )
+
+        # Still-untested = sample_test rows with no result row yet. Single
+        # bulk query (no N+1).
+        old_links = list(
+            SampleTest.objects.filter(sample=old).select_related("test", "invoice_item")
+        )
+        tested_test_ids = set(
+            Result.objects.filter(sample=old).values_list("test_id", flat=True)
+        )
+        untested = [link for link in old_links if link.test_id not in tested_test_ids]
+        if not untested:
+            raise InvalidStateTransitionError(
+                "Nothing left to recollect on this sample."
+            )
+
+        now = datetime.now(KARACHI)
+        with transaction.atomic():
+            new_accession = _mint_accession_id()
+            new_sample = Sample.objects.create(
+                invoice=old.invoice,
+                branch=old.branch,
+                accession_id=new_accession,
+                status=Sample.Status.COLLECTED,
+                collected_at=now,
+                collected_by=actor,
+            )
+            for link in untested:
+                SampleTest.objects.create(
+                    sample=new_sample,
+                    invoice_item=link.invoice_item,
+                    test=link.test,
+                )
+            SampleEvent.objects.create(
+                sample=new_sample,
+                event=SampleEvent.EventType.COLLECTED,
+                actor=actor,
+                branch=old.branch,
+            )
+            AuditLog.objects.create(
+                actor_id=actor.id,
+                action="sample.collected",
+                entity_type="sample",
+                entity_id=new_sample.id,
+                before_jsonb=None,
+                after_jsonb={
+                    "accession_id": new_accession,
+                    "invoice_id": str(old.invoice_id),
+                    "recollected_from": str(old.id),
+                    "old_accession_id": old.accession_id,
+                    "test_count": len(untested),
+                    "event": "sample.collected",
+                },
+                ip=ip,
+                user_agent=user_agent,
+            )
+            # Link old -> new on the OLD sample's audit row (SM-9).
+            AuditLog.objects.create(
+                actor_id=actor.id,
+                action="sample.recollected",
+                entity_type="sample",
+                entity_id=old.id,
+                before_jsonb=None,
+                after_jsonb={
+                    "old_accession_id": old.accession_id,
+                    "new_accession_id": new_accession,
+                    "new_sample_id": str(new_sample.id),
+                    "recollected_by": str(actor.id),
+                    "event": "sample.recollected",
+                },
+                ip=ip,
+                user_agent=user_agent,
+            )
+        return new_sample
+
+    @staticmethod
+    def cancel_sample(
+        *,
+        sample_id: uuid.UUID,
+        reason: str | None,
+        actor: StaffUser,
+        ip: str | None = None,
+        user_agent: str | None = None,
+    ) -> Sample:
+        """Cancel a sample (SM-11): O/M only, reason required.
+
+        Allowed only from collected|received; 409 invalid_state_transition
+        otherwise; 409 sample_has_results once any result exists (even
+        entered); 422 cancel_reason_required on empty reason.
+        """
+        sample = _get_sample(sample_id)
+        clean_reason = (reason or "").strip()
+        if not clean_reason:
+            raise CancelReasonRequiredError("A cancellation reason is required.")
+        if sample.status not in (Sample.Status.COLLECTED, Sample.Status.RECEIVED):
+            raise InvalidStateTransitionError(
+                f"A sample in status '{sample.status}' cannot be cancelled."
+            )
+        if Result.objects.filter(sample=sample).exists():
+            raise SampleHasResultsError(
+                "Cannot cancel a sample that already has results."
+            )
+        from_status = sample.status
+        with transaction.atomic():
+            sample.status = Sample.Status.CANCELLED
+            sample.save(update_fields=["status", "updated_at"])
+            _write_event_and_audit(
+                sample=sample,
+                event=SampleEvent.EventType.CANCELLED,
+                actor=actor,
+                branch=sample.branch,
+                action="sample.cancelled",
+                after_jsonb={
+                    "accession_id": sample.accession_id,
+                    "from_status": from_status,
+                    "to_status": "cancelled",
+                    "reason": clean_reason,
+                    "cancelled_by": str(actor.id),
+                    "event": "sample.cancelled",
+                },
+                note=clean_reason,
+                ip=ip,
+                user_agent=user_agent,
+            )
+        return sample
