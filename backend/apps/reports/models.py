@@ -17,6 +17,11 @@ class Report(models.Model):
         AMENDED = "amended", "Amended"
         VOID = "void", "Void"
 
+    class GenerationStatus(models.TextChoices):
+        IDLE = "idle", "Idle"
+        RUNNING = "running", "Running"
+        FAILED = "failed", "Failed"
+
     id = models.UUIDField(
         primary_key=True,
         default=uuid.uuid4,
@@ -40,6 +45,17 @@ class Report(models.Model):
         db_default=0,
     )
     finalised_at = models.DateTimeField(null=True, blank=True)
+    # KAN-155 / LAB-30: in-flight guard for reports.generate_pdf (§10).
+    # idle = nothing running; running = a generation task is in flight
+    # (second enqueue -> 409 generation_already_running); failed = the last
+    # attempt exhausted retries, with the error in generation_error — visible
+    # on the report screen, re-enqueue via POST /reports/{id}/regenerate.
+    generation_status = models.TextField(
+        choices=GenerationStatus.choices,
+        default=GenerationStatus.IDLE,
+        db_default=GenerationStatus.IDLE,
+    )
+    generation_error = models.TextField(null=True, blank=True)  # noqa: DJ001
     created_at = models.DateTimeField(
         auto_now_add=True,
         db_default=Now(),
@@ -62,6 +78,16 @@ class Report(models.Model):
                     ]
                 ),
                 name="chk_report_status",
+            ),
+            models.CheckConstraint(
+                condition=Q(
+                    generation_status__in=[
+                        "idle",
+                        "running",
+                        "failed",
+                    ]
+                ),
+                name="chk_report_generation_status",
             ),
         ]
         indexes = [

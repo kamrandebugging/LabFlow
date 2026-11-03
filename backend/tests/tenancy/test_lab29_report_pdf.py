@@ -15,7 +15,7 @@ import pathlib
 import re
 
 import pytest
-from pypdf import PdfReader
+from pypdf import PdfReader  # type: ignore[import-not-found]
 
 from apps.reports.pdf.builder import build_report_context
 from apps.reports.pdf.context import (
@@ -486,6 +486,9 @@ def test_builder_assembles_context_from_models() -> None:
     from apps.reports.models import Report
 
     report = Report(id=uuid.uuid4(), status="draft", current_version=0)
-    # Builder requires a finalised report; draft must raise a clear error.
-    with pytest.raises(ValueError, match="finalised"):
+    # KAN-155 / LAB-30 (RP-2): the generate_pdf task builds the context for
+    # a version that does not exist yet, on a draft report. Only void is
+    # refused.
+    report.status = "void"
+    with pytest.raises(ValueError, match="void"):
         build_report_context(report, version=1)

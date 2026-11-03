@@ -633,6 +633,16 @@ class ResultService:
                     user_agent=user_agent,
                 )
 
+            # KAN-155 / LAB-30 (RP-1, RP-4): enqueue the async PDF pipeline
+            # after commit. Sample just became ready -> ensure the draft
+            # report row and generate version 1. Amendment approved on a
+            # final report -> generate the next (amended) version.
+            if sample_ready or report_version_requested:
+                _enqueue_report_generation_after_commit(
+                    sample_id=result.sample_id,
+                    actor=actor,
+                )
+
         payload: dict[str, Any] = {
             "id": str(result.id),
             "status": result.status,
@@ -998,3 +1008,25 @@ def _maybe_complete_sample(
         user_agent=user_agent,
     )
     return True
+
+
+def _enqueue_report_generation_after_commit(
+    *, sample_id: uuid.UUID, actor: StaffUser
+) -> None:
+    """KAN-155 / LAB-30 (RP-1, RP-4): enqueue reports.generate_pdf after the
+    approval transaction commits.
+
+    Cross-module trigger pattern (no event bus yet): the reports service owns
+    the report row + the in-flight claim; this only schedules it post-commit,
+    like samples.notify_rejection.
+    """
+
+    def _enqueue() -> None:
+        from apps.reports.services import ReportService
+
+        ReportService.enqueue_generation_for_sample(
+            sample_id=sample_id,
+            actor=actor,
+        )
+
+    transaction.on_commit(_enqueue)

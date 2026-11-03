@@ -151,27 +151,28 @@ def _build_panel_lookup(test_ids: list[UUID], invoice: Invoice) -> dict[UUID, st
     return out
 
 
-def build_report_context(report: Report, version: int) -> ReportContext:
+def build_report_context(
+    report: Report, version: int, *, finalised_at: datetime | None = None
+) -> ReportContext:
     """
     Assemble the render context for one report version.
 
-    Raises ValueError if the report is not finalised (T-34: a failed
-    generation leaves no report_version row and the report stays draft —
-    the future Celery task must call this before rendering).
+    KAN-155 / LAB-30: the version being built does NOT need to exist yet —
+    the generate_pdf task builds the context BEFORE inserting the
+    report_version row (upload-then-insert, §10). A draft report builds fine
+    (RP-2: first generation runs on a draft); only a void report is refused.
+
+    Raises ValueError for a void report (T-34: a failed generation leaves no
+    report_version row and the report stays draft).
     """
+    from django.utils import timezone
+
     from apps.results.models import Result, ResultApproval
     from apps.samples.models import SampleEvent
-    from django.core.exceptions import ObjectDoesNotExist
 
-    if report.status not in ("final", "amended") or report.finalised_at is None:
-        raise ValueError(
-            f"Report {report.id} is not finalised (status={report.status}); "
-            "refusing to render."
-        )
-    try:
-        report.versions.get(version=version)
-    except ObjectDoesNotExist as exc:
-        raise ValueError(f"Report {report.id} has no version {version}") from exc
+    if report.status == "void":
+        raise ValueError(f"Report {report.id} is void; refusing to render.")
+    finalised_at = finalised_at or timezone.now()
 
     sample = report.sample
     invoice = sample.invoice
@@ -308,6 +309,8 @@ def build_report_context(report: Report, version: int) -> ReportContext:
             rebuilt.append(ResultGroup(panel_name=g.panel_name, rows=new_rows))
         result_groups = rebuilt
 
+    # Version history: persisted versions plus the one being built (which
+    # may not exist as a row yet — upload-then-insert, §10).
     version_history = [
         VersionHistoryEntry(
             version=v.version,
@@ -316,6 +319,14 @@ def build_report_context(report: Report, version: int) -> ReportContext:
         )
         for v in report.versions.order_by("version")
     ]
+    if not any(e.version == version for e in version_history):
+        version_history.append(
+            VersionHistoryEntry(
+                version=version,
+                status="Amended" if version > 1 else "Final",
+                finalised_at=_fmt_dt(finalised_at),
+            )
+        )
 
     # QR (§9.3): placeholder token until the delivery LAB issues real ones.
     # The token printed is the token current at generation time.
@@ -334,7 +345,7 @@ def build_report_context(report: Report, version: int) -> ReportContext:
         version_label=f"Version {version}"
         + (" — Amended report" if is_amended else ""),
         status="Amended" if is_amended else "Final",
-        finalised_at=_fmt_dt(report.finalised_at),
+        finalised_at=_fmt_dt(finalised_at),
         patient=PatientInfo(
             name=patient.name,
             mrn=patient.mrn,
