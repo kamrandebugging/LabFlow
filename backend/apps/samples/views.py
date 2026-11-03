@@ -472,8 +472,8 @@ def _parse_month(value: str | None) -> tuple[str | None, Response | None]:
             _format_error("validation_error", "Invalid month: expected YYYY-MM."),
             status=status.HTTP_422_UNPROCESSABLE_ENTITY,
         )
-      
-      
+
+
 class TransferExceptionsView(APIView):
     """GET /api/v1/transfers/exceptions — late / lost / route-health (Doc 04 §9.4)."""
 
