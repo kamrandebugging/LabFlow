@@ -4,6 +4,8 @@ from django.db import models
 from django.db.models import Q
 from django.db.models.functions import Now
 
+from apps.branches.scoping import BranchScopedManager
+
 
 class Result(models.Model):
     """
@@ -11,6 +13,8 @@ class Result(models.Model):
     value is stored as text verbatim (OQ-25 resolved).
     flag is nullable by design (NULL = qualitative or unparseable; never guessed).
     status is CHECK-constrained at the database level, including 'withdrawn'.
+
+    Branch scope (Doc 04 §8.5): via ``sample__branch_id``.
     """
 
     class Flag(models.TextChoices):
@@ -65,6 +69,20 @@ class Result(models.Model):
         db_column="entered_by",
         db_index=False,
     )
+    # RS-9 (KAN-152 / LAB-27): amendment chain. A correction of an approved
+    # result is a NEW row; supersedes points at the row it replaces.
+    # amend_reason is the amend-time reason (distinct from the approval-time
+    # note, which RS-9 requires separately on the amendment's approval).
+    supersedes = models.ForeignKey(
+        "self",
+        on_delete=models.PROTECT,
+        related_name="amendments",
+        db_column="supersedes_id",
+        null=True,
+        blank=True,
+        db_index=False,
+    )
+    amend_reason = models.TextField(null=True, blank=True)  # noqa: DJ001
     created_at = models.DateTimeField(
         auto_now_add=True,
         db_default=Now(),
@@ -73,6 +91,9 @@ class Result(models.Model):
         auto_now=True,
         db_default=Now(),
     )
+
+    branch_scope_field = "sample__branch_id"
+    objects = BranchScopedManager()
 
     class Meta:
         db_table = "result"
@@ -89,6 +110,16 @@ class Result(models.Model):
                 ),
                 name="chk_result_status",
             ),
+            # LAB-25 (KAN-150, T-28): exactly one ENTERED result per
+            # (sample, test). Concurrent double entry is decided by this
+            # constraint — the loser gets 409 result_already_entered naming
+            # the winning author. Partial: other statuses (amended,
+            # withdrawn, ...) never block a fresh entry.
+            models.UniqueConstraint(
+                fields=["sample", "test"],
+                condition=Q(status="entered"),
+                name="uq_result_sample_test_entered",
+            ),
         ]
         indexes = [
             models.Index(
@@ -102,6 +133,10 @@ class Result(models.Model):
             models.Index(
                 fields=["entered_by"],
                 name="idx_result_entered_by",
+            ),
+            models.Index(
+                fields=["supersedes"],
+                name="idx_result_supersedes_id",
             ),
         ]
 

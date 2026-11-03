@@ -144,6 +144,9 @@ REST_FRAMEWORK = {
         "rest_framework.authentication.SessionAuthentication",
     ),
     "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.IsAuthenticated",),
+    # Problem+JSON for the Layer-3 scope refusal (Doc 04 §8.5, BS-2);
+    # every other exception keeps DRF's default rendering.
+    "EXCEPTION_HANDLER": "apps.core.exceptions.problem_json_exception_handler",
 }
 
 # -----------------------------------------------------------------------------
@@ -178,10 +181,20 @@ SPECTACULAR_SETTINGS = {
 # Silence Django's 30-character Oracle compatibility check E034.
 SILENCED_SYSTEM_CHECKS = ["models.E034"]
 
+# Public report portal (KAN-156 / LAB-31): fixed-window throttle for the
+# unauthenticated endpoints GET /api/v1/report-access/{token} and
+# GET /api/v1/report-files/<sig>/ — requests per minute per client IP.
+REPORT_ACCESS_RATE_LIMIT_PER_MINUTE = 60
+
 # Celery Beat Scheduled Tasks (Doc 02 §5.11, Doc 04 §13.2, Doc 08 §4.5)
 CELERY_BEAT_SCHEDULE = {
     "accounts-cleanup-expired-tokens-daily": {
         "task": "accounts.cleanup_expired_tokens",
         "schedule": 86400.0,  # Run daily
+    },
+    # LAB-32 (KAN-157): retry FAILED report deliveries (Doc 02 §5.7).
+    "reports-retry-failed-deliveries-15min": {
+        "task": "reports.retry_failed_deliveries",
+        "schedule": 900.0,  # Every 15 minutes
     },
 }

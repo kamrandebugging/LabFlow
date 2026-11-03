@@ -62,6 +62,25 @@ class StaffUser(models.Model):
         """DRF and Django auth compatibility."""
         return False
 
+    @property
+    def is_tenant_wide(self) -> bool:
+        """BS-1: owner and pathologist bypass branch scope entirely."""
+        return self.role in (Role.OWNER, Role.PATHOLOGIST)
+
+    def assigned_branch_ids(self) -> set[uuid.UUID]:
+        """Branch scope source (Doc 04 §8.4 SB-3, §8.5).
+
+        The ``staff_branch`` join rows on OPEN branches only — closing a
+        branch revokes scope there at once; ``staff_user.branch`` (the home
+        branch) is a display default and is never consulted here.
+        """
+        return set(
+            StaffBranch.objects.filter(
+                staff_user=self,
+                branch__deleted_at__isnull=True,
+            ).values_list("branch_id", flat=True)
+        )
+
 
 class StaffBranch(models.Model):
     """Doc 02 §5.1: Join table linking staff_user and branch with composite primary key.

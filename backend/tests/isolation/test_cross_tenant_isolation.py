@@ -67,19 +67,41 @@ def test_tenant_model_cross_tenant_isolation(
     tenant_a: TenantFixture,
     tenant_b: TenantFixture,
 ) -> None:
-    """Doc 04 §13.7: Create instance in tenant_a, assert row invisible in tenant_b."""
+    """Doc 04 §13.7 / TN-31: one factory row per tenant; full isolation.
+
+    - A's row ID on B's host (schema) -> 404-equivalent: strictly invisible.
+    - B's lists never contain A's key.
+    - A B-context query returns only B's row.
+    """
     if tenant_model is None:
         pytest.skip("No tenant models registered yet")
 
     factory_cls = validate_tenant_model_factory(tenant_model)
 
-    # 1. Create instance within tenant_a schema context
+    # 1. One factory row in each tenant schema.
     with schema_context(tenant_a.schema_name):
-        instance: Any = factory_cls.create()
-        record_id = instance.pk
-        assert tenant_model._default_manager.filter(pk=record_id).exists() is True
-
-    # 2. Query within tenant_b schema context and assert record is strictly invisible
+        row_a: Any = factory_cls.create()
+        id_a = row_a.pk
+        assert tenant_model._default_manager.filter(pk=id_a).exists() is True
     with schema_context(tenant_b.schema_name):
-        assert tenant_model._default_manager.filter(pk=record_id).exists() is False
-        assert tenant_model._default_manager.filter(pk=record_id).count() == 0
+        row_b: Any = factory_cls.create()
+        id_b = row_b.pk
+        assert tenant_model._default_manager.filter(pk=id_b).exists() is True
+
+    # 2. A's row ID is strictly invisible inside B's schema (404-equivalent).
+    with schema_context(tenant_b.schema_name):
+        assert tenant_model._default_manager.filter(pk=id_a).exists() is False
+        assert tenant_model._default_manager.filter(pk=id_a).count() == 0
+
+    # 3. B's lists never contain A's key; a B-context query returns only B.
+    with schema_context(tenant_b.schema_name):
+        listed_ids = set(tenant_model._default_manager.values_list("pk", flat=True))
+        assert id_b in listed_ids
+        assert id_a not in listed_ids
+
+    # 4. Symmetry: B's row is invisible inside A's schema.
+    with schema_context(tenant_a.schema_name):
+        assert tenant_model._default_manager.filter(pk=id_b).exists() is False
+        listed_ids_a = set(tenant_model._default_manager.values_list("pk", flat=True))
+        assert id_a in listed_ids_a
+        assert id_b not in listed_ids_a

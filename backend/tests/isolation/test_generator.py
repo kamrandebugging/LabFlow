@@ -165,3 +165,35 @@ def test_generator_synthetic_isolation_flow(
             cursor.execute(f'DROP TABLE IF EXISTS "{table_name}" CASCADE;')
         with schema_context(tenant_b.schema_name), connection.cursor() as cursor:
             cursor.execute(f'DROP TABLE IF EXISTS "{table_name}" CASCADE;')
+
+
+@pytest.mark.isolation
+def test_tn31_generator_covers_every_tenant_model() -> None:
+    """TN-31: the generated suite emits >= 1 test per non-excluded TENANT_APPS
+    model, and every such model resolves a factory (else the suite fails at
+    collection time naming the model — new models are covered on landing)."""
+    active: list[type[models.Model]] = []
+    for model in get_tenant_models():
+        excluded, _ = is_model_excluded(model)
+        if excluded:
+            continue
+        validate_tenant_model_factory(model)
+        active.append(model)
+
+    assert len(active) >= 1, "expected at least one generated isolation test"
+    ids = [f"{m._meta.app_label}.{m.__name__}" for m in active]
+    assert len(set(ids)) == len(ids), "duplicate generated test ids"
+
+
+@pytest.mark.isolation
+def test_opt_out_allow_list_has_written_reasons() -> None:
+    """Doc 04 §13.7: opting out needs an allow-list entry with a written
+    reason, reviewed like a schema change. This test enforces the shape:
+    every entry names app_label.ModelName and carries a non-trivial reason."""
+    assert isinstance(EXCLUDED_MODELS, dict)
+    for key, reason in EXCLUDED_MODELS.items():
+        app_label, _, model_name = key.partition(".")
+        assert app_label and model_name, f"malformed allow-list key: {key!r}"
+        assert isinstance(reason, str) and len(reason.strip()) >= 20, (
+            f"allow-list entry {key!r} needs a written reason"
+        )

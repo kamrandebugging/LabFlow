@@ -1,4 +1,5 @@
-"""Strict serializers for the Samples module (Doc 03 §5.4, KAN-137 / LAB-21).
+"""Strict serializers for the Samples module (Doc 03 §5.4, KAN-137 / LAB-21,
+KAN-138 / LAB-22).
 
 - Unknown fields rejected (same pattern as billing).
 - accession_id is never accepted from the client (SM-1: server-minted).
@@ -7,6 +8,8 @@
 from typing import Any
 
 from rest_framework import serializers
+
+from apps.samples.models import Sample
 
 
 def _reject_unknown_fields(
@@ -61,3 +64,87 @@ class SampleLabelSerializer(serializers.Serializer):
     collected_at = serializers.CharField()
     collected_by = serializers.EmailField(allow_null=True)
     barcode = serializers.DictField()
+
+
+class SampleRejectSerializer(serializers.Serializer):
+    """POST /api/v1/samples/{id}/reject — SM-8 reason code + note (KAN-138).
+
+    Unknown reason codes -> 422 via the view's validation handler. The
+    `other`-requires-note rule lives in the service (422
+    reject_note_required).
+    """
+
+    reason_code = serializers.ChoiceField(choices=Sample.RejectionReasonCode.choices)
+    note = serializers.CharField(required=False, allow_blank=True, default="")
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        return _reject_unknown_fields(self, attrs)
+
+
+class SampleCancelSerializer(serializers.Serializer):
+    """POST /api/v1/samples/{id}/cancel — SM-11 (KAN-138).
+
+    reason is optional at the serializer level so an empty/missing reason
+    surfaces as the domain-coded 422 cancel_reason_required from the
+    service instead of a generic validation error.
+    """
+
+    reason = serializers.CharField(required=False, allow_blank=True, default="")
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        return _reject_unknown_fields(self, attrs)
+
+
+class TransferCreateSerializer(serializers.Serializer):
+    """POST /api/v1/samples/{id}/transfer — SM-7 (KAN-143).
+
+    to_branch_id is required; unknown fields rejected. Destination
+    eligibility (open processing branch) is enforced in the service
+    (422 branch_cannot_receive).
+    """
+
+    to_branch_id = serializers.UUIDField()
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        return _reject_unknown_fields(self, attrs)
+
+
+class TransferMarkLostSerializer(serializers.Serializer):
+    """POST /api/v1/transfers/{id}/mark-lost (KAN-143).
+
+    note is optional at the serializer level so a missing/blank note
+    surfaces as the domain-coded 422 mark_lost_note_required from the
+    service instead of a generic validation error.
+    """
+
+    note = serializers.CharField(required=False, allow_blank=True, default="")
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        return _reject_unknown_fields(self, attrs)
+
+
+class BranchRefSerializer(serializers.Serializer):
+    """Branch reference for transfer responses."""
+
+    id = serializers.UUIDField()
+    code = serializers.CharField()
+    name = serializers.CharField()
+
+
+class TransferSerializer(serializers.Serializer):
+    """SampleTransfer summary for transfer responses (KAN-143)."""
+
+    id = serializers.UUIDField()
+    sample_id = serializers.UUIDField(source="sample.id")
+    accession_id = serializers.CharField(source="sample.accession_id")
+    from_branch = BranchRefSerializer()
+    to_branch = BranchRefSerializer()
+    status = serializers.CharField()
+    dispatched_at = serializers.DateTimeField(allow_null=True)
+    received_at = serializers.DateTimeField(allow_null=True)
+    transferred_by = serializers.EmailField(
+        source="transferred_by.email", allow_null=True, default=None
+    )
+    received_by = serializers.EmailField(
+        source="received_by.email", allow_null=True, default=None
+    )

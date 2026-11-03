@@ -42,6 +42,7 @@ from apps.billing.services import (
     InvoiceQueryService,
     PaymentService,
 )
+from apps.branches.scope_views import BranchScopedAPIView, IsInBranchScope
 from apps.catalog.services import TestNotPricedError
 
 
@@ -59,13 +60,18 @@ def _format_error(code: str, message: str, details: Any = None) -> dict[str, Any
     return {"error": err}
 
 
-class InvoiceCollectionView(APIView):
+class InvoiceCollectionView(BranchScopedAPIView):
     """GET /api/v1/invoices — cursor-paginated list (Doc 03 §6.1).
 
     POST /api/v1/invoices — create an invoice (BL-1..BL-4, BL-6, BL-V1..BL-V3).
+
+    Branch scope (Doc 04 §8.5): the list is scoped to the caller's
+    assignments in InvoiceQueryService (Layer 2); IsInBranchScope re-checks
+    the body's branch_id on create (Layer 3).
     """
 
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, IsInBranchScope]
+    scope_branch_source = "body:branch_id"
 
     def get(self, request: Request) -> Response:
         user = cast(StaffUser, request.user)
@@ -79,7 +85,7 @@ class InvoiceCollectionView(APIView):
             )
         try:
             filters = _parse_list_params(request.query_params)
-            rows, next_cursor = InvoiceQueryService.list_invoices(**filters)
+            rows, next_cursor = InvoiceQueryService.list_invoices(actor=user, **filters)
         except BillingError as exc:
             return Response(
                 _format_error(exc.error_code, str(exc) or exc.error_code),
@@ -168,9 +174,14 @@ class InvoiceCollectionView(APIView):
 
 
 class PaymentCreateView(APIView):
-    """POST /api/v1/invoices/{id}/payments — record payment/refund."""
+    """POST /api/v1/invoices/{id}/payments — record payment/refund.
 
-    permission_classes = [permissions.IsAuthenticated]
+    Branch scope (Doc 04 §8.5 Layer 3): no branch travels in the body (the
+    invoice carries it), so only the zero-assignment gate applies — BS-2.
+    """
+
+    permission_classes = [permissions.IsAuthenticated, IsInBranchScope]
+    scope_branch_source = None
 
     def post(self, request: Request, invoice_id: Any) -> Response:
         user = cast(StaffUser, request.user)
@@ -327,7 +338,7 @@ class InvoiceDetailView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
         try:
-            detail = InvoiceQueryService.get_invoice_detail(invoice_id=iid)
+            detail = InvoiceQueryService.get_invoice_detail(invoice_id=iid, actor=user)
         except BillingError as exc:
             return Response(
                 _format_error(exc.error_code, str(exc) or exc.error_code),
@@ -355,9 +366,14 @@ class InvoiceDetailView(APIView):
 
 
 class InvoiceCancelView(APIView):
-    """POST /api/v1/invoices/{id}/cancel — cancel an unpaid invoice (BL-8)."""
+    """POST /api/v1/invoices/{id}/cancel — cancel an unpaid invoice (BL-8).
 
-    permission_classes = [permissions.IsAuthenticated]
+    Branch scope (Doc 04 §8.5 Layer 3): no branch travels in the body (the
+    invoice carries it), so only the zero-assignment gate applies — BS-2.
+    """
+
+    permission_classes = [permissions.IsAuthenticated, IsInBranchScope]
+    scope_branch_source = None
 
     def post(self, request: Request, invoice_id: Any) -> Response:
         user = cast(StaffUser, request.user)

@@ -303,7 +303,14 @@ class BillingService:
         )
 
         with transaction.atomic():
-            existing = Invoice.objects.filter(idempotency_key=idempotency_key).first()
+            # Idempotency is scope-aware (Doc 04 §8.5): the replay lookup
+            # runs through the caller's scope, so presenting another
+            # branch's key cannot return another branch's invoice.
+            existing = (
+                Invoice.objects.scoped_to(actor)
+                .filter(idempotency_key=idempotency_key)
+                .first()
+            )
             if existing is not None:
                 if existing.payload_sha256 != payload_hash:
                     raise IdempotencyKeyReusedError(
@@ -341,10 +348,18 @@ class BillingService:
                         )
             except IntegrityError:
                 # Concurrent create with the same key: fall back to replay path.
-                existing = Invoice.objects.filter(
-                    idempotency_key=idempotency_key
-                ).first()
+                # Scoped first — a key owned by another scope is NOT returned;
+                # it surfaces as key-reused (422), never as their invoice.
+                existing = (
+                    Invoice.objects.scoped_to(actor)
+                    .filter(idempotency_key=idempotency_key)
+                    .first()
+                )
                 if existing is None:
+                    if Invoice.objects.filter(idempotency_key=idempotency_key).exists():
+                        raise IdempotencyKeyReusedError(
+                            "Idempotency key was already used."
+                        ) from None
                     raise
                 if existing.payload_sha256 != payload_hash:
                     raise IdempotencyKeyReusedError(
@@ -450,7 +465,9 @@ class PaymentService:
         Raises BillingError subclasses (mapped to HTTP by the view).
         """
         try:
-            invoice = Invoice.objects.get(pk=invoice_id)
+            # Layer 2 (Doc 04 §8.5): fetch through the scoped queryset —
+            # an out-of-scope invoice is simply not found -> 404 (P-7).
+            invoice = Invoice.objects.scoped_to(actor).get(pk=invoice_id)
         except Invoice.DoesNotExist:
             raise BillingNotFoundError("Invoice not found.") from None
 
@@ -625,6 +642,7 @@ class InvoiceQueryService:
     @staticmethod
     def list_invoices(
         *,
+        actor: StaffUser,
         status: str | None = None,
         patient_id: uuid.UUID | None = None,
         branch_id: uuid.UUID | None = None,
@@ -637,8 +655,13 @@ class InvoiceQueryService:
 
         Stable ordering: created_at DESC, id DESC. Returns (rows, next_cursor).
         Unknown enum filter values → 422 (InvalidFilterError).
+
+        Branch scope (Doc 04 §8.5 Layer 2): the base queryset is
+        ``Invoice.objects.scoped_to(actor)`` — a scoped caller sees only
+        their assigned branches; an out-of-scope ``branch_id`` filter
+        therefore yields no rows.
         """
-        qs = Invoice.objects.all().order_by("-created_at", "-id")
+        qs = Invoice.objects.scoped_to(actor).order_by("-created_at", "-id")
         if status is not None:
             if status not in Invoice.Status.values:
                 raise InvalidFilterError(f"Unknown status filter: {status}.")
@@ -666,11 +689,20 @@ class InvoiceQueryService:
         return rows, next_cursor
 
     @staticmethod
-    def get_invoice_detail(*, invoice_id: uuid.UUID) -> dict[str, Any]:
-        """Invoice + items + payments + computed net_paid (read-only)."""
+    def get_invoice_detail(
+        *, invoice_id: uuid.UUID, actor: StaffUser
+    ) -> dict[str, Any]:
+        """Invoice + items + payments + computed net_paid (read-only).
+
+        Branch scope (Doc 04 §8.5 Layer 2): fetched through the scoped
+        queryset, so an out-of-scope invoice is simply not found → 404
+        (Doc 03 P-7 anti-oracle), indistinguishable from a missing one.
+        """
         try:
-            invoice = Invoice.objects.prefetch_related("items", "payments").get(
-                pk=invoice_id
+            invoice = (
+                Invoice.objects.scoped_to(actor)
+                .prefetch_related("items", "payments")
+                .get(pk=invoice_id)
             )
         except (Invoice.DoesNotExist, ValidationError):
             raise BillingNotFoundError("Invoice not found.") from None
@@ -705,7 +737,12 @@ class InvoiceQueryService:
             )
         with transaction.atomic():
             try:
-                invoice = Invoice.objects.select_for_update().get(pk=invoice_id)
+                # Layer 2 (Doc 04 §8.5): scoped fetch — out-of-scope -> 404.
+                invoice = (
+                    Invoice.objects.scoped_to(actor)
+                    .select_for_update()
+                    .get(pk=invoice_id)
+                )
             except (Invoice.DoesNotExist, ValidationError):
                 raise BillingNotFoundError("Invoice not found.") from None
             if invoice.status != Invoice.Status.UNPAID:

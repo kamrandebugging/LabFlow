@@ -200,18 +200,25 @@ class PatientService:
         if not is_tenant_wide and not assigned_branches:
             return []
 
-        qs = Patient.objects.filter(deleted_at__isnull=True)
+        if (
+            branch_id is not None
+            and not is_tenant_wide
+            and branch_id not in assigned_branches
+        ):
+            return []
 
-        if branch_id:
-            if not is_tenant_wide and branch_id not in assigned_branches:
-                return []
-            qs = qs.filter(branch_id=branch_id)
+        filters: dict[str, Any] = {"deleted_at__isnull": True}
+        if branch_id is not None:
+            filters["branch_id"] = branch_id
 
-        # Case 1: Search query provided (BS-4 applies)
+        # Case 1: Search query provided (BS-4 applies — the one method
+        # allowed to cross branch scope; deliberately NOT routed through
+        # scoped_to).
         if q:
             clean_q = q.strip()[:120]
             annotated_qs = (
-                qs.annotate(similarity=TrigramSimilarity("name", clean_q))
+                Patient.objects.filter(**filters)
+                .annotate(similarity=TrigramSimilarity("name", clean_q))
                 .filter(models_q_filter(clean_q))
                 .order_by("-similarity", "-created_at")
             )
@@ -240,9 +247,11 @@ class PatientService:
 
             return patients
 
-        # Case 2: Listing without search query (BS-3 strictly applies)
-        if not is_tenant_wide:
-            qs = qs.filter(branch_id__in=assigned_branches)
+        # Case 2: Listing without search query — canonical §8.5 Layer-1
+        # scope: the manager-level scoped_to() keeps the BranchScopedQuerySet
+        # type through chaining (django-stubs resolves chained .filter() to
+        # the plain QuerySet).
+        qs = Patient.objects.scoped_to(actor).filter(**filters)
 
         listed_patients: list[Patient] = [p for p in qs.order_by("-created_at")[:100]]
         for p in listed_patients:

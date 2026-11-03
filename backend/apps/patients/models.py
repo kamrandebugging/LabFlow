@@ -4,11 +4,16 @@ from django.contrib.postgres.indexes import GinIndex
 from django.db import models
 from django.db.models.functions import Now
 
+from apps.branches.scoping import BranchScopedManager
+
 
 class Patient(models.Model):
     """A person registered for testing at this lab (Doc 02 §5.2).
 
     Lives strictly in each tenant schema (TENANT_APPS).
+
+    Branch scope (Doc 04 §8.5): ``branch_scope_field = "branch_id"`` — the
+    registering branch (BS-3).
     """
 
     class Sex(models.TextChoices):
@@ -43,6 +48,9 @@ class Patient(models.Model):
     )
     deleted_at = models.DateTimeField(null=True, blank=True)
     _is_cross_branch: bool = False
+
+    branch_scope_field = "branch_id"
+    objects = BranchScopedManager()
 
     class Meta:
         db_table = "patient"

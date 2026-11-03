@@ -5,12 +5,16 @@ from django.db import models
 from django.db.models import Q
 from django.db.models.functions import Now
 
+from apps.branches.scoping import BranchScopedManager
+
 
 class Invoice(models.Model):
     """A bill for one patient at one branch (Doc 02 §5.4).
 
     Status is CHECK-constrained at the database level.
     idempotency_key carries a partial UNIQUE index WHERE idempotency_key IS NOT NULL.
+
+    Branch scope (Doc 04 §8.5): ``branch_scope_field = "branch_id"``.
     """
 
     class Status(models.TextChoices):
@@ -83,6 +87,9 @@ class Invoice(models.Model):
         auto_now=True,
         db_default=Now(),
     )
+
+    branch_scope_field = "branch_id"
+    objects = BranchScopedManager()
 
     class Meta:
         db_table = "invoice"
