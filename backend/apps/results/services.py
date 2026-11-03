@@ -9,17 +9,18 @@ logic in views.
 from __future__ import annotations
 
 import uuid
-from datetime import date
+from datetime import date, datetime
 from typing import Any
 
 from django.db import IntegrityError, transaction
+from django.utils import timezone
 
 from apps.accounts.models import AuditLog, Role, StaffUser
 from apps.catalog.models import ReferenceRange
 from apps.catalog.services import CatalogService, _to_range_row
 from apps.reports.models import Report
 from apps.results.engine import evaluate_result, parse_result
-from apps.results.models import Result, ResultApproval
+from apps.results.models import CriticalNotification, Result, ResultApproval
 from apps.samples.models import Sample, SampleEvent, SampleTest, SampleTransfer
 
 # Doc 03 §6.6: POST /api/v1/samples/{id}/results — roles cell is exactly "T P".
@@ -30,6 +31,9 @@ RESULT_APPROVE_ROLES = {Role.PATHOLOGIST}
 RESULT_WITHDRAW_ROLES = {Role.TECHNICIAN, Role.PATHOLOGIST}
 # Doc 03 §6.6: POST /api/v1/results/{id}/amend — roles cell is exactly "T P".
 RESULT_AMEND_ROLES = {Role.TECHNICIAN, Role.PATHOLOGIST}
+# Doc 03 §6.6: POST /api/v1/results/{id}/critical-notifications —
+# roles cell is exactly "M P" (Manager + Pathologist only).
+RESULT_NOTIFY_ROLES = {Role.MANAGER, Role.PATHOLOGIST}
 
 
 class ResultError(Exception):
@@ -162,6 +166,28 @@ class AmendmentApprovalNoteRequiredError(ResultError):
 
     status_code = 422
     error_code = "amendment_approval_note_required"
+
+
+class NotCriticalError(ResultError):
+    """§8.5: a critical notification may only be recorded on a critical
+    result."""
+
+    status_code = 409
+    error_code = "not_critical"
+
+
+class NotifiedNameRequiredError(ResultError):
+    """§8.5: notified_name is required and non-empty after trim."""
+
+    status_code = 422
+    error_code = "notified_name_required"
+
+
+class NotificationInFutureError(ResultError):
+    """§8.5: notified_at cannot be in the future."""
+
+    status_code = 422
+    error_code = "notification_in_future"
 
 
 def _get_sample(sample_id: uuid.UUID) -> Sample:
@@ -806,6 +832,85 @@ class ResultService:
             "entered_by": str(actor.id),
             "supersedes": str(old.id),
             "amend_reason": clean_reason,
+        }
+
+    # ---- Critical notifications (§8.5, §6.6, Doc 02 §5.6 v1.2) ----
+
+    @staticmethod
+    def record_critical_notification(
+        *,
+        result_id: uuid.UUID,
+        notified_name: str | None,
+        notified_at: datetime,
+        read_back: bool,
+        actor: StaffUser,
+        ip: str | None = None,
+        user_agent: str | None = None,
+    ) -> dict[str, Any]:
+        """Record a critical-result notification (LAB-28 / KAN-153, §8.5).
+
+        Only Manager or Pathologist may record (§4.3, §6.6 — enforced in the
+        view); only on a result flagged critical. Append-only: each call
+        creates a new critical_notification row; the DB-level P-5 REVOKE set
+        (UPDATE/DELETE/TRUNCATE revoked on critical_notification) forbids
+        mutation. Audit result.critical_notified carries the event flag
+        result.critical_notified. The §11 exceptions list clears by derived
+        state: a critical result with a notification record no longer
+        qualifies as "unnotified".
+        """
+        clean_name = (notified_name or "").strip()
+        if not clean_name:
+            raise NotifiedNameRequiredError(
+                "notified_name is required and non-empty after trim."
+            )
+        if notified_at > timezone.now():
+            raise NotificationInFutureError("notified_at cannot be in the future.")
+
+        with transaction.atomic():
+            try:
+                result = Result.objects.get(pk=result_id)
+            except Result.DoesNotExist:
+                raise ResultNotFoundError("Result not found.") from None
+
+            if result.flag != Result.Flag.CRITICAL:
+                raise NotCriticalError(
+                    "A critical notification may only be recorded on a critical result."
+                )
+
+            notification = CriticalNotification.objects.create(
+                result=result,
+                notified_name=clean_name,
+                notified_at=notified_at,
+                read_back=read_back,
+                recorded_by=actor,
+            )
+            AuditLog.objects.create(
+                actor_id=actor.id,
+                action="result.critical_notified",
+                entity_type="result",
+                entity_id=result.id,
+                before_jsonb={"notified": False},
+                after_jsonb={
+                    "notified": True,
+                    "notification_id": str(notification.id),
+                    "notified_name": clean_name,
+                    "notified_at": notification.notified_at.isoformat(),
+                    "read_back": read_back,
+                    "recorded_by": str(actor.id),
+                    "event": "result.critical_notified",
+                },
+                ip=ip,
+                user_agent=user_agent,
+            )
+
+        return {
+            "id": str(notification.id),
+            "result_id": str(result.id),
+            "notified_name": clean_name,
+            "notified_at": notification.notified_at.isoformat(),
+            "read_back": notification.read_back,
+            "recorded_by": str(actor.id),
+            "created_at": notification.created_at.isoformat(),
         }
 
 

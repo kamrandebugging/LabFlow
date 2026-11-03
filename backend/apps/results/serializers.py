@@ -77,3 +77,19 @@ class ResultAmendSerializer(serializers.Serializer):
 
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
         return _reject_unknown_fields(self, attrs)
+
+
+class CriticalNotificationSerializer(serializers.Serializer):
+    """POST /api/v1/results/{id}/critical-notifications (§8.5, §6.6).
+
+    notified_name: required, non-empty after trim (service enforces),
+    max 200. notified_at: required ISO 8601 datetime (future rejected in
+    the service). read_back: required boolean.
+    """
+
+    notified_name = serializers.CharField(max_length=200)
+    notified_at = serializers.DateTimeField()
+    read_back = serializers.BooleanField()
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        return _reject_unknown_fields(self, attrs)
