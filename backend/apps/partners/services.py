@@ -529,6 +529,8 @@ class DashboardService:
             "late_entries": late_entries,
             "last_6_settlements": last_6,
         }
+
+
 logger = logging.getLogger(__name__)
 
 # Asia/Karachi timezone for period computation (Doc 05 §6.5: YYYY-MM, Asia/Karachi)
