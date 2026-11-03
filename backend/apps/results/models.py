@@ -4,6 +4,8 @@ from django.db import models
 from django.db.models import Q
 from django.db.models.functions import Now
 
+from apps.branches.scoping import BranchScopedManager
+
 
 class Result(models.Model):
     """
@@ -11,6 +13,8 @@ class Result(models.Model):
     value is stored as text verbatim (OQ-25 resolved).
     flag is nullable by design (NULL = qualitative or unparseable; never guessed).
     status is CHECK-constrained at the database level, including 'withdrawn'.
+
+    Branch scope (Doc 04 §8.5): via ``sample__branch_id``.
     """
 
     class Flag(models.TextChoices):
@@ -87,6 +91,9 @@ class Result(models.Model):
         auto_now=True,
         db_default=Now(),
     )
+
+    branch_scope_field = "sample__branch_id"
+    objects = BranchScopedManager()
 
     class Meta:
         db_table = "result"

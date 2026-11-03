@@ -144,6 +144,9 @@ REST_FRAMEWORK = {
         "rest_framework.authentication.SessionAuthentication",
     ),
     "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.IsAuthenticated",),
+    # Problem+JSON for the Layer-3 scope refusal (Doc 04 §8.5, BS-2);
+    # every other exception keeps DRF's default rendering.
+    "EXCEPTION_HANDLER": "apps.core.exceptions.problem_json_exception_handler",
 }
 
 # -----------------------------------------------------------------------------

@@ -4,12 +4,17 @@ from django.db import models
 from django.db.models import Q
 from django.db.models.functions import Now
 
+from apps.branches.scoping import BranchScopedManager
+
 
 class Sample(models.Model):
     """One physical specimen, identified by its Code128 accession ID (Doc 02 §5.5).
 
     Includes A-2 rejection columns (rejection_reason_code, rejection_note).
     status is CHECK-constrained at the database level.
+
+    Branch scope (Doc 04 §8.5): ``branch_scope_field = "branch_id"`` — the
+    holding branch; it moves on transfer receipt (BS-3/SM-7).
     """
 
     class Status(models.TextChoices):
@@ -82,6 +87,9 @@ class Sample(models.Model):
         auto_now=True,
         db_default=Now(),
     )
+
+    branch_scope_field = "branch_id"
+    objects = BranchScopedManager()
 
     class Meta:
         db_table = "sample"

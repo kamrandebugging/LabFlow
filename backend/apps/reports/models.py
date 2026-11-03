@@ -4,11 +4,15 @@ from django.db import models
 from django.db.models import F, Q
 from django.db.models.functions import Now
 
+from apps.branches.scoping import BranchScopedManager
+
 
 class Report(models.Model):
     """
     Patient-facing report for one sample in v1 (Doc 02 §5.7, §11; OQ-15 resolved).
     Voided via status='void'; never soft-deleted.
+
+    Branch scope (Doc 04 §8.5): via ``sample__branch_id``.
     """
 
     class Status(models.TextChoices):
@@ -64,6 +68,9 @@ class Report(models.Model):
         auto_now=True,
         db_default=Now(),
     )
+
+    branch_scope_field = "sample__branch_id"
+    objects = BranchScopedManager()
 
     class Meta:
         db_table = "report"

@@ -11,6 +11,7 @@ from drf_spectacular.views import (
     SpectacularSwaggerView,
 )
 
+from apps.accounts.views_staff import StaffBranchesView
 from apps.platform.tls import tls_check_view
 
 urlpatterns = [
@@ -37,6 +38,17 @@ urlpatterns = [
     path("api/v1/branches/", include("apps.branches.urls")),
     # Reports: async PDF pipeline (Doc 03 §5.6, KAN-155 / LAB-30)
     path("api/v1/", include("apps.reports.urls")),
+    # Staff branch assignments (Doc 04 §8.4, §15, KAN-159 / LAB-34)
+    path(
+        "api/v1/staff/<uuid:staff_id>/branches",
+        StaffBranchesView.as_view(),
+        name="staff-branches",
+    ),
+    path(
+        "api/v1/staff/<uuid:staff_id>/branches/",
+        StaffBranchesView.as_view(),
+        name="staff-branches-slash",
+    ),
     # Staff Administration & TOTP Recovery (Doc 04 §15.2, Doc 08 §4.4, LAB-52)
     path(
         "api/v1/staff/<uuid:user_id>/reset-totp",

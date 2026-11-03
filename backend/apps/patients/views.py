@@ -17,6 +17,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.accounts.models import Role, StaffUser
+from apps.branches.scope_views import BranchScopedAPIView, IsInBranchScope
 from apps.patients.serializers import (
     PatientCandidateSerializer,
     PatientCreateSerializer,
@@ -42,10 +43,19 @@ def _get_client_ip(request: Request) -> str:
     return request.META.get("REMOTE_ADDR", "")
 
 
-class PatientListCreateView(APIView):
-    """GET /api/v1/patients & POST /api/v1/patients."""
+class PatientListCreateView(BranchScopedAPIView):
+    """GET /api/v1/patients & POST /api/v1/patients.
 
-    permission_classes = [permissions.IsAuthenticated]
+    Branch scope (Doc 04 §8.5): the list/search is scoped inside
+    PatientService.list_patients — including the BS-4 identifiers-only
+    exception, the one method allowed to cross scope, which is deliberately
+    NOT routed through scoped_to. IsInBranchScope re-checks the body's
+    branch_id on registration (Layer 3, defence in depth over the service
+    check).
+    """
+
+    permission_classes = [permissions.IsAuthenticated, IsInBranchScope]
+    scope_branch_source = "body:branch_id"
 
     def get(self, request: Request) -> Response:
         user = cast(StaffUser, request.user)

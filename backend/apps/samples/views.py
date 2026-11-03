@@ -32,6 +32,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.accounts.models import Role, StaffUser
+from apps.branches.scope_views import IsInBranchScope
 from apps.samples.serializers import (
     SampleCancelSerializer,
     SampleCreateSerializer,
@@ -76,9 +77,14 @@ def _format_error(code: str, message: str, details: Any = None) -> dict[str, Any
 
 
 class SampleCollectionView(APIView):
-    """POST /api/v1/samples — collect a sample (SM-1..SM-3)."""
+    """POST /api/v1/samples — collect a sample (SM-1..SM-3).
 
-    permission_classes = [permissions.IsAuthenticated]
+    Branch scope (Doc 04 §8.5 Layer 3): no branch travels in the body (the
+    invoice carries it), so only the zero-assignment gate applies — BS-2.
+    """
+
+    permission_classes = [permissions.IsAuthenticated, IsInBranchScope]
+    scope_branch_source = None
 
     def post(self, request: Request) -> Response:
         user = cast(StaffUser, request.user)

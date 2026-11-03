@@ -3,12 +3,19 @@ from typing import TYPE_CHECKING, Any
 
 from django.db import models
 
+from apps.branches.scoping import BranchScopedManager
+
 if TYPE_CHECKING:
     from apps.accounts.models import StaffBranch
 
 
 class Branch(models.Model):
-    """Doc 02 §5.1: A lab branch or collection centre inside the tenant schema."""
+    """Doc 02 §5.1: A lab branch or collection centre inside the tenant schema.
+
+    The branch is the scope dimension itself, so it declares no
+    ``branch_scope_field`` — calling ``scoped_to()`` on it fails loudly
+    (ImproperlyConfigured) instead of silently returning the wrong rows.
+    """
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     code = models.CharField(max_length=3)
@@ -20,6 +27,8 @@ class Branch(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     deleted_at = models.DateTimeField(null=True, blank=True)
+
+    objects = BranchScopedManager()
 
     class Meta:
         db_table = "branch"

@@ -27,6 +27,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.accounts.models import StaffUser
+from apps.branches.scope_views import IsInBranchScope
 from apps.results.serializers import (
     CriticalNotificationSerializer,
     ResultAmendSerializer,
@@ -61,9 +62,14 @@ def _format_error(code: str, message: str, details: Any = None) -> dict[str, Any
 
 
 class ResultEntryView(APIView):
-    """POST /api/v1/samples/{id}/results — batch result entry (RS-V2)."""
+    """POST /api/v1/samples/{id}/results — batch result entry (RS-V2).
 
-    permission_classes = [permissions.IsAuthenticated]
+    Branch scope (Doc 04 §8.5 Layer 3): no branch travels in the body (the
+    sample carries it), so only the zero-assignment gate applies — BS-2.
+    """
+
+    permission_classes = [permissions.IsAuthenticated, IsInBranchScope]
+    scope_branch_source = None
 
     def post(self, request: Request, sample_id: Any) -> Response:
         user = cast(StaffUser, request.user)
