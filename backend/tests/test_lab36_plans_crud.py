@@ -52,7 +52,7 @@ def authed_client(platform_admin: Any) -> APIClient:
 
 
 @pytest.fixture(autouse=True)
-def _clear_cache():
+def _clear_cache() -> Any:
     cache.clear()
     yield
     cache.clear()
@@ -236,7 +236,7 @@ def test_change_subscription_creates_new_closes_old(
 def test_change_subscription_invalidates_access_mode_cache(
     authed_client: APIClient,
 ) -> None:
-    tenant = TenantFactory()
+    tenant: Any = TenantFactory()
     old_plan = PlanFactory(name="Old2")
     new_plan = PlanFactory(name="New2")
     SubscriptionFactory(

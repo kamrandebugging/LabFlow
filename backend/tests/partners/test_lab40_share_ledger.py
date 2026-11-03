@@ -16,6 +16,7 @@ from __future__ import annotations
 
 from datetime import date
 from decimal import Decimal
+from typing import Any
 
 import pytest
 from django_tenants.utils import schema_context
@@ -23,15 +24,16 @@ from django_tenants.utils import schema_context
 from apps.billing.models import Payment
 from apps.core.models import Tenant
 from apps.partners.models import (
-    ReferralPartner,
     Settlement,
     ShareLedgerEntry,
 )
 from apps.partners.services import (
     _quantize,
-    _resolve_ledger_rule as resolve_rule,
     record_reversal,
     record_share_entry,
+)
+from apps.partners.services import (
+    _resolve_ledger_rule as resolve_rule,
 )
 from tests.factories.billing import InvoiceFactory, PaymentFactory
 from tests.factories.branches import BranchFactory
@@ -94,7 +96,7 @@ class TestResolveRule:
             )
 
             rule = resolve_rule(
-                partner=partner,
+                partner=partner,  # type: ignore[arg-type]
                 branch_id=branch.id,
                 test_category="Hematology",
                 on_date=date(2026, 6, 15),
@@ -123,7 +125,7 @@ class TestResolveRule:
             )
 
             rule = resolve_rule(
-                partner=partner,
+                partner=partner,  # type: ignore[arg-type]
                 branch_id=branch.id,
                 test_category="Hematology",
                 on_date=date(2026, 6, 15),
@@ -136,7 +138,7 @@ class TestResolveRule:
         with schema_context(tenant_a.schema_name):
             partner = ReferralPartnerFactory()
             rule = resolve_rule(
-                partner=partner,
+                partner=partner,  # type: ignore[arg-type]
                 branch_id=None,
                 test_category=None,
                 on_date=date(2026, 6, 15),
@@ -158,7 +160,7 @@ class TestResolveRule:
 
             # Inside range
             found = resolve_rule(
-                partner=partner,
+                partner=partner,  # type: ignore[arg-type]
                 branch_id=None,
                 test_category=None,
                 on_date=date(2026, 6, 15),
@@ -168,7 +170,7 @@ class TestResolveRule:
 
             # Before range
             not_found = resolve_rule(
-                partner=partner,
+                partner=partner,  # type: ignore[arg-type]
                 branch_id=None,
                 test_category=None,
                 on_date=date(2025, 12, 31),
@@ -177,7 +179,7 @@ class TestResolveRule:
 
             # After range
             not_found2 = resolve_rule(
-                partner=partner,
+                partner=partner,  # type: ignore[arg-type]
                 branch_id=None,
                 test_category=None,
                 on_date=date(2027, 1, 1),
@@ -307,9 +309,7 @@ class TestRecordShareEntry:
 class TestRecordReversal:
     """Doc 05 §6.5: Refund reversal, SL-8–SL-12."""
 
-    def _setup_payment_with_entry(
-        self, tenant_a: Tenant
-    ) -> tuple[Payment, ShareLedgerEntry, ReferralPartner]:
+    def _setup_payment_with_entry(self, tenant_a: Tenant) -> Any:
         """Helper: create a payment with a ledger entry."""
         partner = ReferralPartnerFactory()
         RevenueShareRuleFactory(

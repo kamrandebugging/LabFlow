@@ -9,14 +9,16 @@ LAB-4 fixture names and interface stable.
 
 import contextlib
 from collections.abc import Generator
+from decimal import Decimal
 from typing import Any
 
 import pytest
 from django.conf import settings
 from django.core.management import call_command
 from django.db import connection
+from django.utils import timezone
 
-from apps.core.models import Domain, Tenant
+from apps.core.models import Domain, Plan, Subscription, Tenant
 
 # Re-export harness helpers per Doc 09 §9.4 (fixtures defined in
 # tests.fixtures.tenants register here; tenant_a/tenant_b are defined
@@ -123,6 +125,18 @@ def tenant_a(db: Any) -> Generator[Tenant, None, None]:
         domain="tenant-a.localhost",
         defaults={"is_primary": True},
     )
+    plan, _ = Plan.objects.get_or_create(
+        name="Test Plan A",
+        defaults={"price": Decimal("5000.00"), "is_active": True},
+    )
+    Subscription.objects.get_or_create(
+        tenant=tenant,
+        defaults={
+            "plan": plan,
+            "status": Subscription.Status.ACTIVE,
+            "starts_at": timezone.now(),
+        },
+    )
     yield tenant
     if connection.connection and not connection.connection.closed:
         with contextlib.suppress(Exception):
@@ -131,6 +145,7 @@ def tenant_a(db: Any) -> Generator[Tenant, None, None]:
     connection.rollback_exc = None
     if hasattr(connection, "set_schema_to_public"):
         connection.set_schema_to_public()
+    Subscription.objects.filter(tenant=tenant).delete()
     Domain.objects.filter(tenant=tenant).delete()
     with connection.cursor() as cursor:
         cursor.execute(f'DROP SCHEMA IF EXISTS "{schema_name}" CASCADE')
@@ -159,6 +174,18 @@ def tenant_b(db: Any) -> Generator[Tenant, None, None]:
         domain="tenant-b.localhost",
         defaults={"is_primary": True},
     )
+    plan, _ = Plan.objects.get_or_create(
+        name="Test Plan B",
+        defaults={"price": Decimal("5000.00"), "is_active": True},
+    )
+    Subscription.objects.get_or_create(
+        tenant=tenant,
+        defaults={
+            "plan": plan,
+            "status": Subscription.Status.ACTIVE,
+            "starts_at": timezone.now(),
+        },
+    )
     yield tenant
     if connection.connection and not connection.connection.closed:
         with contextlib.suppress(Exception):
@@ -167,6 +194,7 @@ def tenant_b(db: Any) -> Generator[Tenant, None, None]:
     connection.rollback_exc = None
     if hasattr(connection, "set_schema_to_public"):
         connection.set_schema_to_public()
+    Subscription.objects.filter(tenant=tenant).delete()
     Domain.objects.filter(tenant=tenant).delete()
     with connection.cursor() as cursor:
         cursor.execute(f'DROP SCHEMA IF EXISTS "{schema_name}" CASCADE')

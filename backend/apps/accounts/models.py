@@ -305,7 +305,9 @@ class DataExport(models.Model):
         COMPLETE = "complete", "Complete"
         FAILED = "failed", "Failed"
 
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    id = models.UUIDField(
+        primary_key=True, default=uuid.uuid4, editable=False, serialize=False
+    )
     requested_by = models.ForeignKey(
         StaffUser,
         on_delete=models.PROTECT,

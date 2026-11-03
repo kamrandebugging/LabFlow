@@ -3,6 +3,8 @@
 # Tracks a Lab Owner's export request: status lifecycle, bundle storage key,
 # signed download URL (7-day validity), and error text on failure.
 
+import uuid
+
 import django.db.models.deletion
 from django.db import migrations, models
 
@@ -19,7 +21,7 @@ class Migration(migrations.Migration):
                 (
                     "id",
                     models.UUIDField(
-                        default=None,
+                        default=uuid.uuid4,
                         editable=False,
                         primary_key=True,
                         serialize=False,

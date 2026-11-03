@@ -2,6 +2,7 @@
 plans CRUD, subscription changes (Doc 04 §11.1, §11.2, §15.1)."""
 
 from datetime import timedelta
+from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
@@ -24,7 +25,7 @@ from tests.factories.core import (
 
 
 @pytest.fixture(autouse=True)
-def _clear_cache():
+def _clear_cache() -> Any:
     cache.clear()
     yield
     cache.clear()
@@ -37,7 +38,7 @@ def _clear_cache():
 
 @pytest.mark.django_db
 def test_access_mode_active_subscription_returns_full() -> None:
-    tenant = TenantFactory()
+    tenant: Any = TenantFactory()
     plan = PlanFactory()
     SubscriptionFactory(tenant=tenant, plan=plan, status=Subscription.Status.ACTIVE)
     assert tenant_access_mode(tenant) == "full"
@@ -45,7 +46,7 @@ def test_access_mode_active_subscription_returns_full() -> None:
 
 @pytest.mark.django_db
 def test_access_mode_past_due_within_grace_returns_full() -> None:
-    tenant = TenantFactory()
+    tenant: Any = TenantFactory()
     plan = PlanFactory()
     now = timezone.now()
     # past_due set 5 days ago — within 14-day grace
@@ -61,7 +62,7 @@ def test_access_mode_past_due_within_grace_returns_full() -> None:
 
 @pytest.mark.django_db
 def test_access_mode_past_due_after_grace_returns_read_only() -> None:
-    tenant = TenantFactory()
+    tenant: Any = TenantFactory()
     plan = PlanFactory()
     now = timezone.now()
     sub = SubscriptionFactory(
@@ -75,7 +76,7 @@ def test_access_mode_past_due_after_grace_returns_read_only() -> None:
 
 @pytest.mark.django_db
 def test_access_mode_cancelled_returns_read_only() -> None:
-    tenant = TenantFactory()
+    tenant: Any = TenantFactory()
     plan = PlanFactory()
     SubscriptionFactory(tenant=tenant, plan=plan, status=Subscription.Status.CANCELLED)
     assert tenant_access_mode(tenant) == "read_only"
@@ -83,7 +84,7 @@ def test_access_mode_cancelled_returns_read_only() -> None:
 
 @pytest.mark.django_db
 def test_access_mode_expired_returns_read_only() -> None:
-    tenant = TenantFactory()
+    tenant: Any = TenantFactory()
     plan = PlanFactory()
     SubscriptionFactory(tenant=tenant, plan=plan, status=Subscription.Status.EXPIRED)
     assert tenant_access_mode(tenant) == "read_only"
@@ -91,13 +92,13 @@ def test_access_mode_expired_returns_read_only() -> None:
 
 @pytest.mark.django_db
 def test_access_mode_no_subscription_returns_read_only() -> None:
-    tenant = TenantFactory()
+    tenant: Any = TenantFactory()
     assert tenant_access_mode(tenant) == "read_only"
 
 
 @pytest.mark.django_db
 def test_access_mode_uses_redis_cache() -> None:
-    tenant = TenantFactory()
+    tenant: Any = TenantFactory()
     plan = PlanFactory()
     SubscriptionFactory(tenant=tenant, plan=plan, status=Subscription.Status.ACTIVE)
 
