@@ -10,6 +10,8 @@ corrupted values degrade gracefully.
 from typing import Any
 
 import pytest
+from django_tenants.utils import schema_context
+
 from apps.accounts.models import AuditLog, TenantSetting
 from apps.platform.settings_accessor import (
     UnknownSettingKeyError,
@@ -23,7 +25,6 @@ from apps.platform.settings_registry import (
     is_known_key,
     validate_setting,
 )
-from django_tenants.utils import schema_context
 
 # ---------------------------------------------------------------------------
 # Registry
@@ -231,8 +232,8 @@ def test_reset_setting_deletes_row_and_audits(tenant_a: Any, manager_user: Any) 
 
 @pytest.fixture
 def manager_user(tenant_a: Any) -> Any:
-    from apps.accounts.models import Role, StaffUser
     from django.contrib.auth.hashers import make_password
+    from apps.accounts.models import Role, StaffUser
 
     with schema_context(tenant_a.schema_name):
         return StaffUser.objects.create(
@@ -245,8 +246,8 @@ def manager_user(tenant_a: Any) -> Any:
 
 @pytest.fixture
 def reception_user(tenant_a: Any) -> Any:
-    from apps.accounts.models import Role, StaffUser
     from django.contrib.auth.hashers import make_password
+    from apps.accounts.models import Role, StaffUser
 
     with schema_context(tenant_a.schema_name):
         return StaffUser.objects.create(
