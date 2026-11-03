@@ -93,3 +93,58 @@ class SampleCancelSerializer(serializers.Serializer):
 
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
         return _reject_unknown_fields(self, attrs)
+
+
+class TransferCreateSerializer(serializers.Serializer):
+    """POST /api/v1/samples/{id}/transfer — SM-7 (KAN-143).
+
+    to_branch_id is required; unknown fields rejected. Destination
+    eligibility (open processing branch) is enforced in the service
+    (422 branch_cannot_receive).
+    """
+
+    to_branch_id = serializers.UUIDField()
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        return _reject_unknown_fields(self, attrs)
+
+
+class TransferMarkLostSerializer(serializers.Serializer):
+    """POST /api/v1/transfers/{id}/mark-lost (KAN-143).
+
+    note is optional at the serializer level so a missing/blank note
+    surfaces as the domain-coded 422 mark_lost_note_required from the
+    service instead of a generic validation error.
+    """
+
+    note = serializers.CharField(required=False, allow_blank=True, default="")
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        return _reject_unknown_fields(self, attrs)
+
+
+class BranchRefSerializer(serializers.Serializer):
+    """Branch reference for transfer responses."""
+
+    id = serializers.UUIDField()
+    code = serializers.CharField()
+    name = serializers.CharField()
+
+
+class TransferSerializer(serializers.Serializer):
+    """SampleTransfer summary for transfer responses (KAN-143)."""
+
+    id = serializers.UUIDField()
+    sample_id = serializers.UUIDField(source="sample.id")
+    accession_id = serializers.CharField(source="sample.accession_id")
+    from_branch = BranchRefSerializer()
+    to_branch = BranchRefSerializer()
+    status = serializers.CharField()
+    dispatched_at = serializers.DateTimeField(allow_null=True)
+    received_at = serializers.DateTimeField(allow_null=True)
+    transferred_by = serializers.EmailField(
+        source="transferred_by.email", allow_null=True, default=None
+    )
+    received_by = serializers.EmailField(
+        source="received_by.email", allow_null=True, default=None
+    )
