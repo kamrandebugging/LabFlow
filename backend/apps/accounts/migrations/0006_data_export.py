@@ -4,7 +4,6 @@
 # signed download URL (7-day validity), and error text on failure.
 
 import django.db.models.deletion
-import uuid
 from django.db import migrations, models
 
 
@@ -20,7 +19,7 @@ class Migration(migrations.Migration):
                 (
                     "id",
                     models.UUIDField(
-                        default=uuid.uuid4,
+                        default=None,
                         editable=False,
                         primary_key=True,
                         serialize=False,

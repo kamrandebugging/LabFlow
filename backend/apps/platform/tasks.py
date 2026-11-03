@@ -230,7 +230,7 @@ def _build_export_bundle(schema_name: str) -> tuple[bytes, dict[str, Any]]:
 
             field_names: list[str] = []
             for field in model._meta.local_fields:
-                col = field.column or field.name
+                col = field.column
                 if _is_secret_column(col):
                     key = (table, col)
                     if key not in seen_exclusions:
@@ -246,7 +246,7 @@ def _build_export_bundle(schema_name: str) -> tuple[bytes, dict[str, Any]]:
                 field_names.append(field.name)
 
             rows = list(
-                model.objects.values_list(*field_names).order_by("pk")  # type: ignore[attr-defined]
+                model.objects.values_list(*field_names).order_by("pk")
                 if field_names
                 else []
             )

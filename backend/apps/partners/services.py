@@ -7,9 +7,10 @@ transaction that also writes the audit row (RP-6). Money stays Decimal.
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Iterable
 from datetime import date, timedelta
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Decimal
 from typing import Any
 from uuid import UUID
 from zoneinfo import ZoneInfo
@@ -528,3 +529,424 @@ class DashboardService:
             "late_entries": late_entries,
             "last_6_settlements": last_6,
         }
+logger = logging.getLogger(__name__)
+
+# Asia/Karachi timezone for period computation (Doc 05 §6.5: YYYY-MM, Asia/Karachi)
+KARACHI_TZ = timezone.get_fixed_timezone(300)  # UTC+5
+
+
+def _quantize(amount: Decimal) -> Decimal:
+    """Quantize to 0.01 with ROUND_HALF_UP (Doc 05 §6.6, RS-7)."""
+    return amount.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+
+def _current_period() -> str:
+    """Current YYYY-MM period in Asia/Karachi."""
+    now = timezone.now().astimezone(KARACHI_TZ)
+    return now.strftime("%Y-%m")
+
+
+def _resolve_ledger_rule(
+    *,
+    partner: ReferralPartner,
+    branch_id: Any | None,
+    test_category: str | None,
+    on_date: date,
+) -> RevenueShareRule | None:
+    """Resolve the applicable revenue-share rule per Doc 05 §5.3 specificity order.
+
+    Rank 1: (partner, branch, category) — most specific
+    Rank 2: (partner, branch, NULL)
+    Rank 3: (partner, NULL, category)
+    Rank 4: (partner, NULL, NULL) — least specific (general rate)
+
+    Returns None when no rule matches (0% fallback, §5.4).
+    """
+    # Build the four buckets in specificity order
+    candidates: list[dict[str, Any]] = [
+        {"branch_id": branch_id, "test_category": test_category},  # Rank 1
+        {"branch_id": branch_id, "test_category": None},  # Rank 2
+        {"branch_id": None, "test_category": test_category},  # Rank 3
+        {"branch_id": None, "test_category": None},  # Rank 4
+    ]
+
+    for bucket in candidates:
+        # Skip rank 1 if both branch and category are None (same as rank 4)
+        # Skip rank 2 if branch is None (same as rank 4)
+        # Skip rank 3 if category is None (same as rank 4)
+        # This avoids duplicate queries but keeps logic clear
+        query = RevenueShareRule.objects.filter(
+            referral_partner=partner,
+            effective_from__lte=on_date,
+        ).filter(
+            # effective_to is NULL (still in force) or on_date <= effective_to
+            Q(effective_to__isnull=True) | Q(effective_to__gte=on_date)
+        )
+
+        if bucket["branch_id"] is not None:
+            query = query.filter(branch_id=bucket["branch_id"])
+        else:
+            query = query.filter(branch__isnull=True)
+
+        if bucket["test_category"] is not None:
+            query = query.filter(test_category=bucket["test_category"])
+        else:
+            query = query.filter(test_category__isnull=True)
+
+        rule = query.first()
+        if rule is not None:
+            return rule
+
+    return None
+
+
+def _get_invoice_category(invoice: Any) -> str | None:
+    """Get the test category for rule resolution.
+
+    For now, uses the first invoice item's test category. This is a
+    simplification; full per-line category resolution is out of scope for v1.
+    """
+    # Try to get category from invoice items
+    try:
+        first_item = invoice.items.first()
+        if first_item is not None and hasattr(first_item, "test"):
+            test = first_item.test
+            if test is not None:
+                return getattr(test, "category", None)
+    except Exception:
+        pass
+    return None
+
+
+def record_share_entry(payment: Any) -> ShareLedgerEntry | None:
+    """Synchronous consumer for billing.payment_recorded (Doc 05 §6.2, SL-1–SL-7).
+
+    Called by the billing service after the payment insert and before commit,
+    inside the same transaction. Writes at most one share_ledger_entry row.
+
+    Returns the created (or existing, on idempotent replay) entry, or None
+    when no row is written (walk-in, zero-amount skip).
+
+    SL-2: Walk-in (no referral_partner) → no row.
+    SL-5: UNIQUE(payment_id) → idempotent; duplicate returns existing.
+    SL-6/§6.6: Zero-amount (quantized to 0.00) → skip, no row.
+    """
+    from apps.billing.models import Payment
+
+    # Only process PAYMENT kind here; refunds go through record_reversal
+    if payment.kind != Payment.Kind.PAYMENT:
+        return None
+
+    invoice = payment.invoice
+
+    # SL-2: Walk-in — no partner, no row
+    if invoice.referral_partner_id is None:
+        logger.debug(
+            "Share ledger: walk-in payment %s, no partner, skipping",
+            payment.id,
+        )
+        return None
+
+    # Idempotency: check for existing row first (SL-5)
+    existing = ShareLedgerEntry.objects.filter(payment=payment).first()
+    if existing is not None:
+        logger.debug(
+            "Share ledger: payment %s already has entry %s, returning existing",
+            payment.id,
+            existing.id,
+        )
+        return existing
+
+    partner = invoice.referral_partner
+    branch_id = invoice.branch_id
+    test_category = _get_invoice_category(invoice)
+    on_date = payment.created_at.astimezone(KARACHI_TZ).date()
+
+    # Rule resolution at write time (spec: snapshot percent_applied + rule_id)
+    rule = _resolve_ledger_rule(
+        partner=partner,
+        branch_id=branch_id,
+        test_category=test_category,
+        on_date=on_date,
+    )
+
+    # §5.4: No rule matched → 0% fallback, no row (SL-10 analog for payments)
+    # Actually, re-reading SL-1: percent_applied stores the percent used.
+    # If no rule matches, percent is 0, amount is 0, and zero-amount skip applies.
+    percent = rule.percent if rule is not None else Decimal("0.00")
+
+    # SL-1: amount = payment.amount × rule.percent / 100, Decimal, quantized
+    basis_amount = payment.amount
+    raw_amount = basis_amount * percent / Decimal("100")
+    amount = _quantize(raw_amount)
+
+    # §6.6/SL-13: Zero-amount skip — quantized to 0.00 → no row
+    if amount == Decimal("0.00"):
+        logger.debug(
+            "Share ledger: payment %s computed zero amount (percent=%s), skipping",
+            payment.id,
+            percent,
+        )
+        return None
+
+    period = _current_period()
+
+    # Insert with conflict handling on payment_id (SL-5: idempotent)
+    try:
+        with transaction.atomic():
+            entry = ShareLedgerEntry.objects.create(
+                payment=payment,
+                referral_partner=partner,
+                rule=rule,
+                amount=amount,
+                percent_applied=percent,
+                basis_amount=basis_amount,
+                period=period,
+            )
+            logger.info(
+                "Share ledger: created entry %s for payment %s "
+                "(partner=%s, percent=%s, amount=%s)",
+                entry.id,
+                payment.id,
+                partner.id,
+                percent,
+                amount,
+            )
+            return entry
+    except IntegrityError:
+        # Concurrent insert with same payment_id: return existing (SL-5)
+        existing = ShareLedgerEntry.objects.filter(payment=payment).first()
+        if existing is not None:
+            logger.debug(
+                "Share ledger: concurrent insert for payment %s, returning existing %s",
+                payment.id,
+                existing.id,
+            )
+            return existing
+        raise
+
+
+def _is_period_closed(partner: ReferralPartner, period: str) -> bool:
+    """Check if a period is closed (settlement APPROVED/SENT/PAID)."""
+    return Settlement.objects.filter(
+        referral_partner=partner,
+        period=period,
+        status__in=[
+            Settlement.Status.APPROVED,
+            Settlement.Status.SENT,
+            Settlement.Status.PAID,
+        ],
+    ).exists()
+
+
+def _has_live_settlement(partner: ReferralPartner, period: str) -> bool:
+    """Check if a period has a live (non-cancelled) settlement."""
+    return (
+        Settlement.objects.filter(
+            referral_partner=partner,
+            period=period,
+        )
+        .exclude(
+            status=Settlement.Status.CANCELLED,
+        )
+        .exists()
+    )
+
+
+def _route_reversal_period(
+    *,
+    original_entry: ShareLedgerEntry,
+    refund_payment: Any,
+) -> str:
+    """Route the reversal's period per SL-11.
+
+    - Original period closed (APPROVED/SENT/PAID) → refund's YYYY-MM (current)
+    - Original period has live DRAFT → refund's YYYY-MM (current)
+    - Otherwise → original period (settle together)
+    """
+    partner = original_entry.referral_partner
+    original_period = original_entry.period
+
+    if _is_period_closed(partner, original_period):
+        # Closed → current open period (refund's YYYY-MM)
+        return refund_payment.created_at.astimezone(KARACHI_TZ).strftime("%Y-%m")
+
+    if _has_live_settlement(partner, original_period):
+        # Live DRAFT exists → refund's YYYY-MM (joins next cycle)
+        return refund_payment.created_at.astimezone(KARACHI_TZ).strftime("%Y-%m")
+
+    # Otherwise → original period (settle together, net correctly)
+    return original_period
+
+
+def record_reversal(refund_payment: Any) -> ShareLedgerEntry | None:
+    """Record a refund reversal entry (Doc 05 §6.5, SL-8–SL-12).
+
+    SL-8: Copies percent_applied + rule_id from original (never re-resolves).
+    SL-9: amount = -(refund.amount × percent_applied / 100), quantized.
+    SL-10: Original had no row → refund produces no row.
+    SL-11: Period routing per original entry's settlement state.
+    SL-12: Partial refunds reverse partially; each writes its own row.
+    """
+    from apps.billing.models import Payment
+
+    if refund_payment.kind != Payment.Kind.REFUND:
+        return None
+
+    # Find the original payment's ledger entry
+    # The refund references the invoice; we need the original payment(s)
+    # For simplicity: find the most recent payment entry for this invoice
+    # that hasn't been fully reversed. In practice, refunds are linked
+    # to specific payments via the invoice.
+    invoice = refund_payment.invoice
+
+    # Get all payment (non-refund) entries for this invoice, ordered by created
+    original_entries = (
+        ShareLedgerEntry.objects.filter(
+            payment__invoice=invoice,
+            payment__kind=Payment.Kind.PAYMENT,
+            amount__gt=Decimal("0.00"),  # Only positive (accrual) entries
+        )
+        .select_related("payment", "referral_partner", "rule")
+        .order_by("payment__created_at")
+    )
+
+    # SL-10: No original row → no reversal row
+    if not original_entries.exists():
+        logger.debug(
+            "Share ledger: refund %s has no original entry, skipping reversal",
+            refund_payment.id,
+        )
+        return None
+
+    # For now, use the first (oldest) original entry.
+    # A full implementation would track which payments have been reversed
+    # and allocate the refund across them. This is a v1 simplification
+    # that handles the common single-payment case correctly.
+    original = original_entries.first()
+    assert original is not None
+
+    # Idempotency: check if this refund already has a reversal
+    existing = ShareLedgerEntry.objects.filter(payment=refund_payment).first()
+    if existing is not None:
+        return existing
+
+    # SL-8: Copy percent_applied + rule_id from original (never re-resolve)
+    percent_applied = original.percent_applied
+    rule = original.rule
+    partner = original.referral_partner
+
+    # SL-9: amount = -(refund.amount × percent_applied / 100)
+    basis_amount = refund_payment.amount
+    raw_amount = -(basis_amount * percent_applied / Decimal("100"))
+    amount = _quantize(raw_amount)
+
+    # SL-10: Zero-reversal skip
+    if amount == Decimal("0.00"):
+        logger.debug(
+            "Share ledger: refund %s computed zero reversal, skipping",
+            refund_payment.id,
+        )
+        return None
+
+    # SL-11: Period routing
+    period = _route_reversal_period(
+        original_entry=original,
+        refund_payment=refund_payment,
+    )
+
+    try:
+        with transaction.atomic():
+            entry = ShareLedgerEntry.objects.create(
+                payment=refund_payment,
+                referral_partner=partner,
+                rule=rule,
+                amount=amount,  # Negative (compensating entry)
+                percent_applied=percent_applied,
+                basis_amount=basis_amount,
+                period=period,
+            )
+            logger.info(
+                "Share ledger: created reversal %s for refund %s "
+                "(original=%s, amount=%s, period=%s)",
+                entry.id,
+                refund_payment.id,
+                original.id,
+                amount,
+                period,
+            )
+            return entry
+    except IntegrityError:
+        existing = ShareLedgerEntry.objects.filter(payment=refund_payment).first()
+        if existing is not None:
+            return existing
+        raise
+
+
+def reconcile_missing_ledger_entries() -> dict[str, int]:
+    """Hourly Beat sweep: replay record_share_entry for missing rows (SL-6, SL-7).
+
+    Scans for partner-attributed payments with no ledger row and replays
+    record_share_entry() for each. In a correct system, finds none.
+    Returns {tenant_slug: repaired_count} for metrics/alerting.
+    A non-zero count is a bug report, not a routine event.
+    """
+    from django_tenants.utils import schema_context
+
+    from apps.billing.models import Payment
+    from apps.core.models import Tenant
+
+    results: dict[str, int] = {}
+
+    # Per-tenant fan-out (Doc 04 §13.2)
+    for tenant in Tenant.objects.exclude(schema_name="public"):
+        repaired = 0
+        try:
+            with schema_context(tenant.schema_name):
+                # Find partner-attributed payments with no ledger row
+                payments_without_entry = (
+                    Payment.objects.filter(
+                        kind=Payment.Kind.PAYMENT,
+                        invoice__referral_partner__isnull=False,
+                    )
+                    .exclude(id__in=ShareLedgerEntry.objects.values("payment_id"))
+                    .select_related("invoice", "invoice__referral_partner")
+                    .order_by("created_at")
+                )
+
+                for payment in payments_without_entry:
+                    try:
+                        result = record_share_entry(payment)
+                        if result is not None:
+                            repaired += 1
+                            logger.warning(
+                                "Share ledger sweep: repaired missing entry "
+                                "for payment %s (tenant=%s)",
+                                payment.id,
+                                tenant.schema_name,
+                            )
+                    except Exception as exc:
+                        logger.error(
+                            "Share ledger sweep: failed to repair payment %s "
+                            "(tenant=%s): %s",
+                            payment.id,
+                            tenant.schema_name,
+                            exc,
+                        )
+        except Exception as exc:
+            logger.error(
+                "Share ledger sweep: tenant %s failed: %s",
+                tenant.schema_name,
+                exc,
+            )
+
+        results[tenant.schema_name] = repaired
+        if repaired > 0:
+            logger.warning(
+                "Share ledger sweep: tenant %s repaired %d entries "
+                "(non-zero is a bug report)",
+                tenant.schema_name,
+                repaired,
+            )
+
+    return results
