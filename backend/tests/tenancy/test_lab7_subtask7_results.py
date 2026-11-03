@@ -69,6 +69,9 @@ class TestResultModelsSchemaAndConstraints:
                 "flag",
                 "status",
                 "entered_by",
+                # KAN-152 / LAB-27 (RS-9): amendment chain link + reason.
+                "supersedes_id",
+                "amend_reason",
                 "created_at",
                 "updated_at",
             }
@@ -119,6 +122,10 @@ class TestResultModelsSchemaAndConstraints:
                 assert r.status == valid_status
                 assert r.flag is None
 
+            # LAB-25 (KAN-150) added uq_result_sample_test_entered: at most one
+            # ENTERED row per (sample, test). The flag loop therefore uses a
+            # fresh test per iteration — the intent here is flag coverage,
+            # not the entry constraint (covered by T-28).
             for valid_flag in (
                 Result.Flag.LOW,
                 Result.Flag.NORMAL,
@@ -128,8 +135,8 @@ class TestResultModelsSchemaAndConstraints:
                 # LAB-25: uq_result_sample_test_entered forbids a 2nd ENTERED
                 # row per (sample, test) — use a fresh sample per flag.
                 r_flagged = ResultFactory(
-                    sample=SampleFactory(),
-                    test=test_obj,
+                    sample=sample,
+                    test=TestFactory(),
                     entered_by=staff,
                     flag=valid_flag,
                 )

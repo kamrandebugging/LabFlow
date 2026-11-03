@@ -17,6 +17,7 @@ from django.db import IntegrityError, transaction
 from apps.accounts.models import AuditLog, Role, StaffUser
 from apps.catalog.models import ReferenceRange
 from apps.catalog.services import CatalogService, _to_range_row
+from apps.reports.models import Report
 from apps.results.engine import evaluate_result, parse_result
 from apps.results.models import Result, ResultApproval
 from apps.samples.models import Sample, SampleEvent, SampleTest, SampleTransfer
@@ -27,6 +28,8 @@ RESULT_ENTRY_ROLES = {Role.TECHNICIAN, Role.PATHOLOGIST}
 RESULT_APPROVE_ROLES = {Role.PATHOLOGIST}
 # Doc 03 §6.6: POST /api/v1/results/{id}/withdraw — roles cell "T P (author only)".
 RESULT_WITHDRAW_ROLES = {Role.TECHNICIAN, Role.PATHOLOGIST}
+# Doc 03 §6.6: POST /api/v1/results/{id}/amend — roles cell is exactly "T P".
+RESULT_AMEND_ROLES = {Role.TECHNICIAN, Role.PATHOLOGIST}
 
 
 class ResultError(Exception):
@@ -132,6 +135,35 @@ class NoteRequiredForUnparseableError(ResultError):
     error_code = "note_required_for_unparseable"
 
 
+class ValueRequiredError(ResultError):
+    """RS-V1: value is required and non-empty after trim."""
+
+    status_code = 422
+    error_code = "value_required"
+
+
+class AmendReasonRequiredError(ResultError):
+    """RS-9: an amendment requires a non-empty reason."""
+
+    status_code = 422
+    error_code = "amend_reason_required"
+
+
+class AmendmentAlreadyPendingError(ResultError):
+    """An unapproved amendment already exists for this sample_test."""
+
+    status_code = 409
+    error_code = "amendment_already_pending"
+
+
+class AmendmentApprovalNoteRequiredError(ResultError):
+    """RS-9: approving an amendment requires its own note — the amend-time
+    reason does not satisfy this."""
+
+    status_code = 422
+    error_code = "amendment_approval_note_required"
+
+
 def _get_sample(sample_id: uuid.UUID) -> Sample:
     """Fetch a tenant-scoped sample with patient + branch, or 404 (never 403)."""
     try:
@@ -164,6 +196,48 @@ def _range_summary(rr: Any) -> dict[str, Any] | None:
             str(rr.critical_high) if rr.critical_high is not None else None
         ),
         "unit": rr.unit,
+    }
+
+
+def _evaluate_plan(
+    *,
+    sample: Sample,
+    test_id: uuid.UUID,
+    value: str,
+    unit: str | None,
+) -> dict[str, Any]:
+    """Run one value through the LAB-24 pure engine (§8).
+
+    Shared by batch entry (LAB-25) and amendments (LAB-27, RS-9): the
+    amendment's new row goes through the same evaluation (flag/qualifier).
+    The sample must carry invoice__patient (see _get_sample).
+    """
+    patient = sample.invoice.patient
+    collected_on = sample.collected_at.date()
+    age_days = _age_in_days(patient.date_of_birth, collected_on)
+    rr_model = CatalogService.resolve_reference_range(
+        test_id=test_id,
+        patient_sex=patient.sex,
+        patient_age_days=age_days,
+        collection_date=sample.collected_at,
+    )
+    range_row = _to_range_row(rr_model) if rr_model is not None else None
+    evaluation = evaluate_result(
+        value,
+        range_row=range_row,
+        patient_sex=patient.sex,
+        age_in_days=age_days,
+        collection_date=sample.collected_at,
+        qualitative_values=None,
+    )
+    return {
+        "test_id": test_id,
+        "value": value,
+        "unit": unit or (rr_model.unit if rr_model is not None else None),
+        "flag": evaluation.flag.value if evaluation.flag is not None else None,
+        "qualifier": evaluation.qualifier,
+        "needs_review": evaluation.needs_review,
+        "range_summary": _range_summary(rr_model),
     }
 
 
@@ -249,39 +323,15 @@ class ResultService:
             raise ResultBatchValidationError(row_errors)
 
         # ---- Phase 3: enrich every row via the LAB-24 pure engine (§8).
-        patient = sample.invoice.patient
-        collected_on = sample.collected_at.date()
-        age_days = _age_in_days(patient.date_of_birth, collected_on)
         plans: list[dict[str, Any]] = []
         for row in rows:
-            rr_model = CatalogService.resolve_reference_range(
-                test_id=row["test_id"],
-                patient_sex=patient.sex,
-                patient_age_days=age_days,
-                collection_date=sample.collected_at,
-            )
-            range_row = _to_range_row(rr_model) if rr_model is not None else None
-            evaluation = evaluate_result(
-                row["value"],
-                range_row=range_row,
-                patient_sex=patient.sex,
-                age_in_days=age_days,
-                collection_date=sample.collected_at,
-                qualitative_values=None,
-            )
-            unit = row.get("unit") or (rr_model.unit if rr_model is not None else None)
             plans.append(
-                {
-                    "test_id": row["test_id"],
-                    "value": row["value"],  # RS-2: stored EXACTLY as entered
-                    "unit": unit,
-                    "flag": (
-                        evaluation.flag.value if evaluation.flag is not None else None
-                    ),
-                    "qualifier": evaluation.qualifier,
-                    "needs_review": evaluation.needs_review,
-                    "range_summary": _range_summary(rr_model),
-                }
+                _evaluate_plan(
+                    sample=sample,
+                    test_id=row["test_id"],
+                    value=row["value"],  # RS-2: stored EXACTLY as entered
+                    unit=row.get("unit"),
+                )
             )
 
         # ---- Phase 4: write everything in ONE transaction (RS-V2).
@@ -469,6 +519,14 @@ class ResultService:
                     "Approval of an unparseable numeric value requires a note."
                 )
 
+            # RS-9: an amendment carries its own approval note — the
+            # amend-time reason does NOT satisfy this.
+            supersedes_id = result.supersedes_id
+            if supersedes_id is not None and not clean_note:
+                raise AmendmentApprovalNoteRequiredError(
+                    "Approving an amendment requires a non-empty note."
+                )
+
             new_status = (
                 Result.Status.APPROVED
                 if decision == ResultApproval.Decision.APPROVED
@@ -499,6 +557,33 @@ class ResultService:
             }
             if audit_note is not None:
                 after["audit_note"] = audit_note
+
+            amended_result_id: str | None = None
+            report_version_requested = False
+            if (
+                supersedes_id is not None
+                and decision == ResultApproval.Decision.APPROVED
+            ):
+                # RS-9: the old row becomes amended IN THE SAME TRANSACTION.
+                # The old row is never edited otherwise (DoD: no row ever
+                # edited — only its status flips here).
+                old_row = Result.objects.select_for_update().get(pk=supersedes_id)
+                old_row.status = Result.Status.AMENDED
+                old_row.save(update_fields=["status", "updated_at"])
+                amended_result_id = str(old_row.id)
+                # §5.6 RP-4: a FINAL report already exists for the sample ->
+                # the reports module (later LAB) must cut a new version.
+                # Cross-module trigger pattern (no event bus yet): flag on
+                # the audit row, like sample.ready / sample.collected.
+                report_version_requested = Report.objects.filter(
+                    sample_id=result.sample_id, status=Report.Status.FINAL
+                ).exists()
+                # result.amended fires at the amendment's approval.
+                after["event"] = "result.amended"
+                after["amendment_of"] = amended_result_id
+                if report_version_requested:
+                    after["report_version_requested"] = True
+
             AuditLog.objects.create(
                 actor_id=actor.id,
                 action=action,
@@ -522,7 +607,7 @@ class ResultService:
                     user_agent=user_agent,
                 )
 
-        return {
+        payload: dict[str, Any] = {
             "id": str(result.id),
             "status": result.status,
             "decision": decision,
@@ -531,6 +616,10 @@ class ResultService:
             "approved_by": str(actor.id),
             "sample_ready": sample_ready,
         }
+        if amended_result_id is not None:
+            payload["amended_result_id"] = amended_result_id
+            payload["report_version_requested"] = report_version_requested
+        return payload
 
     @staticmethod
     def withdraw_result(
@@ -581,6 +670,143 @@ class ResultService:
             )
 
         return {"id": str(result.id), "status": result.status}
+
+    # ---- Amendments (RS-9, §6.6, §5.6 RP-4) ----
+
+    @staticmethod
+    def amend_result(
+        *,
+        result_id: uuid.UUID,
+        value: str | None,
+        unit: str | None,
+        reason: str | None,
+        actor: StaffUser,
+        ip: str | None = None,
+        user_agent: str | None = None,
+    ) -> dict[str, Any]:
+        """Create an amendment of an approved result (RS-9).
+
+        RS-9: an approved result is never changed. The correction is a NEW
+        result row for the same sample_test with status entered, linked via
+        supersedes; the old row becomes amended only when the new row is
+        approved (see approve_result). 409 amendment_already_pending when an
+        unapproved amendment exists. The new row runs through the LAB-24
+        engine like a fresh entry.
+        """
+        clean_value = (value or "").strip()
+        if not clean_value:
+            raise ValueRequiredError("A non-empty value is required.")
+        clean_reason = (reason or "").strip()
+        if not clean_reason:
+            raise AmendReasonRequiredError("An amendment requires a non-empty reason.")
+
+        with transaction.atomic():
+            try:
+                old = (
+                    Result.objects.select_for_update()
+                    .select_related("sample__invoice__patient", "sample__branch")
+                    .get(pk=result_id)
+                )
+            except Result.DoesNotExist:
+                raise ResultNotFoundError("Result not found.") from None
+
+            if old.status != Result.Status.APPROVED:
+                raise InvalidStateTransitionError(
+                    "Only an approved result can be amended."
+                )
+
+            # The old row is approved, so any other ENTERED row for the same
+            # sample_test is a pending amendment (the LAB-25 partial unique
+            # constraint guarantees at most one).
+            if (
+                Result.objects.filter(
+                    sample_id=old.sample_id,
+                    test_id=old.test_id,
+                    status=Result.Status.ENTERED,
+                )
+                .exclude(pk=old.pk)
+                .exists()
+            ):
+                raise AmendmentAlreadyPendingError(
+                    "An unapproved amendment already exists for this result."
+                )
+
+            plan = _evaluate_plan(
+                sample=old.sample,
+                test_id=old.test_id,
+                # RS-V1: stored verbatim, only leading/trailing whitespace
+                # trimmed.
+                value=clean_value,
+                unit=(unit or "").strip() or None,
+            )
+            try:
+                # Savepoint: a concurrent amendment racing us loses the
+                # partial unique constraint and gets 409 naming the winner.
+                with transaction.atomic():
+                    new = Result.objects.create(
+                        sample=old.sample,
+                        test_id=old.test_id,
+                        value=plan["value"],
+                        unit=plan["unit"],
+                        flag=plan["flag"],
+                        status=Result.Status.ENTERED,
+                        entered_by=actor,
+                        supersedes=old,
+                        amend_reason=clean_reason,
+                    )
+            except IntegrityError:
+                winner = (
+                    Result.objects.select_related("entered_by")
+                    .filter(
+                        sample_id=old.sample_id,
+                        test_id=old.test_id,
+                        status=Result.Status.ENTERED,
+                    )
+                    .exclude(pk=old.pk)
+                    .order_by("created_at")
+                    .first()
+                )
+                author = winner.entered_by.email if winner is not None else "unknown"
+                raise AmendmentAlreadyPendingError(
+                    f"An amendment was already created by {author}.",
+                ) from None
+
+            AuditLog.objects.create(
+                actor_id=actor.id,
+                action="result.amendment_created",
+                entity_type="result",
+                entity_id=new.id,
+                before_jsonb={"old_result_id": str(old.id), "old_status": "approved"},
+                after_jsonb={
+                    "old_result_id": str(old.id),
+                    "new_result_id": str(new.id),
+                    "sample_id": str(old.sample_id),
+                    "test_id": str(old.test_id),
+                    "value": plan["value"],
+                    "unit": plan["unit"],
+                    "flag": plan["flag"],
+                    "reason": clean_reason,
+                    "entered_by": str(actor.id),
+                    "event": "result.entered",
+                },
+                ip=ip,
+                user_agent=user_agent,
+            )
+
+        return {
+            "id": str(new.id),
+            "test_id": str(plan["test_id"]),
+            "value": new.value,
+            "unit": new.unit,
+            "flag": new.flag,
+            "qualifier": plan["qualifier"],
+            "needs_review": plan["needs_review"],
+            "status": new.status,
+            "matched_range": plan["range_summary"],
+            "entered_by": str(actor.id),
+            "supersedes": str(old.id),
+            "amend_reason": clean_reason,
+        }
 
 
 def _winner_details(result: Result) -> dict[str, Any] | None:

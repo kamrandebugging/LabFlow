@@ -60,3 +60,20 @@ class ResultApproveSerializer(serializers.Serializer):
 
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
         return _reject_unknown_fields(self, attrs)
+
+
+class ResultAmendSerializer(serializers.Serializer):
+    """POST /api/v1/results/{id}/amend — amendment of an approved result (RS-9).
+
+    value: RS-V1 (required, max 500; non-empty-after-trim enforced in the
+    service). reason: required non-empty (service trims and enforces).
+    """
+
+    value = serializers.CharField(max_length=500)
+    unit = serializers.CharField(
+        required=False, allow_null=True, allow_blank=True, max_length=64
+    )
+    reason = serializers.CharField(required=False, allow_blank=True, max_length=2000)
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        return _reject_unknown_fields(self, attrs)

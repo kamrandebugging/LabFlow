@@ -65,6 +65,20 @@ class Result(models.Model):
         db_column="entered_by",
         db_index=False,
     )
+    # RS-9 (KAN-152 / LAB-27): amendment chain. A correction of an approved
+    # result is a NEW row; supersedes points at the row it replaces.
+    # amend_reason is the amend-time reason (distinct from the approval-time
+    # note, which RS-9 requires separately on the amendment's approval).
+    supersedes = models.ForeignKey(
+        "self",
+        on_delete=models.PROTECT,
+        related_name="amendments",
+        db_column="supersedes_id",
+        null=True,
+        blank=True,
+        db_index=False,
+    )
+    amend_reason = models.TextField(null=True, blank=True)  # noqa: DJ001
     created_at = models.DateTimeField(
         auto_now_add=True,
         db_default=Now(),
@@ -112,6 +126,10 @@ class Result(models.Model):
             models.Index(
                 fields=["entered_by"],
                 name="idx_result_entered_by",
+            ),
+            models.Index(
+                fields=["supersedes"],
+                name="idx_result_supersedes_id",
             ),
         ]
 
