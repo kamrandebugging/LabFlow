@@ -52,7 +52,7 @@ def authed_client(platform_admin: Any) -> APIClient:
 
 
 @pytest.fixture(autouse=True)
-def _clear_cache():
+def _clear_cache() -> Any:
     cache.clear()
     yield
     cache.clear()
@@ -245,8 +245,8 @@ def test_change_subscription_invalidates_access_mode_cache(
         status=Subscription.Status.CANCELLED,
     )
     # Prime cache as read_only
-    assert tenant_access_mode(tenant) == "read_only"
-    assert cache.get(access_mode_cache_key(tenant.slug)) == "read_only"
+    assert tenant_access_mode(tenant) == "read_only"  # type: ignore[arg-type]
+    assert cache.get(access_mode_cache_key(tenant.slug)) == "read_only"  # type: ignore[arg-type]
 
     resp = authed_client.post(
         f"/api/v1/platform/tenants/{tenant.id}/subscription",
@@ -256,7 +256,7 @@ def test_change_subscription_invalidates_access_mode_cache(
     )
     assert resp.status_code == 201
     # Cache invalidated — fresh computation returns full
-    assert tenant_access_mode(tenant) == "full"
+    assert tenant_access_mode(tenant) == "full"  # type: ignore[arg-type]
 
 
 @pytest.mark.django_db
