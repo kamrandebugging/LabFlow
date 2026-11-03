@@ -43,6 +43,9 @@ urlpatterns = [
     # Tenant data exports (Doc 04 §4.3; KAN-163 / LAB-38)
     path("api/v1/exports", include("apps.accounts.urls_exports")),
     path("api/v1/exports/", include("apps.accounts.urls_exports")),
+    # Referral Partners: registry + revenue-share rules (Doc 05 §5, KAN-164 / LAB-39)
+    path("api/v1/", include("apps.partners.urls")),
+    path("api/v1/partners/", include("apps.partners.urls")),
     # Staff branch assignments (Doc 04 §8.4, §15, KAN-159 / LAB-34)
     path(
         "api/v1/staff/<uuid:staff_id>/branches",
