@@ -283,7 +283,7 @@ def test_api_get_settings_returns_all(tenant_a: Any, manager_user: Any) -> None:
     client = Client(HTTP_HOST="tenant-a.localhost")
     token = _make_token(manager_user)
 
-    resp = client.get("/api/v1/settings", **_auth_headers(token))
+    resp = client.get("/api/v1/settings", **_auth_headers(token))  # type: ignore[arg-type]
     assert resp.status_code == 200
     data = resp.json()
     assert set(data["settings"].keys()) == set(SETTING_REGISTRY.keys())
@@ -304,7 +304,7 @@ def test_api_patch_settings_updates_and_audits(
         "/api/v1/settings",
         {"settings": {"report_link_validity_days": "14"}},
         content_type="application/json",
-        **_auth_headers(token),
+        **_auth_headers(token),  # type: ignore[arg-type]
     )
     assert resp.status_code == 200
     assert resp.json()["settings"]["report_link_validity_days"]["value"] == 14
@@ -330,7 +330,7 @@ def test_api_patch_unknown_key_returns_422(tenant_a: Any, manager_user: Any) -> 
         "/api/v1/settings",
         {"settings": {"nope_not_a_key": "x"}},
         content_type="application/json",
-        **_auth_headers(token),
+        **_auth_headers(token),  # type: ignore[arg-type]
     )
     assert resp.status_code == 422
     assert resp.json()["code"] == "unknown_setting_key"
@@ -347,7 +347,7 @@ def test_api_patch_invalid_value_returns_422(tenant_a: Any, manager_user: Any) -
         "/api/v1/settings",
         {"settings": {"report_link_validity_days": "99"}},
         content_type="application/json",
-        **_auth_headers(token),
+        **_auth_headers(token),  # type: ignore[arg-type]
     )
     assert resp.status_code == 422
     assert resp.json()["code"] == "invalid_setting_value"
@@ -364,7 +364,7 @@ def test_api_patch_requires_manager_role(tenant_a: Any, reception_user: Any) -> 
         "/api/v1/settings",
         {"settings": {"report_link_validity_days": "14"}},
         content_type="application/json",
-        **_auth_headers(token),
+        **_auth_headers(token),  # type: ignore[arg-type]
     )
     assert resp.status_code == 403
 
