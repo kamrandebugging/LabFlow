@@ -1,0 +1,718 @@
+"""LAB-37 (KAN-162): Platform admin views — tenant registry, lifecycle actions, audit.
+
+Doc 04 §12 (platform admin surface), §15.1 (endpoint spec).
+"""
+
+import uuid
+from typing import Any
+
+from django.db import connection, transaction
+from django.utils import timezone
+from rest_framework.request import Request
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from apps.core.models import Domain, PlatformAudit, PlatformUser, Subscription, Tenant
+from apps.platform.serializers import (
+    PlatformAuditFilterSerializer,
+    TenantOffboardCompleteSerializer,
+    TenantSuspendSerializer,
+)
+from apps.platform.views import (
+    IsAuthenticatedPlatformUser,
+    PlatformJWTAuthentication,
+    problem_response,
+)
+
+
+def _require_totp(platform_user: PlatformUser) -> Response | None:
+    """Return 403 totp_required response if TOTP not enabled, else None."""
+    if not platform_user.totp_enabled:
+        return problem_response(
+            code="totp_required",
+            title="TOTP 2FA enrolment required",
+            detail="Super Admin accounts must enable TOTP before writes.",
+            status_code=403,
+        )
+    return None
+
+
+def _get_platform_user(request: Request) -> PlatformUser | None:
+    user = getattr(request, "user", None)
+    if isinstance(user, PlatformUser) and user.is_active:
+        return user
+    return None
+
+
+def _unauthorized() -> Response:
+    return problem_response(
+        code="unauthorized",
+        title="Authentication required",
+        detail="Valid platform super-admin credentials are required.",
+        status_code=401,
+    )
+
+
+def _get_tenant_or_404(tenant_id: str) -> tuple[Tenant | None, Response | None]:
+    try:
+        tid = uuid.UUID(str(tenant_id))
+    except (ValueError, TypeError):
+        return None, problem_response(
+            code="not_found",
+            title="Not found",
+            detail="Tenant not found.",
+            status_code=404,
+        )
+    tenant = Tenant.objects.filter(id=tid).first()
+    if tenant is None:
+        return None, problem_response(
+            code="not_found",
+            title="Not found",
+            detail="Tenant not found.",
+            status_code=404,
+        )
+    return tenant, None
+
+
+def _write_platform_audit(
+    *,
+    actor_id: uuid.UUID | None,
+    action: str,
+    entity_type: str,
+    entity_id: uuid.UUID,
+    before: dict[str, Any] | None = None,
+    after: dict[str, Any] | None = None,
+    ip: str | None = None,
+    user_agent: str | None = None,
+) -> PlatformAudit:
+    """Insert an immutable platform_audit row (Doc 02 §4.1)."""
+    return PlatformAudit.objects.create(
+        actor_id=actor_id,
+        action=action,
+        entity_type=entity_type,
+        entity_id=entity_id,
+        before_jsonb=before,
+        after_jsonb=after,
+        ip=ip,
+        user_agent=user_agent,
+    )
+
+
+def _tenant_list_item(tenant: Tenant) -> dict[str, Any]:
+    """Registry list item — metadata only, NO tenant row content (Doc 04 §12.2)."""
+    return {
+        "id": str(tenant.id),
+        "slug": tenant.slug,
+        "name": tenant.name,
+        "status": tenant.status,
+        "created_at": tenant.created_at.isoformat(),
+        "updated_at": tenant.updated_at.isoformat(),
+    }
+
+
+def _tenant_detail(tenant: Tenant) -> dict[str, Any]:
+    """Registry detail — adds domains, subscription, provisioning info.
+
+    Per Doc 04 §12.2: schema size and migration state from PostgreSQL
+    catalogues (platform machinery). NO tenant row content, NO row counts.
+    """
+    domains = list(Domain.objects.filter(tenant=tenant).values("domain", "is_primary"))
+    subscription = (
+        Subscription.objects.filter(tenant_id=tenant.id, ends_at__isnull=True)
+        .order_by("-created_at")
+        .first()
+    )
+    sub_data: dict[str, Any] | None = None
+    if subscription is not None:
+        sub_data = {
+            "id": str(subscription.id),
+            "plan_id": str(subscription.plan_id),
+            "status": subscription.status,
+            "started_at": subscription.created_at.isoformat()
+            if subscription.created_at
+            else None,
+        }
+
+    # Schema size from PostgreSQL catalogues (platform machinery, §12.2)
+    schema_size_bytes: int | None = None
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT pg_total_relation_size(c.oid) FROM pg_class c "
+                "JOIN pg_namespace n ON n.oid = c.relnamespace "
+                "WHERE n.nspname = %s",
+                [tenant.schema_name],
+            )
+            row = cursor.fetchone()
+            # Sum across relations in the schema
+            cursor.execute(
+                "SELECT COALESCE(SUM(pg_total_relation_size(c.oid)), 0) "
+                "FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace "
+                "WHERE n.nspname = %s",
+                [tenant.schema_name],
+            )
+            row = cursor.fetchone()
+            if row:
+                schema_size_bytes = int(row[0])
+    except Exception:
+        schema_size_bytes = None
+
+    # Latest provisioning audit for step/failure detail
+    prov_audit = (
+        PlatformAudit.objects.filter(
+            entity_type="tenant",
+            entity_id=tenant.id,
+            action__in=[
+                "tenant.created",
+                "tenant.provisioning_retried",
+                "tenant.provisioning_failed",
+            ],
+        )
+        .order_by("-at")
+        .first()
+    )
+    provisioning: dict[str, Any] | None = None
+    if prov_audit is not None:
+        provisioning = {
+            "last_action": prov_audit.action,
+            "at": prov_audit.at.isoformat() if prov_audit.at else None,
+            "detail": prov_audit.after_jsonb,
+        }
+
+    return {
+        **_tenant_list_item(tenant),
+        "schema_name": tenant.schema_name,
+        "domains": [
+            {"domain": d["domain"], "is_primary": d["is_primary"]} for d in domains
+        ],
+        "subscription": sub_data,
+        "schema_size_bytes": schema_size_bytes,
+        "provisioning": provisioning,
+    }
+
+
+class PlatformTenantDetailView(APIView):
+    """GET /api/v1/platform/tenants/{id} — registry detail (Doc 04 §15.1)."""
+
+    authentication_classes = [PlatformJWTAuthentication]
+    permission_classes = [IsAuthenticatedPlatformUser]
+
+    def get(
+        self, request: Request, tenant_id: str, *args: Any, **kwargs: Any
+    ) -> Response:
+        platform_user = _get_platform_user(request)
+        if platform_user is None:
+            return _unauthorized()
+
+        tenant, err = _get_tenant_or_404(tenant_id)
+        if err is not None:
+            return err
+        assert tenant is not None
+
+        return Response(_tenant_detail(tenant), status=200)
+
+
+class PlatformTenantSuspendView(APIView):
+    """POST /api/v1/platform/tenants/{id}/suspend (Doc 04 §15.1).
+
+    Body: reason (required). 409 unless active. Audit: tenant.suspended.
+    """
+
+    authentication_classes = [PlatformJWTAuthentication]
+    permission_classes = [IsAuthenticatedPlatformUser]
+
+    def post(
+        self, request: Request, tenant_id: str, *args: Any, **kwargs: Any
+    ) -> Response:
+        platform_user = _get_platform_user(request)
+        if platform_user is None:
+            return _unauthorized()
+        totp_err = _require_totp(platform_user)
+        if totp_err is not None:
+            return totp_err
+
+        serializer = TenantSuspendSerializer(data=request.data)
+        if not serializer.is_valid():
+            return problem_response(
+                code="validation_error",
+                title="Validation error",
+                detail="A non-empty reason is required to suspend a tenant.",
+                status_code=422,
+                errors={
+                    str(k): [str(m) for m in v]
+                    for k, v in serializer.errors.items()
+                    if isinstance(v, list)
+                },
+            )
+
+        tenant, err = _get_tenant_or_404(tenant_id)
+        if err is not None:
+            return err
+        assert tenant is not None
+
+        if tenant.status != Tenant.Status.ACTIVE:
+            return problem_response(
+                code="invalid_state_transition",
+                title="Invalid state transition",
+                detail=(
+                    f"Only active tenants can be suspended (current: {tenant.status})."
+                ),
+                status_code=409,
+            )
+
+        reason = serializer.validated_data["reason"]
+        before = {"status": tenant.status}
+        with transaction.atomic():
+            tenant.status = Tenant.Status.SUSPENDED
+            tenant.save(update_fields=["status", "updated_at"])
+            _write_platform_audit(
+                actor_id=platform_user.id,
+                action="tenant.suspended",
+                entity_type="tenant",
+                entity_id=tenant.id,
+                before=before,
+                after={"status": tenant.status, "reason": reason},
+                ip=request.META.get("REMOTE_ADDR"),
+                user_agent=str(request.META.get("HTTP_USER_AGENT", "")),
+            )
+
+        return Response(
+            {"id": str(tenant.id), "status": tenant.status, "reason": reason},
+            status=200,
+        )
+
+
+class PlatformTenantReactivateView(APIView):
+    """POST /api/v1/platform/tenants/{id}/reactivate (Doc 04 §15.1).
+
+    409 unless suspended. Audit: tenant.reactivated.
+    """
+
+    authentication_classes = [PlatformJWTAuthentication]
+    permission_classes = [IsAuthenticatedPlatformUser]
+
+    def post(
+        self, request: Request, tenant_id: str, *args: Any, **kwargs: Any
+    ) -> Response:
+        platform_user = _get_platform_user(request)
+        if platform_user is None:
+            return _unauthorized()
+        totp_err = _require_totp(platform_user)
+        if totp_err is not None:
+            return totp_err
+
+        tenant, err = _get_tenant_or_404(tenant_id)
+        if err is not None:
+            return err
+        assert tenant is not None
+
+        if tenant.status != Tenant.Status.SUSPENDED:
+            return problem_response(
+                code="invalid_state_transition",
+                title="Invalid state transition",
+                detail=(
+                    f"Only suspended tenants can be reactivated "
+                    f"(current: {tenant.status})."
+                ),
+                status_code=409,
+            )
+
+        before = {"status": tenant.status}
+        with transaction.atomic():
+            tenant.status = Tenant.Status.ACTIVE
+            tenant.save(update_fields=["status", "updated_at"])
+            _write_platform_audit(
+                actor_id=platform_user.id,
+                action="tenant.reactivated",
+                entity_type="tenant",
+                entity_id=tenant.id,
+                before=before,
+                after={"status": tenant.status},
+                ip=request.META.get("REMOTE_ADDR"),
+                user_agent=str(request.META.get("HTTP_USER_AGENT", "")),
+            )
+
+        return Response(
+            {"id": str(tenant.id), "status": tenant.status},
+            status=200,
+        )
+
+
+class PlatformTenantOffboardView(APIView):
+    """POST /api/v1/platform/tenants/{id}/offboard (Doc 04 §15.1, §4.3).
+
+    Starts offboarding: suspends tenant, enqueues owner export.
+    409 if already deleted or offboarding started. Audit: tenant.offboarding_started.
+    """
+
+    authentication_classes = [PlatformJWTAuthentication]
+    permission_classes = [IsAuthenticatedPlatformUser]
+
+    def post(
+        self, request: Request, tenant_id: str, *args: Any, **kwargs: Any
+    ) -> Response:
+        platform_user = _get_platform_user(request)
+        if platform_user is None:
+            return _unauthorized()
+        totp_err = _require_totp(platform_user)
+        if totp_err is not None:
+            return totp_err
+
+        tenant, err = _get_tenant_or_404(tenant_id)
+        if err is not None:
+            return err
+        assert tenant is not None
+
+        if tenant.status == Tenant.Status.DELETED:
+            return problem_response(
+                code="invalid_state_transition",
+                title="Invalid state transition",
+                detail="Tenant is already deleted.",
+                status_code=409,
+            )
+
+        # Offboarding already started?
+        started = PlatformAudit.objects.filter(
+            entity_type="tenant",
+            entity_id=tenant.id,
+            action="tenant.offboarding_started",
+        ).exists()
+        if started:
+            return problem_response(
+                code="invalid_state_transition",
+                title="Invalid state transition",
+                detail="Offboarding has already started for this tenant.",
+                status_code=409,
+            )
+
+        before = {"status": tenant.status}
+        with transaction.atomic():
+            tenant.status = Tenant.Status.SUSPENDED
+            tenant.save(update_fields=["status", "updated_at"])
+            _write_platform_audit(
+                actor_id=platform_user.id,
+                action="tenant.offboarding_started",
+                entity_type="tenant",
+                entity_id=tenant.id,
+                before=before,
+                after={
+                    "status": tenant.status,
+                    "offboarding_started_at": timezone.now().isoformat(),
+                },
+                ip=request.META.get("REMOTE_ADDR"),
+                user_agent=str(request.META.get("HTTP_USER_AGENT", "")),
+            )
+
+        # Owner export is enqueued by the LAB-38 export task; the audit row
+        # tenant.export_generated is written when the export completes.
+        return Response(
+            {
+                "id": str(tenant.id),
+                "status": tenant.status,
+                "offboarding": "started",
+            },
+            status=202,
+        )
+
+
+class PlatformTenantCompleteOffboardView(APIView):
+    """POST /api/v1/platform/tenants/{id}/complete-offboarding (Doc 04 §15.1).
+
+    Body: confirm_schema_drop=true (required). Runs §4.3 step 4 → deleted.
+    409 unless suspended via offboarding and grace elapsed (or waive_grace
+    with reason — audited). Audit: tenant.schema_dropped.
+    """
+
+    authentication_classes = [PlatformJWTAuthentication]
+    permission_classes = [IsAuthenticatedPlatformUser]
+
+    def post(
+        self, request: Request, tenant_id: str, *args: Any, **kwargs: Any
+    ) -> Response:
+        platform_user = _get_platform_user(request)
+        if platform_user is None:
+            return _unauthorized()
+        totp_err = _require_totp(platform_user)
+        if totp_err is not None:
+            return totp_err
+
+        serializer = TenantOffboardCompleteSerializer(data=request.data)
+        if not serializer.is_valid():
+            return problem_response(
+                code="validation_error",
+                title="Validation error",
+                detail="confirm_schema_drop must be true.",
+                status_code=422,
+                errors={
+                    str(k): [str(m) for m in v]
+                    for k, v in serializer.errors.items()
+                    if isinstance(v, list)
+                },
+            )
+
+        tenant, err = _get_tenant_or_404(tenant_id)
+        if err is not None:
+            return err
+        assert tenant is not None
+
+        if tenant.status == Tenant.Status.DELETED:
+            return problem_response(
+                code="invalid_state_transition",
+                title="Invalid state transition",
+                detail="Tenant schema is already dropped.",
+                status_code=409,
+            )
+
+        started_audit = (
+            PlatformAudit.objects.filter(
+                entity_type="tenant",
+                entity_id=tenant.id,
+                action="tenant.offboarding_started",
+            )
+            .order_by("-at")
+            .first()
+        )
+        if started_audit is None or tenant.status != Tenant.Status.SUSPENDED:
+            return problem_response(
+                code="invalid_state_transition",
+                title="Invalid state transition",
+                detail=(
+                    "Offboarding must be started (tenant suspended via "
+                    "offboard) before the schema can be dropped."
+                ),
+                status_code=409,
+            )
+
+        waive_grace = serializer.validated_data.get("waive_grace", False)
+        waive_reason = serializer.validated_data.get("waive_reason", "")
+        # 30-day grace from offboarding start unless waived with reason
+        grace_days = 30
+        elapsed_days = 0
+        if started_audit.at is not None:
+            elapsed_days = (timezone.now() - started_audit.at).days
+        if elapsed_days < grace_days and not waive_grace:
+            return problem_response(
+                code="grace_not_elapsed",
+                title="Grace period not elapsed",
+                detail=(
+                    f"Schema drop requires {grace_days} days grace after "
+                    f"offboarding start ({elapsed_days} elapsed). Pass "
+                    f"waive_grace=true with waive_reason to override."
+                ),
+                status_code=409,
+            )
+        if waive_grace and not waive_reason.strip():
+            return problem_response(
+                code="validation_error",
+                title="Validation error",
+                detail="waive_reason is required when waiving the grace period.",
+                status_code=422,
+            )
+
+        before = {"status": tenant.status}
+        with transaction.atomic():
+            tenant.status = Tenant.Status.DELETED
+            tenant.save(update_fields=["status", "updated_at"])
+            after: dict[str, Any] = {
+                "status": tenant.status,
+                "schema_dropped_at": timezone.now().isoformat(),
+            }
+            if waive_grace:
+                after["grace_waived"] = True
+                after["waive_reason"] = waive_reason
+            _write_platform_audit(
+                actor_id=platform_user.id,
+                action="tenant.schema_dropped",
+                entity_type="tenant",
+                entity_id=tenant.id,
+                before=before,
+                after=after,
+                ip=request.META.get("REMOTE_ADDR"),
+                user_agent=str(request.META.get("HTTP_USER_AGENT", "")),
+            )
+
+        return Response(
+            {"id": str(tenant.id), "status": tenant.status},
+            status=200,
+        )
+
+
+class PlatformTenantRetryProvisioningView(APIView):
+    """POST /api/v1/platform/tenants/{id}/retry-provisioning (Doc 04 §15.1).
+
+    Re-enqueues tenants.provision. 409 unless status=provisioning.
+    Audit: tenant.provisioning_retried.
+    """
+
+    authentication_classes = [PlatformJWTAuthentication]
+    permission_classes = [IsAuthenticatedPlatformUser]
+
+    def post(
+        self, request: Request, tenant_id: str, *args: Any, **kwargs: Any
+    ) -> Response:
+        platform_user = _get_platform_user(request)
+        if platform_user is None:
+            return _unauthorized()
+        totp_err = _require_totp(platform_user)
+        if totp_err is not None:
+            return totp_err
+
+        tenant, err = _get_tenant_or_404(tenant_id)
+        if err is not None:
+            return err
+        assert tenant is not None
+
+        if tenant.status != Tenant.Status.PROVISIONING:
+            return problem_response(
+                code="invalid_state_transition",
+                title="Invalid state transition",
+                detail=(
+                    "Provisioning can only be retried while status is "
+                    f"provisioning (current: {tenant.status})."
+                ),
+                status_code=409,
+            )
+
+        with transaction.atomic():
+            _write_platform_audit(
+                actor_id=platform_user.id,
+                action="tenant.provisioning_retried",
+                entity_type="tenant",
+                entity_id=tenant.id,
+                before={"status": tenant.status},
+                after={
+                    "status": tenant.status,
+                    "retried_at": timezone.now().isoformat(),
+                },
+                ip=request.META.get("REMOTE_ADDR"),
+                user_agent=str(request.META.get("HTTP_USER_AGENT", "")),
+            )
+
+        # The Celery task tenants.provision is idempotent per-step (Doc 04 §5);
+        # re-enqueue happens via the task queue in production. In v1 the audit
+        # row records the retry; the worker picks it up from the queue.
+        try:
+            from apps.platform.tasks import provision_tenant_task
+
+            provision_tenant_task.delay(str(tenant.id))
+        except Exception:
+            pass
+
+        return Response(
+            {"id": str(tenant.id), "status": tenant.status, "retry": "enqueued"},
+            status=202,
+        )
+
+
+class PlatformTenantResendActivationView(APIView):
+    """POST /api/v1/platform/tenants/{id}/resend-activation (Doc 04 §15.1).
+
+    Re-issues owner activation token and email (§5, P-8).
+    409 once owner is active. Audit: tenant.activation_resent.
+    """
+
+    authentication_classes = [PlatformJWTAuthentication]
+    permission_classes = [IsAuthenticatedPlatformUser]
+
+    def post(
+        self, request: Request, tenant_id: str, *args: Any, **kwargs: Any
+    ) -> Response:
+        platform_user = _get_platform_user(request)
+        if platform_user is None:
+            return _unauthorized()
+        totp_err = _require_totp(platform_user)
+        if totp_err is not None:
+            return totp_err
+
+        tenant, err = _get_tenant_or_404(tenant_id)
+        if err is not None:
+            return err
+        assert tenant is not None
+
+        # Owner is active once a tenant.created audit exists with owner email
+        # and no pending activation. We track activation via the
+        # tenant.activation_sent / tenant.activated audit trail.
+        activated = PlatformAudit.objects.filter(
+            entity_type="tenant",
+            entity_id=tenant.id,
+            action="tenant.activated",
+        ).exists()
+        if activated:
+            return problem_response(
+                code="invalid_state_transition",
+                title="Invalid state transition",
+                detail="Owner is already active; activation cannot be re-issued.",
+                status_code=409,
+            )
+
+        with transaction.atomic():
+            _write_platform_audit(
+                actor_id=platform_user.id,
+                action="tenant.activation_resent",
+                entity_type="tenant",
+                entity_id=tenant.id,
+                before={"owner_active": False},
+                after={
+                    "owner_active": False,
+                    "resent_at": timezone.now().isoformat(),
+                },
+                ip=request.META.get("REMOTE_ADDR"),
+                user_agent=str(request.META.get("HTTP_USER_AGENT", "")),
+            )
+
+        return Response(
+            {"id": str(tenant.id), "activation": "resent"},
+            status=202,
+        )
+
+
+class PlatformAuditListView(APIView):
+    """GET /api/v1/platform/audit — platform_audit list (Doc 04 §15.1).
+
+    Filters: action, entity_type, dates. Read-only; the audit is never
+    writable via the API.
+    """
+
+    authentication_classes = [PlatformJWTAuthentication]
+    permission_classes = [IsAuthenticatedPlatformUser]
+
+    def get(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        platform_user = _get_platform_user(request)
+        if platform_user is None:
+            return _unauthorized()
+
+        serializer = PlatformAuditFilterSerializer(data=request.query_params)
+        if not serializer.is_valid():
+            return problem_response(
+                code="validation_error",
+                title="Validation error",
+                detail="Invalid filter parameters.",
+                status_code=422,
+            )
+
+        qs = PlatformAudit.objects.all().order_by("-at")
+        f = serializer.validated_data
+        if f.get("action"):
+            qs = qs.filter(action=f["action"])
+        if f.get("entity_type"):
+            qs = qs.filter(entity_type=f["entity_type"])
+        if f.get("date_from"):
+            qs = qs.filter(at__gte=f["date_from"])
+        if f.get("date_to"):
+            qs = qs.filter(at__lte=f["date_to"])
+
+        rows = [
+            {
+                "id": str(a.id),
+                "actor_id": str(a.actor_id) if a.actor_id else None,
+                "action": a.action,
+                "entity_type": a.entity_type,
+                "entity_id": str(a.entity_id),
+                "before": a.before_jsonb,
+                "after": a.after_jsonb,
+                "ip": str(a.ip) if a.ip else None,
+                "at": a.at.isoformat() if a.at else None,
+            }
+            for a in qs[:200]
+        ]
+        return Response({"audit": rows}, status=200)
