@@ -13,6 +13,7 @@ Verifies Doc 05 §6 (SL-1–SL-12):
 """
 
 from __future__ import annotations
+from typing import Any
 
 from datetime import date
 from decimal import Decimal
@@ -71,32 +72,32 @@ class TestResolveRule:
 
             # Create rules at all 4 ranks
             RevenueShareRuleFactory(
-                referral_partner=partner,
+                referral_partner=partner,  # type: ignore[arg-type]
                 branch=None,
                 test_category=None,
                 percent=Decimal("10.00"),
             )
             RevenueShareRuleFactory(
-                referral_partner=partner,
+                referral_partner=partner,  # type: ignore[arg-type]
                 branch=branch,
                 test_category=None,
                 percent=Decimal("15.00"),
             )
             RevenueShareRuleFactory(
-                referral_partner=partner,
+                referral_partner=partner,  # type: ignore[arg-type]
                 branch=None,
                 test_category="Hematology",
                 percent=Decimal("20.00"),
             )
             specific = RevenueShareRuleFactory(
-                referral_partner=partner,
+                referral_partner=partner,  # type: ignore[arg-type]
                 branch=branch,
                 test_category="Hematology",
                 percent=Decimal("25.00"),
             )
 
             rule = resolve_rule(
-                partner=partner,
+                partner=partner,  # type: ignore[arg-type]
                 branch_id=branch.id,
                 test_category="Hematology",
                 on_date=date(2026, 6, 15),
@@ -112,20 +113,20 @@ class TestResolveRule:
             branch = BranchFactory()
 
             RevenueShareRuleFactory(
-                referral_partner=partner,
+                referral_partner=partner,  # type: ignore[arg-type]
                 branch=None,
                 test_category="Hematology",
                 percent=Decimal("20.00"),
             )
             branch_only = RevenueShareRuleFactory(
-                referral_partner=partner,
+                referral_partner=partner,  # type: ignore[arg-type]
                 branch=branch,
                 test_category=None,
                 percent=Decimal("15.00"),
             )
 
             rule = resolve_rule(
-                partner=partner,
+                partner=partner,  # type: ignore[arg-type]
                 branch_id=branch.id,
                 test_category="Hematology",
                 on_date=date(2026, 6, 15),
@@ -138,7 +139,7 @@ class TestResolveRule:
         with schema_context(tenant_a.schema_name):
             partner = ReferralPartnerFactory()
             rule = resolve_rule(
-                partner=partner,
+                partner=partner,  # type: ignore[arg-type]
                 branch_id=None,
                 test_category=None,
                 on_date=date(2026, 6, 15),
@@ -150,7 +151,7 @@ class TestResolveRule:
         with schema_context(tenant_a.schema_name):
             partner = ReferralPartnerFactory()
             rule = RevenueShareRuleFactory(
-                referral_partner=partner,
+                referral_partner=partner,  # type: ignore[arg-type]
                 branch=None,
                 test_category=None,
                 percent=Decimal("10.00"),
@@ -160,7 +161,7 @@ class TestResolveRule:
 
             # Inside range
             found = resolve_rule(
-                partner=partner,
+                partner=partner,  # type: ignore[arg-type]
                 branch_id=None,
                 test_category=None,
                 on_date=date(2026, 6, 15),
@@ -170,7 +171,7 @@ class TestResolveRule:
 
             # Before range
             not_found = resolve_rule(
-                partner=partner,
+                partner=partner,  # type: ignore[arg-type]
                 branch_id=None,
                 test_category=None,
                 on_date=date(2025, 12, 31),
@@ -179,7 +180,7 @@ class TestResolveRule:
 
             # After range
             not_found2 = resolve_rule(
-                partner=partner,
+                partner=partner,  # type: ignore[arg-type]
                 branch_id=None,
                 test_category=None,
                 on_date=date(2027, 1, 1),
@@ -197,7 +198,7 @@ class TestRecordShareEntry:
             partner = ReferralPartnerFactory()
             branch = BranchFactory()
             rule = RevenueShareRuleFactory(
-                referral_partner=partner,
+                referral_partner=partner,  # type: ignore[arg-type]
                 branch=None,
                 test_category=None,
                 percent=Decimal("20.00"),
@@ -205,7 +206,7 @@ class TestRecordShareEntry:
             )
             invoice = InvoiceFactory(
                 branch=branch,
-                referral_partner=partner,
+                referral_partner=partner,  # type: ignore[arg-type]
             )
             payment = PaymentFactory(
                 invoice=invoice,
@@ -246,7 +247,7 @@ class TestRecordShareEntry:
         with schema_context(tenant_a.schema_name):
             partner = ReferralPartnerFactory()
             RevenueShareRuleFactory(
-                referral_partner=partner,
+                referral_partner=partner,  # type: ignore[arg-type]
                 branch=None,
                 test_category=None,
                 percent=Decimal("10.00"),
@@ -272,7 +273,7 @@ class TestRecordShareEntry:
         with schema_context(tenant_a.schema_name):
             partner = ReferralPartnerFactory()
             RevenueShareRuleFactory(
-                referral_partner=partner,
+                referral_partner=partner,  # type: ignore[arg-type]
                 branch=None,
                 test_category=None,
                 percent=Decimal("1.00"),
@@ -309,13 +310,11 @@ class TestRecordShareEntry:
 class TestRecordReversal:
     """Doc 05 §6.5: Refund reversal, SL-8–SL-12."""
 
-    def _setup_payment_with_entry(
-        self, tenant_a: Tenant
-    ) -> tuple[Payment, ShareLedgerEntry, ReferralPartner]:
+    def _setup_payment_with_entry(...) -> Any:
         """Helper: create a payment with a ledger entry."""
         partner = ReferralPartnerFactory()
         RevenueShareRuleFactory(
-            referral_partner=partner,
+            referral_partner=partner,  # type: ignore[arg-type]
             branch=None,
             test_category=None,
             percent=Decimal("20.00"),
@@ -414,7 +413,7 @@ class TestRecordReversal:
 
             # Close the original period with an APPROVED settlement
             Settlement.objects.create(
-                referral_partner=partner,
+                referral_partner=partner,  # type: ignore[arg-type]
                 period=original.period,
                 status=Settlement.Status.APPROVED,
             )

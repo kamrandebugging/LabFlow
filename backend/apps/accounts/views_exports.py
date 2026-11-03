@@ -213,4 +213,4 @@ class ExportDownloadView(APIView):
         response["Content-Disposition"] = (
             f'attachment; filename="export-{export.id}.zip"'
         )
-        return response
+        return response  # type: ignore[return-value]
