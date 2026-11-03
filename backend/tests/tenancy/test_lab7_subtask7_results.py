@@ -125,8 +125,10 @@ class TestResultModelsSchemaAndConstraints:
                 Result.Flag.HIGH,
                 Result.Flag.CRITICAL,
             ):
+                # LAB-25: uq_result_sample_test_entered forbids a 2nd ENTERED
+                # row per (sample, test) — use a fresh sample per flag.
                 r_flagged = ResultFactory(
-                    sample=sample,
+                    sample=SampleFactory(),
                     test=test_obj,
                     entered_by=staff,
                     flag=valid_flag,
