@@ -40,23 +40,23 @@ def _auth_client(user: PlatformUser) -> APIClient:
 
 
 @pytest.fixture
-def sa() -> Any:
+def sa() -> PlatformUser:
     return PlatformUserFactory(totp_enabled=True, is_active=True)
 
 
 @pytest.fixture
-def sa_no_totp() -> Any:
+def sa_no_totp() -> PlatformUser:
     return PlatformUserFactory(totp_enabled=False, is_active=True)
 
 
 @pytest.fixture
-def tenant_active() -> Any:
+def tenant_active() -> Tenant:
     t = TenantFactory(status=Tenant.Status.ACTIVE)
     return t
 
 
 @pytest.fixture
-def tenant_suspended() -> Any:
+def tenant_suspended() -> Tenant:
     return TenantFactory(status=Tenant.Status.SUSPENDED)
 
 
@@ -214,7 +214,7 @@ def test_suspend_active_tenant_audited(sa: PlatformUser, tenant_active: Tenant) 
     assert audit is not None
     assert audit.actor_id == sa.id
     assert audit.before_jsonb == {"status": "active"}
-    assert audit.after_jsonb["reason"] == "Payment overdue"  # type: ignore[index]
+    assert audit.after_jsonb["reason"] == "Payment overdue"
 
 
 @pytest.mark.django_db
@@ -367,7 +367,7 @@ def test_complete_offboarding_with_waive(
         action="tenant.schema_dropped", entity_id=tenant_active.id
     ).first()
     assert audit is not None
-    assert audit.after_jsonb["grace_waived"] is True  # type: ignore[index]
+    assert audit.after_jsonb["grace_waived"] is True
 
 
 @pytest.mark.django_db
