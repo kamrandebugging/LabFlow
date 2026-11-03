@@ -77,3 +77,6 @@ docs/screen-pack/
 docs/jira_backup/
 
 
+
+# Runtime media (report PDFs land here in dev/test via MEDIA_ROOT)
+backend/mediafiles/

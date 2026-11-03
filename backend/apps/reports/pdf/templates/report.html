@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Lab Report {{ ctx.report_id }} v{{ ctx.version }}</title>
+<style>
+  /* §9.5 — block layout + tables only; no JS, no web fonts, no external images. */
+  @page {
+    size: A4;
+    margin: 14mm 12mm 22mm 12mm;
+    @bottom-center {
+      content: element(report-footer);
+      width: 100%;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: "DejaVu Sans", "Noto Sans", sans-serif;
+    font-size: 9pt;
+    color: #111;
+    line-height: 1.35;
+    margin: 0;
+  }
+  h1 { font-size: 16pt; margin: 0 0 2pt 0; }
+  h2 { font-size: 11pt; margin: 12pt 0 4pt 0; border-bottom: 1pt solid #0e6b3a; padding-bottom: 2pt; }
+  .muted { color: #555; }
+  .small { font-size: 8pt; }
+  table { border-collapse: collapse; width: 100%; }
+  th, td { border: 0.5pt solid #999; padding: 3pt 5pt; text-align: left; vertical-align: top; }
+  thead { display: table-header-group; } /* repeat on every page (§9.5) */
+  tr { break-inside: avoid; }           /* a result row never splits (§9.5) */
+  th { background: #eef4f0; font-size: 8pt; }
+  .flag { font-weight: bold; }
+  .flag-H { color: #b45309; }
+  .flag-L { color: #1d4ed8; }
+  .flag-CRITICAL { color: #b91c1c; }
+  .panel-row td { background: #f3f6f4; font-weight: bold; }
+  .dagger { color: #b91c1c; font-weight: bold; }
+  .notice {
+    border: 1pt solid #b91c1c;
+    background: #fef2f2;
+    padding: 6pt 8pt;
+    margin: 8pt 0;
+  }
+  .notice h2 { border: none; margin: 0 0 4pt 0; color: #b91c1c; }
+  /* Footer running element — patient identity on every page (R-13). */
+  #report-footer {
+    position: running(report-footer);
+    font-size: 7pt;
+    color: #444;
+    border-top: 0.5pt solid #999;
+    padding-top: 3pt;
+    width: 100%;
+  }
+  #report-footer table { border: none; }
+  #report-footer td { border: none; padding: 0 4pt; vertical-align: middle; }
+  .pagenum::after { content: counter(page); }
+  .pagecount::after { content: counter(pages); }
+  /* §9.2 — Urdu block: single isolated RTL container. */
+  .urdu-block {
+    direction: rtl;
+    font-family: "Noto Nastaliq Urdu", "Jameel Noori Nastaleeq", serif;
+    font-size: 11pt;
+    line-height: 2;
+    border: 0.5pt solid #999;
+    padding: 8pt 10pt;
+    margin: 8pt 0;
+  }
+  .urdu-block .ltr { direction: ltr; unicode-bidi: isolate; }
+  .kv { margin: 1pt 0; }
+  .kv b { display: inline-block; min-width: 110pt; }
+</style>
+</head>
+<body>
+
+<!-- SECTION:header -->
+<section id="lab-header">
+  <h1>{{ ctx.lab.name }}</h1>
+  <div>{{ ctx.lab.branch_name }} — {{ ctx.lab.branch_address }}</div>
+  <div>Phone: {{ ctx.lab.phone }}</div>
+</section>
+
+<!-- SECTION:meta -->
+<section id="report-meta">
+  <h2>Report</h2>
+  <div class="kv"><b>Report ID:</b> {{ ctx.report_id }}</div>
+  <div class="kv"><b>Version:</b> {{ ctx.version_label }}</div>
+  <div class="kv"><b>Status:</b> {{ ctx.status }}</div>
+  <div class="kv"><b>Finalised:</b> {{ ctx.finalised_at }}</div>
+</section>
+
+<!-- SECTION:patient -->
+<section id="patient-block">
+  <h2>Patient</h2>
+  <div class="kv"><b>Name:</b> {{ ctx.patient.name }}</div>
+  <div class="kv"><b>MRN:</b> {{ ctx.patient.mrn }}</div>
+  <div class="kv"><b>Age:</b> {{ ctx.patient.age_display }}</div>
+  <div class="kv"><b>Sex:</b> {{ ctx.patient.sex }}</div>
+  {% if ctx.patient.dob %}<div class="kv"><b>Date of birth:</b> {{ ctx.patient.dob }}</div>{% endif %}
+</section>
+
+<!-- SECTION:order -->
+<section id="order-block">
+  <h2>Order</h2>
+  <div class="kv"><b>Referring clinician:</b> {{ ctx.order.clinician }}</div>
+  <div class="kv"><b>Invoice:</b> {{ ctx.order.invoice_number }}</div>
+</section>
+
+<!-- SECTION:sample -->
+<section id="sample-block">
+  <h2>Sample</h2>
+  <div class="kv"><b>Accession ID:</b> {{ ctx.sample.accession_id }}</div>
+  <div class="kv"><b>Collected:</b> {{ ctx.sample.collected_at }}</div>
+  {% if ctx.sample.received_at %}<div class="kv"><b>Received:</b> {{ ctx.sample.received_at }}</div>{% endif %}
+  {% if ctx.sample.status_notes %}<div class="kv"><b>Notes:</b> {{ ctx.sample.status_notes }}</div>{% endif %}
+</section>
+
+{% if ctx.is_amended %}
+<!-- SECTION:amended-notice -->
+<section id="amended-notice" class="notice">
+  <h2>Amended report — this version corrects version {{ ctx.corrects_version }}.</h2>
+  {% for line in ctx.amended_lines %}
+  <div class="kv">
+    <b>{{ line.test_name }}:</b>
+    {{ line.previous_value }} {{ line.previous_unit }} → {{ line.corrected_value }} {{ line.corrected_unit }},
+    amended {{ line.amendment_date }}, approved by {{ line.approving_pathologist }}
+  </div>
+  {% endfor %}
+  <div class="small muted" style="margin-top:6pt"><b>Version history</b></div>
+  {% for v in ctx.version_history %}
+  <div class="small">Version {{ v.version }} — {{ v.status }}, finalised {{ v.finalised_at }}</div>
+  {% endfor %}
+</section>
+{% endif %}
+
+<!-- SECTION:results -->
+<section id="results-block">
+  <h2>Results</h2>
+  <table id="results-table">
+    <thead>
+      <tr>
+        <th>Test</th>
+        <th>Result</th>
+        <th>Flag</th>
+        <th>Reference interval</th>
+        <th>Comments</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for group in ctx.result_groups %}
+        {% if group.panel_name %}
+        <tr class="panel-row"><td colspan="5">{{ group.panel_name }}</td></tr>
+        {% endif %}
+        {% for row in group.rows %}
+        <tr>
+          <td>{{ row.test_name }}{% if row.is_changed %} <span class="dagger">†</span>{% endif %}</td>
+          <td>{{ row.value }}{% if row.unit %} {{ row.unit }}{% endif %}</td>
+          <td class="flag flag-{{ row.flag_display }}">{{ row.flag_display }}</td>
+          <td>{{ row.reference_interval }}</td>
+          <td>{{ row.comments }}</td>
+        </tr>
+        {% endfor %}
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<!-- SECTION:signatory -->
+<section id="signatory-block">
+  <h2>Verified and authorised by</h2>
+  {% for s in ctx.signatories %}
+  <div class="kv"><b>{{ s.name }}</b> — {{ s.role }}, {{ s.approved_at }}</div>
+  {% endfor %}
+</section>
+
+{% if ctx.urdu %}
+<!-- SECTION:urdu -->
+<section id="urdu-block" class="urdu-block" dir="rtl" lang="ur">
+  <div>{{ ctx.urdu.lab_name }}</div>
+  <div>{{ ctx.urdu.patient_name }}</div>
+  <div><bdi class="ltr" dir="ltr">{{ ctx.urdu.accession_id }}</bdi></div>
+  <div>{{ ctx.urdu.ready_sentence }}</div>
+  <div><span class="ltr" dir="ltr">{{ ctx.urdu.phone }}</span></div>
+</section>
+{% endif %}
+
+<!-- SECTION:footer -->
+<div id="report-footer">
+  <table>
+    <tr>
+      <td>{{ ctx.patient.name }} · {{ ctx.patient.mrn }}<br>{{ ctx.sample.accession_id }}</td>
+      <td style="text-align:center">Page <span class="pagenum"></span> of <span class="pagecount"></span><br>{{ ctx.report_id }} · v{{ ctx.version }}</td>
+      <td style="text-align:right"><img src="{{ ctx.qr_data_uri }}" width="52" height="52" alt="Verification QR"></td>
+    </tr>
+  </table>
+</div>
+
+</body>
+</html>
