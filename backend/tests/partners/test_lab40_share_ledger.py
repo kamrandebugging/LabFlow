@@ -71,25 +71,25 @@ class TestResolveRule:
 
             # Create rules at all 4 ranks
             RevenueShareRuleFactory(
-                referral_partner=partner,  # type: ignore[arg-type]
+                referral_partner=partner,
                 branch=None,
                 test_category=None,
                 percent=Decimal("10.00"),
             )
             RevenueShareRuleFactory(
-                referral_partner=partner,  # type: ignore[arg-type]
+                referral_partner=partner,
                 branch=branch,
                 test_category=None,
                 percent=Decimal("15.00"),
             )
             RevenueShareRuleFactory(
-                referral_partner=partner,  # type: ignore[arg-type]
+                referral_partner=partner,
                 branch=None,
                 test_category="Hematology",
                 percent=Decimal("20.00"),
             )
             specific = RevenueShareRuleFactory(
-                referral_partner=partner,  # type: ignore[arg-type]
+                referral_partner=partner,
                 branch=branch,
                 test_category="Hematology",
                 percent=Decimal("25.00"),
@@ -112,13 +112,13 @@ class TestResolveRule:
             branch = BranchFactory()
 
             RevenueShareRuleFactory(
-                referral_partner=partner,  # type: ignore[arg-type]
+                referral_partner=partner,
                 branch=None,
                 test_category="Hematology",
                 percent=Decimal("20.00"),
             )
             branch_only = RevenueShareRuleFactory(
-                referral_partner=partner,  # type: ignore[arg-type]
+                referral_partner=partner,
                 branch=branch,
                 test_category=None,
                 percent=Decimal("15.00"),
@@ -150,7 +150,7 @@ class TestResolveRule:
         with schema_context(tenant_a.schema_name):
             partner = ReferralPartnerFactory()
             rule = RevenueShareRuleFactory(
-                referral_partner=partner,  # type: ignore[arg-type]
+                referral_partner=partner,
                 branch=None,
                 test_category=None,
                 percent=Decimal("10.00"),
@@ -197,7 +197,7 @@ class TestRecordShareEntry:
             partner = ReferralPartnerFactory()
             branch = BranchFactory()
             rule = RevenueShareRuleFactory(
-                referral_partner=partner,  # type: ignore[arg-type]
+                referral_partner=partner,
                 branch=None,
                 test_category=None,
                 percent=Decimal("20.00"),
@@ -205,7 +205,7 @@ class TestRecordShareEntry:
             )
             invoice = InvoiceFactory(
                 branch=branch,
-                referral_partner=partner,  # type: ignore[arg-type]
+                referral_partner=partner,
             )
             payment = PaymentFactory(
                 invoice=invoice,
@@ -246,7 +246,7 @@ class TestRecordShareEntry:
         with schema_context(tenant_a.schema_name):
             partner = ReferralPartnerFactory()
             RevenueShareRuleFactory(
-                referral_partner=partner,  # type: ignore[arg-type]
+                referral_partner=partner,
                 branch=None,
                 test_category=None,
                 percent=Decimal("10.00"),
@@ -272,7 +272,7 @@ class TestRecordShareEntry:
         with schema_context(tenant_a.schema_name):
             partner = ReferralPartnerFactory()
             RevenueShareRuleFactory(
-                referral_partner=partner,  # type: ignore[arg-type]
+                referral_partner=partner,
                 branch=None,
                 test_category=None,
                 percent=Decimal("1.00"),
@@ -313,7 +313,7 @@ class TestRecordReversal:
         """Helper: create a payment with a ledger entry."""
         partner = ReferralPartnerFactory()
         RevenueShareRuleFactory(
-            referral_partner=partner,  # type: ignore[arg-type]
+            referral_partner=partner,
             branch=None,
             test_category=None,
             percent=Decimal("20.00"),
@@ -412,7 +412,7 @@ class TestRecordReversal:
 
             # Close the original period with an APPROVED settlement
             Settlement.objects.create(
-                referral_partner=partner,  # type: ignore[arg-type]
+                referral_partner=partner,
                 period=original.period,
                 status=Settlement.Status.APPROVED,
             )
