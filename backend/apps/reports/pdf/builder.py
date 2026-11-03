@@ -159,10 +159,9 @@ def build_report_context(report: Report, version: int) -> ReportContext:
     generation leaves no report_version row and the report stays draft —
     the future Celery task must call this before rendering).
     """
-    from django.core.exceptions import ObjectDoesNotExist
-
     from apps.results.models import Result, ResultApproval
     from apps.samples.models import SampleEvent
+    from django.core.exceptions import ObjectDoesNotExist
 
     if report.status not in ("final", "amended") or report.finalised_at is None:
         raise ValueError(
