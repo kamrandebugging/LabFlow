@@ -104,7 +104,7 @@ def test_access_mode_uses_redis_cache() -> None:
 
     # First call populates cache
     assert tenant_access_mode(tenant) == "full"  # type: ignore[arg-type]
-    cached = cache.get(access_mode_cache_key(tenant.slug)  # type: ignore[arg-type])
+    cached = cache.get(access_mode_cache_key(tenant.slug))  # type: ignore[arg-type]
     assert cached == "full"
 
     # Change DB directly — cached value still returned
