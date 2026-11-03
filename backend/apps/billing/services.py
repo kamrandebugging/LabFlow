@@ -367,6 +367,18 @@ class BillingService:
                     ) from None
                 return existing, False
 
+            # LAB-40 (KAN-165): Synchronous revenue-share ledger consumer
+            # (Doc 05 §6.2). Called after payment insert, before commit, in the
+            # same transaction. If the consumer raises, the whole payment
+            # transaction rolls back — no half-state.
+            is_refund = kind == Payment.Kind.REFUND
+            from apps.partners.services import record_reversal, record_share_entry
+
+            if is_refund:
+                record_reversal(payment)
+            else:
+                record_share_entry(payment)
+
             # Audit: immutable row in the same transaction (BL-V3: actor recorded).
             AuditLog.objects.create(
                 actor_id=actor.id,
