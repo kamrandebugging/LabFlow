@@ -38,6 +38,8 @@ urlpatterns = [
     path("api/v1/branches/", include("apps.branches.urls")),
     # Reports: async PDF pipeline (Doc 03 §5.6, KAN-155 / LAB-30)
     path("api/v1/", include("apps.reports.urls")),
+    # Tenant Settings: registry + accessors (Doc 04 §10, KAN-160 / LAB-35)
+    path("api/v1/", include("apps.platform.urls_settings")),
     # Staff branch assignments (Doc 04 §8.4, §15, KAN-159 / LAB-34)
     path(
         "api/v1/staff/<uuid:staff_id>/branches",
