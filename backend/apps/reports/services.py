@@ -34,17 +34,20 @@ from __future__ import annotations
 import base64
 import secrets
 import uuid
-from datetime import timedelta
+from datetime import date, datetime, time, timedelta
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
-from django.db import connection, transaction
-from django.db.models import Q
+from django.db import IntegrityError, connection, transaction
+from django.db.models import Prefetch, Q
 from django.urls import reverse
 from django.utils import timezone
 
 from apps.accounts.models import AuditLog, Role, StaffUser, TenantSetting
+from apps.billing.models import Invoice
+from apps.patients.models import PatientConsent, PatientContact
 from apps.reports.models import (
     Report,
     ReportAccessToken,
@@ -53,12 +56,16 @@ from apps.reports.models import (
 )
 from apps.reports.storage import ReportStorage
 
+KARACHI = ZoneInfo("Asia/Karachi")
+
 # Doc 03 §6.7: POST /api/v1/reports/{id}/regenerate — roles cell "O M P".
 REPORT_REGENERATE_ROLES = {Role.OWNER, Role.MANAGER, Role.PATHOLOGIST}
 # Doc 03 §6.7: POST /api/v1/reports/{id}/access-token — roles cell "O M R".
 REPORT_ACCESS_TOKEN_ROLES = {Role.OWNER, Role.MANAGER, Role.RECEPTION}
 # Doc 03 §6.7: POST /api/v1/reports/{id}/revoke-token — roles cell "O M".
 REPORT_REVOKE_TOKEN_ROLES = {Role.OWNER, Role.MANAGER}
+# Doc 03 §6.7: POST /api/v1/reports/{id}/deliver — roles cell "O M R".
+REPORT_DELIVER_ROLES = {Role.OWNER, Role.MANAGER, Role.RECEPTION}
 
 # Doc 03 §5.6 RP-8: tenant_setting key + platform default for new tokens.
 TOKEN_VALIDITY_SETTING_KEY = "report_link_validity_days"
@@ -67,6 +74,24 @@ DEFAULT_TOKEN_VALIDITY_DAYS = 7
 FILE_URL_VALIDITY_SECONDS = 15 * 60
 
 _ph = PasswordHasher()
+
+
+def _mint_access_token_core(report: Report) -> tuple[ReportAccessToken, str]:
+    """Shared mint behind every patient link (LAB-31 issue, LAB-32 deliver).
+
+    Returns (row, plain). Only the argon2 hash is stored; the plain token
+    exists only in memory and in the caller's response/message. It must
+    NEVER be persisted, logged or audited — callers audit the token ROW id.
+    """
+    plain = base64.urlsafe_b64encode(secrets.token_bytes(32)).decode("ascii")
+    token_hash = _ph.hash(plain)
+    expires_at = timezone.now() + timedelta(days=ReportAccessService._validity_days())
+    row = ReportAccessToken.objects.create(
+        report=report,
+        token_hash=token_hash,
+        expires_at=expires_at,
+    )
+    return row, plain
 
 
 class ReportError(Exception):
@@ -122,6 +147,34 @@ class ReportVersionMissingError(ReportError):
 
     error_code = "report_version_missing"
     status_code = 500
+
+
+class NoConsentError(ReportError):
+    """PT-7: no live patient_consent row for the delivery channel."""
+
+    error_code = "no_consent"
+    status_code = 422
+
+
+class BillingHoldError(ReportError):
+    """RP-7: billing hold is on and the sample's invoice is not fully paid."""
+
+    error_code = "billing_hold"
+    status_code = 409
+
+
+class ContactNotFoundError(ReportError):
+    """contact_id is unknown or belongs to another patient (tenant-scoped)."""
+
+    error_code = "contact_not_found"
+    status_code = 404
+
+
+class ContactChannelMismatchError(ReportError):
+    """The contact's kind cannot carry the requested channel."""
+
+    error_code = "contact_channel_mismatch"
+    status_code = 422
 
 
 def _schema_name() -> str:
@@ -366,16 +419,7 @@ class ReportAccessService:
                 raise ReportNotFinalError(
                     "Report is not finalised; no patient link may be issued."
                 )
-            plain = base64.urlsafe_b64encode(secrets.token_bytes(32)).decode("ascii")
-            token_hash = _ph.hash(plain)
-            expires_at = timezone.now() + timedelta(
-                days=ReportAccessService._validity_days()
-            )
-            row = ReportAccessToken.objects.create(
-                report=report,
-                token_hash=token_hash,
-                expires_at=expires_at,
-            )
+            row, plain = _mint_access_token_core(report)
             AuditLog.objects.create(
                 actor_id=actor.id,
                 action="report.token_issued",
@@ -558,3 +602,245 @@ class ReportAccessService:
                 user_agent=user_agent,
             )
             return {"revoked_count": revoked_count}
+
+
+# Doc 03 §6.7: POST /api/v1/reports/{id}/deliver idempotency — a second
+# deliver for the same channel + contact within this window returns the
+# existing PENDING delivery (200) instead of a duplicate.
+DELIVERY_IDEMPOTENCY_WINDOW = timedelta(minutes=10)
+# RP-7 billing hold: tenant_setting key + the invoice statuses that count
+# as "fully paid". REFUNDED counts: the money was collected (a refund is a
+# separate Doc 05 flow and never blocks a delivery retroactively).
+BILLING_HOLD_SETTING_KEY = "billing_hold_enabled"
+FULLY_PAID_INVOICE_STATUSES = (Invoice.Status.PAID, Invoice.Status.REFUNDED)
+
+
+def _enqueue_deliver(delivery_id: uuid.UUID) -> None:
+    """Enqueue reports.deliver AFTER the caller's transaction commits."""
+    schema_name = _schema_name()
+    delivery_pk = str(delivery_id)
+
+    def _enqueue() -> None:
+        from apps.reports.tasks import deliver_report_task
+
+        deliver_report_task.delay(schema_name, delivery_pk)
+
+    transaction.on_commit(_enqueue)
+
+
+class ReportDeliveryService:
+    """Report delivery dispatch (Doc 03 §5.6 RP-6/RP-7, §6.7, §10;
+    KAN-157 / LAB-32, original LAB-37).
+
+    POST /api/v1/reports/{id}/deliver creates the report_delivery row
+    (PENDING), mints an access token (RP-8, via the shared LAB-31 mint —
+    the plain link is returned once in the 202 as a staff fallback for
+    phone read-out) and enqueues reports.deliver, which re-mints a fresh
+    token at actual send time. Two tokens exist by design: the call-time
+    token is never sent anywhere automatically, and the send-time token is
+    minted inside the worker so the plain secret never crosses the Celery
+    broker boundary and a queued-then-retried delivery gets a fresh
+    validity window at send time.
+
+    Guards run in §6.7 order: 404 unknown report; 409 report_void;
+    409 report_not_final (RP-V2); 422 no_consent (PT-7 — a live,
+    non-revoked patient_consent row for the channel); 409 billing_hold
+    (RP-7); 404 contact_not_found (unknown contact id, or a contact of
+    another patient — tenant-scoped, never 403); 422
+    contact_channel_mismatch (the contact kind must carry the channel).
+    """
+
+    @staticmethod
+    def _billing_hold_on() -> bool:
+        row = TenantSetting.objects.filter(key=BILLING_HOLD_SETTING_KEY).first()
+        return row is not None and row.value.lower() == "true"
+
+    @staticmethod
+    def deliver_report(
+        *,
+        report_id: uuid.UUID,
+        channel: str,
+        contact_id: uuid.UUID,
+        actor: StaffUser,
+        ip: str | None = None,
+        user_agent: str | None = None,
+    ) -> dict[str, Any]:
+        """Create a delivery intent and enqueue reports.deliver.
+
+        Returns {"delivery", "deduplicated", ...}: deduplicated=True ->
+        the view answers 200 with the existing PENDING row (no new token,
+        no new audit, no second enqueue); otherwise 202 with the row plus
+        token_id/link. Audit: report.delivery_created, same transaction.
+        """
+        # Local import: apps.results.services imports this module lazily,
+        # so a top-level samples import would risk a cycle.
+        from apps.samples.models import Sample
+
+        report = ReportService._get_report(report_id)
+        if report.status == Report.Status.VOID:
+            raise ReportVoidError("Report is void; nothing may be delivered.")
+        if (
+            report.status not in (Report.Status.FINAL, Report.Status.AMENDED)
+            or report.current_version < 1
+        ):
+            raise ReportNotFinalError(
+                "Report is not finalised; nothing may be delivered."
+            )
+        sample = Sample.objects.select_related("invoice__patient", "branch").get(
+            pk=report.sample_id
+        )
+        patient = sample.invoice.patient
+        if not PatientConsent.objects.filter(
+            patient=patient, channel=channel, revoked_at__isnull=True
+        ).exists():
+            raise NoConsentError("No delivery consent recorded for this channel.")
+        if (
+            ReportDeliveryService._billing_hold_on()
+            and sample.invoice.status not in FULLY_PAID_INVOICE_STATUSES
+        ):
+            raise BillingHoldError(
+                "Billing hold is on and the invoice is not fully paid."
+            )
+        try:
+            contact = PatientContact.objects.get(pk=contact_id, patient=patient)
+        except (PatientContact.DoesNotExist, ValueError, TypeError) as exc:
+            raise ContactNotFoundError("Contact not found.") from exc
+        if contact.kind != channel:
+            raise ContactChannelMismatchError(
+                f"Contact kind '{contact.kind}' cannot carry channel '{channel}'."
+            )
+
+        with transaction.atomic():
+            cutoff = timezone.now() - DELIVERY_IDEMPOTENCY_WINDOW
+            existing = (
+                ReportDelivery.objects.select_for_update()
+                .filter(
+                    report=report,
+                    channel=channel,
+                    contact=contact,
+                    status=ReportDelivery.Status.PENDING,
+                    created_at__gte=cutoff,
+                )
+                .order_by("-created_at")
+                .first()
+            )
+            if existing is not None:
+                return {"delivery": existing, "deduplicated": True}
+            try:
+                with transaction.atomic():
+                    delivery = ReportDelivery.objects.create(
+                        report=report,
+                        channel=channel,
+                        contact=contact,
+                        status=ReportDelivery.Status.PENDING,
+                    )
+            except IntegrityError:
+                # Lost a race with a concurrent deliver call: the partial
+                # UNIQUE (report, channel, contact) WHERE status='PENDING'
+                # backstop fired. Return the winner as the dedupe response.
+                winner = (
+                    ReportDelivery.objects.filter(
+                        report=report,
+                        channel=channel,
+                        contact=contact,
+                        status=ReportDelivery.Status.PENDING,
+                    )
+                    .order_by("-created_at")
+                    .first()
+                )
+                if winner is None:  # pragma: no cover - defensive
+                    raise
+                return {"delivery": winner, "deduplicated": True}
+            # Mint AFTER the row exists: a lost race above must not leave
+            # an orphan token row behind (ECC).
+            token_row, plain = _mint_access_token_core(report)
+            AuditLog.objects.create(
+                actor_id=actor.id,
+                action="report.delivery_created",
+                entity_type="report_delivery",
+                entity_id=delivery.id,
+                after_jsonb={
+                    "delivery_id": str(delivery.id),
+                    "report_id": str(report.id),
+                    "channel": channel,
+                    "contact_id": str(contact.id),
+                    "token_id": str(token_row.id),
+                },
+                ip=ip,
+                user_agent=user_agent,
+            )
+            _enqueue_deliver(delivery.id)
+            return {
+                "delivery": delivery,
+                "deduplicated": False,
+                "token_id": str(token_row.id),
+                # reverse() keeps this in sync with the URL route; the
+                # plain token appears here exactly once (ECC: no hardcoded
+                # URL, no logging of this dict anywhere).
+                "link": reverse("report-access", kwargs={"token": plain}),
+            }
+
+
+def _iso_week_bounds(week: date) -> tuple[datetime, datetime]:
+    """Monday 00:00 -> next Monday 00:00 of the ISO week, in Asia/Karachi."""
+    iso_year, iso_week, _ = week.isocalendar()
+    start = datetime.combine(
+        date.fromisocalendar(iso_year, iso_week, 1), time.min
+    ).replace(tzinfo=KARACHI)
+    return start, start + timedelta(days=7)
+
+
+def compute_tat_metrics(branch_id: uuid.UUID, week: date) -> dict[str, Any]:
+    """Per-branch-per-week TAT aggregates + the §11.2 definition string
+    (KAN-157 / LAB-32, original LAB-41).
+
+    `week`: any date inside the ISO week to report; weeks are bucketed in
+    Asia/Karachi (settings TIME_ZONE). Reads samples (any status — the
+    pure `aggregate_tat` excludes rejected/cancelled and counts them),
+    their finalised reports and sample_event timestamps, then delegates
+    all math to apps/reports/metrics.py (pure, DB-free).
+
+    No API endpoint in this ticket: the intended exposure is
+    GET /api/v1/metrics/tat?branch_id=<uuid>&week=<yyyy-mm-dd> in a later
+    observability LAB, returning exactly this dict.
+    """
+    # Local imports: keep the module import graph acyclic (see above).
+    from apps.reports.metrics import aggregate_tat
+    from apps.samples.models import Sample, SampleEvent
+
+    start, end = _iso_week_bounds(week)
+    samples = (
+        Sample.objects.filter(
+            branch_id=branch_id, collected_at__gte=start, collected_at__lt=end
+        )
+        .prefetch_related(
+            Prefetch(
+                "reports",
+                queryset=Report.objects.filter(finalised_at__isnull=False).order_by(
+                    "-created_at"
+                ),
+                to_attr="final_reports",
+            ),
+            Prefetch(
+                "events",
+                queryset=SampleEvent.objects.order_by("created_at"),
+                to_attr="ordered_events",
+            ),
+        )
+        .order_by("collected_at")
+    )
+    rows: list[dict[str, Any]] = []
+    for s in samples:
+        final_reports = s.final_reports
+        finalised = final_reports[0].finalised_at if final_reports else None
+        rows.append(
+            {
+                "branch_id": str(s.branch_id),
+                "week": s.collected_at.astimezone(KARACHI).isocalendar()[:2],
+                "collected_at": s.collected_at,
+                "finalised_at": finalised,
+                "events": [(e.event, e.created_at) for e in s.ordered_events],
+                "status": s.status,
+            }
+        )
+    return aggregate_tat(rows)

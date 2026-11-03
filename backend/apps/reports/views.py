@@ -20,20 +20,22 @@ from typing import Any, cast
 from django.core.signing import BadSignature, TimestampSigner
 from django.http import FileResponse, HttpResponse
 from django.utils.html import escape
-from rest_framework import permissions, status
+from rest_framework import permissions, serializers, status
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.accounts.models import StaffUser
 from apps.reports.models import ReportVersion
-from apps.reports.serializers import TokenRevokeSerializer
+from apps.reports.serializers import ReportDeliverSerializer, TokenRevokeSerializer
 from apps.reports.services import (
     FILE_URL_VALIDITY_SECONDS,
     REPORT_ACCESS_TOKEN_ROLES,
+    REPORT_DELIVER_ROLES,
     REPORT_REGENERATE_ROLES,
     REPORT_REVOKE_TOKEN_ROLES,
     ReportAccessService,
+    ReportDeliveryService,
     ReportError,
     ReportService,
 )
@@ -80,7 +82,7 @@ class ReportRegenerateView(APIView):
 
 
 def _validate(
-    serializer: TokenRevokeSerializer,
+    serializer: serializers.Serializer,
 ) -> tuple[dict[str, Any] | None, Response | None]:
     """Run a serializer; return (data, None) or (None, 422 response)."""
     if not serializer.is_valid():
@@ -280,3 +282,59 @@ class ReportFileDownloadView(APIView):
         )
         response["Cache-Control"] = "no-store"
         return response
+
+
+class ReportDeliverView(APIView):
+    """POST /api/v1/reports/{id}/deliver — dispatch a report link (§6.7).
+
+    Roles O M R. Creates the PENDING report_delivery row, mints an access
+    token (the plain link is returned once in the 202 as a staff fallback),
+    enqueues reports.deliver. -> 202 with the delivery row; a second call
+    for the same channel + contact within 10 minutes -> 200 with the
+    existing PENDING delivery. Thin view: logic in ReportDeliveryService.
+    """
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request: Request, report_id: Any) -> Response:
+        user = cast(StaffUser, request.user)
+        if user.role not in REPORT_DELIVER_ROLES:
+            return Response(
+                _format_error(
+                    "forbidden",
+                    "Only the Owner, a Manager or a Receptionist may deliver reports.",
+                ),
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        data, err = _validate(ReportDeliverSerializer(data=request.data))
+        if err is not None:
+            return err
+        assert data is not None
+        try:
+            payload = ReportDeliveryService.deliver_report(
+                report_id=report_id,
+                channel=data["channel"],
+                contact_id=data["contact_id"],
+                actor=user,
+                ip=get_client_ip(request),
+                user_agent=request.META.get("HTTP_USER_AGENT", ""),
+            )
+        except ReportError as exc:
+            return Response(
+                _format_error(exc.error_code, str(exc) or exc.error_code, exc.details),
+                status=exc.status_code,
+            )
+        delivery = payload["delivery"]
+        body: dict[str, Any] = {
+            "id": str(delivery.id),
+            "report_id": str(delivery.report_id),
+            "channel": delivery.channel,
+            "contact_id": str(delivery.contact_id),
+            "status": delivery.status,
+            "created_at": delivery.created_at.isoformat(),
+        }
+        if payload["deduplicated"]:
+            return Response(body, status=status.HTTP_200_OK)
+        body["token_id"] = payload["token_id"]
+        body["link"] = payload["link"]
+        return Response(body, status=status.HTTP_202_ACCEPTED)

@@ -44,3 +44,17 @@ class TokenRevokeSerializer(serializers.Serializer):
                 "Provide exactly one of 'token_id' or 'all': true."
             )
         return attrs
+
+
+class ReportDeliverSerializer(serializers.Serializer):
+    """POST /api/v1/reports/{id}/deliver — §6.7.
+
+    channel (email | whatsapp, required), contact_id (a patient_contact row
+    UUID, required). Strict: unknown fields -> 422 via the view's handler.
+    """
+
+    channel = serializers.ChoiceField(choices=["email", "whatsapp"])
+    contact_id = serializers.UUIDField()
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        return _reject_unknown_fields(self, attrs)

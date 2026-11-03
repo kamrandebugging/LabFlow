@@ -7,6 +7,7 @@ from apps.reports.views import (
     ReportAccessTokenIssueView,
     ReportAccessTokenRevokeView,
     ReportAccessView,
+    ReportDeliverView,
     ReportFileDownloadView,
     ReportRegenerateView,
 )
@@ -21,6 +22,17 @@ urlpatterns = [
         "reports/<uuid:report_id>/regenerate/",
         ReportRegenerateView.as_view(),
         name="report-regenerate-slash",
+    ),
+    # LAB-32: delivery dispatch (KAN-157).
+    path(
+        "reports/<uuid:report_id>/deliver",
+        ReportDeliverView.as_view(),
+        name="report-deliver",
+    ),
+    path(
+        "reports/<uuid:report_id>/deliver/",
+        ReportDeliverView.as_view(),
+        name="report-deliver-slash",
     ),
     # LAB-31: public report portal (KAN-156).
     path(

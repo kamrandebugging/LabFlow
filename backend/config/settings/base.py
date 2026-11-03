@@ -189,4 +189,9 @@ CELERY_BEAT_SCHEDULE = {
         "task": "accounts.cleanup_expired_tokens",
         "schedule": 86400.0,  # Run daily
     },
+    # LAB-32 (KAN-157): retry FAILED report deliveries (Doc 02 §5.7).
+    "reports-retry-failed-deliveries-15min": {
+        "task": "reports.retry_failed_deliveries",
+        "schedule": 900.0,  # Every 15 minutes
+    },
 }
