@@ -78,3 +78,47 @@ class SubscriptionChangeSerializer(serializers.Serializer[dict[str, Any]]):
         choices=["active", "past_due", "cancelled", "expired"],
     )
     ends_at = serializers.DateTimeField(required=False, allow_null=True)
+
+
+class TenantSuspendSerializer(serializers.Serializer[dict[str, Any]]):
+    """POST /platform/tenants/{id}/suspend — reason required (Doc 04 §15.1)."""
+
+    reason = serializers.CharField(
+        required=True,
+        allow_blank=False,
+        trim_whitespace=True,
+        max_length=500,
+    )
+
+
+class TenantOffboardCompleteSerializer(serializers.Serializer[dict[str, Any]]):
+    """POST /platform/tenants/{id}/complete-offboarding.
+
+    confirm_schema_drop must be explicitly true (Doc 04 §15.1) — this
+    cannot fire from a generic form post.
+    """
+
+    confirm_schema_drop = serializers.BooleanField(required=True)
+    waive_grace = serializers.BooleanField(required=False, default=False)
+    waive_reason = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        trim_whitespace=True,
+        max_length=500,
+    )
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        if attrs.get("confirm_schema_drop") is not True:
+            raise serializers.ValidationError(
+                {"confirm_schema_drop": ["Must be true to drop the tenant schema."]}
+            )
+        return attrs
+
+
+class PlatformAuditFilterSerializer(serializers.Serializer[dict[str, Any]]):
+    """GET /platform/audit — filter params (Doc 04 §15.1)."""
+
+    action = serializers.CharField(required=False, allow_blank=True)
+    entity_type = serializers.CharField(required=False, allow_blank=True)
+    date_from = serializers.DateTimeField(required=False)
+    date_to = serializers.DateTimeField(required=False)

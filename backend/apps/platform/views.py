@@ -131,6 +131,54 @@ class PlatformTenantCreateView(APIView):
             )
         return response
 
+    def get(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        """GET /api/v1/platform/tenants — registry list (Doc 04 §15.1, LAB-37).
+
+        Filters: status. Read-only. Metadata only — no tenant row content.
+        """
+        from apps.core.models import Tenant as _Tenant
+
+        user = getattr(request, "user", None)
+        if not isinstance(user, PlatformUser) or not user.is_active:
+            return problem_response(
+                code="unauthorized",
+                title="Authentication required",
+                detail="Valid platform super-admin credentials are required.",
+                status_code=401,
+            )
+
+        status_filter = request.query_params.get("status")
+        qs = _Tenant.objects.all().order_by("-created_at")
+        if status_filter:
+            valid = {c.value for c in _Tenant.Status}
+            if status_filter not in valid:
+                return problem_response(
+                    code="validation_error",
+                    title="Invalid status filter",
+                    detail=f"status must be one of: {sorted(valid)}",
+                    status_code=422,
+                )
+            qs = qs.filter(status=status_filter)
+
+        # Bounded page size — platform tenants are few, but never unbounded
+        tenants = list(qs[:100])
+        return Response(
+            {
+                "tenants": [
+                    {
+                        "id": str(t.id),
+                        "slug": t.slug,
+                        "name": t.name,
+                        "status": t.status,
+                        "created_at": t.created_at.isoformat(),
+                        "updated_at": t.updated_at.isoformat(),
+                    }
+                    for t in tenants
+                ]
+            },
+            status=200,
+        )
+
     def post(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         user = getattr(request, "user", None)
         if not isinstance(user, PlatformUser) or not user.is_active:
