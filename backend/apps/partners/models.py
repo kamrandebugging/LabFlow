@@ -27,12 +27,22 @@ class ReferralPartner(models.Model):
         db_default=True,
         null=False,
     )
+    # LAB-39 (KAN-164): idempotency for partner creation; partial UNIQUE
+    # WHERE idempotency_key IS NOT NULL (same pattern as Invoice/Payment).
+    idempotency_key = models.TextField(null=True, blank=True)  # noqa: DJ001
     deleted_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True, null=False)
     updated_at = models.DateTimeField(auto_now=True, null=False)
 
     class Meta:
         db_table = "referral_partner"
+        indexes = [
+            models.Index(
+                fields=["idempotency_key"],
+                condition=Q(idempotency_key__isnull=False),
+                name="uq_referral_partner_idempotency_key",
+            ),
+        ]
 
     def __str__(self) -> str:
         return f"{self.name} ({self.id})"

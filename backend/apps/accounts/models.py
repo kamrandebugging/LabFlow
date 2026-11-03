@@ -285,3 +285,56 @@ class AuditLog(models.Model):
         return (
             f"AuditLog({self.action}, {self.entity_type}:{self.entity_id}, {self.at})"
         )
+
+
+class DataExport(models.Model):
+    """Tenant data export request (Doc 04 §4.3; KAN-163 / LAB-38).
+
+    A Lab Owner's data-portability export: one CSV per tenant table (full
+    record), every report PDF at its stored pdf_key, and a manifest.json
+    with SHA-256 per file. Secrets are excluded per the §4.3 exclusion
+    list; the manifest records what was excluded and why.
+
+    Available in read-only subscription mode (the export path is exempt
+    from the 403 subscription_read_only gate).
+    """
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending"
+        RUNNING = "running", "Running"
+        COMPLETE = "complete", "Complete"
+        FAILED = "failed", "Failed"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    requested_by = models.ForeignKey(
+        StaffUser,
+        on_delete=models.PROTECT,
+        related_name="data_exports",
+        db_column="requested_by",
+    )
+    status = models.TextField(
+        choices=Status.choices,
+        default=Status.PENDING,
+    )
+    # Storage key of the finished ZIP bundle (under tenant prefix).
+    bundle_key = models.TextField(null=True, blank=True)  # noqa: DJ001
+    # Signed download URL, valid 7 days from completion.
+    download_url = models.TextField(null=True, blank=True)  # noqa: DJ001
+    download_expires_at = models.DateTimeField(null=True, blank=True)
+    error = models.TextField(null=True, blank=True)  # noqa: DJ001
+    completed_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "data_export"
+        indexes = [
+            models.Index(
+                fields=["requested_by"], name="idx_data_export_requested_by_id"
+            ),
+            models.Index(fields=["status"], name="idx_data_export_status"),
+            models.Index(fields=["created_at"], name="idx_data_export_created_at"),
+        ]
+
+    def __str__(self) -> str:
+        return f"DataExport({self.id}, {self.status})"
