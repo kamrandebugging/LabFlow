@@ -29,12 +29,21 @@ import {
   SampleLabelScreen,
   type SampleCollectionDraft,
 } from "./features/samples";
+import {
+  WorklistScreen,
+  ResultEntryScreen,
+  ApprovalsQueueScreen,
+  ResultDetailScreen,
+  AmendResultScreen,
+} from "./features/results";
 import { ScreenCatalogViewer } from "./features/screens/ScreenCatalogViewer";
 import Hero from "./marketing/Hero";
 import TrustStrip from "./marketing/TrustStrip";
 import Problem from "./marketing/Problem";
 import HowItWorks from "./marketing/HowItWorks";
 import Features from "./marketing/Features";
+import Security from "./marketing/Security";
+import FoundingOffer from "./marketing/FoundingOffer";
 
 function StaffLoginWrapper(): JSX.Element {
   const navigate = useNavigate();
@@ -308,6 +317,46 @@ function SampleLabelWrapper(): JSX.Element {
   );
 }
 
+function WorklistWrapper(): JSX.Element {
+  return (
+    <main className="min-h-screen bg-slate-50 py-6">
+      <WorklistScreen />
+    </main>
+  );
+}
+
+function ResultEntryWrapper(): JSX.Element {
+  return (
+    <main className="min-h-screen bg-slate-50 py-6">
+      <ResultEntryScreen />
+    </main>
+  );
+}
+
+function ApprovalsQueueWrapper(): JSX.Element {
+  return (
+    <main className="min-h-screen bg-slate-50 py-6">
+      <ApprovalsQueueScreen />
+    </main>
+  );
+}
+
+function ResultDetailWrapper(): JSX.Element {
+  return (
+    <main className="min-h-screen bg-slate-50 py-6">
+      <ResultDetailScreen />
+    </main>
+  );
+}
+
+function AmendResultWrapper(): JSX.Element {
+  return (
+    <main className="min-h-screen bg-slate-50 py-6">
+      <AmendResultScreen />
+    </main>
+  );
+}
+
 function App(): JSX.Element {
   useEffect(() => {
     // Attempt silent session restore via httpOnly refresh cookie on application mount
@@ -356,9 +405,16 @@ function App(): JSX.Element {
         <Route path="/samples/:id" element={<SampleDetailWrapper />} />
         <Route path="/samples/:id/label" element={<SampleLabelWrapper />} />
 
+        {/* Results Management Suite (Screens 21–25) */}
+        <Route path="/worklist" element={<WorklistWrapper />} />
+        <Route path="/results/entry/:sampleId" element={<ResultEntryWrapper />} />
+        <Route path="/results/approvals" element={<ApprovalsQueueWrapper />} />
+        <Route path="/results/:id/amend" element={<AmendResultWrapper />} />
+        <Route path="/results/:id" element={<ResultDetailWrapper />} />
+
         <Route path="/screens" element={<ScreenCatalogViewer />} />
         <Route path="/screens/:screenId" element={<ScreenCatalogViewer />} />
-        {/* TEMPORARY: Hero + TrustStrip + Problem + HowItWorks preview route — will be removed when full marketing page is built */}
+        {/* TEMPORARY: Hero + TrustStrip + Problem + HowItWorks + Features + Security + FoundingOffer preview route — will be removed when full marketing page is built */}
         <Route
           path="/hero-preview"
           element={
@@ -368,6 +424,8 @@ function App(): JSX.Element {
               <Problem />
               <HowItWorks />
               <Features />
+              <Security />
+              <FoundingOffer />
             </>
           }
         />
