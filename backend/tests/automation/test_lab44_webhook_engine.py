@@ -251,7 +251,7 @@ class TestRetrySweep:
     @override_settings(N8N_WEBHOOK_SECRET=TEST_SECRET)
     def test_sweep_restamps_timestamp_and_resigns(self, tenant_a: Tenant) -> None:
         with schema_context(tenant_a.schema_name):
-            row = WebhookDeliveryFactory(
+            row: Any = WebhookDeliveryFactory(
                 status=WebhookDelivery.Status.PENDING,
                 attempts=1,
                 next_attempt_at=timezone.now() - timedelta(minutes=1),
