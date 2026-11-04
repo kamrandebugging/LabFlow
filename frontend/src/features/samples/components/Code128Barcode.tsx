@@ -20,13 +20,15 @@ const STOP = 106;
 function encodeCode128B(text: string): string[] {
   const codes: number[] = [START_B];
   let checkSum = START_B;
+  let weight = 1;
 
   for (let i = 0; i < text.length; i++) {
     const charCode = text.charCodeAt(i);
     const code = charCode - 32;
     if (code >= 0 && code <= 95) {
       codes.push(code);
-      checkSum += code * (i + 1);
+      checkSum += code * weight;
+      weight += 1;
     }
   }
 

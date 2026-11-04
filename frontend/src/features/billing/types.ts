@@ -30,6 +30,7 @@ export interface InvoiceItem {
   test_id?: string | null;
   panel_id?: string | null;
   description: string;
+  name?: string;
   unit_price: string;
   quantity: number;
   line_total: string;

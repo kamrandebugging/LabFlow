@@ -21,7 +21,17 @@ import { TestPanelsScreen } from "./features/catalog/TestPanelsScreen";
 import { InvoicesListScreen } from "./features/billing/InvoicesListScreen";
 import { NewInvoiceScreen } from "./features/billing/NewInvoiceScreen";
 import { InvoiceDetailScreen } from "./features/billing/InvoiceDetailScreen";
+import {
+  SampleAccessioningListScreen,
+  CollectSampleStep1Screen,
+  CollectSampleStep2Screen,
+  SampleDetailScreen,
+  SampleLabelScreen,
+  type SampleCollectionDraft,
+} from "./features/samples";
 import { ScreenCatalogViewer } from "./features/screens/ScreenCatalogViewer";
+import Hero from "./marketing/Hero";
+import TrustStrip from "./marketing/TrustStrip";
 
 function StaffLoginWrapper(): JSX.Element {
   const navigate = useNavigate();
@@ -184,6 +194,117 @@ function InvoiceDetailWrapper(): JSX.Element {
   );
 }
 
+function SamplesListWrapper(): JSX.Element {
+  const navigate = useNavigate();
+  return (
+    <main className="min-h-screen bg-slate-50">
+      <SampleAccessioningListScreen
+        onSelectSample={(id) => navigate(`/samples/${id}`)}
+        onCollectNew={() => navigate("/samples/collect/step1")}
+        onPrintLabels={(ids) => {
+          if (ids[0]) navigate(`/samples/${ids[0]}/label`);
+        }}
+      />
+    </main>
+  );
+}
+
+function CollectSampleStep1Wrapper(): JSX.Element {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const queryParams = new URLSearchParams(location.search);
+  const invoiceIdParam = queryParams.get("invoice_id") || undefined;
+
+  return (
+    <main className="min-h-screen bg-slate-50 py-6">
+      <CollectSampleStep1Screen
+        preselectedInvoiceId={invoiceIdParam}
+        onCancel={() => navigate("/samples")}
+        onContinue={(draft) => {
+          navigate("/samples/collect/step2", { state: { draft } });
+        }}
+      />
+    </main>
+  );
+}
+
+function CollectSampleStep2Wrapper(): JSX.Element {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const stateDraft = (location.state as { draft?: SampleCollectionDraft } | undefined)?.draft;
+
+  // Fallback demo draft if navigated directly
+  const fallbackDraft: SampleCollectionDraft = {
+    invoice_id: "00000000-0000-0000-0000-000000000011",
+    patient_id: "00000000-0000-0000-0000-000000000001",
+    patient_name: "Muhammad Imran",
+    patient_mrn: "MRN-2026-00417",
+    branch_id: "96f2a138-334e-490c-9dd3-805dd45022f0",
+    branch_name: "Main Reference Lab (Lahore)",
+    selected_item_ids: ["item-01", "item-02"],
+    test_labels: ["Complete Blood Count (CBC)", "Glycated Hemoglobin (HbA1c)"],
+    tubes_required: [
+      {
+        type: "Lavender top (EDTA)",
+        color: "#7e22ce",
+        specimen: "Whole Blood",
+        count: 1,
+      },
+      {
+        type: "Grey top (Fluoride)",
+        color: "#64748b",
+        specimen: "Fluoride Plasma",
+        count: 1,
+      },
+    ],
+    collected_at: new Date().toISOString(),
+    collected_by: "phleb.amna@labflow.pk",
+    notes: "Specimen drawn per standard phlebotomy protocol.",
+  };
+
+  return (
+    <main className="min-h-screen bg-slate-50 py-6">
+      <CollectSampleStep2Screen
+        draft={stateDraft || fallbackDraft}
+        onBack={() => navigate("/samples/collect/step1")}
+        onConfirmed={(res) => {
+          navigate(`/samples/${res.id}/label`);
+        }}
+      />
+    </main>
+  );
+}
+
+function SampleDetailWrapper(): JSX.Element {
+  const navigate = useNavigate();
+  const { id } = useParams<{ id: string }>();
+
+  return (
+    <main className="min-h-screen bg-slate-50 py-6">
+      <SampleDetailScreen
+        sampleId={id || ""}
+        onBack={() => navigate("/samples")}
+        onPrintLabel={(sampleId) => navigate(`/samples/${sampleId}/label`)}
+        onViewPatient={(patientId) => navigate(`/patients/${patientId}`)}
+      />
+    </main>
+  );
+}
+
+function SampleLabelWrapper(): JSX.Element {
+  const navigate = useNavigate();
+  const { id } = useParams<{ id: string }>();
+
+  return (
+    <main className="min-h-screen bg-slate-50 py-6">
+      <SampleLabelScreen
+        sampleId={id || ""}
+        onBack={() => navigate(`/samples/${id}`)}
+      />
+    </main>
+  );
+}
+
 function App(): JSX.Element {
   useEffect(() => {
     // Attempt silent session restore via httpOnly refresh cookie on application mount
@@ -223,8 +344,27 @@ function App(): JSX.Element {
         <Route path="/invoices" element={<InvoicesListWrapper />} />
         <Route path="/invoices/new" element={<NewInvoiceWrapper />} />
         <Route path="/invoices/:id" element={<InvoiceDetailWrapper />} />
+
+        {/* Samples Management Suite (Screens 16–20) */}
+        <Route path="/samples" element={<SamplesListWrapper />} />
+        <Route path="/samples/collect/step1" element={<CollectSampleStep1Wrapper />} />
+        <Route path="/samples/collect/step2" element={<CollectSampleStep2Wrapper />} />
+        <Route path="/samples/new" element={<Navigate to="/samples/collect/step1" replace />} />
+        <Route path="/samples/:id" element={<SampleDetailWrapper />} />
+        <Route path="/samples/:id/label" element={<SampleLabelWrapper />} />
+
         <Route path="/screens" element={<ScreenCatalogViewer />} />
         <Route path="/screens/:screenId" element={<ScreenCatalogViewer />} />
+        {/* TEMPORARY: Hero section + Trust Strip preview route — will be removed when the full marketing page is built */}
+        <Route
+          path="/hero-preview"
+          element={
+            <>
+              <Hero />
+              <TrustStrip />
+            </>
+          }
+        />
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </BrowserRouter>

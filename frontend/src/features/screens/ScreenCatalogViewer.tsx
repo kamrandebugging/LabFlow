@@ -9,8 +9,6 @@ import {
   Image as ImageIcon,
   ChevronLeft,
   ChevronRight,
-  Shield,
-  Smartphone,
   CheckCircle2,
   ArrowLeft,
 } from "lucide-react";
@@ -57,7 +55,45 @@ export function ScreenCatalogViewer(): JSX.Element {
     }
   };
 
-  const isInteractiveReact = currentScreen.id === 1 || currentScreen.id === 2;
+  const interactiveRoute = (() => {
+    switch (currentScreen.id) {
+      case 1:
+        return "/login";
+      case 2:
+        return "/login/2fa";
+      case 7:
+        return "/patients";
+      case 8:
+        return "/patients/new";
+      case 9:
+        return "/patients/f472ea8a-5726-475c-883e-4f468546aa77";
+      case 10:
+        return "/patients/f472ea8a-5726-475c-883e-4f468546aa77/history";
+      case 11:
+        return "/catalog/tests";
+      case 12:
+        return "/catalog/panels";
+      case 13:
+        return "/invoices";
+      case 14:
+        return "/invoices/new";
+      case 15:
+        return "/invoices/00000000-0000-0000-0000-000000000011";
+      case 16:
+        return "/samples";
+      case 17:
+        return "/samples/collect/step1";
+      case 18:
+        return "/samples/collect/step2";
+      case 19:
+        return "/samples/00000000-0000-0000-0000-000000000101";
+      case 20:
+        return "/samples/00000000-0000-0000-0000-000000000101/label";
+      default:
+        return null;
+    }
+  })();
+  const isInteractiveReact = interactiveRoute !== null;
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
@@ -112,16 +148,12 @@ export function ScreenCatalogViewer(): JSX.Element {
         {/* Right: View Mode Controls & Direct Links */}
         <div className="flex items-center gap-2">
           {/* React interactive direct link */}
-          {isInteractiveReact && (
+          {isInteractiveReact && interactiveRoute && (
             <Link
-              to={currentScreen.id === 1 ? "/login" : "/login/2fa"}
+              to={interactiveRoute}
               className="flex items-center gap-1 text-xs px-2.5 py-1 rounded bg-teal-600 hover:bg-teal-500 text-white font-medium transition"
             >
-              {currentScreen.id === 1 ? (
-                <Shield className="w-3.5 h-3.5" />
-              ) : (
-                <Smartphone className="w-3.5 h-3.5" />
-              )}
+              <CheckCircle2 className="w-3.5 h-3.5" />
               Live React Component
             </Link>
           )}
