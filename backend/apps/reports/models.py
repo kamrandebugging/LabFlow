@@ -212,6 +212,10 @@ class ReportDelivery(models.Model):
         db_index=False,
     )
     channel = models.TextField(choices=Channel.choices)
+    # LAB-45 (KAN-264): the idempotency key shared with the matching
+    # webhook_delivery row (Doc 06 §5.1). The n8n callback carries it and
+    # §5.4 check 5 looks the row up by it.
+    idempotency_key = models.TextField(null=True, blank=True)  # noqa: DJ001
     # LAB-32: the patient_contact row this delivery targets. Required —
     # the §6.7 deliver body carries contact_id and idempotency is keyed on
     # channel+contact.
@@ -270,6 +274,13 @@ class ReportDelivery(models.Model):
                 fields=["report", "channel", "contact"],
                 condition=Q(status="PENDING"),
                 name="uq_report_delivery_pending_report_channel_contact",
+            ),
+            # LAB-45 (KAN-264): the callback key is UNIQUE per Doc 06 §5.3
+            # (IK-3) — one key names one logical delivery.
+            models.UniqueConstraint(
+                fields=["idempotency_key"],
+                condition=Q(idempotency_key__isnull=False),
+                name="uq_report_delivery_idempotency_key",
             ),
         ]
         indexes = [

@@ -233,4 +233,10 @@ CELERY_BEAT_SCHEDULE = {
         "task": "webhooks.retry_pending_deliveries",
         "schedule": crontab(minute="3,18,33,48"),
     },
+    # LAB-45 (KAN-264): retry FAILED notification deliveries (Doc 06 §12.9).
+    # Distinct from the webhook sweep; offsets per Doc 10 §9.
+    "notifications-retry-pending-deliveries": {
+        "task": "notifications.retry_pending_deliveries",
+        "schedule": crontab(minute="11,26,41,56"),
+    },
 }

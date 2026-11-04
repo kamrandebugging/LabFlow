@@ -26,6 +26,7 @@ from datetime import datetime, timedelta
 from typing import Any
 
 from django.conf import settings
+from django.db import transaction
 from django.utils import timezone
 
 from apps.automation import payloads, signing
@@ -285,3 +286,381 @@ def extract_message_id(body: dict[str, Any]) -> str | None:
     """
     value = body.get("message_id")
     return str(value) if value else None
+
+
+HARD_BOUNCE_PREFIX = "hard_bounce:"
+
+# Doc 01 §13 / Doc 05 DL-5: 5 retries, backoff from 30 seconds to 30 minutes.
+MAX_NOTIFICATION_ATTEMPTS = 5
+
+# Claim lease for the retry sweep: two overlapping Beat runs cannot
+# double-enqueue a row (same pattern as reports.retry_failed_deliveries).
+SWEEP_CLAIM_LEASE = timedelta(minutes=30)
+SWEEP_BATCH_LIMIT = 100
+
+CALLBACK_STATUSES = ("SENT", "FAILED")
+
+
+class CallbackError(Exception):
+    """Carries the Doc 03 §6.1-shaped error for callback endpoints."""
+
+    def __init__(
+        self,
+        error_code: str,
+        status_code: int,
+        details: dict[str, Any] | None = None,
+    ) -> None:
+        super().__init__(error_code)
+        self.error_code = error_code
+        self.status_code = status_code
+        self.details = details or {}
+
+
+def notification_backoff(attempts: int) -> timedelta:
+    """Row-level retry backoff ladder: 30s -> 2m -> 8m -> 15m -> 30m."""
+    ladder = [30, 120, 480, 900, 1800]
+    return timedelta(seconds=ladder[min(max(attempts, 1) - 1, 4)])
+
+
+def _is_hard_bounce(last_error: str | None) -> bool:
+    return bool(last_error) and str(last_error).startswith(HARD_BOUNCE_PREFIX)
+
+
+def _validate_status(status: str | None) -> str:
+    if status not in CALLBACK_STATUSES:
+        # DO-10: OPENED (or anything else) is never accepted on a callback.
+        raise CallbackError("invalid_status", 422)
+    return status
+
+
+def _audit_callback(
+    *,
+    action: str,
+    entity_type: str,
+    entity_id: Any,
+    before: dict[str, Any],
+    after: dict[str, Any],
+) -> None:
+    # Local import: accounts is the canonical home of AuditLog.
+    from apps.accounts.models import AuditLog
+
+    AuditLog.objects.create(
+        actor_id=None,
+        action=action,
+        entity_type=entity_type,
+        entity_id=entity_id,
+        before_jsonb=before,
+        after_jsonb=after,
+        ip=None,
+        user_agent="n8n-callback",
+    )
+
+
+def apply_notification_callback(
+    *,
+    idempotency_key: str,
+    status: str,
+    last_error: str | None,
+) -> dict[str, Any]:
+    """Apply the §9 outcome map to a notification row.
+
+    Idempotent on (idempotency_key, outcome): a repeated identical outcome
+    returns the row's current state and changes nothing (CB-1).
+    """
+    from apps.notifications.models import Notification
+
+    status = _validate_status(status)
+    if status == "FAILED" and not last_error:
+        raise CallbackError("last_error_required", 422)
+
+    with transaction.atomic():
+        try:
+            row = Notification.objects.select_for_update().get(
+                idempotency_key=idempotency_key
+            )
+        except Notification.DoesNotExist:
+            # §12.4: the callback outran the outbound write.
+            raise CallbackError("row_not_ready", 409) from None
+
+        before = {"status": row.status, "attempts": row.attempts}
+
+        if status == "SENT":
+            if row.status == Notification.Status.SENT:
+                return {"idempotency_key": idempotency_key, "status": "SENT"}
+            if row.status == Notification.Status.FAILED and (
+                _is_hard_bounce(row.last_error)
+                or row.attempts >= MAX_NOTIFICATION_ATTEMPTS
+            ):
+                # AU-13: a SENT for a row already final as failed.
+                raise CallbackError("state_conflict", 409)
+            row.status = Notification.Status.SENT
+            row.next_attempt_at = None
+            row.save(update_fields=["status", "next_attempt_at", "updated_at"])
+            _audit_callback(
+                action="webhook.notification_callback",
+                entity_type="notification",
+                entity_id=row.id,
+                before=before,
+                after={"status": "SENT"},
+            )
+            return {"idempotency_key": idempotency_key, "status": "SENT"}
+
+        # status == FAILED
+        if row.status == Notification.Status.SENT:
+            raise CallbackError("state_conflict", 409)
+        if row.status == Notification.Status.FAILED and row.last_error == (
+            last_error or ""
+        ):
+            # Same outcome delivered twice: idempotent no-op (CB-1).
+            return {"idempotency_key": idempotency_key, "status": "FAILED"}
+        row.attempts += 1
+        row.last_error = last_error or ""
+        if _is_hard_bounce(last_error) or row.attempts >= MAX_NOTIFICATION_ATTEMPTS:
+            # DO-6 / DO-4: terminal failure, no further retries.
+            row.status = Notification.Status.FAILED
+            row.next_attempt_at = None
+        else:
+            row.status = Notification.Status.FAILED
+            row.next_attempt_at = timezone.now() + notification_backoff(row.attempts)
+        row.save(
+            update_fields=[
+                "status",
+                "attempts",
+                "last_error",
+                "next_attempt_at",
+                "updated_at",
+            ]
+        )
+        _audit_callback(
+            action="webhook.notification_callback",
+            entity_type="notification",
+            entity_id=row.id,
+            before=before,
+            after={
+                "status": "FAILED",
+                "attempts": row.attempts,
+                "hard_bounce": _is_hard_bounce(last_error),
+            },
+        )
+        return {"idempotency_key": idempotency_key, "status": "FAILED"}
+
+
+def apply_report_delivery_callback(
+    *,
+    idempotency_key: str,
+    channel: str,
+    status: str,
+    whatsapp_url: str | None,
+    last_error: str | None,
+) -> dict[str, Any]:
+    """Apply the §9 outcome map to a report_delivery row."""
+    from apps.reports.models import ReportDelivery
+
+    status = _validate_status(status)
+    if status == "FAILED" and not last_error:
+        raise CallbackError("last_error_required", 422)
+
+    with transaction.atomic():
+        try:
+            row = ReportDelivery.objects.select_for_update().get(
+                idempotency_key=idempotency_key
+            )
+        except ReportDelivery.DoesNotExist:
+            raise CallbackError("row_not_ready", 409) from None
+
+        if channel not in (
+            ReportDelivery.Channel.EMAIL,
+            ReportDelivery.Channel.WHATSAPP,
+        ):
+            raise CallbackError("invalid_channel", 422)
+        if channel != row.channel:
+            raise CallbackError("state_conflict", 409)
+
+        before = {"status": row.status, "attempts": row.attempts}
+
+        if status == "SENT":
+            if row.status == ReportDelivery.Status.SENT:
+                return {"idempotency_key": idempotency_key, "status": "SENT"}
+            if row.status == ReportDelivery.Status.BOUNCED:
+                # AU-13: final as hard-bounced.
+                raise CallbackError("state_conflict", 409)
+            if channel == ReportDelivery.Channel.WHATSAPP:
+                if not whatsapp_url:
+                    raise CallbackError("whatsapp_url_required", 422)
+                row.whatsapp_url = whatsapp_url
+                update_fields = [
+                    "status",
+                    "whatsapp_url",
+                    "next_attempt_at",
+                    "updated_at",
+                ]
+            else:
+                update_fields = ["status", "next_attempt_at", "updated_at"]
+            row.status = ReportDelivery.Status.SENT
+            row.next_attempt_at = None
+            row.save(update_fields=update_fields)
+            _audit_callback(
+                action="webhook.report_delivery_callback",
+                entity_type="report_delivery",
+                entity_id=row.id,
+                before=before,
+                after={"status": "SENT", "channel": channel},
+            )
+            return {"idempotency_key": idempotency_key, "status": "SENT"}
+
+        # status == FAILED
+        if row.status == ReportDelivery.Status.SENT:
+            raise CallbackError("state_conflict", 409)
+        if row.status == ReportDelivery.Status.BOUNCED:
+            raise CallbackError("state_conflict", 409)
+        if row.status == ReportDelivery.Status.FAILED and row.last_error == (
+            last_error or ""
+        ):
+            return {"idempotency_key": idempotency_key, "status": "FAILED"}
+        row.attempts += 1
+        row.last_error = last_error or ""
+        if _is_hard_bounce(last_error):
+            # DO-9: hard bounce on a report email ends the row as BOUNCED.
+            row.status = ReportDelivery.Status.BOUNCED
+            row.next_attempt_at = None
+            new_status = "BOUNCED"
+        elif row.attempts >= MAX_NOTIFICATION_ATTEMPTS:
+            row.status = ReportDelivery.Status.FAILED
+            row.next_attempt_at = None
+            new_status = "FAILED"
+        else:
+            row.status = ReportDelivery.Status.FAILED
+            row.next_attempt_at = timezone.now() + notification_backoff(row.attempts)
+            new_status = "FAILED"
+        row.save(
+            update_fields=[
+                "status",
+                "attempts",
+                "last_error",
+                "next_attempt_at",
+                "updated_at",
+            ]
+        )
+        _audit_callback(
+            action="webhook.report_delivery_callback",
+            entity_type="report_delivery",
+            entity_id=row.id,
+            before=before,
+            after={"status": new_status, "attempts": row.attempts},
+        )
+        return {"idempotency_key": idempotency_key, "status": new_status}
+
+
+def apply_settlement_callback(
+    *,
+    settlement_id: str,
+    idempotency_key: str,
+    status: str,
+    last_error: str | None,
+) -> dict[str, Any]:
+    """Apply the §9 outcome map to a settlement's notification row.
+
+    On SENT, the settlement moves APPROVED -> SENT in the SAME transaction
+    (Doc 05 §7.3). If the settlement is not APPROVED, the callback returns
+    409 state_conflict and the notification row is left untouched for staff
+    to inspect — a delivery fact is never forced onto a wrong-state
+    settlement.
+    """
+    from apps.notifications.models import Notification
+    from apps.partners.models import Settlement
+
+    status = _validate_status(status)
+    if status == "FAILED" and not last_error:
+        raise CallbackError("last_error_required", 422)
+
+    with transaction.atomic():
+        try:
+            row = Notification.objects.select_for_update().get(
+                idempotency_key=idempotency_key
+            )
+        except Notification.DoesNotExist:
+            raise CallbackError("row_not_ready", 409) from None
+
+        try:
+            settlement = Settlement.objects.select_for_update().get(id=settlement_id)
+        except Settlement.DoesNotExist:
+            raise CallbackError("not_found", 404) from None
+
+        before = {
+            "notification_status": row.status,
+            "settlement_status": settlement.status,
+        }
+
+        if status == "SENT":
+            if settlement.status == Settlement.Status.SENT and (
+                row.status == Notification.Status.SENT
+            ):
+                # AU-34: delivered twice — exactly-once settlement move.
+                return {
+                    "idempotency_key": idempotency_key,
+                    "status": "SENT",
+                    "settlement_status": "SENT",
+                }
+            if settlement.status != Settlement.Status.APPROVED:
+                raise CallbackError("state_conflict", 409)
+            row.status = Notification.Status.SENT
+            row.next_attempt_at = None
+            row.save(update_fields=["status", "next_attempt_at", "updated_at"])
+            settlement.status = Settlement.Status.SENT
+            settlement.save(update_fields=["status", "updated_at"])
+            _audit_callback(
+                action="webhook.settlement_delivery_callback",
+                entity_type="settlement",
+                entity_id=settlement.id,
+                before=before,
+                after={"settlement_status": "SENT"},
+            )
+            return {
+                "idempotency_key": idempotency_key,
+                "status": "SENT",
+                "settlement_status": "SENT",
+            }
+
+        # status == FAILED: same map as a plain notification; the
+        # settlement stays APPROVED (Doc 05 DL-5).
+        if row.status == Notification.Status.SENT:
+            raise CallbackError("state_conflict", 409)
+        if row.status == Notification.Status.FAILED and row.last_error == (
+            last_error or ""
+        ):
+            return {
+                "idempotency_key": idempotency_key,
+                "status": "FAILED",
+                "settlement_status": settlement.status,
+            }
+        row.attempts += 1
+        row.last_error = last_error or ""
+        if _is_hard_bounce(last_error) or row.attempts >= MAX_NOTIFICATION_ATTEMPTS:
+            row.next_attempt_at = None
+        else:
+            row.next_attempt_at = timezone.now() + notification_backoff(row.attempts)
+        row.status = Notification.Status.FAILED
+        row.save(
+            update_fields=[
+                "status",
+                "attempts",
+                "last_error",
+                "next_attempt_at",
+                "updated_at",
+            ]
+        )
+        _audit_callback(
+            action="webhook.settlement_delivery_callback",
+            entity_type="settlement",
+            entity_id=settlement.id,
+            before=before,
+            after={
+                "notification_status": "FAILED",
+                "settlement_status": settlement.status,
+            },
+        )
+        return {
+            "idempotency_key": idempotency_key,
+            "status": "FAILED",
+            "settlement_status": settlement.status,
+        }
