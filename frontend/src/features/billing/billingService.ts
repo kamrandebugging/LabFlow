@@ -224,7 +224,7 @@ export const billingService = {
 
     const userBranch = useAuthStore.getState().user?.branch_ids?.[0];
     const branchId =
-      input.branch_id || userBranch || "b13d89c6-3cd7-4ed2-a5f0-05dd62826610";
+      input.branch_id || userBranch || "96f2a138-334e-490c-9dd3-805dd45022f0";
 
     // Strict backend schema: exactly one of test_id or panel_id, and qty >= 1
     const cleanItems = input.items.map((it) => {
