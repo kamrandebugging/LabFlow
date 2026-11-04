@@ -474,21 +474,23 @@ export function NewInvoiceScreen({
                   Add Individual Test
                 </label>
                 <div className="flex items-center gap-2 min-w-0">
-                  <select
-                    id={searchInputId}
-                    value={selectedTestToAdd}
-                    onChange={(e) => setSelectedTestToAdd(e.target.value)}
-                    disabled={catalogLoading}
-                    className="w-full min-w-0 flex-1 truncate text-sm border border-slate-300 rounded-lg px-3 py-2 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-600"
-                  >
-                    <option value="">— Select Diagnostic Test —</option>
-                    {availableTests.map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.name} ({t.code}) - PKR{" "}
-                        {parseFloat(t.price || "0").toFixed(2)}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="flex-1 min-w-0">
+                    <select
+                      id={searchInputId}
+                      value={selectedTestToAdd}
+                      onChange={(e) => setSelectedTestToAdd(e.target.value)}
+                      disabled={catalogLoading}
+                      className="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-600 truncate block"
+                    >
+                      <option value="">— Select Diagnostic Test —</option>
+                      {availableTests.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.name} ({t.code}) - PKR{" "}
+                          {parseFloat(t.price || "0").toFixed(2)}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                   <button
                     type="button"
                     onClick={() => handleAddTest(selectedTestToAdd)}
