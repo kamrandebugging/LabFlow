@@ -199,6 +199,13 @@ N8N_WEBHOOK_SECRET = env("N8N_WEBHOOK_SECRET", default=SECRET_KEY)
 # without an n8n round-trip. Never True in production.
 SETTLEMENT_DELIVERY_STUB = env.bool("SETTLEMENT_DELIVERY_STUB", default=False)
 
+# Outbound webhook engine (Doc 06 §5; Doc 02 §8: service API keys in env only).
+N8N_CALLBACK_KEY = env("N8N_CALLBACK_KEY", default="")
+# Set during callback-key rotation; Django dual-accepts both keys (§5.5).
+N8N_CALLBACK_KEY_NEXT = env("N8N_CALLBACK_KEY_NEXT", default="")
+# Event → n8n webhook URL map (Doc 10 holds n8n configuration values).
+N8N_WEBHOOK_URLS: dict[str, str] = {}
+
 # Celery Beat Scheduled Tasks (Doc 02 §5.11, Doc 04 §13.2, Doc 08 §4.5)
 CELERY_BEAT_SCHEDULE = {
     "accounts-cleanup-expired-tokens-daily": {
@@ -220,5 +227,10 @@ CELERY_BEAT_SCHEDULE = {
     "partners-retry-failed-settlement-deliveries-15min": {
         "task": "partners.retry_failed_settlement_deliveries",
         "schedule": 900.0,  # Every 15 minutes
+    },
+    # LAB-44 (KAN-263): webhook retry sweep (Doc 06 §5.2, §12; Doc 10 §9).
+    "webhooks-retry-pending-deliveries": {
+        "task": "webhooks.retry_pending_deliveries",
+        "schedule": crontab(minute="3,18,33,48"),
     },
 }
