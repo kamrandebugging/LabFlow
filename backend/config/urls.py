@@ -74,6 +74,10 @@ urlpatterns = [
         ).StaffTotpResetView.as_view(),
         name="staff-totp-reset-slash",
     ),
+    # Webhook callbacks from n8n (Doc 06 §10, KAN-264 / LAB-45) — the only
+    # endpoints an external service calls. No JWT/session; the callback key
+    # is the credential.
+    path("api/v1/webhooks/n8n/", include("apps.automation.urls_callbacks")),
     # OpenAPI Schema & API Documentation
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     path(
