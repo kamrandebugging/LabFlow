@@ -20,7 +20,7 @@ import os
 from datetime import UTC, datetime
 from typing import Any
 
-import requests  # type: ignore[import-untyped]
+import requests
 from celery import shared_task
 from django.db import transaction
 from django.utils import timezone

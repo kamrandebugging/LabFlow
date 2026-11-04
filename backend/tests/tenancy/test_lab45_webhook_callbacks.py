@@ -45,7 +45,7 @@ CALLBACK_KEY = "test-callback-key-12345"
 NEXT_KEY = "test-callback-key-next-67890"
 
 
-def _headers(key: str = CALLBACK_KEY) -> dict[str, str]:
+def _headers(key: str = CALLBACK_KEY) -> Any:
     return {
         "HTTP_X_LABFLOW_CALLBACK_KEY": key,
         "HTTP_HOST": "tenant-a.localhost",
@@ -233,6 +233,7 @@ class TestNotificationCallbackEndpoint:
             assert row.status == Notification.Status.FAILED
             assert row.attempts == 1
             assert row.next_attempt_at is not None
+            assert row.last_error is not None
             assert not row.last_error.startswith(HARD_BOUNCE_PREFIX)
 
     def test_hard_bounce_terminal(self, tenant_a: Any, monkeypatch: Any) -> None:
@@ -252,6 +253,7 @@ class TestNotificationCallbackEndpoint:
             row = Notification.objects.get(idempotency_key="notif-key-1")
             assert row.status == Notification.Status.FAILED
             assert row.next_attempt_at is None
+            assert row.last_error is not None
             assert row.last_error.startswith(HARD_BOUNCE_PREFIX)
 
     def test_failed_requires_last_error_422(
@@ -288,7 +290,7 @@ class TestNotificationCallbackEndpoint:
 # ---------------------------------------------------------------------------
 
 
-def _make_report_delivery(tenant_a: Any, **kwargs: Any) -> ReportDelivery:
+def _make_report_delivery(tenant_a: Any, **kwargs: Any) -> Any:
     defaults = {
         "channel": ReportDelivery.Channel.EMAIL,
         "status": ReportDelivery.Status.PENDING,
@@ -371,6 +373,7 @@ class TestReportDeliveryCallbackEndpoint:
         with tenant_context(tenant_a):
             row = ReportDelivery.objects.get(idempotency_key="rd-key-1")
             assert row.status == ReportDelivery.Status.BOUNCED
+            assert row.last_error is not None
             assert row.last_error.startswith(HARD_BOUNCE_PREFIX)
 
     def test_sent_on_bounced_409(self, tenant_a: Any, monkeypatch: Any) -> None:
