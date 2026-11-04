@@ -30,8 +30,6 @@ import {
   type SampleCollectionDraft,
 } from "./features/samples";
 import { ScreenCatalogViewer } from "./features/screens/ScreenCatalogViewer";
-import Hero from "./marketing/Hero";
-import TrustStrip from "./marketing/TrustStrip";
 
 function StaffLoginWrapper(): JSX.Element {
   const navigate = useNavigate();
@@ -355,16 +353,6 @@ function App(): JSX.Element {
 
         <Route path="/screens" element={<ScreenCatalogViewer />} />
         <Route path="/screens/:screenId" element={<ScreenCatalogViewer />} />
-        {/* TEMPORARY: Hero section + Trust Strip preview route — will be removed when the full marketing page is built */}
-        <Route
-          path="/hero-preview"
-          element={
-            <>
-              <Hero />
-              <TrustStrip />
-            </>
-          }
-        />
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </BrowserRouter>

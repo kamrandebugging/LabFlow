@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from "react";
+import { useCallback, useEffect, useId, useState } from "react";
 import {
   Calendar,
   CheckCircle2,
@@ -60,64 +60,67 @@ export function CollectSampleStep1Screen({
   }, []);
 
   // Fetch invoice helper
-  const handleSearchInvoice = async (idOrNumber: string) => {
-    const q = idOrNumber.trim();
-    if (!q) return;
+  const handleSearchInvoice = useCallback(
+    async (idOrNumber: string) => {
+      const q = idOrNumber.trim();
+      if (!q) return;
 
-    try {
-      setIsLoading(true);
-      setErrorMessage(null);
-      const data = await billingServiceInstance.getInvoice(q);
-      setInvoice(data);
-      // Auto-select all items by default
-      const allItemIds = new Set(data.items.map((i) => i.id));
-      setSelectedItemIds(allItemIds);
-    } catch {
-      // Fallback demo invoice if backend search fails
-      const demoInvoice: InvoiceDetail = {
-        id: "00000000-0000-0000-0000-000000000011",
-        patient_id: "00000000-0000-0000-0000-000000000001",
-        patient_name: "Muhammad Imran",
-        patient_mrn: "MRN-2026-00417",
-        branch_id: user?.branch_ids?.[0] || "00000000-0000-0000-0000-000000000001",
-        status: "paid",
-        subtotal: "2450.00",
-        discount_amount: "0.00",
-        total: "2450.00",
-        net_paid: "2450.00",
-        items: [
-          {
-            id: "ii-01",
-            test_id: "t-01",
-            description: "Complete Blood Count (CBC)",
-            unit_price: "850.00",
-            quantity: 1,
-            line_total: "850.00",
-          },
-          {
-            id: "ii-02",
-            test_id: "t-02",
-            description: "Glycated Hemoglobin (HbA1c)",
-            unit_price: "1600.00",
-            quantity: 1,
-            line_total: "1600.00",
-          },
-        ],
-        payments: [],
-        created_at: new Date().toISOString(),
-      };
-      setInvoice(demoInvoice);
-      setSelectedItemIds(new Set(demoInvoice.items.map((i) => i.id)));
-    } finally {
-      setIsLoading(false);
-    }
-  };
+      try {
+        setIsLoading(true);
+        setErrorMessage(null);
+        const data = await billingServiceInstance.getInvoice(q);
+        setInvoice(data);
+        // Auto-select all items by default
+        const allItemIds = new Set(data.items.map((i) => i.id));
+        setSelectedItemIds(allItemIds);
+      } catch {
+        // Fallback demo invoice if backend search fails
+        const demoInvoice: InvoiceDetail = {
+          id: "00000000-0000-0000-0000-000000000011",
+          patient_id: "00000000-0000-0000-0000-000000000001",
+          patient_name: "Muhammad Imran",
+          patient_mrn: "MRN-2026-00417",
+          branch_id: user?.branch_ids?.[0] || "00000000-0000-0000-0000-000000000001",
+          status: "paid",
+          subtotal: "2450.00",
+          discount_amount: "0.00",
+          total: "2450.00",
+          net_paid: "2450.00",
+          items: [
+            {
+              id: "ii-01",
+              test_id: "t-01",
+              description: "Complete Blood Count (CBC)",
+              unit_price: "850.00",
+              quantity: 1,
+              line_total: "850.00",
+            },
+            {
+              id: "ii-02",
+              test_id: "t-02",
+              description: "Glycated Hemoglobin (HbA1c)",
+              unit_price: "1600.00",
+              quantity: 1,
+              line_total: "1600.00",
+            },
+          ],
+          payments: [],
+          created_at: new Date().toISOString(),
+        };
+        setInvoice(demoInvoice);
+        setSelectedItemIds(new Set(demoInvoice.items.map((i) => i.id)));
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [billingServiceInstance, user?.branch_ids?.[0]],
+  );
 
   useEffect(() => {
     if (invoiceQuery) {
       handleSearchInvoice(invoiceQuery);
     }
-  }, []); // Initial load
+  }, [handleSearchInvoice, invoiceQuery]); // Initial load
 
   const toggleItem = (itemId: string) => {
     setSelectedItemIds((prev) => {

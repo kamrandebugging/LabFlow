@@ -37,7 +37,7 @@ from apps.core.models import Subscription
 from apps.patients.models import Patient
 from apps.samples.models import Sample, SampleTransfer
 from tests.factories.branch import BranchFactory
-from tests.factories.core import PlanFactory, SubscriptionFactory
+from tests.factories.core import PlanFactory
 from tests.factories.patients import PatientFactory
 from tests.factories.samples import SampleFactory, SampleTransferFactory
 from tests.factories.staff_user import StaffUserFactory
@@ -145,7 +145,12 @@ def _patch_json(
 def _make_plan(tenant: Any, max_branches: int | None) -> Any:
     """Public-schema plan + active subscription for the test tenant."""
     plan = PlanFactory(name=f"Tier-{uuid.uuid4().hex[:8]}", max_branches=max_branches)
-    SubscriptionFactory(tenant=tenant, plan=plan, status=Subscription.Status.ACTIVE)
+    # Idempotent: conftest already provisions an ACTIVE subscription per
+    # tenant; creating a second one violates uq_subscription_one_active_per_tenant.
+    Subscription.objects.update_or_create(
+        tenant=tenant,
+        defaults={"plan": plan, "status": Subscription.Status.ACTIVE},
+    )
     return plan
 
 

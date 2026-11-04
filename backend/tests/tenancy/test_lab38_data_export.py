@@ -83,6 +83,7 @@ class TestExportApi:
             headers = auth_headers(lab38_setup["owner"])
         client = Client()
         with patch("apps.platform.tasks.export_tenant_task.delay") as mock_delay:
+            headers["Idempotency-Key"] = f"lab38-export-{uuid.uuid4().hex}"
             response = client.post(
                 EXPORTS_URL,
                 data=json.dumps({}),
@@ -162,7 +163,7 @@ class TestExportTask:
             owner = lab38_setup["owner"]
             owner.password_hash = "hashed-secret-value"
             owner.totp_secret_encrypted = "encrypted-totp-secret"
-            owner.totp_backup_codes_hash = "backup-codes-hash"
+            owner.totp_backup_codes_hash = ["backup-codes-hash"]
             owner.save(
                 update_fields=[
                     "password_hash",

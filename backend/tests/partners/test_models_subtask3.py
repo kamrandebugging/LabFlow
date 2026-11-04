@@ -30,8 +30,9 @@ class TestSettlementAndSettlementLineModels:
     - Database CHECK chk_settlement_status on ('DRAFT', 'APPROVED', 'SENT',
       'PAID', 'CANCELLED').
     - Database CHECK chk_settlement_period_format on ^\\d{4}-\\d{2}$.
-    - UNIQUE uq_settlement_line_share_ledger_entry_id on
-      settlement_line.share_ledger_entry_id.
+    - (REMOVED in LAB-41) UNIQUE uq_settlement_line_share_ledger_entry_id;
+      see migration 0007 — re-draft after cancellation needs new lines
+      for the same entries (Doc 05 §7.6 ST-19).
     - settlement_line has created_at only (no updated_at).
     - All money columns are numeric(12,2), allowing negative totals/amounts.
     """
@@ -247,6 +248,9 @@ class TestSettlementAndSettlementLineModels:
         assert "uq_settlement_partner_id_period" in index_names
         assert "idx_settlement_referral_partner_id" in index_names
         assert "idx_settlement_approved_by" in index_names
-        assert "uq_settlement_line_share_ledger_entry_id" in index_names
+        # LAB-41 (migration 0007): uq_settlement_line_share_ledger_entry_id
+        # deliberately removed — Doc 05 §7.6 ST-19 requires re-draft after
+        # cancellation to pick up the same entries with new lines.
+        assert "uq_settlement_line_share_ledger_entry_id" not in index_names
         assert "idx_settlement_line_settlement_id" in index_names
         assert "idx_settlement_line_share_ledger_entry_id" in index_names

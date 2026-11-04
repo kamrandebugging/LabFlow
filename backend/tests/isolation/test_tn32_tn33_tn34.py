@@ -213,6 +213,11 @@ class TestTN33ContextResetAndCache:
 # pre-existing call sites are allow-listed with written reasons, reviewed
 # like a schema change. New raw imports fail test_raw_cache_import_banned...
 RAW_CACHE_ALLOWLIST: dict[str, str] = {
+    "apps/platform/access.py": (
+        "Access-mode keys are tenant-segmented by construction "
+        "(tenant:<slug>:access-mode, 60s TTL). Migration to a "
+        "tenant:-prefixed wrapper is tracked follow-up work, not this ticket."
+    ),
     "apps/accounts/auth_service.py": (
         "TOTP/login-attempt keys already carry explicit tenant_id segments "
         "(auth:totp_pending, per-tenant attempt keys). Migration to a "
