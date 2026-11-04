@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Referral Partner Settlement Statement</title>
+<style>
+  @page {
+    size: A4;
+    margin: 18mm 15mm 20mm 15mm;
+    @bottom-center {
+      content: "Page " counter(page) " of " counter(pages);
+      font-size: 8pt; color: #555;
+    }
+  }
+  body { font-family: sans-serif; font-size: 10pt; color: #111; }
+  h1 { font-size: 16pt; margin: 0 0 4pt 0; }
+  h2 { font-size: 12pt; margin: 14pt 0 6pt 0; border-bottom: 1px solid #999; padding-bottom: 2pt; }
+  .meta { font-size: 9pt; color: #444; margin-bottom: 2pt; }
+  table { width: 100%; border-collapse: collapse; margin-top: 6pt; }
+  thead { display: table-header-group; }
+  th, td { border: 1px solid #bbb; padding: 4pt 6pt; text-align: left; font-size: 9pt; }
+  th { background: #f0f0f0; }
+  tr { break-inside: avoid; }
+  td.num, th.num { text-align: right; }
+  .total-row td { font-weight: bold; }
+  .negative-note { font-style: italic; margin-top: 6pt; }
+  .footer { font-size: 8pt; color: #555; margin-top: 18pt; border-top: 1px solid #999; padding-top: 6pt; }
+</style>
+</head>
+<body>
+
+<h1>Referral Partner Settlement Statement</h1>
+<div class="meta">Statement ID: {{ ctx.statement_id }}</div>
+<div class="meta">Generated: {{ ctx.generated_date }}</div>
+<div class="meta">Template: {{ ctx.template_version }}</div>
+
+<h2>Partner</h2>
+<div>{{ ctx.partner_name }}</div>
+{% if ctx.partner_organisation %}<div>{{ ctx.partner_organisation }}</div>{% endif %}
+
+<h2>Period</h2>
+<div>{{ ctx.period_label }} ({{ ctx.period }})</div>
+<div>Currency: {{ ctx.currency }}</div>
+
+<h2>Lines</h2>
+<table>
+<thead>
+<tr>
+  <th>Payment date</th>
+  <th>Invoice ref</th>
+  <th>Basis (PKR)</th>
+  <th>Share %</th>
+  <th class="num">Amount (PKR)</th>
+  <th>Note</th>
+  {% if ctx.subtotals %}<th>Period</th>{% endif %}
+</tr>
+</thead>
+<tbody>
+{% for line in ctx.lines %}
+<tr>
+  <td>{{ line.payment_date }}</td>
+  <td>{{ line.invoice_reference }}</td>
+  <td class="num">{{ line.basis_amount }}</td>
+  <td class="num">{{ line.percent_applied }}</td>
+  <td class="num">{{ line.amount }}</td>
+  <td>{{ line.label }}</td>
+  {% if ctx.subtotals %}<td>{{ line.period }}</td>{% endif %}
+</tr>
+{% endfor %}
+</tbody>
+</table>
+
+{% if ctx.subtotals %}
+<h2>Subtotals by period</h2>
+<table>
+<thead><tr><th>Period</th><th class="num">Subtotal (PKR)</th></tr></thead>
+<tbody>
+{% for s in ctx.subtotals %}
+<tr><td>{{ s.period }}</td><td class="num">{{ s.subtotal }}</td></tr>
+{% endfor %}
+</tbody>
+</table>
+{% endif %}
+
+<h2>Total</h2>
+<table>
+<tr class="total-row"><td>Total (PKR)</td><td class="num">{{ ctx.total }}</td></tr>
+</table>
+{% if ctx.is_negative %}
+<div class="negative-note">This amount will be adjusted against your next settlement.</div>
+{% endif %}
+
+<div class="footer">
+This is a settlement statement. It is not a legal invoice or a tax document.
+</div>
+
+</body>
+</html>
