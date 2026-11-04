@@ -97,7 +97,7 @@ def _make_manager(tenant: Tenant) -> Any:
         return StaffUserFactory(tenant_wide=True, role=Role.MANAGER)
 
 
-def _draft_settlement(tenant: Tenant, **kwargs: Any) -> Settlement:
+def _draft_settlement(tenant: Tenant, **kwargs: Any) -> Any:
     with schema_context(tenant.schema_name):
         partner = kwargs.pop("referral_partner", None) or ReferralPartnerFactory(
             email="doc@example.com"
@@ -415,7 +415,7 @@ class TestSettlementMarkPaid:
                 entity_type="settlement",
                 entity_id=settlement.id,
             )
-            assert audit.after_jsonb["reference"] == "IBFT-2026-11823"
+            assert audit.after_jsonb["reference"] == "IBFT-2026-11823"  # type: ignore[index]
             assert audit.actor_id == owner.id
 
     def test_mark_paid_draft_409(
