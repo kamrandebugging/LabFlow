@@ -7,6 +7,21 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        // Brand tokens for Marketing Hero
+        emerald: {
+          DEFAULT: "#0E6B3A",
+          hover: "#0A522C",
+          light: "#E7F3EC",
+        },
+        paper: "#FAF9F6",
+        gold: {
+          DEFAULT: "#C9A227",
+          light: "#FBF7EB",
+        },
+        ink: {
+          DEFAULT: "#101613",
+          muted: "#4A5568",
+        },
         // Design tokens per Doc 07 — Teal-600 primary, Amber accent, Slate neutrals
         primary: {
           DEFAULT: "#0d9488", // teal-600
@@ -46,6 +61,22 @@ const config: Config = {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
+      },
+      fontFamily: {
+        heading: [
+          "'Plus Jakarta Sans'",
+          "system-ui",
+          "-apple-system",
+          "BlinkMacSystemFont",
+          "sans-serif",
+        ],
+        body: [
+          "'Inter'",
+          "system-ui",
+          "-apple-system",
+          "BlinkMacSystemFont",
+          "sans-serif",
+        ],
       },
     },
   },

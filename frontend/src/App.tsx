@@ -32,6 +32,9 @@ import {
 import { ScreenCatalogViewer } from "./features/screens/ScreenCatalogViewer";
 import Hero from "./marketing/Hero";
 import TrustStrip from "./marketing/TrustStrip";
+import Problem from "./marketing/Problem";
+import HowItWorks from "./marketing/HowItWorks";
+import Features from "./marketing/Features";
 
 function StaffLoginWrapper(): JSX.Element {
   const navigate = useNavigate();
@@ -355,13 +358,16 @@ function App(): JSX.Element {
 
         <Route path="/screens" element={<ScreenCatalogViewer />} />
         <Route path="/screens/:screenId" element={<ScreenCatalogViewer />} />
-        {/* TEMPORARY: Hero section + Trust Strip preview route — will be removed when the full marketing page is built */}
+        {/* TEMPORARY: Hero + TrustStrip + Problem + HowItWorks preview route — will be removed when full marketing page is built */}
         <Route
           path="/hero-preview"
           element={
             <>
               <Hero />
               <TrustStrip />
+              <Problem />
+              <HowItWorks />
+              <Features />
             </>
           }
         />
