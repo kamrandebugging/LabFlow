@@ -25,7 +25,7 @@ from typing import Any
 from unittest.mock import patch
 
 import pytest
-from django.test import Client
+from django.test import Client, captureOnCommitCallbacks
 from django_tenants.utils import tenant_context
 
 from apps.accounts.auth_service import AuthService
