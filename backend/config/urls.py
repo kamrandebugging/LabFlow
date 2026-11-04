@@ -38,6 +38,8 @@ urlpatterns = [
     path("api/v1/branches/", include("apps.branches.urls")),
     # Reports: async PDF pipeline (Doc 03 §5.6, KAN-155 / LAB-30)
     path("api/v1/", include("apps.reports.urls")),
+    # Settlements: approve / cancel / mark-paid / send (Doc 05 §7, KAN-261 / LAB-42)
+    path("api/v1/", include("apps.partners.urls_settlements")),
     # Tenant Settings: registry + accessors (Doc 04 §10, KAN-160 / LAB-35)
     path("api/v1/", include("apps.platform.urls_settings")),
     # Tenant data exports (Doc 04 §4.3; KAN-163 / LAB-38)
