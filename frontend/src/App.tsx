@@ -18,6 +18,9 @@ import { PatientEditScreen } from "./features/patients/PatientEditScreen";
 import { PatientHistoryScreen } from "./features/patients/PatientHistoryScreen";
 import { TestCatalogScreen } from "./features/catalog/TestCatalogScreen";
 import { TestPanelsScreen } from "./features/catalog/TestPanelsScreen";
+import { InvoicesListScreen } from "./features/billing/InvoicesListScreen";
+import { NewInvoiceScreen } from "./features/billing/NewInvoiceScreen";
+import { InvoiceDetailScreen } from "./features/billing/InvoiceDetailScreen";
 import { ScreenCatalogViewer } from "./features/screens/ScreenCatalogViewer";
 import {
   Shield,
@@ -28,6 +31,7 @@ import {
   UserPlus,
   FlaskConical,
   Layers,
+  Receipt,
 } from "lucide-react";
 
 function StaffLoginWrapper(): JSX.Element {
@@ -234,6 +238,45 @@ function TestPanelsWrapper(): JSX.Element {
   );
 }
 
+function InvoicesListWrapper(): JSX.Element {
+  const navigate = useNavigate();
+  return (
+    <main className="min-h-screen bg-slate-50">
+      <InvoicesListScreen
+        onNewInvoice={() => navigate("/invoices/new")}
+        onSelectInvoice={(id) => navigate(`/invoices/${id}`)}
+      />
+    </main>
+  );
+}
+
+function NewInvoiceWrapper(): JSX.Element {
+  const navigate = useNavigate();
+  return (
+    <main className="min-h-screen bg-slate-50 py-6">
+      <NewInvoiceScreen
+        onCancel={() => navigate("/invoices")}
+        onSuccess={(inv) => navigate(`/invoices/${inv.id}`)}
+        onRegisterPatient={() => navigate("/patients/new")}
+      />
+    </main>
+  );
+}
+
+function InvoiceDetailWrapper(): JSX.Element {
+  const navigate = useNavigate();
+  const { id } = useParams<{ id: string }>();
+  return (
+    <main className="min-h-screen bg-slate-50 py-6">
+      <InvoiceDetailScreen
+        invoiceId={id || ""}
+        onBack={() => navigate("/invoices")}
+        onProceedToSamples={() => navigate("/samples")}
+      />
+    </main>
+  );
+}
+
 function ScreenSwitcherBanner(): JSX.Element | null {
   const location = useLocation();
   const currentPath = location.pathname;
@@ -324,6 +367,18 @@ function ScreenSwitcherBanner(): JSX.Element | null {
       </Link>
       <span className="text-slate-600">|</span>
       <Link
+        to="/invoices"
+        className={`flex items-center gap-1 px-2.5 py-1 rounded-full transition-colors ${
+          currentPath.startsWith("/invoices")
+            ? "bg-teal-600 text-white font-medium"
+            : "text-slate-300 hover:text-white"
+        }`}
+      >
+        <Receipt className="w-3.5 h-3.5" />
+        13: Invoices
+      </Link>
+      <span className="text-slate-600">|</span>
+      <Link
         to="/screens"
         className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-700 hover:bg-emerald-600 text-white font-semibold shadow-sm transition-colors"
       >
@@ -353,6 +408,9 @@ function App(): JSX.Element {
         <Route path="/catalog/panels" element={<TestPanelsWrapper />} />
         <Route path="/settings/tests" element={<TestCatalogWrapper />} />
         <Route path="/settings/panels" element={<TestPanelsWrapper />} />
+        <Route path="/invoices" element={<InvoicesListWrapper />} />
+        <Route path="/invoices/new" element={<NewInvoiceWrapper />} />
+        <Route path="/invoices/:id" element={<InvoiceDetailWrapper />} />
         <Route path="/screens" element={<ScreenCatalogViewer />} />
         <Route path="/screens/:screenId" element={<ScreenCatalogViewer />} />
         <Route path="*" element={<Navigate to="/login" replace />} />
