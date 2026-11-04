@@ -11,14 +11,25 @@ DashboardService.
 from __future__ import annotations
 
 import uuid
+from datetime import timedelta
 from typing import Any, cast
 
+from django.core.files.storage import default_storage
+from django.http import FileResponse
+from django.utils import timezone
 from rest_framework import permissions, status
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.accounts.models import Role, StaffUser
+from apps.notifications.models import Notification
+from apps.partners.delivery import (
+    SettlementDeliveryError,
+    SettlementNotFoundError,
+    handle_delivery_callback,
+)
+from apps.partners.models import Settlement
 from apps.partners.serializers import (
     PartnerCreateSerializer,
     PartnerUpdateSerializer,
@@ -313,3 +324,125 @@ class RuleDetailView(APIView):
         except PartnerError as exc:
             return _service_error(exc)
         return Response(format_rule(new_rule), status=status.HTTP_200_OK)
+
+
+def _delivery_error_response(exc: SettlementDeliveryError) -> Response:
+    return Response(
+        _format_error(exc.error_code, str(exc) or exc.error_code, exc.details),
+        status=exc.status_code,
+    )
+
+
+def _owner_only(user: StaffUser) -> Response | None:
+    if user.role != Role.OWNER:
+        return Response(
+            _format_error(
+                "forbidden", "Only the Lab Owner may manage settlement delivery."
+            ),
+            status=status.HTTP_403_FORBIDDEN,
+        )
+    return None
+
+
+def _get_settlement(settlement_id: str) -> Settlement:
+    try:
+        return Settlement.objects.select_related("referral_partner").get(
+            pk=settlement_id
+        )
+    except (Settlement.DoesNotExist, ValueError, TypeError) as err:
+        raise SettlementNotFoundError("Settlement not found.") from err
+
+
+class SettlementStatementPdfView(APIView):
+    """GET /api/v1/settlements/{id}/statement.pdf — DL-7.
+
+    Delivery trouble never locks the lab out of its own document: this
+    endpoint serves the stored statement regardless of delivery state.
+    """
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request: Request, settlement_id: str) -> Response:
+        user = cast(StaffUser, request.user)
+        if user.role not in (Role.OWNER, Role.MANAGER):
+            return Response(
+                _format_error(
+                    "forbidden",
+                    "Only the Lab Owner or Manager may download statements.",
+                ),
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        try:
+            settlement = _get_settlement(settlement_id)
+        except SettlementDeliveryError as exc:
+            return _delivery_error_response(exc)
+        pdf_key = settlement.statement_pdf_key
+        if not pdf_key or not default_storage.exists(pdf_key):
+            return Response(
+                _format_error("not_found", "No statement PDF has been rendered yet."),
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        fh = default_storage.open(pdf_key, "rb")
+        response = FileResponse(fh, content_type="application/pdf")
+        response["Content-Disposition"] = (
+            f'attachment; filename="settlement-{settlement.period}.pdf"'
+        )
+        return response  # type: ignore[return-value]
+
+
+class SettlementDeliveryCallbackView(APIView):
+    """POST /api/v1/settlements/delivery-callback — n8n callback (DL-2, DL-3).
+
+    Unauthenticated: the HMAC-SHA256 signature over the canonical body is
+    the credential, and the body's tenant_slug must match the tenant
+    resolved from the callback's subdomain.
+    """
+
+    permission_classes = [permissions.AllowAny]
+    authentication_classes = []
+
+    def post(self, request: Request) -> Response:
+        from django.db import connection
+
+        resolved_slug = str(connection.schema_name)  # type: ignore[attr-defined]  # django-tenants
+        signature = request.headers.get("X-LabFlow-Signature", "") or request.META.get(
+            "HTTP_X_LABFLOW_SIGNATURE", ""
+        )
+        body = request.data if isinstance(request.data, dict) else {}
+        try:
+            result = handle_delivery_callback(resolved_slug, body, signature=signature)
+        except SettlementDeliveryError as exc:
+            return _delivery_error_response(exc)
+        return Response(result, status=status.HTTP_200_OK)
+
+
+class SettlementExceptionsView(APIView):
+    """GET /api/v1/settlements/exceptions — Owner only.
+
+    Drafts badge + delivery health for the SPA (LAB-65 rehearsal asserts
+    the badge moves through the full monthly cycle).
+    """
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request: Request) -> Response:
+        user = cast(StaffUser, request.user)
+        forbidden = _owner_only(user)
+        if forbidden is not None:
+            return forbidden
+        drafts = Settlement.objects.filter(status=Settlement.Status.DRAFT).count()
+        failed = Notification.objects.filter(
+            template_key="settlement_ready",
+            status=Notification.Status.FAILED,
+        ).count()
+        stale_drafts = Settlement.objects.filter(
+            status=Settlement.Status.DRAFT,
+            created_at__lt=timezone.now() - timedelta(days=7),
+        ).count()
+        return Response(
+            {
+                "drafts_awaiting_approval": drafts,
+                "drafts_older_than_7_days": stale_drafts,
+                "failed_deliveries": failed,
+            }
+        )

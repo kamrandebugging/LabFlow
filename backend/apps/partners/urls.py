@@ -9,6 +9,9 @@ from apps.partners.views import (
     PartnerDetailView,
     RuleCollectionView,
     RuleDetailView,
+    SettlementDeliveryCallbackView,
+    SettlementExceptionsView,
+    SettlementStatementPdfView,
 )
 
 urlpatterns = [
@@ -61,5 +64,30 @@ urlpatterns = [
         "revenue-share-rules/<uuid:rule_id>/",
         RuleDetailView.as_view(),
         name="rule-detail-slash",
+    ),
+    path(
+        "settlements/exceptions",
+        SettlementExceptionsView.as_view(),
+        name="settlement-exceptions",
+    ),
+    path(
+        "settlements/exceptions/",
+        SettlementExceptionsView.as_view(),
+        name="settlement-exceptions-slash",
+    ),
+    path(
+        "settlements/delivery-callback",
+        SettlementDeliveryCallbackView.as_view(),
+        name="settlement-delivery-callback",
+    ),
+    path(
+        "settlements/delivery-callback/",
+        SettlementDeliveryCallbackView.as_view(),
+        name="settlement-delivery-callback-slash",
+    ),
+    path(
+        "settlements/<uuid:settlement_id>/statement.pdf",
+        SettlementStatementPdfView.as_view(),
+        name="settlement-statement-pdf",
     ),
 ]

@@ -41,8 +41,6 @@ logger = logging.getLogger(__name__)
 # Doc 04 §11.2: grace period before past_due becomes read-only.
 _GRACE_DAYS = 14
 
-# Doc 05 §9 / DL-3: notification template for statement delivery.
-SETTLEMENT_READY_TEMPLATE = "settlement_ready"
 
 # Celery task enqueued on approval (ST-10). The PDF render itself is
 # implemented in the statement-PDF story; the task is idempotent.
@@ -415,30 +413,28 @@ class SettlementService:
             # ST-20: money owed does not depend on an inbox.
             raise PartnerEmailMissingError("Partner has no email address on file.")
 
-        with transaction.atomic():
-            # DL-6: a re-send creates a fresh notification row — the failed
-            # row stays as the record of the failure.
-            notification = Notification.objects.create(
-                template_key=SETTLEMENT_READY_TEMPLATE,
-                recipient_type=Notification.RecipientType.PARTNER,
-                recipient_id=partner.id,
-                channel=Notification.Channel.EMAIL,
-                status=Notification.Status.PENDING,
-                idempotency_key=(f"settlement:{settlement.id}:send:{uuid.uuid4().hex}"),
-            )
-            _audit(
-                actor,
-                "settlement.send",
-                settlement,
-                {"status": settlement.status},
-                {
-                    "status": settlement.status,
-                    "notification_id": str(notification.id),
-                    "recipient_email": partner.email,
-                },
-                ip,
-                user_agent,
-            )
+        # LAB-43: delegate to the delivery engine — records the notification
+        # row, the webhook delivery row, enqueues the Celery dispatch task,
+        # and audits the delivery intent. DL-6: is_resend=True gives every
+        # attempt a fresh row; the failed row stays as the record.
+        from apps.partners.delivery import dispatch_settlement_delivery
+
+        notification = dispatch_settlement_delivery(
+            settlement, actor=actor, is_resend=True
+        )
+        _audit(
+            actor,
+            "settlement.send",
+            settlement,
+            {"status": settlement.status},
+            {
+                "status": settlement.status,
+                "notification_id": str(notification.id),
+                "recipient_email": partner.email,
+            },
+            ip,
+            user_agent,
+        )
         return notification
 
     # ------------------------------------------------------------------

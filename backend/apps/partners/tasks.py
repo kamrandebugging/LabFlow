@@ -15,9 +15,14 @@ from __future__ import annotations
 
 import logging
 import uuid
+from datetime import timedelta
 from typing import Any
 
+import requests
 from celery import shared_task
+from django.conf import settings
+from django.db import transaction
+from django.utils import timezone
 from django_tenants.utils import schema_context
 
 logger = logging.getLogger(__name__)
@@ -230,3 +235,186 @@ def _fire_settlement_webhook(settlement: Any, idempotency_key: str) -> None:
 
 def _log_metric(name: str, **fields: Any) -> None:
     logger.info("metric %s", name, extra={"metric": name, **fields})
+
+
+DELIVER_TASK_NAME = "partners.deliver_settlement"
+RETRY_SWEEP_TASK_NAME = "partners.retry_failed_settlement_deliveries"
+
+
+def _n8n_webhook_url() -> str:
+    return str(getattr(settings, "N8N_WEBHOOK_URL", "") or "")
+
+
+def _post_to_n8n(url: str, body: dict[str, Any], signature: str) -> None:
+    """POST the signed event to n8n. Raises on transport/HTTP failure."""
+    resp = requests.post(
+        url,
+        json=body,
+        headers={
+            "Content-Type": "application/json",
+            "X-LabFlow-Signature": signature,
+        },
+        timeout=30,
+    )
+    resp.raise_for_status()
+
+
+@shared_task(name=DELIVER_TASK_NAME, bind=True, max_retries=0)
+def deliver_settlement_task(
+    self: Any, schema_name: str, notification_id: str
+) -> dict[str, Any]:
+    """Hand one settlement_ready notification to n8n (DL-2, DL-3)."""
+    from apps.automation.models import WebhookDelivery
+    from apps.notifications.models import Notification
+    from apps.partners.delivery import (
+        _sign_payload,
+        handle_delivery_callback,
+        record_attempt_failure,
+    )
+
+    with schema_context(schema_name):
+        with transaction.atomic():
+            try:
+                notif = Notification.objects.select_for_update().get(
+                    pk=notification_id, template_key="settlement_ready"
+                )
+            except (Notification.DoesNotExist, ValueError):
+                logger.warning(
+                    "partners.deliver_settlement: notification %s not found in "
+                    "schema %s — skip",
+                    notification_id,
+                    schema_name,
+                )
+                return {"status": "skipped", "reason": "notification_not_found"}
+
+            if notif.status == Notification.Status.SENT:
+                # Second backstop against double-send (§10 claim pattern).
+                return {"status": "skipped", "reason": "already_sent"}
+            if notif.status == Notification.Status.FAILED and (
+                notif.last_error == "partner_email_missing"
+            ):
+                # ST-21: nothing to retry — no inbox exists.
+                return {"status": "skipped", "reason": "partner_email_missing"}
+
+        hook = (
+            WebhookDelivery.objects.filter(idempotency_key=notif.idempotency_key)
+            .order_by("-created_at")
+            .first()
+        )
+        if hook is None:
+            logger.error(
+                "partners.deliver_settlement: no webhook row for "
+                "notification %s — marking FAILED",
+                notif.id,
+            )
+            record_attempt_failure(notif, "webhook_row_missing")
+            return {"status": "failed", "reason": "webhook_row_missing"}
+
+        body = dict(hook.payload_jsonb or {})
+        signature = str(body.pop("signature", ""))
+        if not signature:
+            signature = _sign_payload(body)
+
+        # Stub mode (tests / LAB-65 rehearsal): complete via callback path.
+        if getattr(settings, "SETTLEMENT_DELIVERY_STUB", False):
+            result = handle_delivery_callback(schema_name, body, signature=signature)
+            with transaction.atomic():
+                hook.status = WebhookDelivery.Status.SENT
+                hook.save(update_fields=["status", "updated_at"])
+            return {"status": "ok", "stub": True, **result}
+
+        url = _n8n_webhook_url()
+        if not url:
+            logger.warning(
+                "partners.deliver_settlement: N8N_WEBHOOK_URL not "
+                "configured — leaving notification %s PENDING",
+                notif.id,
+            )
+            return {"status": "skipped", "reason": "n8n_not_configured"}
+
+        try:
+            _post_to_n8n(url, body, signature)
+        except Exception as exc:  # noqa: BLE001 — transport failure -> retry
+            record_attempt_failure(notif, f"{type(exc).__name__}: {exc}")
+            with transaction.atomic():
+                hook.status = WebhookDelivery.Status.FAILED
+                hook.last_error = str(exc)[:500]
+                hook.save(update_fields=["status", "last_error", "updated_at"])
+            return {"status": "failed", "reason": "n8n_post_failed"}
+
+        # Handed to n8n; SENT arrives via the callback (DL-3).
+        with transaction.atomic():
+            notif.attempts += 1
+            notif.save(update_fields=["attempts", "updated_at"])
+        return {"status": "ok", "handed_to_n8n": True}
+
+
+@shared_task(name=RETRY_SWEEP_TASK_NAME)
+def retry_failed_settlement_deliveries() -> dict[str, Any]:
+    """Beat every 15 min (DL-5): re-enqueue due FAILED settlement_ready rows.
+
+    TP-5 fan-out across tenant schemas. Each due row is claimed with
+    SELECT FOR UPDATE ... SKIP LOCKED and its next_attempt_at pushed out by
+    the claim lease BEFORE the task is enqueued, so two overlapping beat
+    runs cannot double-enqueue a row.
+    """
+    from apps.core.models import Tenant
+    from apps.notifications.models import Notification
+    from apps.partners.delivery import (
+        DELIVERY_MAX_ATTEMPTS,
+        SWEEP_BATCH_LIMIT,
+        SWEEP_CLAIM_LEASE_SECONDS,
+        TEMPLATE_KEY,
+    )
+
+    now = timezone.now()
+    requeued = 0
+    per_tenant: dict[str, int] = {}
+    tenants = Tenant.objects.exclude(schema_name="public").order_by("schema_name")
+    for tenant in tenants:
+        schema_name = tenant.schema_name
+        try:
+            with schema_context(schema_name):
+                with transaction.atomic():
+                    due = list(
+                        Notification.objects.select_for_update(skip_locked=True)
+                        .filter(
+                            template_key=TEMPLATE_KEY,
+                            status=Notification.Status.FAILED,
+                            next_attempt_at__lte=now,
+                            attempts__lt=DELIVERY_MAX_ATTEMPTS,
+                        )
+                        .exclude(last_error="partner_email_missing")
+                        .order_by("next_attempt_at")[:SWEEP_BATCH_LIMIT]
+                    )
+                    due_ids: list[str] = []
+                    for notif in due:
+                        notif.status = Notification.Status.PENDING
+                        notif.next_attempt_at = now + timedelta(
+                            seconds=SWEEP_CLAIM_LEASE_SECONDS
+                        )
+                        notif.save(
+                            update_fields=[
+                                "status",
+                                "next_attempt_at",
+                                "updated_at",
+                            ]
+                        )
+                        due_ids.append(str(notif.id))
+                for notification_id in due_ids:
+                    deliver_settlement_task.delay(schema_name, notification_id)
+                requeued += len(due_ids)
+                per_tenant[schema_name] = len(due_ids)
+                if due_ids:
+                    logger.info(
+                        "partners.retry_failed_settlement_deliveries: "
+                        "requeued %d in %s",
+                        len(due_ids),
+                        schema_name,
+                    )
+        except Exception:
+            logger.exception(
+                "partners.retry_failed_settlement_deliveries: failed for schema %s",
+                schema_name,
+            )
+    return {"status": "ok", "requeued": requeued, "tenants": per_tenant}
