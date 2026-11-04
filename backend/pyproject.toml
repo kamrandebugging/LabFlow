@@ -19,6 +19,7 @@ dependencies = [
     "cryptography>=50.0.2",
     "weasyprint>=60.0",
     "qrcode>=7.4.2",
+    "requests>=2.31.0",
 ]
 
 [project.optional-dependencies]

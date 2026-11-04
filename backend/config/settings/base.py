@@ -189,6 +189,16 @@ SILENCED_SYSTEM_CHECKS = ["models.E034"]
 # GET /api/v1/report-files/<sig>/ — requests per minute per client IP.
 REPORT_ACCESS_RATE_LIMIT_PER_MINUTE = 60
 
+# Settlement delivery via n8n (Doc 05 §9 DL-2, KAN-262 / LAB-43).
+# N8N_WEBHOOK_URL: the n8n webhook that sends partner statement emails.
+# Empty in dev/test — dispatch leaves rows PENDING until configured.
+N8N_WEBHOOK_URL = env("N8N_WEBHOOK_URL", default="")
+# HMAC-SHA256 secret for the signed Django -> n8n webhook protocol.
+N8N_WEBHOOK_SECRET = env("N8N_WEBHOOK_SECRET", default=SECRET_KEY)
+# Test/rehearsal seam: complete deliveries through the callback path
+# without an n8n round-trip. Never True in production.
+SETTLEMENT_DELIVERY_STUB = env.bool("SETTLEMENT_DELIVERY_STUB", default=False)
+
 # Celery Beat Scheduled Tasks (Doc 02 §5.11, Doc 04 §13.2, Doc 08 §4.5)
 CELERY_BEAT_SCHEDULE = {
     "accounts-cleanup-expired-tokens-daily": {
@@ -205,5 +215,10 @@ CELERY_BEAT_SCHEDULE = {
     "partners-generate-monthly-settlements": {
         "task": "referral_partners.generate_monthly_settlements",
         "schedule": crontab(minute=0, hour=1, day_of_month=1),
+    },
+    # LAB-43 (KAN-262): retry FAILED settlement deliveries (Doc 05 §9 DL-5).
+    "partners-retry-failed-settlement-deliveries-15min": {
+        "task": "partners.retry_failed_settlement_deliveries",
+        "schedule": 900.0,  # Every 15 minutes
     },
 }

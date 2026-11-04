@@ -12,6 +12,7 @@ pyotp>=2.10.0
 cryptography>=50.0.2
 weasyprint>=60.0
 qrcode>=7.4.2
+requests>=2.31.0
 pytest>=8.0.0
 pytest-django>=4.9.0
 pytest-xdist>=3.0.0
