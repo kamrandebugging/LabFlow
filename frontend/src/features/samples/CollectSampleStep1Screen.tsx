@@ -60,6 +60,7 @@ export function CollectSampleStep1Screen({
   }, []);
 
   // Fetch invoice helper
+  const userBranchId = user?.branch_ids?.[0];
   const handleSearchInvoice = useCallback(
     async (idOrNumber: string) => {
       const q = idOrNumber.trim();
@@ -80,7 +81,7 @@ export function CollectSampleStep1Screen({
           patient_id: "00000000-0000-0000-0000-000000000001",
           patient_name: "Muhammad Imran",
           patient_mrn: "MRN-2026-00417",
-          branch_id: user?.branch_ids?.[0] || "00000000-0000-0000-0000-000000000001",
+          branch_id: userBranchId || "00000000-0000-0000-0000-000000000001",
           status: "paid",
           subtotal: "2450.00",
           discount_amount: "0.00",
@@ -113,7 +114,7 @@ export function CollectSampleStep1Screen({
         setIsLoading(false);
       }
     },
-    [billingServiceInstance, user?.branch_ids?.[0]],
+    [billingServiceInstance, userBranchId],
   );
 
   useEffect(() => {
