@@ -18,7 +18,7 @@ import uuid
 from datetime import timedelta
 from typing import Any
 
-import requests  # type: ignore[import-untyped]
+import requests
 from celery import shared_task
 from django.conf import settings
 from django.db import transaction
