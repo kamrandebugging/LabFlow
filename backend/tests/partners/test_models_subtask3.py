@@ -196,21 +196,26 @@ class TestSettlementAndSettlementLineModels:
                     total=Decimal("0.00"),
                 )
 
-    def test_settlement_line_unique_share_ledger_entry_id(
+    def test_settlement_line_allows_duplicate_share_ledger_entry_id(
         self, tenant_a: Tenant
     ) -> None:
+        # LAB-41 (migration 0007) deliberately REMOVED the
+        # uq_settlement_line_share_ledger_entry_id constraint per Doc 05 §7.6
+        # ST-19: re-draft after cancellation must pick up the same entries
+        # with new lines. Duplicates are now allowed.
         with schema_context(tenant_a.schema_name):
             line = SettlementLineFactory(settlement__period="2026-01")
             other_settlement = SettlementFactory(
                 referral_partner=line.settlement.referral_partner,
                 period="2026-02",
             )
-            with pytest.raises(IntegrityError), transaction.atomic():
-                SettlementLine.objects.create(
-                    settlement=other_settlement,
-                    share_ledger_entry=line.share_ledger_entry,
-                    amount=Decimal("200.00"),
-                )
+            duplicate = SettlementLine.objects.create(
+                settlement=other_settlement,
+                share_ledger_entry=line.share_ledger_entry,
+                amount=Decimal("200.00"),
+            )
+            assert duplicate.id is not None
+            assert duplicate.share_ledger_entry_id == line.share_ledger_entry_id
 
     def test_foreign_keys_protect_against_deletion(self, tenant_a: Tenant) -> None:
         with schema_context(tenant_a.schema_name):

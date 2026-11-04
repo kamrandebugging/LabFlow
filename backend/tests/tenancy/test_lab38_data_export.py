@@ -84,14 +84,17 @@ class TestExportApi:
         client = Client()
         with patch("apps.platform.tasks.export_tenant_task.delay") as mock_delay:
             headers["Idempotency-Key"] = f"lab38-export-{uuid.uuid4().hex}"
-            response = client.post(
-                EXPORTS_URL,
-                data=json.dumps({}),
-                content_type="application/json",
-                **{
-                    f"HTTP_{k.upper().replace('-', '_')}": v for k, v in headers.items()
-                },
-            )
+            # View enqueues via transaction.on_commit — capture and execute it
+            with captureOnCommitCallbacks(execute=True):
+                response = client.post(
+                    EXPORTS_URL,
+                    data=json.dumps({}),
+                    content_type="application/json",
+                    **{
+                        f"HTTP_{k.upper().replace('-', '_')}": v
+                        for k, v in headers.items()
+                    },
+                )
         assert response.status_code == 202, response.content[:500]
         body = response.json()
         assert "export_id" in body

@@ -424,7 +424,9 @@ class TestLab8DefinitionOfDone:
           -> second fails, while same key with different locale inserts.
         """
         with tenant_context(tenant_a):
-            # 1. SettlementLine idempotency (uq_settlement_line_share_ledger_entry_id)
+            # 1. SettlementLine (uq_settlement_line_share_ledger_entry_id REMOVED
+            # by LAB-41 migration 0007 per Doc 05 §7.6 ST-19 — duplicates allowed
+            # for re-draft after cancellation)
             s = SettlementFactory()
             entry = ShareLedgerEntryFactory()
 
@@ -433,12 +435,13 @@ class TestLab8DefinitionOfDone:
                 share_ledger_entry=entry,
                 amount=entry.amount,
             )
-            with pytest.raises(IntegrityError), transaction.atomic():
-                SettlementLine.objects.create(
-                    settlement=s,
-                    share_ledger_entry=entry,
-                    amount=entry.amount,
-                )
+            # Duplicate now succeeds (constraint removed)
+            duplicate = SettlementLine.objects.create(
+                settlement=s,
+                share_ledger_entry=entry,
+                amount=entry.amount,
+            )
+            assert duplicate.id is not None
 
             # 2. Notification idempotency (uq_notification_idempotency_key)
             idem_notif = "notif-unique-key-12345"
