@@ -123,7 +123,9 @@ export const sampleService = {
   /**
    * List accessions with status, search and branch filters
    */
-  async listSamples(filters: SampleListFilter = {}): Promise<SampleListResponse> {
+  async listSamples(
+    filters: SampleListFilter = {},
+  ): Promise<SampleListResponse> {
     try {
       const url = new URL(API_BASE, window.location.origin);
       if (filters.q) url.searchParams.set("q", filters.q);
@@ -193,8 +195,9 @@ export const sampleService = {
     }
 
     const found =
-      MOCK_SAMPLES.find((s) => s.id === sampleId || s.accession_id === sampleId) ||
-      MOCK_SAMPLES[0]!;
+      MOCK_SAMPLES.find(
+        (s) => s.id === sampleId || s.accession_id === sampleId,
+      ) || MOCK_SAMPLES[0]!;
 
     return {
       ...found,
@@ -234,7 +237,9 @@ export const sampleService = {
           actor: "phleb.amna@labflow.pk",
           branch: { id: found.branch_id, code: "CDL", name: found.branch_name },
           timestamp: found.collected_at,
-          payload: { note: "Phlebotomy completed smoothly from right median cubital vein." },
+          payload: {
+            note: "Phlebotomy completed smoothly from right median cubital vein.",
+          },
         },
       ],
     };
@@ -243,7 +248,9 @@ export const sampleService = {
   /**
    * Accession / collect specimen (SM-1..SM-3, POST /api/v1/samples)
    */
-  async collectSample(input: SampleCreateInput): Promise<SampleCreatedResponse> {
+  async collectSample(
+    input: SampleCreateInput,
+  ): Promise<SampleCreatedResponse> {
     const res = await fetch(API_BASE, {
       method: "POST",
       headers: getAuthHeaders(),
@@ -258,7 +265,10 @@ export const sampleService = {
 
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      const msg = err?.error?.message || err?.detail || `Collection failed (${res.status})`;
+      const msg =
+        err?.error?.message ||
+        err?.detail ||
+        `Collection failed (${res.status})`;
       throw new Error(msg);
     }
 
@@ -280,7 +290,8 @@ export const sampleService = {
     }
 
     // Realistic ISO 15189 fallback label data for direct thermal printing
-    const found = MOCK_SAMPLES.find((s) => s.id === sampleId) || MOCK_SAMPLES[0]!;
+    const found =
+      MOCK_SAMPLES.find((s) => s.id === sampleId) || MOCK_SAMPLES[0]!;
     return {
       accession_id: found.accession_id,
       patient_name: found.patient_name,
@@ -309,7 +320,9 @@ export const sampleService = {
 
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      throw new Error(err?.error?.message || `Failed to receive sample (${res.status})`);
+      throw new Error(
+        err?.error?.message || `Failed to receive sample (${res.status})`,
+      );
     }
 
     return await res.json();
@@ -331,7 +344,9 @@ export const sampleService = {
 
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      throw new Error(err?.error?.message || `Failed to reject sample (${res.status})`);
+      throw new Error(
+        err?.error?.message || `Failed to reject sample (${res.status})`,
+      );
     }
 
     return await res.json();
@@ -349,7 +364,9 @@ export const sampleService = {
 
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      throw new Error(err?.error?.message || `Failed to trigger recollection (${res.status})`);
+      throw new Error(
+        err?.error?.message || `Failed to trigger recollection (${res.status})`,
+      );
     }
 
     return await res.json();
@@ -371,7 +388,9 @@ export const sampleService = {
 
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      throw new Error(err?.error?.message || `Failed to cancel sample (${res.status})`);
+      throw new Error(
+        err?.error?.message || `Failed to cancel sample (${res.status})`,
+      );
     }
 
     return await res.json();
@@ -393,7 +412,9 @@ export const sampleService = {
 
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      throw new Error(err?.error?.message || `Failed to transfer sample (${res.status})`);
+      throw new Error(
+        err?.error?.message || `Failed to transfer sample (${res.status})`,
+      );
     }
 
     return await res.json();

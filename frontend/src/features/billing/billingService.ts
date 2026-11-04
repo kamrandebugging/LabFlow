@@ -265,7 +265,9 @@ export const billingService = {
         if (retryRefresh && retryRefresh.ok) {
           const retryData = await retryRefresh.json();
           if (retryData?.access) {
-            useAuthStore.getState().setSession(String(retryData.access), retryData.user || null);
+            useAuthStore
+              .getState()
+              .setSession(String(retryData.access), retryData.user || null);
             const retryRes = await fetch(API_BASE, {
               method: "POST",
               headers: getAuthHeaders({ "Idempotency-Key": `${key}-retry` }),
@@ -298,7 +300,9 @@ export const billingService = {
     } catch (err) {
       if (err instanceof Error && err.message.includes("401")) {
         // Fallback for unauthenticated dev preview
-        const newId = crypto.randomUUID ? crypto.randomUUID() : `inv-${Date.now()}`;
+        const newId = crypto.randomUUID
+          ? crypto.randomUUID()
+          : `inv-${Date.now()}`;
         return {
           id: newId,
           patient_id: input.patient_id,

@@ -174,7 +174,9 @@ export const catalogService = {
       }
 
       const data = await res.json();
-      return Array.isArray(data) && data.length > 0 ? data : DEFAULT_FALLBACK_TESTS;
+      return Array.isArray(data) && data.length > 0
+        ? data
+        : DEFAULT_FALLBACK_TESTS;
     } catch {
       return DEFAULT_FALLBACK_TESTS;
     }
@@ -383,7 +385,9 @@ export const catalogService = {
       }
 
       const data = await res.json();
-      return Array.isArray(data) && data.length > 0 ? data : DEFAULT_FALLBACK_PANELS;
+      return Array.isArray(data) && data.length > 0
+        ? data
+        : DEFAULT_FALLBACK_PANELS;
     } catch {
       return DEFAULT_FALLBACK_PANELS;
     }

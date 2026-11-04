@@ -229,7 +229,9 @@ function CollectSampleStep1Wrapper(): JSX.Element {
 function CollectSampleStep2Wrapper(): JSX.Element {
   const navigate = useNavigate();
   const location = useLocation();
-  const stateDraft = (location.state as { draft?: SampleCollectionDraft } | undefined)?.draft;
+  const stateDraft = (
+    location.state as { draft?: SampleCollectionDraft } | undefined
+  )?.draft;
 
   // Fallback demo draft if navigated directly
   const fallbackDraft: SampleCollectionDraft = {
@@ -345,9 +347,18 @@ function App(): JSX.Element {
 
         {/* Samples Management Suite (Screens 16–20) */}
         <Route path="/samples" element={<SamplesListWrapper />} />
-        <Route path="/samples/collect/step1" element={<CollectSampleStep1Wrapper />} />
-        <Route path="/samples/collect/step2" element={<CollectSampleStep2Wrapper />} />
-        <Route path="/samples/new" element={<Navigate to="/samples/collect/step1" replace />} />
+        <Route
+          path="/samples/collect/step1"
+          element={<CollectSampleStep1Wrapper />}
+        />
+        <Route
+          path="/samples/collect/step2"
+          element={<CollectSampleStep2Wrapper />}
+        />
+        <Route
+          path="/samples/new"
+          element={<Navigate to="/samples/collect/step1" replace />}
+        />
         <Route path="/samples/:id" element={<SampleDetailWrapper />} />
         <Route path="/samples/:id/label" element={<SampleLabelWrapper />} />
 

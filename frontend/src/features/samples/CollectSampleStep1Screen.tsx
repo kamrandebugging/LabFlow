@@ -29,9 +29,13 @@ export function CollectSampleStep1Screen({
 }: CollectSampleStep1ScreenProps): JSX.Element {
   const user = useAuthStore((s) => s.user);
 
-  const [invoiceQuery, setInvoiceQuery] = useState(preselectedInvoiceId || "INV-0891A000");
+  const [invoiceQuery, setInvoiceQuery] = useState(
+    preselectedInvoiceId || "INV-0891A000",
+  );
   const [invoice, setInvoice] = useState<InvoiceDetail | null>(null);
-  const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(new Set());
+  const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(
+    new Set(),
+  );
   const [collectedAt, setCollectedAt] = useState<string>("");
   const [notes, setNotes] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
@@ -60,7 +64,6 @@ export function CollectSampleStep1Screen({
   }, []);
 
   // Fetch invoice helper
-  const userBranchId = user?.branch_ids?.[0];
   const handleSearchInvoice = useCallback(
     async (idOrNumber: string) => {
       const q = idOrNumber.trim();
@@ -81,7 +84,8 @@ export function CollectSampleStep1Screen({
           patient_id: "00000000-0000-0000-0000-000000000001",
           patient_name: "Muhammad Imran",
           patient_mrn: "MRN-2026-00417",
-          branch_id: userBranchId || "00000000-0000-0000-0000-000000000001",
+          branch_id:
+            user?.branch_ids?.[0] || "00000000-0000-0000-0000-000000000001",
           status: "paid",
           subtotal: "2450.00",
           discount_amount: "0.00",
@@ -114,7 +118,7 @@ export function CollectSampleStep1Screen({
         setIsLoading(false);
       }
     },
-    [billingServiceInstance, userBranchId],
+    [billingServiceInstance, user?.branch_ids?.[0]],
   );
 
   useEffect(() => {
@@ -145,7 +149,9 @@ export function CollectSampleStep1Screen({
       return;
     }
 
-    const selectedItems = invoice.items.filter((i) => selectedItemIds.has(i.id));
+    const selectedItems = invoice.items.filter((i) =>
+      selectedItemIds.has(i.id),
+    );
 
     const draft: SampleCollectionDraft = {
       invoice_id: invoice.id,
@@ -157,7 +163,9 @@ export function CollectSampleStep1Screen({
       branch_id: invoice.branch_id,
       branch_name: "Central Diagnostic Lab",
       selected_item_ids: Array.from(selectedItemIds),
-      test_labels: selectedItems.map((i) => i.name || i.description || "Diagnostic Test"),
+      test_labels: selectedItems.map(
+        (i) => i.name || i.description || "Diagnostic Test",
+      ),
       tubes_required: [
         {
           type: "K2-EDTA",
@@ -208,7 +216,9 @@ export function CollectSampleStep1Screen({
           </h1>
           <div className="flex items-center gap-2 text-xs font-mono text-slate-500 bg-white border border-slate-200 px-2.5 py-1 rounded-md shadow-xs">
             <span className="text-slate-400">BENCH:</span>
-            <span className="font-semibold text-slate-700">SPECIMEN-INTAKE-GLB</span>
+            <span className="font-semibold text-slate-700">
+              SPECIMEN-INTAKE-GLB
+            </span>
           </div>
         </div>
       </div>
@@ -280,7 +290,8 @@ export function CollectSampleStep1Screen({
                   {invoice.patient_name || "Patient Record"}
                 </span>
                 <span className="text-slate-400 ml-1">
-                  · Status: {invoice.status.toUpperCase()} (PKR {parseFloat(invoice.total || "0").toFixed(2)})
+                  · Status: {invoice.status.toUpperCase()} (PKR{" "}
+                  {parseFloat(invoice.total || "0").toFixed(2)})
                 </span>
               </div>
             )}
@@ -328,7 +339,8 @@ export function CollectSampleStep1Screen({
             <div className="space-y-2">
               {invoice.items.map((item) => {
                 const isSelected = selectedItemIds.has(item.id);
-                const itemName = item.name || item.description || "Diagnostic Test";
+                const itemName =
+                  item.name || item.description || "Diagnostic Test";
                 const isEdta = itemName.toLowerCase().includes("cbc");
                 return (
                   <label
@@ -387,7 +399,8 @@ export function CollectSampleStep1Screen({
                 htmlFor={collectedAtInputId}
                 className="block text-xs font-medium text-slate-700 mb-1.5"
               >
-                Collected at <span className="text-slate-400 font-normal">(PKT)</span>
+                Collected at{" "}
+                <span className="text-slate-400 font-normal">(PKT)</span>
               </label>
               <div className="relative">
                 <Calendar className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
@@ -433,7 +446,8 @@ export function CollectSampleStep1Screen({
                 htmlFor={notesInputId}
                 className="block text-xs font-medium text-slate-700"
               >
-                Notes <span className="text-slate-400 font-normal">(optional)</span>
+                Notes{" "}
+                <span className="text-slate-400 font-normal">(optional)</span>
               </label>
               <span className="text-[11px] text-slate-400">
                 Specimen integrity & phlebotomy observations
@@ -454,8 +468,11 @@ export function CollectSampleStep1Screen({
         <div className="rounded-lg bg-slate-50 border border-slate-200 p-3.5 flex items-start gap-3">
           <Info className="w-4 h-4 text-slate-500 shrink-0 mt-0.5" />
           <div className="text-xs text-slate-600 leading-relaxed">
-            <span className="font-medium text-slate-700">Next workflow step:</span>{" "}
-            Verification stepper and label printer readiness will be confirmed in Step 2.
+            <span className="font-medium text-slate-700">
+              Next workflow step:
+            </span>{" "}
+            Verification stepper and label printer readiness will be confirmed
+            in Step 2.
           </div>
         </div>
 

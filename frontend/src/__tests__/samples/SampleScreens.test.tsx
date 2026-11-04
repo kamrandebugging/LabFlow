@@ -109,7 +109,9 @@ describe("Screen 16: SampleAccessioningListScreen", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getAllByText("CDL20261020000041").length).toBeGreaterThan(0);
+      expect(screen.getAllByText("CDL20261020000041").length).toBeGreaterThan(
+        0,
+      );
       expect(screen.getByText("Muhammad Imran")).toBeInTheDocument();
       expect(screen.getByText("MRN-2026-00417")).toBeInTheDocument();
     });
@@ -133,10 +135,14 @@ describe("Screen 16: SampleAccessioningListScreen", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getAllByText("CDL20261020000041").length).toBeGreaterThan(0);
+      expect(screen.getAllByText("CDL20261020000041").length).toBeGreaterThan(
+        0,
+      );
     });
 
-    const collectBtn = screen.getByRole("button", { name: /^collect sample$/i });
+    const collectBtn = screen.getByRole("button", {
+      name: /^collect sample$/i,
+    });
     fireEvent.click(collectBtn);
     expect(mockCollect).toHaveBeenCalledTimes(1);
   });
@@ -178,8 +184,12 @@ describe("Screen 17: CollectSampleStep1Screen", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByRole("heading", { name: "Collect sample" })).toBeInTheDocument();
-      expect(screen.getByText("Complete Blood Count (CBC)")).toBeInTheDocument();
+      expect(
+        screen.getByRole("heading", { name: "Collect sample" }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText("Complete Blood Count (CBC)"),
+      ).toBeInTheDocument();
     });
   });
 });
@@ -219,10 +229,14 @@ describe("Screen 18: CollectSampleStep2Screen", () => {
       />,
     );
 
-    expect(screen.getByRole("heading", { name: "Collect sample" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Collect sample" }),
+    ).toBeInTheDocument();
     expect(screen.getByText(/EDTA tube/i)).toBeInTheDocument();
 
-    const confirmBtn = screen.getByRole("button", { name: /^collect sample$/i });
+    const confirmBtn = screen.getByRole("button", {
+      name: /^collect sample$/i,
+    });
     fireEvent.click(confirmBtn);
 
     await waitFor(() => {
@@ -235,9 +249,15 @@ describe("Screen 19: SampleDetailScreen", () => {
   it("renders sample information card and event timeline", async () => {
     const mockService = {
       getSample: vi.fn().mockResolvedValue(mockSampleDetail),
-      receiveSample: vi.fn().mockResolvedValue({ id: "sample-001", status: "received" }),
-      rejectSample: vi.fn().mockResolvedValue({ id: "sample-001", status: "rejected" }),
-      transferSample: vi.fn().mockResolvedValue({ id: "sample-001", status: "open" }),
+      receiveSample: vi
+        .fn()
+        .mockResolvedValue({ id: "sample-001", status: "received" }),
+      rejectSample: vi
+        .fn()
+        .mockResolvedValue({ id: "sample-001", status: "rejected" }),
+      transferSample: vi
+        .fn()
+        .mockResolvedValue({ id: "sample-001", status: "open" }),
     };
 
     render(
@@ -249,7 +269,9 @@ describe("Screen 19: SampleDetailScreen", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getAllByText("CDL20261020000041").length).toBeGreaterThan(0);
+      expect(screen.getAllByText("CDL20261020000041").length).toBeGreaterThan(
+        0,
+      );
       expect(screen.getByText("Sample information")).toBeInTheDocument();
       expect(screen.getByText("Event timeline")).toBeInTheDocument();
       expect(screen.getByText("Gulberg Branch — bench A")).toBeInTheDocument();
@@ -259,7 +281,9 @@ describe("Screen 19: SampleDetailScreen", () => {
   it("handles receiving sample and updates state", async () => {
     const mockService = {
       getSample: vi.fn().mockResolvedValue(mockSampleDetail),
-      receiveSample: vi.fn().mockResolvedValue({ id: "sample-001", status: "received" }),
+      receiveSample: vi
+        .fn()
+        .mockResolvedValue({ id: "sample-001", status: "received" }),
     };
 
     render(
@@ -271,7 +295,9 @@ describe("Screen 19: SampleDetailScreen", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getAllByText("CDL20261020000041").length).toBeGreaterThan(0);
+      expect(screen.getAllByText("CDL20261020000041").length).toBeGreaterThan(
+        0,
+      );
     });
 
     const receiveBtn = screen.getByRole("button", { name: /receive/i });
@@ -285,7 +311,9 @@ describe("Screen 19: SampleDetailScreen", () => {
   it("opens reject modal and confirms sample rejection", async () => {
     const mockService = {
       getSample: vi.fn().mockResolvedValue(mockSampleDetail),
-      rejectSample: vi.fn().mockResolvedValue({ id: "sample-001", status: "rejected" }),
+      rejectSample: vi
+        .fn()
+        .mockResolvedValue({ id: "sample-001", status: "rejected" }),
     };
 
     render(
@@ -297,14 +325,18 @@ describe("Screen 19: SampleDetailScreen", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getAllByText("CDL20261020000041").length).toBeGreaterThan(0);
+      expect(screen.getAllByText("CDL20261020000041").length).toBeGreaterThan(
+        0,
+      );
     });
 
     const rejectBtn = screen.getByRole("button", { name: /reject/i });
     fireEvent.click(rejectBtn);
 
     expect(screen.getByText("Reject Specimen")).toBeInTheDocument();
-    const confirmRejectBtn = screen.getByRole("button", { name: /confirm rejection/i });
+    const confirmRejectBtn = screen.getByRole("button", {
+      name: /confirm rejection/i,
+    });
     fireEvent.click(confirmRejectBtn);
 
     await waitFor(() => {
@@ -333,8 +365,12 @@ describe("Screen 20: SampleLabelScreen", () => {
 
     await waitFor(() => {
       expect(screen.getByText("Sample label")).toBeInTheDocument();
-      expect(screen.getAllByText("CDL20261020000041").length).toBeGreaterThan(0);
-      expect(screen.getByText("Thermal Specimen Label (50mm × 25mm)")).toBeInTheDocument();
+      expect(screen.getAllByText("CDL20261020000041").length).toBeGreaterThan(
+        0,
+      );
+      expect(
+        screen.getByText("Thermal Specimen Label (50mm × 25mm)"),
+      ).toBeInTheDocument();
     });
   });
 
