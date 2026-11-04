@@ -6,6 +6,7 @@ Architecture & Configuration per Docs 01, 02, 04, 08, 09.
 from pathlib import Path
 
 import environ
+from celery.schedules import crontab
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
@@ -198,5 +199,11 @@ CELERY_BEAT_SCHEDULE = {
     "reports-retry-failed-deliveries-15min": {
         "task": "reports.retry_failed_deliveries",
         "schedule": 900.0,  # Every 15 minutes
+    },
+    # LAB-41 (KAN-260): monthly settlement generation (Doc 05 §7.2 ST-1).
+    # 1st of each month at 01:00 Asia/Karachi.
+    "partners-generate-monthly-settlements": {
+        "task": "referral_partners.generate_monthly_settlements",
+        "schedule": crontab(minute=0, hour=1, day_of_month=1),
     },
 }

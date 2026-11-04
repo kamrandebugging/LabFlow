@@ -349,10 +349,12 @@ class SettlementLine(models.Model):
             ),
         ]
         constraints = [
-            models.UniqueConstraint(
-                fields=["share_ledger_entry"],
-                name="uq_settlement_line_share_ledger_entry_id",
-            ),
+            # LAB-41: the DB-level UNIQUE on share_ledger_entry was removed.
+            # Doc 05 §7.6 ST-19 requires re-draft after cancellation to pick
+            # up the same entries with new lines; a UNIQUE would block that.
+            # "One live line per entry" is enforced in
+            # settlement_service.select_draft_entries (only pending entries
+            # are selected) plus the settlement partial unique (ST-7).
         ]
 
     def __str__(self) -> str:
