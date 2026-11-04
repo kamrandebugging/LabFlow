@@ -173,9 +173,7 @@ class TestNotificationCallbackEndpoint:
         assert resp.status_code == 404
 
     @override_settings(N8N_CALLBACK_KEY=CALLBACK_KEY)
-    def test_replay_same_outcome_idempotent(
-        self, tenant_a: Any
-    ) -> None:
+    def test_replay_same_outcome_idempotent(self, tenant_a: Any) -> None:
         _make_notification(tenant_a)
         client = Client()
         body = {
@@ -191,9 +189,7 @@ class TestNotificationCallbackEndpoint:
         assert json.loads(r2.content)["status"] == "SENT"
 
     @override_settings(N8N_CALLBACK_KEY=CALLBACK_KEY)
-    def test_sent_on_sent_final_conflicting_failed_409(
-        self, tenant_a: Any
-    ) -> None:
+    def test_sent_on_sent_final_conflicting_failed_409(self, tenant_a: Any) -> None:
         _make_notification(tenant_a)
         client = Client()
         sent = {
@@ -250,9 +246,7 @@ class TestNotificationCallbackEndpoint:
             assert row.last_error.startswith(HARD_BOUNCE_PREFIX)
 
     @override_settings(N8N_CALLBACK_KEY=CALLBACK_KEY)
-    def test_failed_requires_last_error_422(
-        self, tenant_a: Any
-    ) -> None:
+    def test_failed_requires_last_error_422(self, tenant_a: Any) -> None:
         _make_notification(tenant_a)
         client = Client()
         body = {
@@ -349,9 +343,7 @@ class TestReportDeliveryCallbackEndpoint:
         assert json.loads(resp.content)["error"] == "state_conflict"
 
     @override_settings(N8N_CALLBACK_KEY=CALLBACK_KEY)
-    def test_hard_bounce_email_becomes_bounced(
-        self, tenant_a: Any
-    ) -> None:
+    def test_hard_bounce_email_becomes_bounced(self, tenant_a: Any) -> None:
         _make_report_delivery(tenant_a)
         client = Client()
         body = {
@@ -424,9 +416,7 @@ class TestSettlementCallbackEndpoint:
             return settlement, notif
 
     @override_settings(N8N_CALLBACK_KEY=CALLBACK_KEY)
-    def test_sent_moves_settlement_approved_to_sent(
-        self, tenant_a: Any
-    ) -> None:
+    def test_sent_moves_settlement_approved_to_sent(self, tenant_a: Any) -> None:
         settlement, _ = self._make_settlement_notification(tenant_a)
         client = Client()
         body = {
