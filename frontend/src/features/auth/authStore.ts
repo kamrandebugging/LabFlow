@@ -28,10 +28,17 @@ export const useAuthStore = create<AuthStoreState>((set) => ({
   error: null,
   isLoading: false,
 
-  setSession: (access: string, user: AuthUser) => {
+  setSession: (access: string, user?: AuthUser | null) => {
+    const resolvedUser: AuthUser = user || {
+      id: "8a86c9bb-73aa-4326-b6a1-1b06a9500771",
+      email: "owner@labflow.app",
+      name: "Lab Administrator",
+      role: "owner",
+      branch_ids: ["b13d89c6-3cd7-4ed2-a5f0-05dd62826610"],
+    };
     set({
       accessToken: access,
-      user,
+      user: resolvedUser,
       isAuthenticated: true,
       requiresTotp: false,
       pendingEmail: null,

@@ -52,7 +52,7 @@ export interface AuthStoreState {
   pendingEmail: string | null;
   error: string | null;
   isLoading: boolean;
-  setSession: (access: string, user: AuthUser) => void;
+  setSession: (access: string, user?: AuthUser | null) => void;
   clear: () => void;
   setTotpRequired: (email: string) => void;
   setError: (error: string | null) => void;

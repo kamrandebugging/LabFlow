@@ -1,4 +1,13 @@
 import { useEffect, useId, useState } from "react";
+import {
+  FileText,
+  Search,
+  Plus,
+  X,
+  CheckCircle2,
+  AlertCircle,
+  ArrowRight,
+} from "lucide-react";
 import { catalogService } from "../catalog/catalogService";
 import type { DiagnosticPanel, DiagnosticTest } from "../catalog/types";
 import { patientService } from "../patients/patientService";
@@ -259,14 +268,11 @@ export function NewInvoiceScreen({
               New invoice
             </h1>
             <p className="text-xs text-slate-500 mt-0.5">
-              Generate diagnostic billing statement for accessioning &amp;
-              counter settlement.
+              Create diagnostic billing statement and counter settlement.
             </p>
           </div>
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md bg-slate-100 text-slate-600 font-mono text-xs border border-slate-200">
-            <span className="material-symbols-outlined text-[16px] text-teal-700">
-              receipt_long
-            </span>
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md bg-slate-100 text-slate-700 font-mono text-xs border border-slate-200">
+            <FileText className="w-3.5 h-3.5 text-teal-700 shrink-0" />
             <span>Draft #INV-NEW</span>
           </div>
         </div>
@@ -278,9 +284,7 @@ export function NewInvoiceScreen({
           role="alert"
           className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-red-800 text-sm flex items-start gap-3"
         >
-          <span className="material-symbols-outlined text-red-600 text-[20px] shrink-0 mt-0.5">
-            error
-          </span>
+          <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
           <div className="flex-1 font-medium">{errorMessage}</div>
           <button
             type="button"
@@ -298,12 +302,23 @@ export function NewInvoiceScreen({
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* 1. PATIENT SECTION */}
           <div className="space-y-2">
-            <label
-              htmlFor={patientInputId}
-              className="block text-xs font-semibold uppercase tracking-wider text-slate-700"
-            >
-              Patient <span className="text-red-600">*</span>
-            </label>
+            <div className="flex items-center justify-between">
+              <label
+                htmlFor={patientInputId}
+                className="block text-xs font-semibold uppercase tracking-wider text-slate-700"
+              >
+                Patient <span className="text-red-600">*</span>
+              </label>
+              {onRegisterPatient && !selectedPatient && (
+                <button
+                  type="button"
+                  onClick={onRegisterPatient}
+                  className="text-xs text-teal-700 font-semibold hover:underline"
+                >
+                  + Register new patient
+                </button>
+              )}
+            </div>
 
             {selectedPatient ? (
               <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg flex items-center justify-between">
@@ -341,9 +356,7 @@ export function NewInvoiceScreen({
             ) : (
               <div className="relative">
                 <div className="relative flex items-center">
-                  <span className="material-symbols-outlined absolute left-3 text-slate-400 text-[18px]">
-                    person_search
-                  </span>
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3 pointer-events-none" />
                   <input
                     id={patientInputId}
                     type="text"
@@ -354,28 +367,12 @@ export function NewInvoiceScreen({
                         setShowPatientDropdown(true);
                     }}
                     placeholder="Search by MRN, Name, Phone or CNIC..."
-                    className="w-full pl-9 pr-24 py-2.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-600"
+                    className="w-full pl-9 pr-24 py-2.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-600 bg-white placeholder:text-slate-400"
                   />
                   {isSearchingPatient && (
                     <span className="absolute right-3 text-xs text-slate-400 animate-pulse">
                       Searching...
                     </span>
-                  )}
-                </div>
-
-                {/* Quick Register Link */}
-                <div className="flex items-center justify-between pt-1.5 text-xs text-slate-500">
-                  <span>
-                    Enter patient identifier to look up accession record
-                  </span>
-                  {onRegisterPatient && (
-                    <button
-                      type="button"
-                      onClick={onRegisterPatient}
-                      className="text-teal-700 font-semibold hover:underline"
-                    >
-                      + Register new patient
-                    </button>
                   )}
                 </div>
 
@@ -404,9 +401,7 @@ export function NewInvoiceScreen({
                             Sex: {p.sex} · Phone: {p.phone || "N/A"}
                           </div>
                         </div>
-                        <span className="material-symbols-outlined text-slate-400 text-[18px]">
-                          arrow_forward
-                        </span>
+                        <ArrowRight className="w-4 h-4 text-slate-400" />
                       </button>
                     ))}
                   </div>
@@ -424,7 +419,7 @@ export function NewInvoiceScreen({
                 htmlFor={searchInputId}
                 className="block text-xs font-semibold uppercase tracking-wider text-slate-700"
               >
-                Tests &amp; panels <span className="text-red-600">*</span>
+                Tests &amp; Panels <span className="text-red-600">*</span>
               </label>
               <span className="text-xs text-slate-500 font-medium">
                 {items.length} {items.length === 1 ? "item" : "items"} added
@@ -462,9 +457,7 @@ export function NewInvoiceScreen({
                       aria-label={`Remove ${item.name}`}
                       className="w-8 h-8 flex items-center justify-center rounded text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
                     >
-                      <span className="material-symbols-outlined text-[18px]">
-                        close
-                      </span>
+                      <X className="w-4 h-4" />
                     </button>
                   </div>
                 ))}
@@ -472,23 +465,23 @@ export function NewInvoiceScreen({
             )}
 
             {/* Add Test from Catalog */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-              <div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+              <div className="min-w-0">
                 <label
                   htmlFor={searchInputId}
-                  className="block text-xs font-medium text-slate-600 mb-1"
+                  className="block text-xs font-semibold text-slate-700 mb-1.5"
                 >
-                  Add individual test:
+                  Add Individual Test
                 </label>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 min-w-0">
                   <select
                     id={searchInputId}
                     value={selectedTestToAdd}
                     onChange={(e) => setSelectedTestToAdd(e.target.value)}
                     disabled={catalogLoading}
-                    className="flex-1 text-sm border border-slate-300 rounded-lg px-3 py-2 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-600"
+                    className="w-full min-w-0 flex-1 truncate text-sm border border-slate-300 rounded-lg px-3 py-2 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-600"
                   >
-                    <option value="">— Select diagnostic test —</option>
+                    <option value="">— Select Diagnostic Test —</option>
                     {availableTests.map((t) => (
                       <option key={t.id} value={t.id}>
                         {t.name} ({t.code}) - PKR{" "}
@@ -500,23 +493,21 @@ export function NewInvoiceScreen({
                     type="button"
                     onClick={() => handleAddTest(selectedTestToAdd)}
                     disabled={!selectedTestToAdd}
-                    className="px-3 py-2 bg-teal-50 border border-teal-200 text-teal-700 text-xs font-semibold rounded-lg hover:bg-teal-100 disabled:opacity-50 flex items-center gap-1 shrink-0"
+                    className="px-4 py-2 bg-teal-700 hover:bg-teal-800 text-white text-xs font-semibold rounded-lg shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 shrink-0 whitespace-nowrap cursor-pointer"
                   >
-                    <span className="material-symbols-outlined text-[16px]">
-                      add
-                    </span>
-                    Add
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Add</span>
                   </button>
                 </div>
               </div>
 
               {/* Add Panel */}
-              <div>
+              <div className="min-w-0">
                 <label
                   htmlFor={panelSelectId}
-                  className="block text-xs font-medium text-slate-600 mb-1"
+                  className="block text-xs font-semibold text-slate-700 mb-1.5"
                 >
-                  Bulk add by panel / package:
+                  Bulk Add by Panel / Package
                 </label>
                 <select
                   id={panelSelectId}
@@ -527,9 +518,9 @@ export function NewInvoiceScreen({
                     }
                   }}
                   disabled={catalogLoading}
-                  className="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-600"
+                  className="w-full min-w-0 truncate text-sm border border-slate-300 rounded-lg px-3 py-2 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-600"
                 >
-                  <option value="">— Select panel package —</option>
+                  <option value="">— Select Panel Package —</option>
                   {availablePanels.map((p) => (
                     <option key={p.id} value={p.id}>
                       {p.name} ({p.code}) - PKR{" "}
@@ -551,7 +542,7 @@ export function NewInvoiceScreen({
                   htmlFor={discountAmountId}
                   className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1"
                 >
-                  Discount amount (PKR)
+                  Discount Amount (PKR)
                 </label>
                 <input
                   id={discountAmountId}
@@ -570,7 +561,7 @@ export function NewInvoiceScreen({
                   htmlFor={discountReasonId}
                   className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1"
                 >
-                  Discount reason{" "}
+                  Discount Reason{" "}
                   {discountVal > 0 && <span className="text-red-600">*</span>}
                 </label>
                 <input
@@ -612,9 +603,6 @@ export function NewInvoiceScreen({
                 PKR {netTotal.toFixed(2)}
               </span>
             </div>
-            <p className="text-xs text-slate-400 italic pt-1">
-              Totals are calculated by the server, shown as received.
-            </p>
           </div>
 
           {/* 5. FOOTER CONTROLS */}
@@ -631,10 +619,8 @@ export function NewInvoiceScreen({
                 </>
               ) : (
                 <>
-                  <span className="material-symbols-outlined text-[18px]">
-                    check_circle
-                  </span>
-                  <span>Create invoice</span>
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>Create Invoice</span>
                 </>
               )}
             </button>

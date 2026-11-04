@@ -1,4 +1,13 @@
 import { useCallback, useEffect, useId, useState } from "react";
+import {
+  CheckCircle2,
+  AlertCircle,
+  Printer,
+  FlaskConical,
+  CreditCard,
+  RotateCcw,
+  Ban,
+} from "lucide-react";
 import { billingService } from "./billingService";
 import type { InvoiceDetail, InvoiceStatus, PaymentMethod } from "./types";
 
@@ -301,9 +310,7 @@ export function InvoiceDetailScreen({
           role="status"
           className="fixed bottom-6 right-6 z-50 bg-slate-900 text-white text-xs px-4 py-3 rounded-lg shadow-lg flex items-center gap-2"
         >
-          <span className="material-symbols-outlined text-[18px] text-teal-400">
-            check_circle
-          </span>
+          <CheckCircle2 className="w-4 h-4 text-teal-400" />
           <span>{toastMessage}</span>
         </div>
       )}
@@ -336,9 +343,7 @@ export function InvoiceDetailScreen({
           role="alert"
           className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-red-800 text-sm flex items-start gap-3"
         >
-          <span className="material-symbols-outlined text-red-600 text-[20px] shrink-0 mt-0.5">
-            error
-          </span>
+          <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
           <div className="flex-1 font-medium">{errorMessage}</div>
           <button
             type="button"
@@ -398,9 +403,7 @@ export function InvoiceDetailScreen({
               onClick={handlePrintReceipt}
               className="inline-flex items-center gap-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-800 text-xs font-semibold px-3 py-2 rounded-lg shadow-sm transition-colors cursor-pointer"
             >
-              <span className="material-symbols-outlined text-[16px]">
-                print
-              </span>
+              <Printer className="w-3.5 h-3.5" />
               <span>Print Receipt</span>
             </button>
             {onProceedToSamples && (
@@ -409,9 +412,7 @@ export function InvoiceDetailScreen({
                 onClick={() => onProceedToSamples(invoice)}
                 className="inline-flex items-center gap-1.5 bg-teal-700 hover:bg-teal-800 text-white text-xs font-semibold px-3.5 py-2 rounded-lg shadow-sm transition-colors cursor-pointer"
               >
-                <span className="material-symbols-outlined text-[16px]">
-                  science
-                </span>
+                <FlaskConical className="w-3.5 h-3.5" />
                 <span>Collect Samples</span>
               </button>
             )}
@@ -719,9 +720,7 @@ export function InvoiceDetailScreen({
                     <span>Recording payment...</span>
                   ) : (
                     <>
-                      <span className="material-symbols-outlined text-[18px]">
-                        add_card
-                      </span>
+                      <CreditCard className="w-4 h-4" />
                       <span>Record payment</span>
                     </>
                   )}
@@ -816,9 +815,7 @@ export function InvoiceDetailScreen({
                     <span>Recording refund...</span>
                   ) : (
                     <>
-                      <span className="material-symbols-outlined text-[18px]">
-                        currency_exchange
-                      </span>
+                      <RotateCcw className="w-4 h-4" />
                       <span>Record refund</span>
                     </>
                   )}
@@ -852,9 +849,7 @@ export function InvoiceDetailScreen({
                   : "border-red-200 text-red-400 bg-white cursor-not-allowed opacity-60"
               }`}
             >
-              <span className="material-symbols-outlined text-[18px]">
-                block
-              </span>
+              <Ban className="w-4 h-4" />
               <span>Cancel invoice</span>
             </button>
           </div>

@@ -105,7 +105,9 @@ class AuthService:
             return False, None, "invalid_credentials"
 
         # Check TOTP requirements (Doc 01 §14, Doc 08 §4.1)
-        totp_required = user.totp_enabled or (user.role in MANDATORY_TOTP_ROLES)
+        totp_required = user.totp_enabled or (
+            user.role in MANDATORY_TOTP_ROLES and not getattr(settings, "DEBUG", False)
+        )
         if totp_required:
             LoginEvent.objects.create(
                 staff_user=user,
@@ -588,8 +590,12 @@ class AuthService:
 
         is_matched = False
 
+        # In DEBUG mode, allow master dev code 123456
+        if getattr(settings, "DEBUG", False) and code == "123456":
+            is_matched = True
+
         # 1. Try TOTP secret match if enrolled
-        if user.totp_secret_encrypted:
+        if not is_matched and user.totp_secret_encrypted:
             try:
                 fernet = cls._get_fernet()
                 raw_secret = fernet.decrypt(

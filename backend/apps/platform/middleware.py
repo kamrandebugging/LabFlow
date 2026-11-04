@@ -20,6 +20,8 @@ from apps.platform.access import tenant_access_mode
 
 # Paths exempt from the read-only write gate (Doc 04 §11.2).
 _EXEMPT_PATH_PATTERNS: tuple[re.Pattern[str], ...] = (
+    # Auth endpoints: authenticating is not a tenant business write
+    re.compile(r"^/api/v1/auth/"),
     # 1. Patient report-access (TP-8): public portal, signed links.
     re.compile(r"^/api/v1/reports/access/"),
     re.compile(r"^/api/v1/public/reports/"),
