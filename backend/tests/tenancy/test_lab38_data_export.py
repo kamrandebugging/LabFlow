@@ -25,7 +25,7 @@ from typing import Any
 from unittest.mock import patch
 
 import pytest
-from django.test import Client, captureOnCommitCallbacks
+from django.test import Client
 from django_tenants.utils import tenant_context
 
 from apps.accounts.auth_service import AuthService
@@ -82,19 +82,22 @@ class TestExportApi:
         with tenant_context(tenant_a):
             headers = auth_headers(lab38_setup["owner"])
         client = Client()
-        with patch("apps.platform.tasks.export_tenant_task.delay") as mock_delay:
+        # View enqueues via transaction.on_commit — patch it to run immediately
+        with (
+            patch("apps.platform.tasks.export_tenant_task.delay") as mock_delay,
+            patch(
+                "django.db.transaction.on_commit", side_effect=lambda f: f()
+            ),
+        ):
             headers["Idempotency-Key"] = f"lab38-export-{uuid.uuid4().hex}"
-            # View enqueues via transaction.on_commit — capture and execute it
-            with captureOnCommitCallbacks(execute=True):
-                response = client.post(
-                    EXPORTS_URL,
-                    data=json.dumps({}),
-                    content_type="application/json",
-                    **{
-                        f"HTTP_{k.upper().replace('-', '_')}": v
-                        for k, v in headers.items()
-                    },
-                )
+            response = client.post(
+                EXPORTS_URL,
+                data=json.dumps({}),
+                content_type="application/json",
+                **{
+                    f"HTTP_{k.upper().replace('-', '_')}": v for k, v in headers.items()
+                },
+            )
         assert response.status_code == 202, response.content[:500]
         body = response.json()
         assert "export_id" in body
