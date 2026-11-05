@@ -162,7 +162,7 @@ export function PatientReportAccessScreen(): JSX.Element {
                 Official Clinical Report
               </h2>
               <p className="text-xs text-slate-600 mt-0.5">
-                ISO 15189:2022 Accredited Laboratory Record
+                Official Clinical Report
               </p>
             </div>
 
@@ -218,7 +218,7 @@ export function PatientReportAccessScreen(): JSX.Element {
 
       {/* Muted Footer */}
       <footer className="w-full max-w-3xl text-center text-xs text-slate-400 pt-4">
-        City Diagnostic Lab · ISO 15189:2022 Accredited · End-to-End Encrypted Access
+        City Diagnostic Lab · End-to-End Encrypted Access
       </footer>
     </div>
   );

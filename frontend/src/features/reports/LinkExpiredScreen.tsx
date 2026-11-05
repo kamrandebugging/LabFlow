@@ -79,7 +79,7 @@ export function LinkExpiredScreen(): JSX.Element {
       {/* Muted Footer */}
       <footer className="w-full max-w-md pb-4 text-center">
         <p className="text-xs text-slate-400">
-          City Diagnostic Lab · ISO 15189 Accredited
+          City Diagnostic Lab
         </p>
       </footer>
     </div>

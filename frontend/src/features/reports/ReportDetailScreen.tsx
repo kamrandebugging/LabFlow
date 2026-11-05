@@ -522,7 +522,7 @@ export function ReportDetailScreen(): JSX.Element | null {
 
             {/* Specimen Footer */}
             <div className="pt-4 border-t border-slate-200 flex flex-col sm:flex-row justify-between items-center text-xs text-slate-400 gap-2">
-              <span>Electronic report verified per ISO 15189 standard.</span>
+              <span>Electronic report verified.</span>
               <span className="font-mono">End of Report · PK-CDL-REF</span>
             </div>
           </div>
