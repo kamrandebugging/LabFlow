@@ -434,9 +434,7 @@ export function ReportsListScreen(): JSX.Element {
                     <td className="py-3.5 px-4">
                       {getStatusBadge(report.status)}
                     </td>
-                    <td className="py-3.5 px-4">
-                      {getDeliveryBadge(report)}
-                    </td>
+                    <td className="py-3.5 px-4">{getDeliveryBadge(report)}</td>
                     <td className="py-3.5 px-4 text-xs font-mono text-slate-500">
                       {new Date(report.created_at).toLocaleDateString("en-GB", {
                         day: "2-digit",
@@ -521,7 +519,10 @@ export function ReportsListScreen(): JSX.Element {
           <div className="bg-white rounded-2xl shadow-xl border border-slate-200 w-full max-w-md overflow-hidden">
             <div className="p-6 border-b border-slate-100 flex items-center justify-between">
               <div>
-                <h3 id="deliver-modal-title" className="text-lg font-bold text-slate-900">
+                <h3
+                  id="deliver-modal-title"
+                  className="text-lg font-bold text-slate-900"
+                >
                   Deliver Clinical Report
                 </h3>
                 <p className="text-xs text-slate-500 mt-0.5">
@@ -538,7 +539,10 @@ export function ReportsListScreen(): JSX.Element {
               </button>
             </div>
 
-            <form onSubmit={handleDeliverSubmit} className="p-6 flex flex-col gap-4">
+            <form
+              onSubmit={handleDeliverSubmit}
+              className="p-6 flex flex-col gap-4"
+            >
               {deliveryError && (
                 <div className="p-3 text-xs text-rose-800 bg-rose-50 border border-rose-200 rounded-lg">
                   {deliveryError}

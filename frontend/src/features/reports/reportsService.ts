@@ -62,9 +62,15 @@ export const reportsService = {
   /**
    * GET /api/v1/reports — Staff reports list with cursor pagination & filters.
    */
-  async getReports(filters: ReportListFilters = {}): Promise<ReportListResponse> {
+  async getReports(
+    filters: ReportListFilters = {},
+  ): Promise<ReportListResponse> {
     const params = new URLSearchParams();
-    if (filters.status && filters.status !== "all" && filters.status !== "All") {
+    if (
+      filters.status &&
+      filters.status !== "all" &&
+      filters.status !== "All"
+    ) {
       params.set("status", filters.status.toLowerCase());
     }
     if (filters.branch && filters.branch !== "all") {
@@ -260,9 +266,7 @@ export const reportsService = {
    * PUBLIC GET /api/v1/report-access/:token — Patient token redemption.
    * NO auth headers: token is the sole credential (RP-V3).
    */
-  async checkPublicReportAccess(
-    token: string,
-  ): Promise<{
+  async checkPublicReportAccess(token: string): Promise<{
     status: number;
     redirectUrl?: string;
     error?: PublicReportAccessError;

@@ -9,7 +9,8 @@ import { Clock, Phone, ArrowLeft } from "lucide-react";
 
 export function LinkExpiredScreen(): JSX.Element {
   const location = useLocation();
-  const state = location.state as { phone?: string | null; reason?: string } | undefined;
+  const state = location.state as
+    { phone?: string | null; reason?: string } | undefined;
   const labPhone = state?.phone || "+92 42 35712345";
 
   return (
@@ -78,9 +79,7 @@ export function LinkExpiredScreen(): JSX.Element {
 
       {/* Muted Footer */}
       <footer className="w-full max-w-md pb-4 text-center">
-        <p className="text-xs text-slate-400">
-          City Diagnostic Lab
-        </p>
+        <p className="text-xs text-slate-400">City Diagnostic Lab</p>
       </footer>
     </div>
   );

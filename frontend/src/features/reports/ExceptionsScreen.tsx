@@ -66,9 +66,8 @@ export function ExceptionsScreen(): JSX.Element {
   const failedDeliveries =
     data?.results.filter((item) => item.kind === "failed_delivery") || [];
   const criticalUnacknowledged =
-    data?.results.filter(
-      (item) => item.kind === "critical_unacknowledged",
-    ) || [];
+    data?.results.filter((item) => item.kind === "critical_unacknowledged") ||
+    [];
   const stuckSamples =
     data?.results.filter((item) => item.kind === "stuck_sample") || [];
 
@@ -301,7 +300,9 @@ export function ExceptionsScreen(): JSX.Element {
                           {item.title}
                         </span>
                         <span className="font-mono text-slate-500">
-                          ({getDetail(item.details, "contact", "No destination")})
+                          (
+                          {getDetail(item.details, "contact", "No destination")}
+                          )
                         </span>
                       </div>
                       <div className="text-slate-500 mt-0.5">
@@ -424,7 +425,8 @@ export function ExceptionsScreen(): JSX.Element {
                           {item.reference_code}
                         </span>
                         <span className="text-slate-600 capitalize">
-                          Status: {getDetail(item.details, "sample_status", "pending")}
+                          Status:{" "}
+                          {getDetail(item.details, "sample_status", "pending")}
                         </span>
                       </div>
                       <div className="text-slate-500 mt-0.5">

@@ -112,10 +112,11 @@ ignore_missing_imports = true
 module = [
     "apps.core.models",
     "tests.*",
+    "apps.*.tests.*",
 ]
 disallow_subclassing_any = false
 disallow_untyped_calls = false
-disable_error_code = ["misc", "comparison-overlap", "attr-defined", "type-arg", "name-defined"]
+disable_error_code = ["misc", "comparison-overlap", "attr-defined", "type-arg", "name-defined", "arg-type"]
 
 # ==============================================================================
 # Pytest Configuration (Doc 09 §9.1)

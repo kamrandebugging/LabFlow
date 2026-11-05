@@ -7,11 +7,7 @@
 
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import {
-  Download,
-  Lock,
-  Shield,
-} from "lucide-react";
+import { Download, Lock, Shield } from "lucide-react";
 import { reportsService } from "./reportsService";
 
 export function PatientReportAccessScreen(): JSX.Element {
@@ -58,7 +54,9 @@ export function PatientReportAccessScreen(): JSX.Element {
         setStatusMessage("Verification failed.");
       }
     } catch {
-      setServerError("Network error connecting to diagnostic portal. Please check connection.");
+      setServerError(
+        "Network error connecting to diagnostic portal. Please check connection.",
+      );
       setStatusMessage("Verification error.");
     } finally {
       setChecking(false);
@@ -128,7 +126,10 @@ export function PatientReportAccessScreen(): JSX.Element {
           </div>
 
           {serverError && (
-            <div role="alert" className="p-3 text-xs text-rose-800 bg-rose-50 border border-rose-200 rounded-lg flex items-center justify-between gap-3">
+            <div
+              role="alert"
+              className="p-3 text-xs text-rose-800 bg-rose-50 border border-rose-200 rounded-lg flex items-center justify-between gap-3"
+            >
               <span>{serverError}</span>
               <button
                 type="button"
@@ -142,11 +143,18 @@ export function PatientReportAccessScreen(): JSX.Element {
 
           <div className="flex items-center justify-between text-xs text-slate-600 pt-1 border-t border-slate-100">
             <div className="flex items-center gap-1.5 font-mono text-[11px]">
-              <Shield className="w-3.5 h-3.5 text-teal-700" aria-hidden="true" />
+              <Shield
+                className="w-3.5 h-3.5 text-teal-700"
+                aria-hidden="true"
+              />
               <span>{statusMessage}</span>
             </div>
             <span className="font-mono text-[11px] text-slate-600">
-              {checking ? "Checking…" : serverError ? "Error" : "Status: 200 OK"}
+              {checking
+                ? "Checking…"
+                : serverError
+                  ? "Error"
+                  : "Status: 200 OK"}
             </span>
           </div>
           <div role="status" aria-live="polite" className="sr-only">
@@ -208,9 +216,9 @@ export function PatientReportAccessScreen(): JSX.Element {
           {/* Guidance note */}
           <div className="text-xs text-slate-500 leading-relaxed border-t border-slate-100 pt-4">
             <p>
-              Please review these diagnostic findings with your consulting physician.
-              If you suspect any discrepancies or require an updated copy, contact
-              the front desk at City Diagnostic Lab.
+              Please review these diagnostic findings with your consulting
+              physician. If you suspect any discrepancies or require an updated
+              copy, contact the front desk at City Diagnostic Lab.
             </p>
           </div>
         </article>

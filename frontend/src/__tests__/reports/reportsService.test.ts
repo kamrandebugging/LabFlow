@@ -68,13 +68,17 @@ describe("reportsService unit tests", () => {
     });
 
     expect(global.fetch).toHaveBeenCalledTimes(1);
-    const [url, options] = (global.fetch as any).mock.calls[0];
+    const [url, options] = vi.mocked(global.fetch).mock.calls[0] as [
+      string,
+      RequestInit,
+    ];
     expect(url).toContain("/api/v1/reports");
     expect(url).toContain("status=final");
     expect(url).toContain("q=Imran");
     expect(url).toContain("cursor=c-start");
     expect(url).toContain("limit=25");
-    expect(options.headers["Authorization"]).toBe("Bearer test-jwt-access-token");
+    const headers = options.headers as Record<string, string>;
+    expect(headers["Authorization"]).toBe("Bearer test-jwt-access-token");
     expect(res.results).toHaveLength(1);
     expect(res.next_cursor).toBe("cursor-123");
   });
@@ -308,7 +312,10 @@ describe("reportsService unit tests", () => {
         method: "GET",
       }),
     );
-    const [, options] = (global.fetch as any).mock.calls[0];
+    const [, options] = vi.mocked(global.fetch).mock.calls[0] as [
+      string,
+      RequestInit,
+    ];
     // Must NOT have Authorization header!
     expect(options.headers).toBeUndefined();
     expect(res.status).toBe(200);

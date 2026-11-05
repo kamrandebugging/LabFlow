@@ -67,7 +67,11 @@ describe("Screen 26: Reports List (/reports)", () => {
             accession_id: "CDL20261020000041",
             collected_at: "2026-10-20T08:30:00Z",
             branch: { id: "br-01", name: "Main Lab" },
-            patient: { id: "pat-01", name: "Muhammad Imran", mrn: "MRN-2026-00417" },
+            patient: {
+              id: "pat-01",
+              name: "Muhammad Imran",
+              mrn: "MRN-2026-00417",
+            },
             tests: [
               { id: "t-1", name: "CBC", code: "CBC" },
               { id: "t-2", name: "HbA1c", code: "HbA1c" },

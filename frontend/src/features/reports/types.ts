@@ -5,11 +5,13 @@
 
 export type ReportStatus = "draft" | "final" | "amended" | "void";
 
-export type ReportGenerationStatus = "idle" | "running" | "failed" | "completed";
+export type ReportGenerationStatus =
+  "idle" | "running" | "failed" | "completed";
 
 export type DeliveryChannel = "email" | "whatsapp";
 
-export type DeliveryStatus = "pending" | "sent" | "delivered" | "failed" | "bounced" | "opened";
+export type DeliveryStatus =
+  "pending" | "sent" | "delivered" | "failed" | "bounced" | "opened";
 
 export interface ReportTestSummary {
   id: string;
