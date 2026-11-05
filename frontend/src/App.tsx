@@ -48,7 +48,15 @@ import {
   TenantSettingsScreen,
   DataExportScreen,
 } from "./features/settings";
-import { PartnersListScreen, PartnerDetailScreen } from "./features/partners";
+import {
+  PartnersListScreen,
+  PartnerDetailScreen,
+  RulesScreen,
+  LedgerScreen,
+  PartnerDashboardScreen,
+  SettlementsScreen,
+  SettlementDetailScreen,
+} from "./features/partners";
 import { ScreenCatalogViewer } from "./features/screens/ScreenCatalogViewer";
 import Hero from "./marketing/Hero";
 import TrustStrip from "./marketing/TrustStrip";
@@ -448,6 +456,46 @@ function PartnerDetailWrapper(): JSX.Element {
   );
 }
 
+function RulesWrapper(): JSX.Element {
+  return (
+    <main className="min-h-screen bg-slate-50 py-6">
+      <RulesScreen />
+    </main>
+  );
+}
+
+function LedgerWrapper(): JSX.Element {
+  return (
+    <main className="min-h-screen bg-slate-50 py-6">
+      <LedgerScreen />
+    </main>
+  );
+}
+
+function PartnerDashboardWrapper(): JSX.Element {
+  return (
+    <main className="min-h-screen bg-slate-50 py-6">
+      <PartnerDashboardScreen />
+    </main>
+  );
+}
+
+function SettlementsWrapper(): JSX.Element {
+  return (
+    <main className="min-h-screen bg-slate-50 py-6">
+      <SettlementsScreen />
+    </main>
+  );
+}
+
+function SettlementDetailWrapper(): JSX.Element {
+  return (
+    <main className="min-h-screen bg-slate-50 py-6">
+      <SettlementDetailScreen />
+    </main>
+  );
+}
+
 function App(): JSX.Element {
   useEffect(() => {
     // Attempt silent session restore via httpOnly refresh cookie on application mount
@@ -530,7 +578,17 @@ function App(): JSX.Element {
         <Route path="/settings/tenant" element={<TenantSettingsWrapper />} />
         <Route path="/settings/exports" element={<DataExportWrapper />} />
         <Route path="/partners" element={<PartnersListWrapper />} />
+        <Route path="/partners/ledger" element={<LedgerWrapper />} />
+        <Route path="/partners/:id/rules" element={<RulesWrapper />} />
+        <Route
+          path="/partners/:id/dashboard"
+          element={<PartnerDashboardWrapper />}
+        />
         <Route path="/partners/:id" element={<PartnerDetailWrapper />} />
+
+        {/* Settlements Suite (Screens 41–42) */}
+        <Route path="/settlements" element={<SettlementsWrapper />} />
+        <Route path="/settlements/:id" element={<SettlementDetailWrapper />} />
 
         <Route path="/screens" element={<ScreenCatalogViewer />} />
         <Route path="/screens/:screenId" element={<ScreenCatalogViewer />} />
