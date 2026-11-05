@@ -422,7 +422,10 @@ function App(): JSX.Element {
 
         {/* Results Management Suite (Screens 21–25) */}
         <Route path="/worklist" element={<WorklistWrapper />} />
-        <Route path="/results/entry/:sampleId" element={<ResultEntryWrapper />} />
+        <Route
+          path="/results/entry/:sampleId"
+          element={<ResultEntryWrapper />}
+        />
         <Route path="/results/approvals" element={<ApprovalsQueueWrapper />} />
         <Route path="/results/:id/amend" element={<AmendResultWrapper />} />
         <Route path="/results/:id" element={<ResultDetailWrapper />} />

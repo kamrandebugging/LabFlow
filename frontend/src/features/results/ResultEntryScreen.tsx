@@ -37,8 +37,11 @@ interface TestParamEntry {
   value: string;
 }
 
-const DEFAULT_TEST_PARAMS: Record<string, Omit<TestParamEntry, "id" | "value">> = {
-  "hemoglobin": {
+const DEFAULT_TEST_PARAMS: Record<
+  string,
+  Omit<TestParamEntry, "id" | "value">
+> = {
+  hemoglobin: {
     name: "Hemoglobin (Hb)",
     category: "Complete Blood Count",
     method: "Photometric",
@@ -46,7 +49,7 @@ const DEFAULT_TEST_PARAMS: Record<string, Omit<TestParamEntry, "id" | "value">> 
     refLow: 13.0,
     refHigh: 17.0,
   },
-  "wbc": {
+  wbc: {
     name: "WBC (Total Leukocyte Count)",
     category: "Complete Blood Count",
     method: "Flow Cytometry",
@@ -54,7 +57,7 @@ const DEFAULT_TEST_PARAMS: Record<string, Omit<TestParamEntry, "id" | "value">> 
     refLow: 4.0,
     refHigh: 11.0,
   },
-  "platelets": {
+  platelets: {
     name: "Platelets (Thrombocytes)",
     category: "Complete Blood Count",
     method: "Impedance",
@@ -62,7 +65,7 @@ const DEFAULT_TEST_PARAMS: Record<string, Omit<TestParamEntry, "id" | "value">> 
     refLow: 150,
     refHigh: 410,
   },
-  "hba1c": {
+  hba1c: {
     name: "Glycated Hemoglobin (HbA1c)",
     category: "Glycemic Monitor",
     method: "HPLC Method",
@@ -70,7 +73,7 @@ const DEFAULT_TEST_PARAMS: Record<string, Omit<TestParamEntry, "id" | "value">> 
     refLow: 4.0,
     refHigh: 5.6,
   },
-  "potassium": {
+  potassium: {
     name: "Potassium (K+)",
     category: "Electrolytes",
     method: "ISE Method",
@@ -158,7 +161,9 @@ export function ResultEntryScreen(): JSX.Element {
     );
   };
 
-  const calculateFlag = (p: TestParamEntry): "low" | "high" | "normal" | null => {
+  const calculateFlag = (
+    p: TestParamEntry,
+  ): "low" | "high" | "normal" | null => {
     if (!p.value.trim()) return null;
     const num = parseFloat(p.value);
     if (isNaN(num)) return null;
@@ -174,7 +179,9 @@ export function ResultEntryScreen(): JSX.Element {
     // Validation: All items must have non-empty values
     const emptyItem = params.find((p) => !p.value.trim());
     if (emptyItem) {
-      setErrorMessage("Please enter values for all ordered tests. Saving is all-or-nothing.");
+      setErrorMessage(
+        "Please enter values for all ordered tests. Saving is all-or-nothing.",
+      );
       return;
     }
 
@@ -212,7 +219,8 @@ export function ResultEntryScreen(): JSX.Element {
             Access Denied · Role Restricted
           </h2>
           <p className="text-sm text-red-800 max-w-md mx-auto">
-            Only Technician or Pathologist may enter results. Your active role does not have authorization for direct laboratory entry.
+            Only Technician or Pathologist may enter results. Your active role
+            does not have authorization for direct laboratory entry.
           </p>
           <div className="pt-2">
             <Link
@@ -246,7 +254,10 @@ export function ResultEntryScreen(): JSX.Element {
             aria-label="Breadcrumb"
             className="flex items-center gap-2 text-xs font-medium text-slate-500"
           >
-            <Link to="/worklist" className="hover:text-slate-900 transition-colors">
+            <Link
+              to="/worklist"
+              className="hover:text-slate-900 transition-colors"
+            >
               Worklist
             </Link>
             <span className="text-slate-400">/</span>
@@ -262,7 +273,8 @@ export function ResultEntryScreen(): JSX.Element {
             </span>
             <span className="text-slate-300">·</span>
             <span className="text-slate-600">
-              {sample?.patient_sex === "M" ? "Male" : "Female"}, {sample?.patient_age_years || 34}y
+              {sample?.patient_sex === "M" ? "Male" : "Female"},{" "}
+              {sample?.patient_age_years || 34}y
             </span>
             <span className="text-slate-300">·</span>
             <span className="font-mono text-slate-500">
@@ -284,7 +296,9 @@ export function ResultEntryScreen(): JSX.Element {
             <FlaskConical className="w-3.5 h-3.5 text-teal-700" />
             <span>
               Bench Station:{" "}
-              <strong className="text-slate-900">Bench A (Hematology/Bio)</strong>
+              <strong className="text-slate-900">
+                Bench A (Hematology/Bio)
+              </strong>
             </span>
           </div>
         </div>
@@ -482,7 +496,8 @@ export function ResultEntryScreen(): JSX.Element {
         <div className="flex items-center gap-2 text-xs text-slate-500 px-1">
           <Info className="w-4 h-4 text-slate-400 shrink-0" />
           <span>
-            Saving is all-or-nothing — one invalid row saves nothing. Values will transition specimen to &quot;in_process&quot;.
+            Saving is all-or-nothing — one invalid row saves nothing. Values
+            will transition specimen to &quot;in_process&quot;.
           </span>
         </div>
 

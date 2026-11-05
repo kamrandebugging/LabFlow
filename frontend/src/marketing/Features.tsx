@@ -21,8 +21,7 @@ const FEATURES: Feature[] = [
     title: "Bilingual WhatsApp reports",
     sentence1:
       "Every approved result becomes a bilingual PDF (Urdu + English) delivered to the patient on WhatsApp in one tap.",
-    sentence2:
-      "No printing, no reprints, no 'report ready?' phone calls.",
+    sentence2: "No printing, no reprints, no 'report ready?' phone calls.",
   },
   {
     Icon: ReceiptText,
@@ -113,7 +112,11 @@ export default function Features() {
                 className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
                 style={{ backgroundColor: "rgba(14,107,58,0.10)" }}
               >
-                <Icon size={22} style={{ color: "#0E6B3A" }} aria-hidden="true" />
+                <Icon
+                  size={22}
+                  style={{ color: "#0E6B3A" }}
+                  aria-hidden="true"
+                />
               </div>
 
               {/* Text */}

@@ -88,13 +88,17 @@ describe("Screen 21: Technician Worklist (/worklist)", () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByText(/Live Telemetry Synchronized/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Live Telemetry Synchronized/i),
+    ).toBeInTheDocument();
     expect(await screen.findByText("CDL20261020000041")).toBeInTheDocument();
     expect(screen.getByText("Muhammad Imran")).toBeInTheDocument();
     expect(screen.getByText("2h 5m")).toBeInTheDocument();
     expect(screen.getAllByText("Ready for entry")).toHaveLength(2);
     expect(screen.getAllByText("In process")).toHaveLength(2);
-    expect(screen.getAllByRole("link", { name: /Enter results/i })).toHaveLength(2);
+    expect(
+      screen.getAllByRole("link", { name: /Enter results/i }),
+    ).toHaveLength(2);
   });
 
   it("renders an honest empty state when worklist contains 0 items", async () => {
@@ -478,7 +482,9 @@ describe("Screen 23: Approvals Queue (/results/approvals)", () => {
     expect(resultsService.approveResult).not.toHaveBeenCalled();
 
     // Type note
-    const noteInput = screen.getByPlaceholderText(/Enter clinical reason for rejection/i);
+    const noteInput = screen.getByPlaceholderText(
+      /Enter clinical reason for rejection/i,
+    );
     await user.type(noteInput, "Specimen clotted. Recollect required.");
 
     vi.mocked(resultsService.approveResult).mockResolvedValueOnce({
@@ -607,8 +613,13 @@ describe("Screen 24: Result Detail (/results/:id)", () => {
     );
 
     await screen.findByText("6.8");
-    const noteArea = screen.getByPlaceholderText(/Document clinical review rationale/i);
-    await user.type(noteArea, "Panic value verified with ward on-duty consultant.");
+    const noteArea = screen.getByPlaceholderText(
+      /Document clinical review rationale/i,
+    );
+    await user.type(
+      noteArea,
+      "Panic value verified with ward on-duty consultant.",
+    );
 
     const submitBtn = screen.getByRole("button", { name: /Submit decision/i });
     await user.click(submitBtn);
@@ -679,7 +690,9 @@ describe("Screen 25: Amend Result (/results/:id/amend)", () => {
 
     expect(await screen.findByText(/Amend result/i)).toBeInTheDocument();
     expect(screen.getByText(/Approved value — read-only/i)).toBeInTheDocument();
-    expect(screen.getByText(/The original is never edited/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/The original is never edited/i),
+    ).toBeInTheDocument();
     expect(screen.getByText("Amendment chain")).toBeInTheDocument();
     expect(screen.getByText("v1.0")).toBeInTheDocument();
   });
@@ -714,7 +727,8 @@ describe("Screen 25: Amend Result (/results/:id/amend)", () => {
       status: "entered",
       entered_by: "usr-path-01",
       supersedes: "res-001",
-      amend_reason: "Sample rerun confirmed analyzer drift on electrode cell 3B.",
+      amend_reason:
+        "Sample rerun confirmed analyzer drift on electrode cell 3B.",
     });
 
     render(

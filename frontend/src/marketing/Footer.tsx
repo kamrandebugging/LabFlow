@@ -41,9 +41,7 @@ export default function Footer() {
         </p>
 
         {/* Copyright line */}
-        <p className="text-xs text-[#A0AEC0]">
-          &copy; 2026 LabFlow
-        </p>
+        <p className="text-xs text-[#A0AEC0]">&copy; 2026 LabFlow</p>
       </div>
     </footer>
   );

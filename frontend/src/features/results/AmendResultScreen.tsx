@@ -239,7 +239,9 @@ export function AmendResultScreen(): JSX.Element {
               <strong className="text-slate-800">
                 The original is never edited.
               </strong>{" "}
-              Baseline accession records remain permanently sealed in compliance with ISO 15189 protocol and legal healthcare record audit mandates.
+              Baseline accession records remain permanently sealed in compliance
+              with ISO 15189 protocol and legal healthcare record audit
+              mandates.
             </p>
           </div>
         </div>
@@ -250,7 +252,8 @@ export function AmendResultScreen(): JSX.Element {
             <div className="pb-3 border-b border-slate-100">
               <h2 className="text-base font-bold text-slate-900">Correction</h2>
               <p className="text-xs text-slate-500 mt-0.5">
-                Enter recalibrated parameter and verified clinical justification.
+                Enter recalibrated parameter and verified clinical
+                justification.
               </p>
             </div>
 
@@ -308,7 +311,8 @@ export function AmendResultScreen(): JSX.Element {
                 required
               />
               <span className="text-[10px] text-slate-400 block">
-                Mandatory audit justification: This note is permanently appended to the cumulative clinical ledger.
+                Mandatory audit justification: This note is permanently appended
+                to the cumulative clinical ledger.
               </span>
             </div>
 
@@ -326,7 +330,8 @@ export function AmendResultScreen(): JSX.Element {
                 htmlFor="certify-checkbox"
                 className="text-xs text-slate-700 cursor-pointer select-none leading-relaxed"
               >
-                I certify that this result reflects a calibrated rerun validated under benchtop standard operating protocols.
+                I certify that this result reflects a calibrated rerun validated
+                under benchtop standard operating protocols.
               </label>
             </div>
 
@@ -400,7 +405,8 @@ export function AmendResultScreen(): JSX.Element {
                 <span className="text-slate-400 text-[11px]">10:12 PKT</span>
               </div>
               <p className="text-slate-600 text-xs">
-                Certified by Dr. Ayesha Khan. Initial urgent assay intake flagged for high potassium threshold.
+                Certified by Dr. Ayesha Khan. Initial urgent assay intake
+                flagged for high potassium threshold.
               </p>
             </div>
           </div>

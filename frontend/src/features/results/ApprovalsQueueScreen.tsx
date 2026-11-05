@@ -5,7 +5,7 @@
  * Icons: lucide-react exclusively.
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   CheckCircle2,
@@ -29,9 +29,9 @@ export function ApprovalsQueueScreen(): JSX.Element {
   const [queue, setQueue] = useState<ApprovalQueueItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [actionSuccessMessage, setActionSuccessMessage] = useState<string | null>(
-    null,
-  );
+  const [actionSuccessMessage, setActionSuccessMessage] = useState<
+    string | null
+  >(null);
 
   // Reject Modal State
   const [rejectingItem, setRejectingItem] = useState<ApprovalQueueItem | null>(
@@ -40,6 +40,15 @@ export function ApprovalsQueueScreen(): JSX.Element {
   const [rejectionNote, setRejectionNote] = useState("");
   const [rejectError, setRejectError] = useState<string | null>(null);
   const [processingAction, setProcessingAction] = useState(false);
+  const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (successTimerRef.current) {
+        clearTimeout(successTimerRef.current);
+      }
+    };
+  }, []);
 
   const loadData = async () => {
     try {
@@ -73,7 +82,11 @@ export function ApprovalsQueueScreen(): JSX.Element {
       setActionSuccessMessage(
         `Result for ${item.patient_name} (${item.test_name}) approved.`,
       );
-      setTimeout(() => setActionSuccessMessage(null), 4000);
+      if (successTimerRef.current) clearTimeout(successTimerRef.current);
+      successTimerRef.current = setTimeout(
+        () => setActionSuccessMessage(null),
+        4000,
+      );
     } catch (err) {
       setErrorMessage(
         err instanceof Error ? err.message : "Failed to approve result.",
@@ -86,7 +99,9 @@ export function ApprovalsQueueScreen(): JSX.Element {
   const handleConfirmReject = async () => {
     if (!rejectingItem) return;
     if (!rejectionNote.trim()) {
-      setRejectError("A clinical reason note is strictly required for rejection.");
+      setRejectError(
+        "A clinical reason note is strictly required for rejection.",
+      );
       return;
     }
 
@@ -107,7 +122,11 @@ export function ApprovalsQueueScreen(): JSX.Element {
       );
       setRejectingItem(null);
       setRejectionNote("");
-      setTimeout(() => setActionSuccessMessage(null), 4000);
+      if (successTimerRef.current) clearTimeout(successTimerRef.current);
+      successTimerRef.current = setTimeout(
+        () => setActionSuccessMessage(null),
+        4000,
+      );
     } catch (err) {
       setRejectError(
         err instanceof Error ? err.message : "Failed to reject result.",
@@ -127,7 +146,8 @@ export function ApprovalsQueueScreen(): JSX.Element {
             Access Denied · Pathologist Desk Restricted
           </h2>
           <p className="text-sm text-red-800 max-w-md mx-auto">
-            Only a registered Pathologist may access the clinical verification and approvals queue (Doc 03 §6.6).
+            Only a registered Pathologist may access the clinical verification
+            and approvals queue (Doc 03 §6.6).
           </p>
           <div className="pt-2">
             <Link
@@ -158,7 +178,8 @@ export function ApprovalsQueueScreen(): JSX.Element {
             Approvals queue
           </h1>
           <p className="text-xs text-slate-500 mt-1">
-            Entered results awaiting your decision · Critical first · Times are PKT
+            Entered results awaiting your decision · Critical first · Times are
+            PKT
           </p>
         </div>
 
@@ -170,7 +191,9 @@ export function ApprovalsQueueScreen(): JSX.Element {
               <div className="text-xs font-bold text-red-800 uppercase">
                 {criticalCount} Critical
               </div>
-              <div className="text-[10px] text-red-600 font-mono">TAT &gt; 2h</div>
+              <div className="text-[10px] text-red-600 font-mono">
+                TAT &gt; 2h
+              </div>
             </div>
           </div>
           <div className="px-3 py-1.5 rounded-lg bg-slate-50 border border-slate-100 flex items-center gap-2">
@@ -179,7 +202,9 @@ export function ApprovalsQueueScreen(): JSX.Element {
               <div className="text-xs font-bold text-slate-800 uppercase">
                 {standardCount} Standard
               </div>
-              <div className="text-[10px] text-slate-500 font-mono">In batch</div>
+              <div className="text-[10px] text-slate-500 font-mono">
+                In batch
+              </div>
             </div>
           </div>
         </div>
@@ -194,10 +219,12 @@ export function ApprovalsQueueScreen(): JSX.Element {
             </div>
             <div>
               <p className="text-xs font-bold text-red-900">
-                {criticalCount} critical results need immediate clinical sign-off.
+                {criticalCount} critical results need immediate clinical
+                sign-off.
               </p>
               <p className="text-xs text-red-700 mt-0.5">
-                Per CAP/ISO 15189 protocol, critical alerts require verified telephonic/portal notification within 30 minutes of entry.
+                Per CAP/ISO 15189 protocol, critical alerts require verified
+                telephonic/portal notification within 30 minutes of entry.
               </p>
             </div>
           </div>
@@ -265,7 +292,9 @@ export function ApprovalsQueueScreen(): JSX.Element {
         {loading ? (
           <div className="py-20 flex flex-col items-center justify-center text-slate-500">
             <RefreshCw className="w-6 h-6 animate-spin text-teal-600 mb-2" />
-            <span className="text-xs font-medium">Loading pending sign-offs...</span>
+            <span className="text-xs font-medium">
+              Loading pending sign-offs...
+            </span>
           </div>
         ) : queue.length === 0 ? (
           <div className="py-20 text-center text-slate-500 text-sm">
@@ -433,8 +462,9 @@ export function ApprovalsQueueScreen(): JSX.Element {
             </div>
 
             <p className="text-xs text-slate-600">
-              Rejecting result for <strong>{rejectingItem.patient_name}</strong> (
-              {rejectingItem.test_name}). Please document the explicit clinical justification:
+              Rejecting result for <strong>{rejectingItem.patient_name}</strong>{" "}
+              ({rejectingItem.test_name}). Please document the explicit clinical
+              justification:
             </p>
 
             {rejectError && (

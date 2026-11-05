@@ -62,9 +62,9 @@ export default function FoundingOffer() {
             className="text-base sm:text-lg leading-relaxed mb-12 sm:mb-16 max-w-2xl mx-auto"
             style={{ color: "#5b6660" }}
           >
-            LabFlow is opening to a small group of labs first. Founding members get
-            the closest version of the product — and the loudest voice in where it
-            goes.
+            LabFlow is opening to a small group of labs first. Founding members
+            get the closest version of the product — and the loudest voice in
+            where it goes.
           </p>
 
           {/* Three benefit items */}
@@ -75,7 +75,11 @@ export default function FoundingOffer() {
             {BENEFITS.map(({ Icon, title, desc }) => (
               <li key={title} className="flex flex-col items-center">
                 <div className="mb-4">
-                  <Icon size={22} style={{ color: "#0E6B3A" }} aria-hidden="true" />
+                  <Icon
+                    size={22}
+                    style={{ color: "#0E6B3A" }}
+                    aria-hidden="true"
+                  />
                 </div>
                 <h3
                   className="font-semibold text-base mb-2"
@@ -102,11 +106,9 @@ export default function FoundingOffer() {
             >
               Book a Demo
             </a>
-            <p
-              className="mt-4 text-xs sm:text-sm"
-              style={{ color: "#5b6660" }}
-            >
-              Cancel anytime · Your data exports with you · No long-term contract
+            <p className="mt-4 text-xs sm:text-sm" style={{ color: "#5b6660" }}>
+              Cancel anytime · Your data exports with you · No long-term
+              contract
             </p>
           </div>
         </div>

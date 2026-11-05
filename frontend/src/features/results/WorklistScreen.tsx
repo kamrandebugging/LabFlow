@@ -52,6 +52,7 @@ export function WorklistScreen(): JSX.Element {
 
   useEffect(() => {
     loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [statusFilter]);
 
   // Client-side filtering
@@ -197,7 +198,9 @@ export function WorklistScreen(): JSX.Element {
         {loading ? (
           <div className="py-16 flex flex-col items-center justify-center text-slate-500">
             <RefreshCw className="w-6 h-6 animate-spin text-teal-600 mb-2" />
-            <span className="text-xs font-medium">Loading clinical worklist...</span>
+            <span className="text-xs font-medium">
+              Loading clinical worklist...
+            </span>
           </div>
         ) : filteredItems.length === 0 ? (
           <div className="py-16 text-center text-slate-500 text-sm">
@@ -206,7 +209,8 @@ export function WorklistScreen(): JSX.Element {
               No pending specimens in the worklist
             </p>
             <p className="text-xs text-slate-400 mt-1">
-              Specimens collected at reception will appear here chronologically for result entry.
+              Specimens collected at reception will appear here chronologically
+              for result entry.
             </p>
           </div>
         ) : (

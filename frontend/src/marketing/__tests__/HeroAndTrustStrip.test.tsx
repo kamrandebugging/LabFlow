@@ -12,14 +12,20 @@ describe("Marketing Hero, Navbar, and TrustStrip", () => {
     expect(screen.getByText("LabFlow")).toBeInTheDocument();
 
     expect(screen.getByText("Features")).toHaveAttribute("href", "#features");
-    expect(screen.getByText("How it works")).toHaveAttribute("href", "#how-it-works");
+    expect(screen.getByText("How it works")).toHaveAttribute(
+      "href",
+      "#how-it-works",
+    );
     expect(screen.getByText("Pricing")).toHaveAttribute("href", "#pricing");
     expect(screen.getByText("FAQ")).toHaveAttribute("href", "#faq");
 
     expect(screen.getByText("Sign in")).toHaveAttribute("href", "/login");
     const bookDemoBtn = screen.getByRole("link", { name: "Book a Demo" });
     expect(bookDemoBtn).toHaveAttribute("href", "#demo");
-    expect(bookDemoBtn).toHaveStyle({ backgroundColor: "#0E6B3A", color: "#FFFFFF" });
+    expect(bookDemoBtn).toHaveStyle({
+      backgroundColor: "#0E6B3A",
+      color: "#FFFFFF",
+    });
   });
 
   it("toggles mobile menu and closes on link click", () => {
@@ -43,18 +49,20 @@ describe("Marketing Hero, Navbar, and TrustStrip", () => {
 
     // Eyebrow
     expect(
-      screen.getByText("Built for diagnostic labs in Pakistan")
+      screen.getByText("Built for diagnostic labs in Pakistan"),
     ).toBeInTheDocument();
 
     // H1
     const h1 = screen.getByRole("heading", { level: 1 });
-    expect(h1).toHaveTextContent("Run your diagnostic lab without the paperwork.");
+    expect(h1).toHaveTextContent(
+      "Run your diagnostic lab without the paperwork.",
+    );
 
     // Subhead
     expect(
       screen.getByText(
-        "LabFlow brings patient records, billing, samples, and reports into one simple system — designed for how labs in Pakistan actually work."
-      )
+        "LabFlow brings patient records, billing, samples, and reports into one simple system — designed for how labs in Pakistan actually work.",
+      ),
     ).toBeInTheDocument();
 
     // Primary CTA in hero
@@ -62,7 +70,10 @@ describe("Marketing Hero, Navbar, and TrustStrip", () => {
     expect(ctas.length).toBeGreaterThanOrEqual(2); // In navbar and in hero
     const heroPrimary = ctas[1];
     expect(heroPrimary).toHaveAttribute("href", "#demo");
-    expect(heroPrimary).toHaveStyle({ backgroundColor: "#0E6B3A", color: "#FFFFFF" });
+    expect(heroPrimary).toHaveStyle({
+      backgroundColor: "#0E6B3A",
+      color: "#FFFFFF",
+    });
 
     // Secondary CTA in hero
     const secondary = screen.getByRole("link", { name: /See how it works/i });
@@ -70,7 +81,7 @@ describe("Marketing Hero, Navbar, and TrustStrip", () => {
 
     // Microcopy
     expect(
-      screen.getByText("Free 20-minute demo · No commitment")
+      screen.getByText("Free 20-minute demo · No commitment"),
     ).toBeInTheDocument();
 
     // Product visual
@@ -89,17 +100,17 @@ describe("Marketing Hero, Navbar, and TrustStrip", () => {
 
     expect(screen.getByText("Role-based access")).toBeInTheDocument();
     expect(
-      screen.getByText("Owner, manager, receptionist, technician, pathologist")
+      screen.getByText("Owner, manager, receptionist, technician, pathologist"),
     ).toBeInTheDocument();
 
     expect(screen.getByText("Complete audit trail")).toBeInTheDocument();
     expect(
-      screen.getByText("Every action logged, nothing silent")
+      screen.getByText("Every action logged, nothing silent"),
     ).toBeInTheDocument();
 
     expect(screen.getByText("WhatsApp delivery")).toBeInTheDocument();
     expect(
-      screen.getByText("Send reports to patients in one tap")
+      screen.getByText("Send reports to patients in one tap"),
     ).toBeInTheDocument();
   });
 });

@@ -176,7 +176,8 @@ export const resultsService = {
   }): Promise<WorklistItem[]> {
     const { results: samples } = await sampleService.listSamples({
       branch_id: options?.branchId,
-      status: options?.statusFilter === "all" ? undefined : options?.statusFilter,
+      status:
+        options?.statusFilter === "all" ? undefined : options?.statusFilter,
     });
 
     // Worklist includes samples in collected, received, in_process, or rejected states
@@ -220,9 +221,7 @@ export const resultsService = {
    * Derived from real samples with status in_process / ready.
    * Renders an honest empty state when no items are pending.
    */
-  async getApprovalsQueue(_options?: {
-    demoMode?: boolean;
-  }): Promise<ApprovalQueueItem[]> {
+  async getApprovalsQueue(): Promise<ApprovalQueueItem[]> {
     const { results: samples } = await sampleService.listSamples();
 
     // In RS-3, samples with status in_process or ready have results awaiting verification
@@ -233,7 +232,9 @@ export const resultsService = {
     const queueItems: ApprovalQueueItem[] = [];
 
     for (const sample of inProcessSamples) {
-      const testNames = sample.tests?.length ? sample.tests : ["Diagnostic Panel"];
+      const testNames = sample.tests?.length
+        ? sample.tests
+        : ["Diagnostic Panel"];
       testNames.forEach((testName: string, idx: number) => {
         const isPotassium = testName.toLowerCase().includes("potassium");
         const isTroponin = testName.toLowerCase().includes("troponin");
@@ -266,7 +267,9 @@ export const resultsService = {
     return queueItems.sort((a, b) => {
       if (a.is_critical && !b.is_critical) return -1;
       if (!a.is_critical && b.is_critical) return 1;
-      return new Date(a.entered_at).getTime() - new Date(b.entered_at).getTime();
+      return (
+        new Date(a.entered_at).getTime() - new Date(b.entered_at).getTime()
+      );
     });
   },
 
@@ -277,13 +280,17 @@ export const resultsService = {
    */
   async getResultDetail(resultId: string): Promise<ResultDetailRecord | null> {
     // Attempt to query or locate sample
-    const sampleId = (resultId.includes("-res-") ? resultId.split("-res-")[0] : resultId) || resultId;
+    const sampleId =
+      (resultId.includes("-res-") ? resultId.split("-res-")[0] : resultId) ||
+      resultId;
     try {
       const sample = await sampleService.getSample(sampleId);
       if (!sample) return null;
 
       const testName = sample.tests?.[0] || "Potassium (K+)";
-      const isCritical = testName.toLowerCase().includes("potassium") || testName.toLowerCase().includes("troponin");
+      const isCritical =
+        testName.toLowerCase().includes("potassium") ||
+        testName.toLowerCase().includes("troponin");
 
       return {
         id: resultId,

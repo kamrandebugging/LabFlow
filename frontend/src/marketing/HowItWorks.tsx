@@ -30,8 +30,13 @@ export default function HowItWorks() {
     const el = sectionRef.current;
     if (!el) return;
     const obs = new IntersectionObserver(
-      (entries) => { if (entries[0]?.isIntersecting) { setVisible(true); obs.disconnect(); } },
-      { threshold: 0.15 }
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          setVisible(true);
+          obs.disconnect();
+        }
+      },
+      { threshold: 0.15 },
     );
     obs.observe(el);
     return () => obs.disconnect();
@@ -73,7 +78,11 @@ export default function HowItWorks() {
         {/* Steps */}
         <ol className="relative list-none p-0 m-0 flex flex-col lg:flex-row lg:gap-0 gap-0">
           {/* Desktop connector line — behind badges */}
-          <li className="hidden lg:block absolute top-[22px] left-[calc(16.666%+16px)] right-[calc(16.666%+16px)] h-px pointer-events-none" style={{ backgroundColor: "rgba(14,107,58,0.18)", zIndex: 0 }} aria-hidden="true" />
+          <li
+            className="hidden lg:block absolute top-[22px] left-[calc(16.666%+16px)] right-[calc(16.666%+16px)] h-px pointer-events-none"
+            style={{ backgroundColor: "rgba(14,107,58,0.18)", zIndex: 0 }}
+            aria-hidden="true"
+          />
 
           {STEPS.map(({ num, Icon, title, desc }, i) => (
             <li
@@ -113,11 +122,19 @@ export default function HowItWorks() {
                 <div className="lg:mt-6 flex-1">
                   {/* Icon — hidden on mobile since badge gives sequence; shown on desktop */}
                   <div className="hidden lg:flex justify-center mb-4">
-                    <Icon size={22} style={{ color: "#0E6B3A" }} aria-hidden="true" />
+                    <Icon
+                      size={22}
+                      style={{ color: "#0E6B3A" }}
+                      aria-hidden="true"
+                    />
                   </div>
                   {/* Mobile icon inline */}
                   <div className="flex lg:hidden items-center gap-2 mb-1">
-                    <Icon size={18} style={{ color: "#0E6B3A" }} aria-hidden="true" />
+                    <Icon
+                      size={18}
+                      style={{ color: "#0E6B3A" }}
+                      aria-hidden="true"
+                    />
                   </div>
                   <p
                     className="font-semibold text-base mb-2"

@@ -42,8 +42,18 @@ describe("resultsService unit tests", () => {
     });
 
     const rows = [
-      { test_id: "test-01", value: "13.5", unit: "g/dL", flag: "normal" as const },
-      { test_id: "test-02", value: "8500", unit: "/uL", flag: "normal" as const },
+      {
+        test_id: "test-01",
+        value: "13.5",
+        unit: "g/dL",
+        flag: "normal" as const,
+      },
+      {
+        test_id: "test-02",
+        value: "8500",
+        unit: "/uL",
+        flag: "normal" as const,
+      },
     ];
 
     const res = await resultsService.submitResults("smp-123", rows);
@@ -138,7 +148,10 @@ describe("resultsService unit tests", () => {
       json: async () => mockResponse,
     });
 
-    const res = await resultsService.withdrawResult("res-01", "Sample clotted upon re-run");
+    const res = await resultsService.withdrawResult(
+      "res-01",
+      "Sample clotted upon re-run",
+    );
 
     expect(global.fetch).toHaveBeenCalledWith(
       "/api/v1/results/res-01/withdraw",
@@ -182,13 +195,16 @@ describe("resultsService unit tests", () => {
       ok: false,
       status: 400,
       json: async () => ({
-        detail: "Mandatory clinical justification is required for critical results.",
+        detail:
+          "Mandatory clinical justification is required for critical results.",
       }),
     });
 
     await expect(
       resultsService.approveResult("res-01", { decision: "approved" }),
-    ).rejects.toThrow(/Mandatory clinical justification is required for critical results./i);
+    ).rejects.toThrow(
+      /Mandatory clinical justification is required for critical results./i,
+    );
   });
 
   it("handles non-JSON error responses gracefully", async () => {
@@ -251,7 +267,10 @@ describe("resultsService unit tests", () => {
       ],
     });
 
-    const worklist = await resultsService.getWorklist({ branchId: "br-01", statusFilter: "all" });
+    const worklist = await resultsService.getWorklist({
+      branchId: "br-01",
+      statusFilter: "all",
+    });
 
     // Should contain smp-01 and smp-02, sorted oldest first (08:00 before 10:00)
     expect(worklist).toHaveLength(2);
@@ -333,7 +352,9 @@ describe("resultsService unit tests", () => {
   });
 
   it("returns null when sample is not found in getResultDetail", async () => {
-    vi.spyOn(sampleService, "getSample").mockResolvedValueOnce(null as any);
+    vi.spyOn(sampleService, "getSample").mockRejectedValueOnce(
+      new Error("Sample not found"),
+    );
 
     const detail = await resultsService.getResultDetail("unknown-id");
     expect(detail).toBeNull();

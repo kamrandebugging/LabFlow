@@ -55,7 +55,9 @@ const PLANS: Plan[] = [
 ];
 
 export default function Pricing() {
-  const [billingPeriod, setBillingPeriod] = useState<"monthly" | "annual">("monthly");
+  const [billingPeriod, setBillingPeriod] = useState<"monthly" | "annual">(
+    "monthly",
+  );
 
   return (
     <section
@@ -86,7 +88,8 @@ export default function Pricing() {
           className="text-base sm:text-lg leading-relaxed mb-8 max-w-2xl"
           style={{ color: "#5b6660" }}
         >
-          Monthly or yearly — or own it forever. Every plan in PKR. No hidden fees.
+          Monthly or yearly — or own it forever. Every plan in PKR. No hidden
+          fees.
         </p>
 
         {/* Monthly / Annual billing toggle */}
@@ -145,7 +148,9 @@ export default function Pricing() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-stretch">
           {PLANS.map((plan) => {
             const price =
-              billingPeriod === "monthly" ? plan.monthlyPrice : plan.annualPrice;
+              billingPeriod === "monthly"
+                ? plan.monthlyPrice
+                : plan.annualPrice;
             const period = billingPeriod === "monthly" ? "/month" : "/year";
 
             return (
@@ -184,7 +189,10 @@ export default function Pricing() {
                     >
                       {price}
                     </span>
-                    <span className="text-sm font-normal" style={{ color: "#5b6660" }}>
+                    <span
+                      className="text-sm font-normal"
+                      style={{ color: "#5b6660" }}
+                    >
                       {period}
                     </span>
                   </div>
@@ -339,8 +347,12 @@ export default function Pricing() {
         </div>
 
         {/* Payment line */}
-        <p className="mt-6 text-center text-xs sm:text-sm" style={{ color: "#5b6660" }}>
-          Pay via bank transfer, Easypaisa, or JazzCash. No credit card required.
+        <p
+          className="mt-6 text-center text-xs sm:text-sm"
+          style={{ color: "#5b6660" }}
+        >
+          Pay via bank transfer, Easypaisa, or JazzCash. No credit card
+          required.
         </p>
       </div>
     </section>

@@ -63,14 +63,12 @@ export default function Security() {
           className="text-base sm:text-lg leading-relaxed mb-12 max-w-xl"
           style={{ color: "#5b6660" }}
         >
-          Every safeguard below is live in the product today — not a roadmap promise.
+          Every safeguard below is live in the product today — not a roadmap
+          promise.
         </p>
 
         {/* Safeguards 2x2 grid on desktop, single column on mobile */}
-        <ul
-          role="list"
-          className="grid grid-cols-1 lg:grid-cols-2 gap-6"
-        >
+        <ul role="list" className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {SAFEGUARDS.map(({ Icon, title, desc }) => (
             <li
               key={title}
@@ -85,7 +83,11 @@ export default function Security() {
                 className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
                 style={{ backgroundColor: "rgba(14,107,58,0.10)" }}
               >
-                <Icon size={22} style={{ color: "#0E6B3A" }} aria-hidden="true" />
+                <Icon
+                  size={22}
+                  style={{ color: "#0E6B3A" }}
+                  aria-hidden="true"
+                />
               </div>
 
               {/* Text */}

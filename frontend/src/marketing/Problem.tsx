@@ -57,10 +57,7 @@ export default function Problem() {
         </p>
 
         {/* Pain cards grid */}
-        <ul
-          role="list"
-          className="grid grid-cols-1 lg:grid-cols-2 gap-6"
-        >
+        <ul role="list" className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {PAIN_CARDS.map(({ Icon, title, desc }) => (
             <li
               key={title}
@@ -72,7 +69,11 @@ export default function Problem() {
             >
               <div className="flex items-start gap-4">
                 <div className="flex-shrink-0 mt-0.5">
-                  <Icon size={22} style={{ color: "#B54434" }} aria-hidden="true" />
+                  <Icon
+                    size={22}
+                    style={{ color: "#B54434" }}
+                    aria-hidden="true"
+                  />
                 </div>
                 <div>
                   <p
@@ -81,7 +82,10 @@ export default function Problem() {
                   >
                     {title}
                   </p>
-                  <p className="text-sm leading-relaxed" style={{ color: "#5b6660" }}>
+                  <p
+                    className="text-sm leading-relaxed"
+                    style={{ color: "#5b6660" }}
+                  >
                     {desc}
                   </p>
                 </div>
