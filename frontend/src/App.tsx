@@ -44,6 +44,10 @@ import HowItWorks from "./marketing/HowItWorks";
 import Features from "./marketing/Features";
 import Security from "./marketing/Security";
 import FoundingOffer from "./marketing/FoundingOffer";
+import Pricing from "./marketing/Pricing";
+import Faq from "./marketing/Faq";
+import FinalCta from "./marketing/FinalCta";
+import Footer from "./marketing/Footer";
 
 function StaffLoginWrapper(): JSX.Element {
   const navigate = useNavigate();
@@ -414,7 +418,7 @@ function App(): JSX.Element {
 
         <Route path="/screens" element={<ScreenCatalogViewer />} />
         <Route path="/screens/:screenId" element={<ScreenCatalogViewer />} />
-        {/* TEMPORARY: Hero + TrustStrip + Problem + HowItWorks + Features + Security + FoundingOffer preview route — will be removed when full marketing page is built */}
+        {/* TEMPORARY: Hero + TrustStrip + Problem + HowItWorks + Features + Security + FoundingOffer + Pricing + Faq + FinalCta + Footer preview route — will be removed when full marketing page is built */}
         <Route
           path="/hero-preview"
           element={
@@ -426,6 +430,10 @@ function App(): JSX.Element {
               <Features />
               <Security />
               <FoundingOffer />
+              <Pricing />
+              <Faq />
+              <FinalCta />
+              <Footer />
             </>
           }
         />
