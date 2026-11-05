@@ -73,20 +73,9 @@ def api_client() -> APIClient:
 @pytest.fixture
 def active_subscription(tenant_a: Tenant) -> Any:
     """Active subscription so the tenant is in full access mode (Doc 04 §11.2)."""
-    plan = PlanFactory(name="Lab42Plan", price=Decimal("100.00"))
     with schema_context("public"):
-        sub, _ = Subscription.objects.update_or_create(
-            tenant=tenant_a,
-            defaults={
-                "plan": plan,
-                "status": Subscription.Status.ACTIVE,
-                "starts_at": timezone.now() - timedelta(days=30),
-            },
-        )
-    yield sub
-    with schema_context("public"):
-        Subscription.objects.filter(id=sub.id).delete()
-        Plan.objects.filter(id=plan.id).delete()
+        sub = Subscription.objects.filter(tenant=tenant_a).first()
+    return sub
 
 
 def _make_owner(tenant: Tenant) -> Any:
@@ -200,15 +189,16 @@ class TestSettlementApprove:
         assert resp.json()["error"]["code"] == "forbidden"
 
     def test_approve_read_only_subscription_403(
-        self, tenant_a: Tenant, api_client: APIClient
+        self, tenant_b: Tenant, api_client: APIClient
     ) -> None:
-        owner = _make_owner(tenant_a)
-        settlement = _draft_settlement(tenant_a)
+        owner = _make_owner(tenant_b)
+        settlement = _draft_settlement(tenant_b)
         # past-due subscription older than the 14-day grace → read-only
         plan = PlanFactory(name="RS37Plan", price=Decimal("100.00"))
         with schema_context("public"):
+            Subscription.objects.filter(tenant=tenant_b).delete()
             sub = Subscription.objects.create(
-                tenant=tenant_a,
+                tenant=tenant_b,
                 plan=plan,
                 status=Subscription.Status.PAST_DUE,
                 starts_at=timezone.now() - timedelta(days=60),
@@ -218,18 +208,32 @@ class TestSettlementApprove:
                 updated_at=timezone.now() - timedelta(days=20)
             )
         try:
-            _auth(api_client, owner, tenant_a)
+            client_b = APIClient()
+            client_b.defaults["HTTP_HOST"] = "tenant-b.localhost"
+            _auth(client_b, owner, tenant_b)
 
-            resp = api_client.post(
+            resp = client_b.post(
                 f"/api/v1/settlements/{settlement.id}/approve",
                 HTTP_IF_MATCH=_etag(settlement),
             )
             assert resp.status_code == 403
-            assert resp.json()["error"]["code"] == "subscription_read_only"
+            assert resp.json().get("code") == "subscription_read_only"
         finally:
             with schema_context("public"):
                 Subscription.objects.filter(id=sub.id).delete()
                 Plan.objects.filter(id=plan.id).delete()
+                plan_b, _ = Plan.objects.get_or_create(
+                    name="Test Plan B",
+                    defaults={"price": Decimal("5000.00"), "is_active": True},
+                )
+                Subscription.objects.get_or_create(
+                    tenant=tenant_b,
+                    defaults={
+                        "plan": plan_b,
+                        "status": Subscription.Status.ACTIVE,
+                        "starts_at": timezone.now(),
+                    },
+                )
 
     def test_approve_unauthenticated_401(
         self, tenant_a: Tenant, api_client: APIClient

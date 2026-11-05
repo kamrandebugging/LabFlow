@@ -43,6 +43,12 @@ import {
   LinkExpiredScreen,
   ExceptionsScreen,
 } from "./features/reports";
+import {
+  BranchesScreen,
+  TenantSettingsScreen,
+  DataExportScreen,
+} from "./features/settings";
+import { PartnersListScreen, PartnerDetailScreen } from "./features/partners";
 import { ScreenCatalogViewer } from "./features/screens/ScreenCatalogViewer";
 import Hero from "./marketing/Hero";
 import TrustStrip from "./marketing/TrustStrip";
@@ -402,6 +408,46 @@ function ExceptionsWrapper(): JSX.Element {
   );
 }
 
+function BranchesWrapper(): JSX.Element {
+  return (
+    <main className="min-h-screen bg-slate-50 py-6">
+      <BranchesScreen />
+    </main>
+  );
+}
+
+function TenantSettingsWrapper(): JSX.Element {
+  return (
+    <main className="min-h-screen bg-slate-50 py-6">
+      <TenantSettingsScreen />
+    </main>
+  );
+}
+
+function DataExportWrapper(): JSX.Element {
+  return (
+    <main className="min-h-screen bg-slate-50 py-6">
+      <DataExportScreen />
+    </main>
+  );
+}
+
+function PartnersListWrapper(): JSX.Element {
+  return (
+    <main className="min-h-screen bg-slate-50 py-6">
+      <PartnersListScreen />
+    </main>
+  );
+}
+
+function PartnerDetailWrapper(): JSX.Element {
+  return (
+    <main className="min-h-screen bg-slate-50 py-6">
+      <PartnerDetailScreen />
+    </main>
+  );
+}
+
 function App(): JSX.Element {
   useEffect(() => {
     // Attempt silent session restore via httpOnly refresh cookie on application mount
@@ -478,6 +524,13 @@ function App(): JSX.Element {
         />
         <Route path="/link-expired" element={<LinkExpiredWrapper />} />
         <Route path="/exceptions" element={<ExceptionsWrapper />} />
+
+        {/* Settings & Referral Partners Suite (Screens 33–37) */}
+        <Route path="/settings/branches" element={<BranchesWrapper />} />
+        <Route path="/settings/tenant" element={<TenantSettingsWrapper />} />
+        <Route path="/settings/exports" element={<DataExportWrapper />} />
+        <Route path="/partners" element={<PartnersListWrapper />} />
+        <Route path="/partners/:id" element={<PartnerDetailWrapper />} />
 
         <Route path="/screens" element={<ScreenCatalogViewer />} />
         <Route path="/screens/:screenId" element={<ScreenCatalogViewer />} />

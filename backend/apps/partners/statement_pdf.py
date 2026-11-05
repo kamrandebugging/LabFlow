@@ -11,7 +11,6 @@ import pathlib
 from typing import Any
 
 from django.template import Context, Template
-from weasyprint import HTML  # type: ignore[import-untyped]
 
 _TEMPLATE_PATH = pathlib.Path(__file__).parent / "templates" / "statement.html"
 
@@ -35,6 +34,8 @@ def render_statement_pdf(ctx: dict[str, Any]) -> bytes:
     (Doc 05 PDF-3: a failed attempt leaves the settlement APPROVED with
     statement_pdf_key still NULL, the visible retryable state).
     """
+    from weasyprint import HTML  # type: ignore[import-untyped]
+
     html = render_statement_html(ctx)
     try:
         return HTML(string=html).write_pdf()
