@@ -112,11 +112,10 @@ ignore_missing_imports = true
 module = [
     "apps.core.models",
     "tests.*",
-    "apps.*.tests.*",
 ]
 disallow_subclassing_any = false
 disallow_untyped_calls = false
-disable_error_code = ["misc", "comparison-overlap", "attr-defined", "type-arg", "name-defined", "arg-type"]
+disable_error_code = ["misc", "comparison-overlap", "attr-defined", "type-arg", "name-defined"]
 
 # ==============================================================================
 # Pytest Configuration (Doc 09 §9.1)
@@ -124,7 +123,7 @@ disable_error_code = ["misc", "comparison-overlap", "attr-defined", "type-arg", 
 [tool.pytest.ini_options]
 minversion = "8.0"
 addopts = "-ra --strict-markers --strict-config"
-testpaths = ["tests", "apps"]
+testpaths = ["tests"]
 pythonpath = ["."]
 DJANGO_SETTINGS_MODULE = "config.settings.test"
 django_debug_mode = "keep"

@@ -10,17 +10,17 @@ from __future__ import annotations
 
 import uuid
 from datetime import timedelta
-from decimal import Decimal
+from typing import Any
 
 import jwt
 import pytest
 from django.conf import settings
 from django.utils import timezone
-from django_tenants.utils import schema_context, tenant_context
+from django_tenants.utils import tenant_context
 from rest_framework.test import APIClient
 
-from apps.accounts.models import Role, StaffBranch, StaffUser
-from apps.core.models import Subscription, Tenant
+from apps.accounts.models import Role, StaffBranch
+from apps.core.models import Tenant
 from apps.reports.models import (
     Report,
     ReportDelivery,
@@ -30,7 +30,6 @@ from apps.samples.models import Sample, SampleTransfer
 from tests.factories.accounts import StaffUserFactory
 from tests.factories.branches import BranchFactory
 from tests.factories.catalog import TestFactory
-from tests.factories.core import PlanFactory
 from tests.factories.patients import PatientContactFactory, PatientFactory
 from tests.factories.reports import (
     ReportAccessTokenFactory,
@@ -64,7 +63,7 @@ def _mint_jwt(staff_id: uuid.UUID, tenant_slug: str, role: str) -> str:
 
 
 def _authenticate_client(
-    client: APIClient, staff: StaffUser, tenant: Tenant, role: str = "owner"
+    client: APIClient, staff: Any, tenant: Tenant, role: str = "owner"
 ) -> None:
     token = _mint_jwt(staff.id, tenant.slug, role)
     client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
@@ -77,21 +76,6 @@ def api_client(tenant_a: Tenant) -> APIClient:
     return client
 
 
-@pytest.fixture
-def active_sub(tenant_a: Tenant) -> Subscription:
-    plan = PlanFactory(name="ReportTestPlan", price=Decimal("150.00"))
-    with schema_context("public"):
-        sub, _ = Subscription.objects.update_or_create(
-            tenant=tenant_a,
-            defaults={
-                "plan": plan,
-                "status": Subscription.Status.ACTIVE,
-                "starts_at": timezone.now() - timedelta(days=10),
-            },
-        )
-    return sub
-
-
 @pytest.mark.django_db
 class TestReportsListEndpoint:
     """Tests for GET /api/v1/reports."""
@@ -101,7 +85,7 @@ class TestReportsListEndpoint:
         assert response.status_code == 401
 
     def test_empty_list_returns_200(
-        self, tenant_a: Tenant, api_client: APIClient, active_sub: Subscription
+        self, tenant_a: Tenant, api_client: APIClient
     ) -> None:
         with tenant_context(tenant_a):
             staff = StaffUserFactory(role=Role.OWNER, branch=None)
@@ -115,7 +99,7 @@ class TestReportsListEndpoint:
         assert data["next_cursor"] is None
 
     def test_list_with_reports_and_cursor_pagination(
-        self, tenant_a: Tenant, api_client: APIClient, active_sub: Subscription
+        self, tenant_a: Tenant, api_client: APIClient
     ) -> None:
         with tenant_context(tenant_a):
             branch = BranchFactory(name="Branch North")
@@ -148,9 +132,7 @@ class TestReportsListEndpoint:
         assert len(data2["results"]) == 1
         assert data2["next_cursor"] is None
 
-    def test_filter_by_status(
-        self, tenant_a: Tenant, api_client: APIClient, active_sub: Subscription
-    ) -> None:
+    def test_filter_by_status(self, tenant_a: Tenant, api_client: APIClient) -> None:
         with tenant_context(tenant_a):
             branch = BranchFactory()
             staff = StaffUserFactory(role=Role.OWNER, branch=None)
@@ -173,9 +155,7 @@ class TestReportsListEndpoint:
         assert res_invalid["Content-Type"] == "application/problem+json"
         assert res_invalid.json()["code"] == "validation_error"
 
-    def test_filter_by_branch(
-        self, tenant_a: Tenant, api_client: APIClient, active_sub: Subscription
-    ) -> None:
+    def test_filter_by_branch(self, tenant_a: Tenant, api_client: APIClient) -> None:
         with tenant_context(tenant_a):
             b1 = BranchFactory(name="B1")
             b2 = BranchFactory(name="B2")
@@ -191,7 +171,7 @@ class TestReportsListEndpoint:
         assert res.json()["results"][0]["branch_id"] == str(b1.id)
 
     def test_filter_by_patient_search(
-        self, tenant_a: Tenant, api_client: APIClient, active_sub: Subscription
+        self, tenant_a: Tenant, api_client: APIClient
     ) -> None:
         with tenant_context(tenant_a):
             branch = BranchFactory()
@@ -212,7 +192,7 @@ class TestReportsListEndpoint:
         assert res.json()["results"][0]["patient_name"] == "Fatima Zahra"
 
     def test_validation_edge_cases_422(
-        self, tenant_a: Tenant, api_client: APIClient, active_sub: Subscription
+        self, tenant_a: Tenant, api_client: APIClient
     ) -> None:
         with tenant_context(tenant_a):
             staff = StaffUserFactory(role=Role.OWNER, branch=None)
@@ -243,7 +223,7 @@ class TestReportsListEndpoint:
         assert res.json()["code"] == "validation_error"
 
     def test_unauthorized_role_returns_403(
-        self, tenant_a: Tenant, api_client: APIClient, active_sub: Subscription
+        self, tenant_a: Tenant, api_client: APIClient
     ) -> None:
         with tenant_context(tenant_a):
             staff = StaffUserFactory(role="external_courier", branch=None)
@@ -255,7 +235,7 @@ class TestReportsListEndpoint:
         assert res.json()["code"] == "forbidden"
 
     def test_technician_branch_scoping_on_reports_list_and_detail(
-        self, tenant_a: Tenant, api_client: APIClient, active_sub: Subscription
+        self, tenant_a: Tenant, api_client: APIClient
     ) -> None:
         with tenant_context(tenant_a):
             b1 = BranchFactory(name="Assigned Branch")
@@ -284,9 +264,7 @@ class TestReportsListEndpoint:
         d2 = api_client.get(f"/api/v1/reports/{r2.id}")
         assert d2.status_code == 404
 
-    def test_cross_tenant_isolation(
-        self, tenant_a: Tenant, tenant_b: Tenant, active_sub: Subscription
-    ) -> None:
+    def test_cross_tenant_isolation(self, tenant_a: Tenant, tenant_b: Tenant) -> None:
         with tenant_context(tenant_a):
             b_a = BranchFactory(name="Branch A")
             s_a = SampleFactory(branch=b_a)
@@ -323,7 +301,7 @@ class TestReportDetailEndpoint:
         assert response.status_code == 401
 
     def test_nonexistent_returns_404_problem_json(
-        self, tenant_a: Tenant, api_client: APIClient, active_sub: Subscription
+        self, tenant_a: Tenant, api_client: APIClient
     ) -> None:
         with tenant_context(tenant_a):
             staff = StaffUserFactory(role=Role.OWNER, branch=None)
@@ -336,7 +314,7 @@ class TestReportDetailEndpoint:
         assert response.json()["code"] == "report_not_found"
 
     def test_detail_returns_report_with_versions_deliveries_and_token_state(
-        self, tenant_a: Tenant, api_client: APIClient, active_sub: Subscription
+        self, tenant_a: Tenant, api_client: APIClient
     ) -> None:
         with tenant_context(tenant_a):
             branch = BranchFactory(name="Gulberg")
@@ -403,7 +381,7 @@ class TestExceptionsEndpoint:
         assert response.status_code == 401
 
     def test_honest_empty_state_when_zero_exceptions(
-        self, tenant_a: Tenant, api_client: APIClient, active_sub: Subscription
+        self, tenant_a: Tenant, api_client: APIClient
     ) -> None:
         with tenant_context(tenant_a):
             staff = StaffUserFactory(role=Role.OWNER, branch=None)
@@ -416,7 +394,7 @@ class TestExceptionsEndpoint:
         assert data["counts"]["total"] == 0
 
     def test_exceptions_derived_from_real_model_data(
-        self, tenant_a: Tenant, api_client: APIClient, active_sub: Subscription
+        self, tenant_a: Tenant, api_client: APIClient
     ) -> None:
         with tenant_context(tenant_a):
             b1 = BranchFactory(name="Main Lab")
