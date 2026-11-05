@@ -36,6 +36,13 @@ import {
   ResultDetailScreen,
   AmendResultScreen,
 } from "./features/results";
+import {
+  ReportsListScreen,
+  ReportDetailScreen,
+  PatientReportAccessScreen,
+  LinkExpiredScreen,
+  ExceptionsScreen,
+} from "./features/reports";
 import { ScreenCatalogViewer } from "./features/screens/ScreenCatalogViewer";
 import Hero from "./marketing/Hero";
 import TrustStrip from "./marketing/TrustStrip";
@@ -363,6 +370,38 @@ function AmendResultWrapper(): JSX.Element {
   );
 }
 
+function ReportsListWrapper(): JSX.Element {
+  return (
+    <main className="min-h-screen bg-slate-50 py-6">
+      <ReportsListScreen />
+    </main>
+  );
+}
+
+function ReportDetailWrapper(): JSX.Element {
+  return (
+    <main className="min-h-screen bg-slate-50 py-6">
+      <ReportDetailScreen />
+    </main>
+  );
+}
+
+function PatientReportAccessWrapper(): JSX.Element {
+  return <PatientReportAccessScreen />;
+}
+
+function LinkExpiredWrapper(): JSX.Element {
+  return <LinkExpiredScreen />;
+}
+
+function ExceptionsWrapper(): JSX.Element {
+  return (
+    <main className="min-h-screen bg-slate-50 py-6">
+      <ExceptionsScreen />
+    </main>
+  );
+}
+
 function App(): JSX.Element {
   useEffect(() => {
     // Attempt silent session restore via httpOnly refresh cookie on application mount
@@ -429,6 +468,16 @@ function App(): JSX.Element {
         <Route path="/results/approvals" element={<ApprovalsQueueWrapper />} />
         <Route path="/results/:id/amend" element={<AmendResultWrapper />} />
         <Route path="/results/:id" element={<ResultDetailWrapper />} />
+
+        {/* Reports & Exceptions Suite (Screens 26–30) */}
+        <Route path="/reports" element={<ReportsListWrapper />} />
+        <Route path="/reports/:id" element={<ReportDetailWrapper />} />
+        <Route
+          path="/report-access/:token"
+          element={<PatientReportAccessWrapper />}
+        />
+        <Route path="/link-expired" element={<LinkExpiredWrapper />} />
+        <Route path="/exceptions" element={<ExceptionsWrapper />} />
 
         <Route path="/screens" element={<ScreenCatalogViewer />} />
         <Route path="/screens/:screenId" element={<ScreenCatalogViewer />} />

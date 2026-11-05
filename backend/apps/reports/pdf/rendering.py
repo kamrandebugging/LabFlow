@@ -17,7 +17,6 @@ from __future__ import annotations
 import pathlib
 
 from django.template import Context, Template
-from weasyprint import HTML  # type: ignore[import-untyped]
 
 from .context import ReportContext
 
@@ -44,6 +43,8 @@ def render_report_pdf(ctx: ReportContext) -> bytes:
     (T-34: a failed attempt leaves no report_version row; the caller,
     i.e. the future Celery task, must not write anything on exception).
     """
+    from weasyprint import HTML  # type: ignore[import-untyped]
+
     html = render_report_html(ctx)  # raises ValueError on bad input
     try:
         return HTML(string=html).write_pdf()

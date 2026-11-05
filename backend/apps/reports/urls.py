@@ -11,8 +11,30 @@ from apps.reports.views import (
     ReportFileDownloadView,
     ReportRegenerateView,
 )
+from apps.reports.views_query import (
+    ExceptionsListView,
+    ReportDetailView,
+    ReportListView,
+)
 
 urlpatterns = [
+    # Staff reports list
+    path("reports", ReportListView.as_view(), name="report-list"),
+    path("reports/", ReportListView.as_view(), name="report-list-slash"),
+    # Exceptions triage list
+    path("exceptions", ExceptionsListView.as_view(), name="exceptions-list"),
+    path("exceptions/", ExceptionsListView.as_view(), name="exceptions-list-slash"),
+    # Staff report detail
+    path(
+        "reports/<uuid:report_id>",
+        ReportDetailView.as_view(),
+        name="report-detail",
+    ),
+    path(
+        "reports/<uuid:report_id>/",
+        ReportDetailView.as_view(),
+        name="report-detail-slash",
+    ),
     path(
         "reports/<uuid:report_id>/regenerate",
         ReportRegenerateView.as_view(),
