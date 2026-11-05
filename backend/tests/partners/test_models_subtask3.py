@@ -30,8 +30,9 @@ class TestSettlementAndSettlementLineModels:
     - Database CHECK chk_settlement_status on ('DRAFT', 'APPROVED', 'SENT',
       'PAID', 'CANCELLED').
     - Database CHECK chk_settlement_period_format on ^\\d{4}-\\d{2}$.
-    - UNIQUE uq_settlement_line_share_ledger_entry_id on
-      settlement_line.share_ledger_entry_id.
+    - (REMOVED in LAB-41) UNIQUE uq_settlement_line_share_ledger_entry_id;
+      see migration 0007 — re-draft after cancellation needs new lines
+      for the same entries (Doc 05 §7.6 ST-19).
     - settlement_line has created_at only (no updated_at).
     - All money columns are numeric(12,2), allowing negative totals/amounts.
     """
@@ -195,21 +196,26 @@ class TestSettlementAndSettlementLineModels:
                     total=Decimal("0.00"),
                 )
 
-    def test_settlement_line_unique_share_ledger_entry_id(
+    def test_settlement_line_allows_duplicate_share_ledger_entry_id(
         self, tenant_a: Tenant
     ) -> None:
+        # LAB-41 (migration 0007) deliberately REMOVED the
+        # uq_settlement_line_share_ledger_entry_id constraint per Doc 05 §7.6
+        # ST-19: re-draft after cancellation must pick up the same entries
+        # with new lines. Duplicates are now allowed.
         with schema_context(tenant_a.schema_name):
             line = SettlementLineFactory(settlement__period="2026-01")
             other_settlement = SettlementFactory(
                 referral_partner=line.settlement.referral_partner,
                 period="2026-02",
             )
-            with pytest.raises(IntegrityError), transaction.atomic():
-                SettlementLine.objects.create(
-                    settlement=other_settlement,
-                    share_ledger_entry=line.share_ledger_entry,
-                    amount=Decimal("200.00"),
-                )
+            duplicate = SettlementLine.objects.create(
+                settlement=other_settlement,
+                share_ledger_entry=line.share_ledger_entry,
+                amount=Decimal("200.00"),
+            )
+            assert duplicate.id is not None
+            assert duplicate.share_ledger_entry_id == line.share_ledger_entry_id
 
     def test_foreign_keys_protect_against_deletion(self, tenant_a: Tenant) -> None:
         with schema_context(tenant_a.schema_name):
@@ -247,6 +253,9 @@ class TestSettlementAndSettlementLineModels:
         assert "uq_settlement_partner_id_period" in index_names
         assert "idx_settlement_referral_partner_id" in index_names
         assert "idx_settlement_approved_by" in index_names
-        assert "uq_settlement_line_share_ledger_entry_id" in index_names
+        # LAB-41 (migration 0007): uq_settlement_line_share_ledger_entry_id
+        # deliberately removed — Doc 05 §7.6 ST-19 requires re-draft after
+        # cancellation to pick up the same entries with new lines.
+        assert "uq_settlement_line_share_ledger_entry_id" not in index_names
         assert "idx_settlement_line_settlement_id" in index_names
         assert "idx_settlement_line_share_ledger_entry_id" in index_names

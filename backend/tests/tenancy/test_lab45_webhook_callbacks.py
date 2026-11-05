@@ -66,13 +66,6 @@ def _make_notification(tenant_a: Any, **kwargs: Any) -> Notification:
         return Notification.objects.create(**defaults)
 
 
-@pytest.fixture
-def callback_env(monkeypatch: Any) -> None:
-    monkeypatch.setenv("N8N_CALLBACK_KEY", CALLBACK_KEY)
-    monkeypatch.setenv("N8N_CALLBACK_KEY_NEXT", NEXT_KEY)
-    # Force settings re-read via override in service (reads env each call)
-
-
 # ---------------------------------------------------------------------------
 # Key verification (check 2)
 # ---------------------------------------------------------------------------
@@ -112,8 +105,8 @@ class TestVerifyCallbackKey:
 
 
 class TestNotificationCallbackEndpoint:
-    def test_sent_happy_path(self, tenant_a: Any, monkeypatch: Any) -> None:
-        monkeypatch.setenv("N8N_CALLBACK_KEY", CALLBACK_KEY)
+    @override_settings(N8N_CALLBACK_KEY=CALLBACK_KEY)
+    def test_sent_happy_path(self, tenant_a: Any) -> None:
         _make_notification(tenant_a)
         client = Client()
         body = {
@@ -132,8 +125,8 @@ class TestNotificationCallbackEndpoint:
             assert row.status == Notification.Status.SENT
             assert row.next_attempt_at is None
 
-    def test_wrong_key_401(self, tenant_a: Any, monkeypatch: Any) -> None:
-        monkeypatch.setenv("N8N_CALLBACK_KEY", CALLBACK_KEY)
+    @override_settings(N8N_CALLBACK_KEY=CALLBACK_KEY)
+    def test_wrong_key_401(self, tenant_a: Any) -> None:
         _make_notification(tenant_a)
         client = Client()
         body = {
@@ -146,8 +139,8 @@ class TestNotificationCallbackEndpoint:
         assert resp.status_code == 401
         assert json.loads(resp.content)["error"] == "unauthorized_callback"
 
-    def test_slug_mismatch_403(self, tenant_a: Any, monkeypatch: Any) -> None:
-        monkeypatch.setenv("N8N_CALLBACK_KEY", CALLBACK_KEY)
+    @override_settings(N8N_CALLBACK_KEY=CALLBACK_KEY)
+    def test_slug_mismatch_403(self, tenant_a: Any) -> None:
         _make_notification(tenant_a)
         client = Client()
         body = {
@@ -160,8 +153,8 @@ class TestNotificationCallbackEndpoint:
         assert resp.status_code == 403
         assert json.loads(resp.content)["error"] == "tenant_slug_mismatch"
 
-    def test_row_not_ready_409(self, tenant_a: Any, monkeypatch: Any) -> None:
-        monkeypatch.setenv("N8N_CALLBACK_KEY", CALLBACK_KEY)
+    @override_settings(N8N_CALLBACK_KEY=CALLBACK_KEY)
+    def test_row_not_ready_409(self, tenant_a: Any) -> None:
         client = Client()
         body = {
             "event": "sample.collected",
@@ -173,16 +166,14 @@ class TestNotificationCallbackEndpoint:
         assert resp.status_code == 409
         assert json.loads(resp.content)["error"] == "row_not_ready"
 
-    def test_unknown_path_404(self, monkeypatch: Any) -> None:
-        monkeypatch.setenv("N8N_CALLBACK_KEY", CALLBACK_KEY)
+    @override_settings(N8N_CALLBACK_KEY=CALLBACK_KEY)
+    def test_unknown_path_404(self) -> None:
         client = Client()
         resp = client.post("/api/v1/webhooks/n8n/nope", data={}, **_headers())
         assert resp.status_code == 404
 
-    def test_replay_same_outcome_idempotent(
-        self, tenant_a: Any, monkeypatch: Any
-    ) -> None:
-        monkeypatch.setenv("N8N_CALLBACK_KEY", CALLBACK_KEY)
+    @override_settings(N8N_CALLBACK_KEY=CALLBACK_KEY)
+    def test_replay_same_outcome_idempotent(self, tenant_a: Any) -> None:
         _make_notification(tenant_a)
         client = Client()
         body = {
@@ -197,10 +188,8 @@ class TestNotificationCallbackEndpoint:
         assert r2.status_code == 200
         assert json.loads(r2.content)["status"] == "SENT"
 
-    def test_sent_on_sent_final_conflicting_failed_409(
-        self, tenant_a: Any, monkeypatch: Any
-    ) -> None:
-        monkeypatch.setenv("N8N_CALLBACK_KEY", CALLBACK_KEY)
+    @override_settings(N8N_CALLBACK_KEY=CALLBACK_KEY)
+    def test_sent_on_sent_final_conflicting_failed_409(self, tenant_a: Any) -> None:
         _make_notification(tenant_a)
         client = Client()
         sent = {
@@ -215,8 +204,8 @@ class TestNotificationCallbackEndpoint:
         assert resp.status_code == 409
         assert json.loads(resp.content)["error"] == "state_conflict"
 
-    def test_soft_failure_sets_retry(self, tenant_a: Any, monkeypatch: Any) -> None:
-        monkeypatch.setenv("N8N_CALLBACK_KEY", CALLBACK_KEY)
+    @override_settings(N8N_CALLBACK_KEY=CALLBACK_KEY)
+    def test_soft_failure_sets_retry(self, tenant_a: Any) -> None:
         _make_notification(tenant_a)
         client = Client()
         body = {
@@ -236,8 +225,8 @@ class TestNotificationCallbackEndpoint:
             assert row.last_error is not None
             assert not row.last_error.startswith(HARD_BOUNCE_PREFIX)
 
-    def test_hard_bounce_terminal(self, tenant_a: Any, monkeypatch: Any) -> None:
-        monkeypatch.setenv("N8N_CALLBACK_KEY", CALLBACK_KEY)
+    @override_settings(N8N_CALLBACK_KEY=CALLBACK_KEY)
+    def test_hard_bounce_terminal(self, tenant_a: Any) -> None:
         _make_notification(tenant_a)
         client = Client()
         body = {
@@ -256,10 +245,8 @@ class TestNotificationCallbackEndpoint:
             assert row.last_error is not None
             assert row.last_error.startswith(HARD_BOUNCE_PREFIX)
 
-    def test_failed_requires_last_error_422(
-        self, tenant_a: Any, monkeypatch: Any
-    ) -> None:
-        monkeypatch.setenv("N8N_CALLBACK_KEY", CALLBACK_KEY)
+    @override_settings(N8N_CALLBACK_KEY=CALLBACK_KEY)
+    def test_failed_requires_last_error_422(self, tenant_a: Any) -> None:
         _make_notification(tenant_a)
         client = Client()
         body = {
@@ -271,8 +258,8 @@ class TestNotificationCallbackEndpoint:
         resp = client.post(NOTIF_URL, data=body, **_headers())
         assert resp.status_code == 422
 
-    def test_opened_never_accepted_422(self, tenant_a: Any, monkeypatch: Any) -> None:
-        monkeypatch.setenv("N8N_CALLBACK_KEY", CALLBACK_KEY)
+    @override_settings(N8N_CALLBACK_KEY=CALLBACK_KEY)
+    def test_opened_never_accepted_422(self, tenant_a: Any) -> None:
         _make_notification(tenant_a)
         client = Client()
         body = {
@@ -305,8 +292,8 @@ def _make_report_delivery(tenant_a: Any, **kwargs: Any) -> Any:
 
 
 class TestReportDeliveryCallbackEndpoint:
-    def test_email_sent_happy_path(self, tenant_a: Any, monkeypatch: Any) -> None:
-        monkeypatch.setenv("N8N_CALLBACK_KEY", CALLBACK_KEY)
+    @override_settings(N8N_CALLBACK_KEY=CALLBACK_KEY)
+    def test_email_sent_happy_path(self, tenant_a: Any) -> None:
         _make_report_delivery(tenant_a)
         client = Client()
         body = {
@@ -319,8 +306,8 @@ class TestReportDeliveryCallbackEndpoint:
         assert resp.status_code == 200, resp.content
         assert json.loads(resp.content)["status"] == "SENT"
 
-    def test_whatsapp_sent_requires_url(self, tenant_a: Any, monkeypatch: Any) -> None:
-        monkeypatch.setenv("N8N_CALLBACK_KEY", CALLBACK_KEY)
+    @override_settings(N8N_CALLBACK_KEY=CALLBACK_KEY)
+    def test_whatsapp_sent_requires_url(self, tenant_a: Any) -> None:
         _make_report_delivery(tenant_a, channel=ReportDelivery.Channel.WHATSAPP)
         client = Client()
         body = {
@@ -340,8 +327,8 @@ class TestReportDeliveryCallbackEndpoint:
             assert row.whatsapp_url == "https://wa.me/123?text=hi"
             assert row.status == ReportDelivery.Status.SENT
 
-    def test_channel_mismatch_409(self, tenant_a: Any, monkeypatch: Any) -> None:
-        monkeypatch.setenv("N8N_CALLBACK_KEY", CALLBACK_KEY)
+    @override_settings(N8N_CALLBACK_KEY=CALLBACK_KEY)
+    def test_channel_mismatch_409(self, tenant_a: Any) -> None:
         _make_report_delivery(tenant_a)  # email row
         client = Client()
         body = {
@@ -355,10 +342,8 @@ class TestReportDeliveryCallbackEndpoint:
         assert resp.status_code == 409
         assert json.loads(resp.content)["error"] == "state_conflict"
 
-    def test_hard_bounce_email_becomes_bounced(
-        self, tenant_a: Any, monkeypatch: Any
-    ) -> None:
-        monkeypatch.setenv("N8N_CALLBACK_KEY", CALLBACK_KEY)
+    @override_settings(N8N_CALLBACK_KEY=CALLBACK_KEY)
+    def test_hard_bounce_email_becomes_bounced(self, tenant_a: Any) -> None:
         _make_report_delivery(tenant_a)
         client = Client()
         body = {
@@ -376,8 +361,8 @@ class TestReportDeliveryCallbackEndpoint:
             assert row.last_error is not None
             assert row.last_error.startswith(HARD_BOUNCE_PREFIX)
 
-    def test_sent_on_bounced_409(self, tenant_a: Any, monkeypatch: Any) -> None:
-        monkeypatch.setenv("N8N_CALLBACK_KEY", CALLBACK_KEY)
+    @override_settings(N8N_CALLBACK_KEY=CALLBACK_KEY)
+    def test_sent_on_bounced_409(self, tenant_a: Any) -> None:
         _make_report_delivery(tenant_a)
         client = Client()
         bounce = {
@@ -430,10 +415,8 @@ class TestSettlementCallbackEndpoint:
             notif = Notification.objects.create(**defaults)
             return settlement, notif
 
-    def test_sent_moves_settlement_approved_to_sent(
-        self, tenant_a: Any, monkeypatch: Any
-    ) -> None:
-        monkeypatch.setenv("N8N_CALLBACK_KEY", CALLBACK_KEY)
+    @override_settings(N8N_CALLBACK_KEY=CALLBACK_KEY)
+    def test_sent_moves_settlement_approved_to_sent(self, tenant_a: Any) -> None:
         settlement, _ = self._make_settlement_notification(tenant_a)
         client = Client()
         body = {
@@ -452,8 +435,8 @@ class TestSettlementCallbackEndpoint:
             notif = Notification.objects.get(idempotency_key="settle-key-1")
             assert notif.status == Notification.Status.SENT
 
-    def test_sent_when_not_approved_409(self, tenant_a: Any, monkeypatch: Any) -> None:
-        monkeypatch.setenv("N8N_CALLBACK_KEY", CALLBACK_KEY)
+    @override_settings(N8N_CALLBACK_KEY=CALLBACK_KEY)
+    def test_sent_when_not_approved_409(self, tenant_a: Any) -> None:
         settlement, _ = self._make_settlement_notification(tenant_a)
         with tenant_context(tenant_a):
             settlement.status = Settlement.Status.DRAFT
@@ -473,8 +456,8 @@ class TestSettlementCallbackEndpoint:
             notif = Notification.objects.get(idempotency_key="settle-key-1")
             assert notif.status == Notification.Status.PENDING
 
-    def test_double_sent_idempotent(self, tenant_a: Any, monkeypatch: Any) -> None:
-        monkeypatch.setenv("N8N_CALLBACK_KEY", CALLBACK_KEY)
+    @override_settings(N8N_CALLBACK_KEY=CALLBACK_KEY)
+    def test_double_sent_idempotent(self, tenant_a: Any) -> None:
         settlement, _ = self._make_settlement_notification(tenant_a)
         client = Client()
         body = {

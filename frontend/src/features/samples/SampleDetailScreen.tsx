@@ -41,9 +41,15 @@ const REJECTION_REASONS: Array<{ code: RejectionReasonCode; label: string }> = [
 ];
 
 const AVAILABLE_BRANCHES = [
-  { id: "96f2a138-334e-490c-9dd3-805dd45022f0", name: "Main Reference Lab (Lahore)" },
+  {
+    id: "96f2a138-334e-490c-9dd3-805dd45022f0",
+    name: "Main Reference Lab (Lahore)",
+  },
   { id: "00000000-0000-0000-0000-000000000002", name: "Gulberg Branch Hub" },
-  { id: "00000000-0000-0000-0000-000000000003", name: "DHA Phase 5 Collection Center" },
+  {
+    id: "00000000-0000-0000-0000-000000000003",
+    name: "DHA Phase 5 Collection Center",
+  },
   { id: "00000000-0000-0000-0000-000000000004", name: "Johar Town Branch" },
 ];
 
@@ -122,7 +128,9 @@ export function SampleDetailScreen({
   const [isRejecting, setIsRejecting] = useState(false);
 
   const [showTransferModal, setShowTransferModal] = useState(false);
-  const [transferBranchId, setTransferBranchId] = useState(AVAILABLE_BRANCHES[1]?.id ?? "");
+  const [transferBranchId, setTransferBranchId] = useState(
+    AVAILABLE_BRANCHES[1]?.id ?? "",
+  );
   const [transferNotes, setTransferNotes] = useState("");
   const [isTransferring, setIsTransferring] = useState(false);
 
@@ -144,7 +152,8 @@ export function SampleDetailScreen({
       const data = await service.getSample(sampleId);
       setSample(data);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Failed to load sample details";
+      const msg =
+        err instanceof Error ? err.message : "Failed to load sample details";
       setErrorMessage(msg);
     } finally {
       setIsLoading(false);
@@ -186,7 +195,8 @@ export function SampleDetailScreen({
       });
       await loadDetail();
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Failed to receive sample";
+      const msg =
+        err instanceof Error ? err.message : "Failed to receive sample";
       setErrorMessage(msg);
     } finally {
       setIsReceiving(false);
@@ -251,8 +261,12 @@ export function SampleDetailScreen({
       <main className="w-full min-h-screen bg-slate-50 flex flex-col items-center justify-center p-8">
         <div className="bg-white border border-red-200 rounded-xl p-6 max-w-md w-full shadow-sm text-center">
           <Ban className="w-10 h-10 text-red-600 mx-auto mb-3" />
-          <h2 className="text-lg font-bold text-slate-900 mb-1">Accession Not Found</h2>
-          <p className="text-sm text-slate-600 mb-4">{errorMessage || "Sample record could not be retrieved."}</p>
+          <h2 className="text-lg font-bold text-slate-900 mb-1">
+            Accession Not Found
+          </h2>
+          <p className="text-sm text-slate-600 mb-4">
+            {errorMessage || "Sample record could not be retrieved."}
+          </p>
           <button
             type="button"
             onClick={onBack}
@@ -319,7 +333,9 @@ export function SampleDetailScreen({
             {/* Status Pill */}
             {getStatusPill(s.status)}
 
-            <span className="hidden sm:inline text-slate-300 font-light">|</span>
+            <span className="hidden sm:inline text-slate-300 font-light">
+              |
+            </span>
 
             {/* Patient Link */}
             <button
@@ -368,7 +384,9 @@ export function SampleDetailScreen({
             <button
               type="button"
               onClick={handleReceive}
-              disabled={isReceiving || s.status === "received" || s.status === "ready"}
+              disabled={
+                isReceiving || s.status === "received" || s.status === "ready"
+              }
               className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-teal-600 hover:bg-teal-700 text-white text-sm font-medium shadow-sm transition-all active:scale-[0.98] disabled:opacity-50"
             >
               <Inbox className="w-4 h-4" />
@@ -417,33 +435,33 @@ export function SampleDetailScreen({
                 Tests Requested
               </span>
               <div className="flex flex-wrap gap-2 pt-0.5">
-                {s.sample_tests && s.sample_tests.length > 0 ? (
-                  s.sample_tests.map((st) => (
-                    <div
-                      key={st.id}
-                      className="inline-flex flex-col bg-slate-50 border border-slate-200 px-2.5 py-1 rounded-md"
-                    >
-                      <span className="text-xs font-semibold text-slate-900">
-                        {st.test_name}
-                      </span>
-                      <span className="text-[10px] text-slate-500 font-mono">
-                        {st.tube_type} · {st.specimen_type}
-                      </span>
-                    </div>
-                  ))
-                ) : (
-                  s.tests.map((t, idx) => (
-                    <div
-                      key={idx}
-                      className="inline-flex flex-col bg-slate-50 border border-slate-200 px-2.5 py-1 rounded-md"
-                    >
-                      <span className="text-xs font-semibold text-slate-900">{t}</span>
-                      <span className="text-[10px] text-slate-500 font-mono">
-                        Primary Specimen
-                      </span>
-                    </div>
-                  ))
-                )}
+                {s.sample_tests && s.sample_tests.length > 0
+                  ? s.sample_tests.map((st) => (
+                      <div
+                        key={st.id}
+                        className="inline-flex flex-col bg-slate-50 border border-slate-200 px-2.5 py-1 rounded-md"
+                      >
+                        <span className="text-xs font-semibold text-slate-900">
+                          {st.test_name}
+                        </span>
+                        <span className="text-[10px] text-slate-500 font-mono">
+                          {st.tube_type} · {st.specimen_type}
+                        </span>
+                      </div>
+                    ))
+                  : s.tests.map((t, idx) => (
+                      <div
+                        key={idx}
+                        className="inline-flex flex-col bg-slate-50 border border-slate-200 px-2.5 py-1 rounded-md"
+                      >
+                        <span className="text-xs font-semibold text-slate-900">
+                          {t}
+                        </span>
+                        <span className="text-[10px] text-slate-500 font-mono">
+                          Primary Specimen
+                        </span>
+                      </div>
+                    ))}
               </div>
             </div>
 
@@ -492,10 +510,15 @@ export function SampleDetailScreen({
               <div className="flex items-center gap-2 flex-wrap pt-0.5">
                 <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-teal-50 border border-teal-100 text-teal-900 text-xs font-medium">
                   <MapPin className="w-3.5 h-3.5 text-teal-600" />
-                  <span>{s.custody_location || `${s.branch_name} — Specimen Bench A`}</span>
+                  <span>
+                    {s.custody_location ||
+                      `${s.branch_name} — Specimen Bench A`}
+                  </span>
                 </span>
                 <span className="text-xs text-slate-500">
-                  {s.bench_code ? `Station ${s.bench_code}` : "Rack 04 / Slot 12"}
+                  {s.bench_code
+                    ? `Station ${s.bench_code}`
+                    : "Rack 04 / Slot 12"}
                 </span>
               </div>
             </div>
@@ -512,7 +535,8 @@ export function SampleDetailScreen({
                   Event timeline
                 </h2>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Chronological chain of custody and status events (oldest first)
+                  Chronological chain of custody and status events (oldest
+                  first)
                 </p>
               </div>
             </div>
@@ -525,7 +549,10 @@ export function SampleDetailScreen({
             <div className="relative pl-6 sm:pl-8 space-y-8 before:absolute before:left-[11px] sm:before:left-[15px] before:top-3 before:bottom-3 before:w-0.5 before:bg-slate-200">
               {s.events && s.events.length > 0 ? (
                 s.events.map((evt, idx) => (
-                  <div key={evt.id || idx} className="relative flex flex-col gap-1.5">
+                  <div
+                    key={evt.id || idx}
+                    className="relative flex flex-col gap-1.5"
+                  >
                     {/* Node Dot */}
                     <div className="absolute -left-6 sm:-left-8 top-1 w-6 h-6 rounded-full bg-white flex items-center justify-center">
                       <span className="w-3 h-3 rounded-full bg-teal-600 ring-4 ring-teal-50" />
@@ -556,7 +583,10 @@ export function SampleDetailScreen({
                     </div>
 
                     <p className="text-xs text-slate-600 leading-relaxed max-w-3xl">
-                      {String(evt.payload?.note || "Event recorded in specimen custody system.")}
+                      {String(
+                        evt.payload?.note ||
+                          "Event recorded in specimen custody system.",
+                      )}
                     </p>
 
                     <div className="flex items-center gap-3 text-xs text-slate-400 pt-0.5">
@@ -584,7 +614,9 @@ export function SampleDetailScreen({
         <div className="flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500 px-2 pt-2">
           <div className="flex items-center gap-2">
             <ShieldCheck className="w-4 h-4 text-emerald-600" />
-            <span>Chain of custody digitally sealed under ISO 15189 compliance</span>
+            <span>
+              Chain of custody digitally sealed under ISO 15189 compliance
+            </span>
           </div>
           <div className="font-mono text-[11px] text-slate-400">
             SHA-256: 7f83b165...041e
@@ -614,8 +646,12 @@ export function SampleDetailScreen({
 
             <div className="py-4 space-y-4">
               <p className="text-xs text-slate-600 leading-relaxed">
-                Rejection permanently stops testing on this specimen and prompts a recollection request for patient{" "}
-                <span className="font-semibold text-slate-800">{s.patient_name}</span>.
+                Rejection permanently stops testing on this specimen and prompts
+                a recollection request for patient{" "}
+                <span className="font-semibold text-slate-800">
+                  {s.patient_name}
+                </span>
+                .
               </p>
 
               <div>
@@ -702,7 +738,11 @@ export function SampleDetailScreen({
 
             <div className="py-4 space-y-4">
               <p className="text-xs text-slate-600 leading-relaxed">
-                Dispatch accession <span className="font-mono font-semibold text-slate-800">{s.accession_id}</span> to another laboratory facility with cold-chain custody tracking.
+                Dispatch accession{" "}
+                <span className="font-mono font-semibold text-slate-800">
+                  {s.accession_id}
+                </span>{" "}
+                to another laboratory facility with cold-chain custody tracking.
               </p>
 
               <div>

@@ -75,11 +75,13 @@ def active_subscription(tenant_a: Tenant) -> Any:
     """Active subscription so the tenant is in full access mode (Doc 04 §11.2)."""
     plan = PlanFactory(name="Lab42Plan", price=Decimal("100.00"))
     with schema_context("public"):
-        sub = Subscription.objects.create(
+        sub, _ = Subscription.objects.update_or_create(
             tenant=tenant_a,
-            plan=plan,
-            status=Subscription.Status.ACTIVE,
-            starts_at=timezone.now() - timedelta(days=30),
+            defaults={
+                "plan": plan,
+                "status": Subscription.Status.ACTIVE,
+                "starts_at": timezone.now() - timedelta(days=30),
+            },
         )
     yield sub
     with schema_context("public"):

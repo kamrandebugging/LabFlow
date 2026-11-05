@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from "react";
+import { useCallback, useEffect, useId, useState } from "react";
 import {
   Calendar,
   CheckCircle2,
@@ -29,9 +29,13 @@ export function CollectSampleStep1Screen({
 }: CollectSampleStep1ScreenProps): JSX.Element {
   const user = useAuthStore((s) => s.user);
 
-  const [invoiceQuery, setInvoiceQuery] = useState(preselectedInvoiceId || "INV-0891A000");
+  const [invoiceQuery, setInvoiceQuery] = useState(
+    preselectedInvoiceId || "INV-0891A000",
+  );
   const [invoice, setInvoice] = useState<InvoiceDetail | null>(null);
-  const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(new Set());
+  const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(
+    new Set(),
+  );
   const [collectedAt, setCollectedAt] = useState<string>("");
   const [notes, setNotes] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
@@ -60,64 +64,68 @@ export function CollectSampleStep1Screen({
   }, []);
 
   // Fetch invoice helper
-  const handleSearchInvoice = async (idOrNumber: string) => {
-    const q = idOrNumber.trim();
-    if (!q) return;
+  const userBranchId = user?.branch_ids?.[0];
+  const handleSearchInvoice = useCallback(
+    async (idOrNumber: string) => {
+      const q = idOrNumber.trim();
+      if (!q) return;
 
-    try {
-      setIsLoading(true);
-      setErrorMessage(null);
-      const data = await billingServiceInstance.getInvoice(q);
-      setInvoice(data);
-      // Auto-select all items by default
-      const allItemIds = new Set(data.items.map((i) => i.id));
-      setSelectedItemIds(allItemIds);
-    } catch {
-      // Fallback demo invoice if backend search fails
-      const demoInvoice: InvoiceDetail = {
-        id: "00000000-0000-0000-0000-000000000011",
-        patient_id: "00000000-0000-0000-0000-000000000001",
-        patient_name: "Muhammad Imran",
-        patient_mrn: "MRN-2026-00417",
-        branch_id: user?.branch_ids?.[0] || "00000000-0000-0000-0000-000000000001",
-        status: "paid",
-        subtotal: "2450.00",
-        discount_amount: "0.00",
-        total: "2450.00",
-        net_paid: "2450.00",
-        items: [
-          {
-            id: "ii-01",
-            test_id: "t-01",
-            description: "Complete Blood Count (CBC)",
-            unit_price: "850.00",
-            quantity: 1,
-            line_total: "850.00",
-          },
-          {
-            id: "ii-02",
-            test_id: "t-02",
-            description: "Glycated Hemoglobin (HbA1c)",
-            unit_price: "1600.00",
-            quantity: 1,
-            line_total: "1600.00",
-          },
-        ],
-        payments: [],
-        created_at: new Date().toISOString(),
-      };
-      setInvoice(demoInvoice);
-      setSelectedItemIds(new Set(demoInvoice.items.map((i) => i.id)));
-    } finally {
-      setIsLoading(false);
-    }
-  };
+      try {
+        setIsLoading(true);
+        setErrorMessage(null);
+        const data = await billingServiceInstance.getInvoice(q);
+        setInvoice(data);
+        // Auto-select all items by default
+        const allItemIds = new Set(data.items.map((i) => i.id));
+        setSelectedItemIds(allItemIds);
+      } catch {
+        // Fallback demo invoice if backend search fails
+        const demoInvoice: InvoiceDetail = {
+          id: "00000000-0000-0000-0000-000000000011",
+          patient_id: "00000000-0000-0000-0000-000000000001",
+          patient_name: "Muhammad Imran",
+          patient_mrn: "MRN-2026-00417",
+          branch_id: userBranchId || "00000000-0000-0000-0000-000000000001",
+          status: "paid",
+          subtotal: "2450.00",
+          discount_amount: "0.00",
+          total: "2450.00",
+          net_paid: "2450.00",
+          items: [
+            {
+              id: "ii-01",
+              test_id: "t-01",
+              description: "Complete Blood Count (CBC)",
+              unit_price: "850.00",
+              quantity: 1,
+              line_total: "850.00",
+            },
+            {
+              id: "ii-02",
+              test_id: "t-02",
+              description: "Glycated Hemoglobin (HbA1c)",
+              unit_price: "1600.00",
+              quantity: 1,
+              line_total: "1600.00",
+            },
+          ],
+          payments: [],
+          created_at: new Date().toISOString(),
+        };
+        setInvoice(demoInvoice);
+        setSelectedItemIds(new Set(demoInvoice.items.map((i) => i.id)));
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [billingServiceInstance, userBranchId],
+  );
 
   useEffect(() => {
     if (invoiceQuery) {
       handleSearchInvoice(invoiceQuery);
     }
-  }, []); // Initial load
+  }, [handleSearchInvoice, invoiceQuery]); // Initial load
 
   const toggleItem = (itemId: string) => {
     setSelectedItemIds((prev) => {
@@ -141,7 +149,9 @@ export function CollectSampleStep1Screen({
       return;
     }
 
-    const selectedItems = invoice.items.filter((i) => selectedItemIds.has(i.id));
+    const selectedItems = invoice.items.filter((i) =>
+      selectedItemIds.has(i.id),
+    );
 
     const draft: SampleCollectionDraft = {
       invoice_id: invoice.id,
@@ -153,7 +163,9 @@ export function CollectSampleStep1Screen({
       branch_id: invoice.branch_id,
       branch_name: "Central Diagnostic Lab",
       selected_item_ids: Array.from(selectedItemIds),
-      test_labels: selectedItems.map((i) => i.name || i.description || "Diagnostic Test"),
+      test_labels: selectedItems.map(
+        (i) => i.name || i.description || "Diagnostic Test",
+      ),
       tubes_required: [
         {
           type: "K2-EDTA",
@@ -204,7 +216,9 @@ export function CollectSampleStep1Screen({
           </h1>
           <div className="flex items-center gap-2 text-xs font-mono text-slate-500 bg-white border border-slate-200 px-2.5 py-1 rounded-md shadow-xs">
             <span className="text-slate-400">BENCH:</span>
-            <span className="font-semibold text-slate-700">SPECIMEN-INTAKE-GLB</span>
+            <span className="font-semibold text-slate-700">
+              SPECIMEN-INTAKE-GLB
+            </span>
           </div>
         </div>
       </div>
@@ -276,7 +290,8 @@ export function CollectSampleStep1Screen({
                   {invoice.patient_name || "Patient Record"}
                 </span>
                 <span className="text-slate-400 ml-1">
-                  · Status: {invoice.status.toUpperCase()} (PKR {parseFloat(invoice.total || "0").toFixed(2)})
+                  · Status: {invoice.status.toUpperCase()} (PKR{" "}
+                  {parseFloat(invoice.total || "0").toFixed(2)})
                 </span>
               </div>
             )}
@@ -324,7 +339,8 @@ export function CollectSampleStep1Screen({
             <div className="space-y-2">
               {invoice.items.map((item) => {
                 const isSelected = selectedItemIds.has(item.id);
-                const itemName = item.name || item.description || "Diagnostic Test";
+                const itemName =
+                  item.name || item.description || "Diagnostic Test";
                 const isEdta = itemName.toLowerCase().includes("cbc");
                 return (
                   <label
@@ -383,7 +399,8 @@ export function CollectSampleStep1Screen({
                 htmlFor={collectedAtInputId}
                 className="block text-xs font-medium text-slate-700 mb-1.5"
               >
-                Collected at <span className="text-slate-400 font-normal">(PKT)</span>
+                Collected at{" "}
+                <span className="text-slate-400 font-normal">(PKT)</span>
               </label>
               <div className="relative">
                 <Calendar className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
@@ -429,7 +446,8 @@ export function CollectSampleStep1Screen({
                 htmlFor={notesInputId}
                 className="block text-xs font-medium text-slate-700"
               >
-                Notes <span className="text-slate-400 font-normal">(optional)</span>
+                Notes{" "}
+                <span className="text-slate-400 font-normal">(optional)</span>
               </label>
               <span className="text-[11px] text-slate-400">
                 Specimen integrity & phlebotomy observations
@@ -450,8 +468,11 @@ export function CollectSampleStep1Screen({
         <div className="rounded-lg bg-slate-50 border border-slate-200 p-3.5 flex items-start gap-3">
           <Info className="w-4 h-4 text-slate-500 shrink-0 mt-0.5" />
           <div className="text-xs text-slate-600 leading-relaxed">
-            <span className="font-medium text-slate-700">Next workflow step:</span>{" "}
-            Verification stepper and label printer readiness will be confirmed in Step 2.
+            <span className="font-medium text-slate-700">
+              Next workflow step:
+            </span>{" "}
+            Verification stepper and label printer readiness will be confirmed
+            in Step 2.
           </div>
         </div>
 

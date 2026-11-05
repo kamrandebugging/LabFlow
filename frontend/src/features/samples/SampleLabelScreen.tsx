@@ -38,7 +38,8 @@ export function SampleLabelScreen({
       const data = await service.getLabel(sampleId);
       setLabelData(data);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Failed to load sample label";
+      const msg =
+        err instanceof Error ? err.message : "Failed to load sample label";
       setErrorMessage(msg);
     } finally {
       setIsLoading(false);
@@ -58,7 +59,9 @@ export function SampleLabelScreen({
 
   const handlePrint = () => {
     setPrintCount((c) => c + 1);
-    setToastMessage(`Print job dispatched to thermal printer for ${labelData?.accession_id}.`);
+    setToastMessage(
+      `Print job dispatched to thermal printer for ${labelData?.accession_id}.`,
+    );
     window.print();
   };
 
@@ -81,7 +84,9 @@ export function SampleLabelScreen({
     return (
       <main className="w-full min-h-screen bg-slate-50 flex flex-col items-center justify-center p-8">
         <div className="bg-white border border-red-200 rounded-xl p-6 max-w-md w-full shadow-sm text-center">
-          <p className="text-sm text-red-600 mb-4">{errorMessage || "Label data unavailable"}</p>
+          <p className="text-sm text-red-600 mb-4">
+            {errorMessage || "Label data unavailable"}
+          </p>
           <button
             type="button"
             onClick={onBack}
@@ -96,7 +101,8 @@ export function SampleLabelScreen({
   }
 
   const d = labelData;
-  const testsSummary = d.tests && d.tests.length > 0 ? d.tests.join(", ") : "CBC, HbA1c";
+  const testsSummary =
+    d.tests && d.tests.length > 0 ? d.tests.join(", ") : "CBC, HbA1c";
 
   return (
     <main className="w-full min-h-screen bg-slate-50 flex flex-col justify-between p-6 sm:p-8">
@@ -127,7 +133,10 @@ export function SampleLabelScreen({
         {/* Header & Breadcrumb */}
         <div className="mb-6 sm:mb-8 no-print">
           <div className="flex items-center justify-between mb-1">
-            <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-xs text-slate-500">
+            <nav
+              aria-label="Breadcrumb"
+              className="flex items-center gap-1.5 text-xs text-slate-500"
+            >
               <button
                 type="button"
                 onClick={onBack}
@@ -170,7 +179,9 @@ export function SampleLabelScreen({
               <Printer className="w-4 h-4 text-slate-400" />
               <span>Thermal Specimen Label (50mm × 25mm)</span>
             </div>
-            <span className="font-mono text-slate-400">DPI 203 · Direct Thermal</span>
+            <span className="font-mono text-slate-400">
+              DPI 203 · Direct Thermal
+            </span>
           </div>
 
           {/* THE PRINT PREVIEW (Real Proportions, thin dashed cut border) */}
@@ -228,23 +239,37 @@ export function SampleLabelScreen({
           {/* Label Metadata Breakdown Details */}
           <div className="mt-6 pt-6 border-t border-slate-100 w-full max-w-md grid grid-cols-2 gap-y-2 gap-x-4 text-xs no-print">
             <div>
-              <span className="text-slate-400 block text-[11px]">Patient MRN</span>
-              <span className="font-mono font-medium text-slate-800">{d.mrn}</span>
+              <span className="text-slate-400 block text-[11px]">
+                Patient MRN
+              </span>
+              <span className="font-mono font-medium text-slate-800">
+                {d.mrn}
+              </span>
             </div>
             <div>
-              <span className="text-slate-400 block text-[11px]">Primary Specimen</span>
-              <span className="font-medium text-slate-800">EDTA Whole Blood + Fluoride</span>
+              <span className="text-slate-400 block text-[11px]">
+                Primary Specimen
+              </span>
+              <span className="font-medium text-slate-800">
+                EDTA Whole Blood + Fluoride
+              </span>
             </div>
             <div>
-              <span className="text-slate-400 block text-[11px]">Sample Status</span>
+              <span className="text-slate-400 block text-[11px]">
+                Sample Status
+              </span>
               <span className="inline-flex items-center gap-1 font-medium text-emerald-600">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                 <span>Collected</span>
               </span>
             </div>
             <div>
-              <span className="text-slate-400 block text-[11px]">Accessioning Bench</span>
-              <span className="font-medium text-slate-800">SPECIMEN-INTAKE-GLB</span>
+              <span className="text-slate-400 block text-[11px]">
+                Accessioning Bench
+              </span>
+              <span className="font-medium text-slate-800">
+                SPECIMEN-INTAKE-GLB
+              </span>
             </div>
           </div>
 
@@ -283,7 +308,8 @@ export function SampleLabelScreen({
 
       {/* System Protocol Footer */}
       <footer className="mt-8 text-center text-xs text-slate-400 py-2 border-t border-slate-200 no-print">
-        LabFlow LIMS · ISO 15189 Specimen Identification &amp; Chain of Custody Standard
+        LabFlow LIMS · ISO 15189 Specimen Identification &amp; Chain of Custody
+        Standard
       </footer>
 
       {/* Floating Toast Notification */}
@@ -295,8 +321,12 @@ export function SampleLabelScreen({
         >
           <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
           <div className="flex-1 min-w-0">
-            <h4 className="text-xs font-semibold text-slate-900">Print Dispatched</h4>
-            <p className="text-xs text-slate-600 mt-0.5 leading-snug">{toastMessage}</p>
+            <h4 className="text-xs font-semibold text-slate-900">
+              Print Dispatched
+            </h4>
+            <p className="text-xs text-slate-600 mt-0.5 leading-snug">
+              {toastMessage}
+            </p>
           </div>
           <button
             type="button"

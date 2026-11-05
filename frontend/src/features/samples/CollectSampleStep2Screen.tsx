@@ -28,7 +28,8 @@ export function CollectSampleStep2Screen({
 }: CollectSampleStep2ScreenProps): JSX.Element {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [createdSample, setCreatedSample] = useState<SampleCreatedResponse | null>(null);
+  const [createdSample, setCreatedSample] =
+    useState<SampleCreatedResponse | null>(null);
   const [secondsLeft, setSecondsLeft] = useState<number>(5);
 
   // Auto-dismiss countdown when sample is collected
@@ -60,7 +61,9 @@ export function CollectSampleStep2Screen({
       setCreatedSample(res);
     } catch (err) {
       setErrorMessage(
-        err instanceof Error ? err.message : "Failed to record specimen collection.",
+        err instanceof Error
+          ? err.message
+          : "Failed to record specimen collection.",
       );
       setIsSubmitting(false);
     }
@@ -84,7 +87,9 @@ export function CollectSampleStep2Screen({
           <span className="text-slate-300">/</span>
           <span className="text-slate-900 font-medium">New</span>
           <span className="text-slate-300 ml-1">·</span>
-          <span className="text-slate-500 font-normal">Step 2: Tube Preparation</span>
+          <span className="text-slate-500 font-normal">
+            Step 2: Tube Preparation
+          </span>
         </nav>
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold text-slate-900 tracking-tight">

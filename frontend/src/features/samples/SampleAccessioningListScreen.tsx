@@ -235,8 +235,12 @@ export function SampleAccessioningListScreen({
               className="w-full appearance-none pl-3 pr-8 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-800 font-medium focus:outline-none focus:border-teal-600 focus:bg-white transition-colors cursor-pointer"
             >
               <option value="all">All branches</option>
-              <option value="00000000-0000-0000-0000-000000000001">Central Diagnostic Lab</option>
-              <option value="00000000-0000-0000-0000-000000000002">Gulberg Branch</option>
+              <option value="00000000-0000-0000-0000-000000000001">
+                Central Diagnostic Lab
+              </option>
+              <option value="00000000-0000-0000-0000-000000000002">
+                Gulberg Branch
+              </option>
             </select>
           </div>
 
@@ -246,7 +250,9 @@ export function SampleAccessioningListScreen({
             aria-label="Refresh sample list"
             className="p-1.5 text-slate-400 hover:text-slate-600 border border-slate-200 rounded-lg bg-slate-50 hover:bg-slate-100"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? "animate-spin" : ""}`} />
+            <RefreshCw
+              className={`w-3.5 h-3.5 ${isLoading ? "animate-spin" : ""}`}
+            />
           </button>
         </div>
 
@@ -352,11 +358,16 @@ export function SampleAccessioningListScreen({
                           ))}
                         </div>
                       </td>
-                      <td className="py-3 px-4">{getStatusBadge(sample.status)}</td>
-                      <td className="py-3 px-4 text-slate-600">{sample.branch_name}</td>
+                      <td className="py-3 px-4">
+                        {getStatusBadge(sample.status)}
+                      </td>
+                      <td className="py-3 px-4 text-slate-600">
+                        {sample.branch_name}
+                      </td>
                       <td
                         className={`py-3 px-4 font-medium ${
-                          sample.age_display && sample.age_display.startsWith("6")
+                          sample.age_display &&
+                          sample.age_display.startsWith("6")
                             ? "font-semibold text-orange-600"
                             : "text-slate-600"
                         }`}
@@ -386,7 +397,9 @@ export function SampleAccessioningListScreen({
           <span className="text-slate-500 font-medium">
             Showing {samples.length} accession records
           </span>
-          <span className="text-slate-400 text-[11px]">ISO 15189 Compliant</span>
+          <span className="text-slate-400 text-[11px]">
+            ISO 15189 Compliant
+          </span>
         </div>
       </div>
     </div>

@@ -6,6 +6,7 @@ test-harness fixture factories and domain model factories (KAN-45 / KAN-36).
 
 from __future__ import annotations
 
+from tests.factories.accounts import DataExportFactory
 from tests.factories.audit_log import AuditLogFactory
 from tests.factories.automation import WebhookDeliveryFactory
 from tests.factories.base import (
@@ -81,6 +82,7 @@ __all__ = [
     "BaseTenantFixtureFactory",
     "BranchFactory",
     "CriticalNotificationFactory",
+    "DataExportFactory",
     "DomainFactory",
     "InvoiceFactory",
     "InvoiceItemFactory",

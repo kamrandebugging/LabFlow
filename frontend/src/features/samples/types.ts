@@ -3,12 +3,7 @@
  */
 
 export type SampleStatus =
-  | "collected"
-  | "received"
-  | "in_process"
-  | "ready"
-  | "rejected"
-  | "cancelled";
+  "collected" | "received" | "in_process" | "ready" | "rejected" | "cancelled";
 
 export type RejectionReasonCode =
   | "unlabelled"
