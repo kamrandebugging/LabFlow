@@ -13,6 +13,7 @@ from apps.partners.views import (
     SettlementExceptionsView,
     SettlementStatementPdfView,
 )
+from apps.partners.views_ledger import ShareLedgerListView
 
 urlpatterns = [
     path(
@@ -24,6 +25,16 @@ urlpatterns = [
         "referral-partners/",
         PartnerCollectionView.as_view(),
         name="partner-collection-slash",
+    ),
+    path(
+        "referral-partners/ledger",
+        ShareLedgerListView.as_view(),
+        name="share-ledger-list",
+    ),
+    path(
+        "referral-partners/ledger/",
+        ShareLedgerListView.as_view(),
+        name="share-ledger-list-slash",
     ),
     path(
         "referral-partners/<uuid:partner_id>/dashboard",

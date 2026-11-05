@@ -11,10 +11,17 @@
 import { useAuthStore } from "../auth/authStore";
 import type {
   CreatePartnerPayload,
+  CreateRulePayload,
   PartnerDashboardData,
   ReferralPartner,
   RevenueShareRule,
+  Settlement,
+  SettlementExceptionsData,
+  SettlementListResponse,
+  SettlementStatus,
+  ShareLedgerResponse,
   UpdatePartnerPayload,
+  UpdateRulePayload,
 } from "./types";
 
 function getAuthHeaders(
@@ -178,5 +185,181 @@ export const partnersService = {
     });
     const data = await handleResponse<{ results: RevenueShareRule[] }>(res);
     return data.results || [];
+  },
+
+  /**
+   * POST /api/v1/referral-partners/:id/rules
+   * Creates a new revenue share rule for partner.
+   */
+  async createPartnerRule(
+    partnerId: string,
+    payload: CreateRulePayload,
+  ): Promise<RevenueShareRule> {
+    const res = await fetch(`/api/v1/referral-partners/${partnerId}/rules`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(payload),
+    });
+    return handleResponse<RevenueShareRule>(res);
+  },
+
+  /**
+   * PATCH /api/v1/revenue-share-rules/:ruleId
+   * Updates a rule via RR-3: closes old rule and inserts new rule row.
+   */
+  async updatePartnerRule(
+    ruleId: string,
+    payload: UpdateRulePayload,
+  ): Promise<RevenueShareRule> {
+    const res = await fetch(`/api/v1/revenue-share-rules/${ruleId}`, {
+      method: "PATCH",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(payload),
+    });
+    return handleResponse<RevenueShareRule>(res);
+  },
+
+  /**
+   * GET /api/v1/referral-partners/ledger
+   * Immutable revenue share fact table with cursor pagination and totals.
+   */
+  async getShareLedger(params?: {
+    partner_id?: string;
+    period?: string;
+    rule_id?: string;
+    limit?: number;
+    cursor?: string;
+  }): Promise<ShareLedgerResponse> {
+    const query = new URLSearchParams();
+    if (params?.partner_id) query.set("partner_id", params.partner_id);
+    if (params?.period) query.set("period", params.period);
+    if (params?.rule_id) query.set("rule_id", params.rule_id);
+    if (params?.limit) query.set("limit", String(params.limit));
+    if (params?.cursor) query.set("cursor", params.cursor);
+
+    const queryString = query.toString();
+    const endpoint = `/api/v1/referral-partners/ledger${queryString ? `?${queryString}` : ""}`;
+    const res = await fetch(endpoint, {
+      method: "GET",
+      headers: getAuthHeaders(),
+    });
+    return handleResponse<ShareLedgerResponse>(res);
+  },
+
+  /**
+   * GET /api/v1/settlements
+   * List settlements with status, partner, period filters.
+   */
+  async getSettlements(params?: {
+    partner_id?: string;
+    period?: string;
+    status?: SettlementStatus | string;
+    limit?: number;
+    cursor?: string;
+  }): Promise<SettlementListResponse> {
+    const query = new URLSearchParams();
+    if (params?.partner_id) query.set("partner_id", params.partner_id);
+    if (params?.period) query.set("period", params.period);
+    if (params?.status) query.set("status", params.status);
+    if (params?.limit) query.set("limit", String(params.limit));
+    if (params?.cursor) query.set("cursor", params.cursor);
+
+    const queryString = query.toString();
+    const endpoint = `/api/v1/settlements${queryString ? `?${queryString}` : ""}`;
+    const res = await fetch(endpoint, {
+      method: "GET",
+      headers: getAuthHeaders(),
+    });
+    return handleResponse<SettlementListResponse>(res);
+  },
+
+  /**
+   * GET /api/v1/settlements/:id
+   * Single settlement detail including line items and version.
+   */
+  async getSettlement(id: string): Promise<Settlement> {
+    const res = await fetch(`/api/v1/settlements/${id}`, {
+      method: "GET",
+      headers: getAuthHeaders(),
+    });
+    return handleResponse<Settlement>(res);
+  },
+
+  /**
+   * GET /api/v1/settlements/exceptions
+   * Settlement exception counters.
+   */
+  async getSettlementExceptions(): Promise<SettlementExceptionsData> {
+    const res = await fetch("/api/v1/settlements/exceptions", {
+      method: "GET",
+      headers: getAuthHeaders(),
+    });
+    return handleResponse<SettlementExceptionsData>(res);
+  },
+
+  /**
+   * POST /api/v1/settlements/:id/approve
+   * Approves a settlement (Owner only; requires If-Match version header).
+   */
+  async approveSettlement(id: string, version: string): Promise<Settlement> {
+    const res = await fetch(`/api/v1/settlements/${id}/approve`, {
+      method: "POST",
+      headers: getAuthHeaders({
+        "If-Match": version,
+      }),
+    });
+    return handleResponse<Settlement>(res);
+  },
+
+  /**
+   * POST /api/v1/settlements/:id/cancel
+   * Cancels a settlement (Owner only; requires If-Match version header).
+   */
+  async cancelSettlement(id: string, version: string): Promise<Settlement> {
+    const res = await fetch(`/api/v1/settlements/${id}/cancel`, {
+      method: "POST",
+      headers: getAuthHeaders({
+        "If-Match": version,
+      }),
+    });
+    return handleResponse<Settlement>(res);
+  },
+
+  /**
+   * POST /api/v1/settlements/:id/mark-paid
+   * Marks a settlement paid (Owner only; requires If-Match version header).
+   */
+  async markPaidSettlement(
+    id: string,
+    version: string,
+    reference?: string,
+  ): Promise<Settlement> {
+    const res = await fetch(`/api/v1/settlements/${id}/mark-paid`, {
+      method: "POST",
+      headers: getAuthHeaders({
+        "If-Match": version,
+      }),
+      body: JSON.stringify(reference ? { reference } : {}),
+    });
+    return handleResponse<Settlement>(res);
+  },
+
+  /**
+   * POST /api/v1/settlements/:id/send
+   * Sends statement notification to partner (Owner only).
+   */
+  async sendSettlement(id: string): Promise<unknown> {
+    const res = await fetch(`/api/v1/settlements/${id}/send`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+    });
+    return handleResponse<unknown>(res);
+  },
+
+  /**
+   * URL for statement PDF download.
+   */
+  getStatementPdfUrl(id: string): string {
+    return `/api/v1/settlements/${id}/statement.pdf`;
   },
 };
