@@ -85,9 +85,7 @@ class TestExportApi:
         # View enqueues via transaction.on_commit — patch it to run immediately
         with (
             patch("apps.platform.tasks.export_tenant_task.delay") as mock_delay,
-            patch(
-                "django.db.transaction.on_commit", side_effect=lambda f: f()
-            ),
+            patch("django.db.transaction.on_commit", side_effect=lambda f: f()),
         ):
             headers["Idempotency-Key"] = f"lab38-export-{uuid.uuid4().hex}"
             response = client.post(
