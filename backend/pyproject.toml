@@ -123,7 +123,7 @@ disable_error_code = ["misc", "comparison-overlap", "attr-defined", "type-arg", 
 [tool.pytest.ini_options]
 minversion = "8.0"
 addopts = "-ra --strict-markers --strict-config"
-testpaths = ["tests"]
+testpaths = ["tests", "apps"]
 pythonpath = ["."]
 DJANGO_SETTINGS_MODULE = "config.settings.test"
 django_debug_mode = "keep"
