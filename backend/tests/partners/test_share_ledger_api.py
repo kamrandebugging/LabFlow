@@ -121,13 +121,13 @@ class TestShareLedgerListView:
         self, tenant_a: Tenant, api_client: APIClient
     ) -> None:
         with schema_context(tenant_a.schema_name):
-            receptionist = StaffUserFactory(role=Role.RECEPTIONIST)
-            _auth(api_client, receptionist, tenant_a, role=Role.RECEPTIONIST)
+            receptionist = StaffUserFactory(role=Role.RECEPTION)
+            _auth(api_client, receptionist, tenant_a, role=Role.RECEPTION)
             resp = api_client.get("/api/v1/referral-partners/ledger")
             assert resp.status_code == 403
             assert resp.json()["error"]["code"] == "forbidden"
 
-    def test_unauthenticated_401(self, api_client: APIClient) -> None:
+    def test_unauthenticated_401(self, tenant_a: Tenant, api_client: APIClient) -> None:
         resp = api_client.get("/api/v1/referral-partners/ledger")
         assert resp.status_code == 401
 
