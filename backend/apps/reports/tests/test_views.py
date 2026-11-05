@@ -11,7 +11,6 @@ from __future__ import annotations
 import uuid
 from datetime import timedelta
 from decimal import Decimal
-from typing import Any
 
 import jwt
 import pytest
@@ -21,12 +20,10 @@ from django_tenants.utils import schema_context, tenant_context
 from rest_framework.test import APIClient
 
 from apps.accounts.models import Role, StaffBranch, StaffUser
-from apps.core.models import Domain, Plan, Subscription, Tenant
+from apps.core.models import Subscription, Tenant
 from apps.reports.models import (
     Report,
-    ReportAccessToken,
     ReportDelivery,
-    ReportVersion,
 )
 from apps.results.models import Result
 from apps.samples.models import Sample, SampleTransfer
@@ -127,7 +124,7 @@ class TestReportsListEndpoint:
 
             # Create 3 reports with distinct samples
             reports = []
-            for i in range(3):
+            for _i in range(3):
                 sample = SampleFactory(branch=branch)
                 rpt = ReportFactory(
                     sample=sample,

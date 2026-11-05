@@ -13,7 +13,7 @@ import base64
 import binascii
 import json
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from django.db.models import Prefetch, Q
@@ -69,9 +69,11 @@ def _decode_cursor(cursor: str) -> tuple[datetime, uuid.UUID]:
         created_at = datetime.fromisoformat(str(payload["created_at"]))
         report_id = uuid.UUID(str(payload["id"]))
     except (ValueError, KeyError, TypeError, binascii.Error) as exc:
-        raise ReportQueryError("Invalid cursor.", code="validation_error", status_code=422) from exc
+        raise ReportQueryError(
+            "Invalid cursor.", code="validation_error", status_code=422
+        ) from exc
     if created_at.tzinfo is None:
-        created_at = created_at.replace(tzinfo=timezone.utc)
+        created_at = created_at.replace(tzinfo=UTC)
     return created_at, report_id
 
 
@@ -79,7 +81,7 @@ def _parse_datetime(value: Any, name: str) -> datetime:
     try:
         dt = datetime.fromisoformat(str(value))
         if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=timezone.utc)
+            dt = dt.replace(tzinfo=UTC)
         return dt
     except (ValueError, TypeError):
         raise ReportQueryError(
@@ -177,25 +179,29 @@ class ReportQueryService:
             tests = [st.test.name for st in sample.sample_tests.all()]
             latest_del = r.deliveries.all()
             del_status = latest_del[0].status if latest_del else None
-            results.append({
-                "id": str(r.id),
-                "sample_id": str(sample.id),
-                "accession_id": sample.accession_id,
-                "status": r.status,
-                "current_version": r.current_version,
-                "generation_status": r.generation_status,
-                "generation_error": r.generation_error,
-                "finalised_at": r.finalised_at.isoformat() if r.finalised_at else None,
-                "created_at": r.created_at.isoformat(),
-                "updated_at": r.updated_at.isoformat(),
-                "branch_id": str(sample.branch_id),
-                "branch_name": sample.branch.name if sample.branch else "",
-                "patient_id": str(patient_obj.id),
-                "patient_mrn": patient_obj.mrn,
-                "patient_name": patient_obj.name,
-                "tests": tests,
-                "delivery_status": del_status,
-            })
+            results.append(
+                {
+                    "id": str(r.id),
+                    "sample_id": str(sample.id),
+                    "accession_id": sample.accession_id,
+                    "status": r.status,
+                    "current_version": r.current_version,
+                    "generation_status": r.generation_status,
+                    "generation_error": r.generation_error,
+                    "finalised_at": r.finalised_at.isoformat()
+                    if r.finalised_at
+                    else None,
+                    "created_at": r.created_at.isoformat(),
+                    "updated_at": r.updated_at.isoformat(),
+                    "branch_id": str(sample.branch_id),
+                    "branch_name": sample.branch.name if sample.branch else "",
+                    "patient_id": str(patient_obj.id),
+                    "patient_mrn": patient_obj.mrn,
+                    "patient_name": patient_obj.name,
+                    "tests": tests,
+                    "delivery_status": del_status,
+                }
+            )
 
         return results, next_cursor
 
@@ -216,11 +222,15 @@ class ReportQueryService:
                     "sample__invoice__patient__contacts",
                     Prefetch(
                         "versions",
-                        queryset=ReportVersion.objects.select_related("generated_by").order_by("-version"),
+                        queryset=ReportVersion.objects.select_related(
+                            "generated_by"
+                        ).order_by("-version"),
                     ),
                     Prefetch(
                         "deliveries",
-                        queryset=ReportDelivery.objects.select_related("contact").order_by("-created_at"),
+                        queryset=ReportDelivery.objects.select_related(
+                            "contact"
+                        ).order_by("-created_at"),
                     ),
                     Prefetch(
                         "access_tokens",
@@ -230,7 +240,9 @@ class ReportQueryService:
                 .get(id=report_id)
             )
         except Report.DoesNotExist:
-            raise ReportQueryError("Report not found.", code="report_not_found", status_code=404) from None
+            raise ReportQueryError(
+                "Report not found.", code="report_not_found", status_code=404
+            ) from None
 
         sample = report.sample
         patient = sample.invoice.patient
@@ -255,7 +267,9 @@ class ReportQueryService:
                 "id": str(v.id),
                 "version": v.version,
                 "pdf_key": v.pdf_key,
-                "generated_by_id": str(v.generated_by_id) if v.generated_by_id else None,
+                "generated_by_id": str(v.generated_by_id)
+                if v.generated_by_id
+                else None,
                 "generated_by_email": v.generated_by.email if v.generated_by else None,
                 "created_at": v.created_at.isoformat(),
             }
@@ -272,7 +286,9 @@ class ReportQueryService:
                 "contact_type": d.contact.kind if d.contact else None,
                 "contact_kind": d.contact.kind if d.contact else None,
                 "attempts": d.attempts,
-                "next_attempt_at": d.next_attempt_at.isoformat() if d.next_attempt_at else None,
+                "next_attempt_at": d.next_attempt_at.isoformat()
+                if d.next_attempt_at
+                else None,
                 "last_error": d.last_error,
                 "sent_at": d.sent_at.isoformat() if d.sent_at else None,
                 "created_at": d.created_at.isoformat(),
@@ -285,7 +301,9 @@ class ReportQueryService:
                 "id": str(t.id),
                 "expires_at": t.expires_at.isoformat(),
                 "revoked_at": t.revoked_at.isoformat() if t.revoked_at else None,
-                "last_accessed_at": t.last_accessed_at.isoformat() if t.last_accessed_at else None,
+                "last_accessed_at": t.last_accessed_at.isoformat()
+                if t.last_accessed_at
+                else None,
                 "is_active": t.revoked_at is None and t.expires_at > now,
                 "created_at": t.created_at.isoformat(),
             }
@@ -296,7 +314,9 @@ class ReportQueryService:
             "id": str(report.id),
             "status": report.status,
             "current_version": report.current_version,
-            "finalised_at": report.finalised_at.isoformat() if report.finalised_at else None,
+            "finalised_at": report.finalised_at.isoformat()
+            if report.finalised_at
+            else None,
             "generation_status": report.generation_status,
             "generation_error": report.generation_error,
             "created_at": report.created_at.isoformat(),
@@ -305,7 +325,9 @@ class ReportQueryService:
                 "id": str(sample.id),
                 "accession_id": sample.accession_id,
                 "status": sample.status,
-                "collected_at": sample.collected_at.isoformat() if sample.collected_at else None,
+                "collected_at": sample.collected_at.isoformat()
+                if sample.collected_at
+                else None,
                 "branch": {
                     "id": str(sample.branch.id),
                     "name": sample.branch.name,
@@ -317,8 +339,12 @@ class ReportQueryService:
                 "mrn": patient.mrn,
                 "name": patient.name,
                 "full_name": patient.name,
-                "dob": patient.date_of_birth.isoformat() if patient.date_of_birth else None,
-                "date_of_birth": patient.date_of_birth.isoformat() if patient.date_of_birth else None,
+                "dob": patient.date_of_birth.isoformat()
+                if patient.date_of_birth
+                else None,
+                "date_of_birth": patient.date_of_birth.isoformat()
+                if patient.date_of_birth
+                else None,
                 "sex": patient.sex,
                 "gender": patient.sex,
                 "phone": patient.phone,
@@ -356,29 +382,34 @@ class ReportExceptionsService:
             .order_by("-updated_at")[:100]
         )
         for r in failed_reports:
-            results.append({
-                "id": f"gen-{r.id}",
-                "kind": "failed_generation",
-                "title": f"Report generation failed ({r.sample.accession_id})",
-                "severity": "error",
-                "reference_id": str(r.id),
-                "reference_code": r.sample.accession_id,
-                "patient_name": r.sample.invoice.patient.name,
-                "branch_name": r.sample.branch.name if r.sample.branch else None,
-                "created_at": r.updated_at.isoformat(),
-                "details": {
-                    "report_id": str(r.id),
-                    "status": r.status,
-                    "generation_status": r.generation_status,
-                    "generation_error": r.generation_error,
-                    "current_version": r.current_version,
-                },
-            })
+            results.append(
+                {
+                    "id": f"gen-{r.id}",
+                    "kind": "failed_generation",
+                    "title": f"Report generation failed ({r.sample.accession_id})",
+                    "severity": "error",
+                    "reference_id": str(r.id),
+                    "reference_code": r.sample.accession_id,
+                    "patient_name": r.sample.invoice.patient.name,
+                    "branch_name": r.sample.branch.name if r.sample.branch else None,
+                    "created_at": r.updated_at.isoformat(),
+                    "details": {
+                        "report_id": str(r.id),
+                        "status": r.status,
+                        "generation_status": r.generation_status,
+                        "generation_error": r.generation_error,
+                        "current_version": r.current_version,
+                    },
+                }
+            )
 
         # 2. Failed deliveries
         if actor.is_tenant_wide:
             failed_deliveries_qs = ReportDelivery.objects.filter(
-                status__in=[ReportDelivery.Status.FAILED, ReportDelivery.Status.BOUNCED],
+                status__in=[
+                    ReportDelivery.Status.FAILED,
+                    ReportDelivery.Status.BOUNCED,
+                ],
             )
         else:
             branch_ids = actor.assigned_branch_ids()
@@ -387,39 +418,45 @@ class ReportExceptionsService:
             else:
                 failed_deliveries_qs = ReportDelivery.objects.filter(
                     report__sample__branch_id__in=branch_ids,
-                    status__in=[ReportDelivery.Status.FAILED, ReportDelivery.Status.BOUNCED],
+                    status__in=[
+                        ReportDelivery.Status.FAILED,
+                        ReportDelivery.Status.BOUNCED,
+                    ],
                 )
 
-        failed_deliveries = (
-            failed_deliveries_qs.select_related(
-                "report__sample__branch",
-                "report__sample__invoice__patient",
-                "contact",
-            )
-            .order_by("-updated_at")[:100]
-        )
+        failed_deliveries = failed_deliveries_qs.select_related(
+            "report__sample__branch",
+            "report__sample__invoice__patient",
+            "contact",
+        ).order_by("-updated_at")[:100]
         for d in failed_deliveries:
-            results.append({
-                "id": f"del-{d.id}",
-                "kind": "failed_delivery",
-                "title": f"Failed delivery via {d.channel.capitalize()}",
-                "severity": "error",
-                "reference_id": str(d.report_id),
-                "reference_code": d.report.sample.accession_id,
-                "patient_name": d.report.sample.invoice.patient.name,
-                "branch_name": d.report.sample.branch.name if d.report.sample.branch else None,
-                "created_at": d.updated_at.isoformat(),
-                "details": {
-                    "delivery_id": str(d.id),
-                    "report_id": str(d.report_id),
-                    "channel": d.channel,
-                    "delivery_status": d.status,
-                    "contact": d.contact.value if d.contact else None,
-                    "attempts": d.attempts,
-                    "next_attempt_at": d.next_attempt_at.isoformat() if d.next_attempt_at else None,
-                    "last_error": d.last_error,
-                },
-            })
+            results.append(
+                {
+                    "id": f"del-{d.id}",
+                    "kind": "failed_delivery",
+                    "title": f"Failed delivery via {d.channel.capitalize()}",
+                    "severity": "error",
+                    "reference_id": str(d.report_id),
+                    "reference_code": d.report.sample.accession_id,
+                    "patient_name": d.report.sample.invoice.patient.name,
+                    "branch_name": d.report.sample.branch.name
+                    if d.report.sample.branch
+                    else None,
+                    "created_at": d.updated_at.isoformat(),
+                    "details": {
+                        "delivery_id": str(d.id),
+                        "report_id": str(d.report_id),
+                        "channel": d.channel,
+                        "delivery_status": d.status,
+                        "contact": d.contact.value if d.contact else None,
+                        "attempts": d.attempts,
+                        "next_attempt_at": d.next_attempt_at.isoformat()
+                        if d.next_attempt_at
+                        else None,
+                        "last_error": d.last_error,
+                    },
+                }
+            )
 
         # 3. Late transfers (open transfers dispatched > 2 hours ago)
         late_threshold = now - timedelta(hours=2)
@@ -435,34 +472,44 @@ class ReportExceptionsService:
                 transfer_qs = transfer_qs.filter(
                     Q(from_branch_id__in=branch_ids) | Q(to_branch_id__in=branch_ids)
                 )
-        transfer_qs = (
-            transfer_qs.select_related("sample", "from_branch", "to_branch", "sample__invoice__patient")
-            .order_by("dispatched_at")[:100]
-        )
+        transfer_qs = transfer_qs.select_related(
+            "sample", "from_branch", "to_branch", "sample__invoice__patient"
+        ).order_by("dispatched_at")[:100]
         for t in transfer_qs:
-            hours_late = round((now - t.dispatched_at).total_seconds() / 3600.0, 1) if t.dispatched_at else 0
+            hours_late = (
+                round((now - t.dispatched_at).total_seconds() / 3600.0, 1)
+                if t.dispatched_at
+                else 0
+            )
             invoice = getattr(t.sample, "invoice", None)
             patient = getattr(invoice, "patient", None) if invoice else None
             patient_name = patient.name if patient else None
-            results.append({
-                "id": f"xfer-{t.id}",
-                "kind": "late_transfer",
-                "title": f"Late transfer: {t.from_branch.name} -> {t.to_branch.name}",
-                "severity": "warning",
-                "reference_id": str(t.sample_id),
-                "reference_code": t.sample.accession_id,
-                "patient_name": patient_name,
-                "branch_name": t.from_branch.name,
-                "created_at": t.dispatched_at.isoformat() if t.dispatched_at else t.created_at.isoformat(),
-                "details": {
-                    "transfer_id": str(t.id),
-                    "from_branch": t.from_branch.name,
-                    "to_branch": t.to_branch.name,
-                    "dispatched_at": t.dispatched_at.isoformat() if t.dispatched_at else None,
-                    "hours_late": hours_late,
-                    "status": t.status,
-                },
-            })
+            xfer_title = f"Late transfer: {t.from_branch.name} -> {t.to_branch.name}"
+            results.append(
+                {
+                    "id": f"xfer-{t.id}",
+                    "kind": "late_transfer",
+                    "title": xfer_title,
+                    "severity": "warning",
+                    "reference_id": str(t.sample_id),
+                    "reference_code": t.sample.accession_id,
+                    "patient_name": patient_name,
+                    "branch_name": t.from_branch.name,
+                    "created_at": t.dispatched_at.isoformat()
+                    if t.dispatched_at
+                    else t.created_at.isoformat(),
+                    "details": {
+                        "transfer_id": str(t.id),
+                        "from_branch": t.from_branch.name,
+                        "to_branch": t.to_branch.name,
+                        "dispatched_at": t.dispatched_at.isoformat()
+                        if t.dispatched_at
+                        else None,
+                        "hours_late": hours_late,
+                        "status": t.status,
+                    },
+                }
+            )
 
         # 4. Critical results unacknowledged
         critical_results = (
@@ -472,31 +519,38 @@ class ReportExceptionsService:
                 status=Result.Status.APPROVED,
                 critical_notifications__isnull=True,
             )
-            .select_related("sample", "sample__branch", "sample__invoice__patient", "test")
+            .select_related(
+                "sample", "sample__branch", "sample__invoice__patient", "test"
+            )
             .order_by("created_at")[:100]
         )
         for cr in critical_results:
-            results.append({
-                "id": f"crit-{cr.id}",
-                "kind": "critical_unacknowledged",
-                "title": f"Unacknowledged critical: {cr.test.name} ({cr.value} {cr.unit or ''})",
-                "severity": "critical",
-                "reference_id": str(cr.sample_id),
-                "reference_code": cr.sample.accession_id,
-                "patient_name": cr.sample.invoice.patient.name,
-                "branch_name": cr.sample.branch.name if cr.sample.branch else None,
-                "created_at": cr.created_at.isoformat(),
-                "details": {
-                    "result_id": str(cr.id),
-                    "sample_id": str(cr.sample_id),
-                    "test_name": cr.test.name,
-                    "test_code": cr.test.code,
-                    "value": cr.value,
-                    "unit": cr.unit,
-                    "flag": cr.flag,
-                    "patient_mrn": cr.sample.invoice.patient.mrn,
-                },
-            })
+            crit_title = (
+                f"Unacknowledged critical: {cr.test.name} ({cr.value} {cr.unit or ''})"
+            )
+            results.append(
+                {
+                    "id": f"crit-{cr.id}",
+                    "kind": "critical_unacknowledged",
+                    "title": crit_title,
+                    "severity": "critical",
+                    "reference_id": str(cr.sample_id),
+                    "reference_code": cr.sample.accession_id,
+                    "patient_name": cr.sample.invoice.patient.name,
+                    "branch_name": cr.sample.branch.name if cr.sample.branch else None,
+                    "created_at": cr.created_at.isoformat(),
+                    "details": {
+                        "result_id": str(cr.id),
+                        "sample_id": str(cr.sample_id),
+                        "test_name": cr.test.name,
+                        "test_code": cr.test.code,
+                        "value": cr.value,
+                        "unit": cr.unit,
+                        "flag": cr.flag,
+                        "patient_mrn": cr.sample.invoice.patient.mrn,
+                    },
+                }
+            )
 
         # 5. Stuck samples
         stuck_threshold = now - timedelta(hours=4)
@@ -514,30 +568,38 @@ class ReportExceptionsService:
             .order_by("collected_at")[:100]
         )
         for s in stuck_samples:
-            results.append({
-                "id": f"stuck-{s.id}",
-                "kind": "stuck_sample",
-                "title": f"Stuck sample: {s.accession_id} ({s.status})",
-                "severity": "warning",
-                "reference_id": str(s.id),
-                "reference_code": s.accession_id,
-                "patient_name": s.invoice.patient.name,
-                "branch_name": s.branch.name if s.branch else None,
-                "created_at": s.collected_at.isoformat(),
-                "details": {
-                    "sample_id": str(s.id),
-                    "accession_id": s.accession_id,
-                    "sample_status": s.status,
-                    "collected_at": s.collected_at.isoformat(),
-                },
-            })
+            results.append(
+                {
+                    "id": f"stuck-{s.id}",
+                    "kind": "stuck_sample",
+                    "title": f"Stuck sample: {s.accession_id} ({s.status})",
+                    "severity": "warning",
+                    "reference_id": str(s.id),
+                    "reference_code": s.accession_id,
+                    "patient_name": s.invoice.patient.name,
+                    "branch_name": s.branch.name if s.branch else None,
+                    "created_at": s.collected_at.isoformat(),
+                    "details": {
+                        "sample_id": str(s.id),
+                        "accession_id": s.accession_id,
+                        "sample_status": s.status,
+                        "collected_at": s.collected_at.isoformat(),
+                    },
+                }
+            )
 
         counts = {
             "total": len(results),
-            "failed_generation": sum(1 for r in results if r["kind"] == "failed_generation"),
-            "failed_delivery": sum(1 for r in results if r["kind"] == "failed_delivery"),
+            "failed_generation": sum(
+                1 for r in results if r["kind"] == "failed_generation"
+            ),
+            "failed_delivery": sum(
+                1 for r in results if r["kind"] == "failed_delivery"
+            ),
             "late_transfer": sum(1 for r in results if r["kind"] == "late_transfer"),
-            "critical_unacknowledged": sum(1 for r in results if r["kind"] == "critical_unacknowledged"),
+            "critical_unacknowledged": sum(
+                1 for r in results if r["kind"] == "critical_unacknowledged"
+            ),
             "stuck_sample": sum(1 for r in results if r["kind"] == "stuck_sample"),
         }
 

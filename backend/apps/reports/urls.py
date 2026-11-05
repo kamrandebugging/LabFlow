@@ -4,15 +4,17 @@
 from django.urls import path
 
 from apps.reports.views import (
-    ExceptionsListView,
     ReportAccessTokenIssueView,
     ReportAccessTokenRevokeView,
     ReportAccessView,
     ReportDeliverView,
-    ReportDetailView,
     ReportFileDownloadView,
-    ReportListView,
     ReportRegenerateView,
+)
+from apps.reports.views_query import (
+    ExceptionsListView,
+    ReportDetailView,
+    ReportListView,
 )
 
 urlpatterns = [

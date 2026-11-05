@@ -129,9 +129,7 @@ class ReportDetailView(APIView):
             )
 
         try:
-            detail = ReportQueryService.get_report_detail(
-                report_id=r_uuid, actor=user
-            )
+            detail = ReportQueryService.get_report_detail(report_id=r_uuid, actor=user)
         except ReportQueryError as exc:
             return _problem_response(
                 exc.status_code, exc.code, exc.message, errors=exc.details
