@@ -7,27 +7,20 @@ Verifies: TN-36, TN-37.
 import uuid
 from typing import Any
 
-import jwt
 import pytest
-from django.conf import settings
 from rest_framework.test import APIClient
 
 from apps.core.models import Domain, PlatformAudit, PlatformUser, Tenant
+from apps.platform.platform_jwt import platform_mint_access_token
 from tests.factories import PlatformUserFactory
 from tests.factories.core import TenantFactory
 
 
 def _platform_jwt(user: Any) -> str:
-    signing_key = getattr(
-        settings, "JWT_SIGNING_KEY", getattr(settings, "SECRET_KEY", "test-secret")
-    )
-    return str(
-        jwt.encode(
-            {"sub": str(user.id), "role": "super_admin", "typ": "access"},
-            str(signing_key),
-            algorithm="HS256",
-        )
-    )
+    """Mint a real platform access token (jti/iat/exp are mandatory claims)."""
+    token, _jti, _exp = platform_mint_access_token(user.id, "super_admin")
+    return token
+
 
 
 def _auth_client(user: PlatformUser) -> APIClient:

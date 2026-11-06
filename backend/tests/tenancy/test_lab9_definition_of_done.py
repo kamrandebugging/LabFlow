@@ -20,6 +20,7 @@ from apps.notifications.models import NotificationTemplate
 from apps.partners.models import (
     RevenueShareRule,
 )
+from apps.platform.platform_jwt import platform_mint_access_token
 from apps.platform.provisioning import (
     PROVISIONING_STEPS,
     STEP_HANDLERS,
@@ -104,16 +105,10 @@ def _drop_schema_if_exists(schema_name: str) -> None:
 
 
 def _platform_jwt(user: Any) -> str:
-    signing_key = getattr(
-        settings, "JWT_SIGNING_KEY", getattr(settings, "SECRET_KEY", "test-secret")
-    )
-    return str(
-        jwt.encode(
-            {"sub": str(user.id), "role": "super_admin", "typ": "access"},
-            str(signing_key),
-            algorithm="HS256",
-        )
-    )
+    """Mint a real platform access token (jti/iat/exp are mandatory claims)."""
+    token, _jti, _exp = platform_mint_access_token(user.id, "super_admin")
+    return token
+
 
 
 def _tenant_staff_jwt(staff_id: Any, tenant_slug: str = "tenant_a") -> str:
