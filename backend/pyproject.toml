@@ -13,6 +13,7 @@ dependencies = [
     "psycopg[binary]>=3.1.0",
     "redis>=5.0.0",
     "celery>=5.0,<6.0",
+    "packaging>=24.0",  # kombu redis transport imports packaging (worker/beat crash without it)
     "PyJWT>=2.8.0",
     "argon2-cffi>=23.1.0",
     "pyotp>=2.10.0",
