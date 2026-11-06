@@ -43,9 +43,10 @@ def _encrypt(secret: str) -> str:
 
 def _totp_user(secret: str) -> PlatformUser:
     user = PlatformUserFactory(totp_enabled=True)
-    user.totp_secret_encrypted = _encrypt(secret)
-    user.save(update_fields=["totp_secret_encrypted"])
-    return user
+    PlatformUser.objects.filter(pk=user.pk).update(
+        totp_secret_encrypted=_encrypt(secret)
+    )
+    return PlatformUser.objects.get(pk=user.pk)
 
 
 def _login(client: APIClient, email: str, password: str = PASSWORD) -> Any:
@@ -71,7 +72,7 @@ def test_login_issues_access_token_and_host_only_cookie() -> None:
     user = PlatformUserFactory(totp_enabled=False)
     client = APIClient()
 
-    resp = _login(client, user.email)
+    resp = _login(client, str(user.email))
 
     assert resp.status_code == 200
     body = resp.json()
@@ -102,7 +103,7 @@ def test_login_failure_is_generic_and_audited_without_actor() -> None:
     user = PlatformUserFactory(totp_enabled=False)
     client = APIClient()
 
-    resp = _login(client, user.email, "definitely-the-wrong-password")
+    resp = _login(client, str(user.email), "definitely-the-wrong-password")
 
     assert resp.status_code == 401
     body = resp.json()
@@ -120,7 +121,7 @@ def test_unknown_email_is_indistinguishable_from_wrong_password() -> None:
     user = PlatformUserFactory(totp_enabled=False)
     client = APIClient()
 
-    wrong_password = _login(client, user.email, "wrong-password-here")
+    wrong_password = _login(client, str(user.email), "wrong-password-here")
     unknown_email = _login(client, "nobody@labflow.internal", "wrong-password-here")
 
     assert wrong_password.status_code == unknown_email.status_code == 401
@@ -133,7 +134,7 @@ def test_deactivated_account_cannot_log_in() -> None:
     user = PlatformUserFactory(totp_enabled=False, is_active=False)
     client = APIClient()
 
-    resp = _login(client, user.email)
+    resp = _login(client, str(user.email))
 
     assert resp.status_code == 401
     assert resp.json()["code"] == "invalid_credentials"
@@ -145,9 +146,9 @@ def test_login_is_throttled_after_five_failures() -> None:
     client = APIClient()
 
     for _ in range(5):
-        assert _login(client, user.email, "wrong-password-here").status_code == 401
+        assert _login(client, str(user.email), "wrong-password-here").status_code == 401
 
-    throttled = _login(client, user.email, "wrong-password-here")
+    throttled = _login(client, str(user.email), "wrong-password-here")
     assert throttled.status_code == 429
     assert throttled.json()["code"] == "rate_limited"
     assert int(throttled.headers["Retry-After"]) > 0
@@ -164,7 +165,7 @@ def test_totp_login_requires_challenge_then_verifies() -> None:
     user = _totp_user(secret)
     client = APIClient()
 
-    first = _login(client, user.email)
+    first = _login(client, str(user.email))
     assert first.status_code == 200
     body = first.json()
     assert body["totp_required"] is True
@@ -191,7 +192,7 @@ def test_fifth_bad_totp_code_destroys_the_challenge() -> None:
     user = _totp_user(secret)
     client = APIClient()
 
-    challenge_id = _login(client, user.email).json()["challenge_id"]
+    challenge_id = _login(client, str(user.email)).json()["challenge_id"]
 
     responses = [
         client.post(
@@ -224,7 +225,7 @@ def test_fifth_bad_totp_code_destroys_the_challenge() -> None:
 def test_totp_enrolment_issues_ten_backup_codes_and_never_leaks_the_secret() -> None:
     user = PlatformUserFactory(totp_enabled=False)
     client = APIClient()
-    access = _login(client, user.email).json()["access"]
+    access = _login(client, str(user.email)).json()["access"]
     client.credentials(HTTP_AUTHORIZATION=f"Bearer {access}")
 
     enrolled = client.post(ENROLL_URL, HTTP_HOST=HOST)
@@ -262,7 +263,7 @@ def test_totp_enrolment_issues_ten_backup_codes_and_never_leaks_the_secret() -> 
 def test_refresh_rotates_and_reuse_revokes_every_session() -> None:
     user = PlatformUserFactory(totp_enabled=False)
     client = APIClient()
-    _login(client, user.email)
+    _login(client, str(user.email))
     original_refresh = client.cookies["labflow_refresh"].value
 
     rotated = client.post(REFRESH_URL, HTTP_HOST=HOST)
@@ -283,7 +284,7 @@ def test_refresh_rotates_and_reuse_revokes_every_session() -> None:
 def test_refresh_token_presented_as_access_is_rejected_on_typ() -> None:
     user = PlatformUserFactory(totp_enabled=False)
     client = APIClient()
-    _login(client, user.email)
+    _login(client, str(user.email))
     refresh_token = client.cookies["labflow_refresh"].value
 
     client.credentials(HTTP_AUTHORIZATION=f"Bearer {refresh_token}")
@@ -296,7 +297,7 @@ def test_refresh_token_presented_as_access_is_rejected_on_typ() -> None:
 def test_logout_denylists_the_access_token_immediately() -> None:
     user = PlatformUserFactory(totp_enabled=False)
     client = APIClient()
-    access = _login(client, user.email).json()["access"]
+    access = _login(client, str(user.email)).json()["access"]
 
     client.credentials(HTTP_AUTHORIZATION=f"Bearer {access}")
     assert client.get(TENANTS_URL, HTTP_HOST=HOST).status_code == 200
@@ -320,7 +321,7 @@ def test_write_requires_totp_enrolment() -> None:
 
     plan = PlanFactory(name="Gate Plan")
     client = APIClient()
-    access = _login(client, user.email).json()["access"]
+    access = _login(client, str(user.email)).json()["access"]
     client.credentials(HTTP_AUTHORIZATION=f"Bearer {access}")
 
     resp = client.post(
@@ -365,7 +366,7 @@ def test_password_reset_request_always_answers_accepted() -> None:
 @pytest.mark.django_db
 def test_password_reset_confirm_rotates_password_and_revokes_sessions() -> None:
     user = PlatformUserFactory(totp_enabled=False)
-    raw_token = PlatformAuthService.request_password_reset(email=user.email)
+    raw_token = PlatformAuthService.request_password_reset(email=str(user.email))
     assert raw_token
 
     client = APIClient()

@@ -1,6 +1,6 @@
 """Master dashboard Phase 1: tenant registry list/detail (Doc 04 §12.2, §15.1)."""
 
-from typing import Any
+from typing import Any, cast
 
 import pytest
 from django.core.cache import cache
@@ -152,11 +152,12 @@ def test_branch_service_keeps_the_public_branch_count_in_sync(
     """Branch create/close mirror the counter the platform surface reads."""
     from django_tenants.utils import schema_context
 
+    from apps.accounts.models import StaffUser
     from apps.branches.services import BranchService
     from tests.factories.staff_user import StaffUserFactory
 
     with schema_context(tenant_a.schema_name):
-        owner = StaffUserFactory(tenant_wide=True)
+        owner = cast(StaffUser, StaffUserFactory(tenant_wide=True))
         branch = BranchService.create_branch(
             owner, {"code": "ZZZ", "name": "Zeta Lab"}, ip="127.0.0.1"
         )
