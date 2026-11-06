@@ -22,7 +22,6 @@ def _platform_jwt(user: Any) -> str:
     return token
 
 
-
 def _auth_client(user: PlatformUser) -> APIClient:
     client = APIClient()
     client.credentials(HTTP_AUTHORIZATION=f"Bearer {_platform_jwt(user)}")

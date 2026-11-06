@@ -110,7 +110,6 @@ def _platform_jwt(user: Any) -> str:
     return token
 
 
-
 def _tenant_staff_jwt(staff_id: Any, tenant_slug: str = "tenant_a") -> str:
     signing_key = getattr(
         settings, "JWT_SIGNING_KEY", getattr(settings, "SECRET_KEY", "test-secret")
