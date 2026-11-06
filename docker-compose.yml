@@ -65,13 +65,13 @@ x-backend-common: &backend-common
   environment:
     # Settings: public (shared) schema only for the platform surface.
     DJANGO_SETTINGS_MODULE: config.settings.base
-    DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?error: DJANGO_SECRET_KEY is required — copy .env.example to .env and set it}
+    DJANGO_SECRET_KEY: "${DJANGO_SECRET_KEY:?error: DJANGO_SECRET_KEY is required — copy .env.example to .env and set it}"
     DJANGO_DEBUG: "False"
     DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-.localhost,127.0.0.1,localhost}
-    DATABASE_URL: postgresql://${POSTGRES_USER:-labflow_app}:${POSTGRES_PASSWORD:?error: POSTGRES_PASSWORD is required — copy .env.example to .env and set it}@postgres:5432/${POSTGRES_DB:-labflow}
+    DATABASE_URL: "postgresql://${POSTGRES_USER:-labflow_app}:${POSTGRES_PASSWORD:?error: POSTGRES_PASSWORD is required — copy .env.example to .env and set it}@postgres:5432/${POSTGRES_DB:-labflow}"
     REDIS_URL: redis://redis:6379/0
     CELERY_BROKER_URL: redis://redis:6379/0
-    LABFLOW_TOTP_ENCRYPTION_KEY: ${LABFLOW_TOTP_ENCRYPTION_KEY:?error: LABFLOW_TOTP_ENCRYPTION_KEY is required — copy .env.example to .env and set it}
+    LABFLOW_TOTP_ENCRYPTION_KEY: "${LABFLOW_TOTP_ENCRYPTION_KEY:?error: LABFLOW_TOTP_ENCRYPTION_KEY is required — copy .env.example to .env and set it}"
     PLATFORM_BASE_DOMAIN: ${PLATFORM_BASE_DOMAIN:-localhost}
     PLATFORM_FOUNDING_SLOTS_TOTAL: ${PLATFORM_FOUNDING_SLOTS_TOTAL:-0}
     PLATFORM_FOUNDING_PLAN_NAME: ${PLATFORM_FOUNDING_PLAN_NAME:-Founding}
@@ -167,13 +167,13 @@ services:
     container_name: labflow-backend
     environment:
       DJANGO_SETTINGS_MODULE: config.settings.base
-      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?error: DJANGO_SECRET_KEY is required — copy .env.example to .env and set it}
+      DJANGO_SECRET_KEY: "${DJANGO_SECRET_KEY:?error: DJANGO_SECRET_KEY is required — copy .env.example to .env and set it}"
       DJANGO_DEBUG: "False"
       DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-.localhost,127.0.0.1,localhost}
-      DATABASE_URL: postgresql://${POSTGRES_USER:-labflow_app}:${POSTGRES_PASSWORD:?error: POSTGRES_PASSWORD is required — copy .env.example to .env and set it}@postgres:5432/${POSTGRES_DB:-labflow}
+      DATABASE_URL: "postgresql://${POSTGRES_USER:-labflow_app}:${POSTGRES_PASSWORD:?error: POSTGRES_PASSWORD is required — copy .env.example to .env and set it}@postgres:5432/${POSTGRES_DB:-labflow}"
       REDIS_URL: redis://redis:6379/0
       CELERY_BROKER_URL: redis://redis:6379/0
-      LABFLOW_TOTP_ENCRYPTION_KEY: ${LABFLOW_TOTP_ENCRYPTION_KEY:?error: LABFLOW_TOTP_ENCRYPTION_KEY is required — copy .env.example to .env and set it}
+      LABFLOW_TOTP_ENCRYPTION_KEY: "${LABFLOW_TOTP_ENCRYPTION_KEY:?error: LABFLOW_TOTP_ENCRYPTION_KEY is required — copy .env.example to .env and set it}"
       PLATFORM_BASE_DOMAIN: ${PLATFORM_BASE_DOMAIN:-localhost}
       PLATFORM_FOUNDING_SLOTS_TOTAL: ${PLATFORM_FOUNDING_SLOTS_TOTAL:-0}
       PLATFORM_FOUNDING_PLAN_NAME: ${PLATFORM_FOUNDING_PLAN_NAME:-Founding}
