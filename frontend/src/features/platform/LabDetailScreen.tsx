@@ -56,7 +56,9 @@ export function LabDetailScreen(): ReactElement {
   }, [detail?.status, detailQuery]);
 
   const invalidate = async () => {
-    await queryClient.invalidateQueries({ queryKey: ["platform", "tenant", id] });
+    await queryClient.invalidateQueries({
+      queryKey: ["platform", "tenant", id],
+    });
   };
 
   const suspend = useMutation({
@@ -240,7 +242,9 @@ export function LabDetailScreen(): ReactElement {
                 label="Started"
                 value={
                   detail.subscription.started_at
-                    ? new Date(detail.subscription.started_at).toLocaleDateString()
+                    ? new Date(
+                        detail.subscription.started_at,
+                      ).toLocaleDateString()
                     : "—"
                 }
               />
@@ -265,7 +269,10 @@ export function LabDetailScreen(): ReactElement {
 
         <Section title="Schema & migrations">
           <dl className="space-y-1 text-sm">
-            <Row label="Schema size" value={formatBytes(detail.schema_size_bytes)} />
+            <Row
+              label="Schema size"
+              value={formatBytes(detail.schema_size_bytes)}
+            />
             <Row
               label="Schema exists"
               value={detail.migration_state.schema_exists ? "yes" : "no"}
@@ -288,8 +295,14 @@ export function LabDetailScreen(): ReactElement {
         <Section title="Provisioning pipeline">
           <dl className="space-y-1 text-sm">
             <Row label="Status" value={detail.status} />
-            <Row label="Current step" value={detail.provisioning.current_step ?? "—"} />
-            <Row label="Failed step" value={detail.provisioning.failed_step ?? "none"} />
+            <Row
+              label="Current step"
+              value={detail.provisioning.current_step ?? "—"}
+            />
+            <Row
+              label="Failed step"
+              value={detail.provisioning.failed_step ?? "none"}
+            />
             <Row
               label="Completed steps"
               value={
@@ -316,7 +329,9 @@ export function LabDetailScreen(): ReactElement {
             <ul className="space-y-1.5 text-xs">
               {auditQuery.data?.audit.slice(0, 12).map((entry) => (
                 <li key={entry.id} className="flex justify-between gap-3">
-                  <span className="font-mono text-slate-700">{entry.action}</span>
+                  <span className="font-mono text-slate-700">
+                    {entry.action}
+                  </span>
                   <span className="shrink-0 text-slate-500">
                     {entry.at ? new Date(entry.at).toLocaleString() : "—"}
                   </span>
@@ -328,10 +343,13 @@ export function LabDetailScreen(): ReactElement {
       </div>
 
       {confirmAction === "suspend" ? (
-        <Modal title={`Suspend ${detail.name}`} onClose={() => setConfirmAction(null)}>
+        <Modal
+          title={`Suspend ${detail.name}`}
+          onClose={() => setConfirmAction(null)}
+        >
           <p className="text-sm text-slate-600">
-            Suspending blocks tenant access immediately. A reason is required and
-            is written to the platform audit log.
+            Suspending blocks tenant access immediately. A reason is required
+            and is written to the platform audit log.
           </p>
           <textarea
             value={reason}
@@ -361,7 +379,10 @@ export function LabDetailScreen(): ReactElement {
       ) : null}
 
       {confirmAction === "offboard" ? (
-        <Modal title={`Offboard ${detail.name}`} onClose={() => setConfirmAction(null)}>
+        <Modal
+          title={`Offboard ${detail.name}`}
+          onClose={() => setConfirmAction(null)}
+        >
           <div className="space-y-2 text-sm text-slate-700">
             <p className="font-semibold text-rose-800">
               Export first, then offboard.
@@ -370,8 +391,8 @@ export function LabDetailScreen(): ReactElement {
               <li>The owner must complete a full data export.</li>
               <li>Offboarding suspends the tenant immediately.</li>
               <li>
-                The schema is dropped only after the 30-day grace period, or with
-                an explicit, audited waiver.
+                The schema is dropped only after the 30-day grace period, or
+                with an explicit, audited waiver.
               </li>
             </ol>
             <p className="text-xs text-slate-500">

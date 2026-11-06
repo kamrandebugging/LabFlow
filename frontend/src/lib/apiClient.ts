@@ -27,7 +27,11 @@ export class ApiError extends Error {
   readonly problem: ProblemDetails | null;
   readonly code: string | null;
 
-  constructor(status: number, problem: ProblemDetails | null, fallback: string) {
+  constructor(
+    status: number,
+    problem: ProblemDetails | null,
+    fallback: string,
+  ) {
     super(problem?.detail || problem?.title || fallback);
     this.name = "ApiError";
     this.status = status;
@@ -46,7 +50,8 @@ export interface RequestOptions {
   noRetry?: boolean;
 }
 
-const inFlightRefresh: Partial<Record<SessionKind, Promise<string | null>>> = {};
+const inFlightRefresh: Partial<Record<SessionKind, Promise<string | null>>> =
+  {};
 
 async function refreshOnce(kind: SessionKind): Promise<string | null> {
   const existing = inFlightRefresh[kind];
@@ -68,10 +73,7 @@ async function refreshOnce(kind: SessionKind): Promise<string | null> {
   return pending;
 }
 
-function buildUrl(
-  path: string,
-  query?: RequestOptions["query"],
-): string {
+function buildUrl(path: string, query?: RequestOptions["query"]): string {
   const url = path.startsWith("/api/") ? path : `${API_PREFIX}${path}`;
   if (!query) return url;
 
@@ -84,7 +86,9 @@ function buildUrl(
   return search ? `${url}?${search}` : url;
 }
 
-async function parseProblem(response: Response): Promise<ProblemDetails | null> {
+async function parseProblem(
+  response: Response,
+): Promise<ProblemDetails | null> {
   try {
     const data: unknown = await response.json();
     if (data && typeof data === "object") return data as ProblemDetails;

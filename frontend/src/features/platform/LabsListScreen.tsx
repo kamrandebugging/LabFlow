@@ -5,7 +5,11 @@ import { PlusCircle, Search } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 
 import { platformService } from "./platformService";
-import { TENANT_STATUSES, type TenantListItem, type TenantStatus } from "./types";
+import {
+  TENANT_STATUSES,
+  type TenantListItem,
+  type TenantStatus,
+} from "./types";
 
 const STATUS_STYLES: Record<TenantStatus, string> = {
   active: "bg-emerald-50 text-emerald-800 border-emerald-200",
@@ -45,7 +49,9 @@ export function LabsListScreen(): ReactElement {
 
   useEffect(() => {
     if (!data) return;
-    setRows((previous) => (cursor ? [...previous, ...data.tenants] : data.tenants));
+    setRows((previous) =>
+      cursor ? [...previous, ...data.tenants] : data.tenants,
+    );
   }, [data, cursor]);
 
   return (
@@ -93,7 +99,9 @@ export function LabsListScreen(): ReactElement {
             type="button"
             onClick={() => setStatus("")}
             className={`rounded-md px-2.5 py-1 text-xs font-semibold ${
-              status === "" ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-600"
+              status === ""
+                ? "bg-slate-900 text-white"
+                : "bg-slate-100 text-slate-600"
             }`}
           >
             All
@@ -123,7 +131,9 @@ export function LabsListScreen(): ReactElement {
 
       <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         {isLoading ? (
-          <p className="p-10 text-center text-sm text-slate-500">Loading labs…</p>
+          <p className="p-10 text-center text-sm text-slate-500">
+            Loading labs…
+          </p>
         ) : rows.length === 0 ? (
           <div className="flex flex-col items-center gap-2 p-12 text-center">
             <p className="font-semibold text-slate-800">No labs found</p>

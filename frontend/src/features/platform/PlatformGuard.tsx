@@ -19,7 +19,9 @@ export function PlatformGuard({
 }: {
   children: ReactElement;
 }): ReactElement {
-  const isAuthenticated = usePlatformAuthStore((state) => state.isAuthenticated);
+  const isAuthenticated = usePlatformAuthStore(
+    (state) => state.isAuthenticated,
+  );
   const platformUser = usePlatformAuthStore((state) => state.platformUser);
   const location = useLocation();
 

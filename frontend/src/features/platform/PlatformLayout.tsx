@@ -1,5 +1,11 @@
 import type { ReactElement, ReactNode } from "react";
-import { Building2, LayoutDashboard, LogOut, PlusCircle, ShieldCheck } from "lucide-react";
+import {
+  Building2,
+  LayoutDashboard,
+  LogOut,
+  PlusCircle,
+  ShieldCheck,
+} from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
 import { usePlatformAuthStore } from "./platformAuthStore";
@@ -41,7 +47,9 @@ export function PlatformLayout({
               <div>
                 <p
                   className="text-base font-bold leading-tight"
-                  style={{ fontFamily: "'Plus Jakarta Sans', 'Inter', sans-serif" }}
+                  style={{
+                    fontFamily: "'Plus Jakarta Sans', 'Inter', sans-serif",
+                  }}
                 >
                   LabFlow Platform
                 </p>

@@ -1,6 +1,12 @@
 import type { ReactElement } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { AlertTriangle, Building2, CircleDot, PauseCircle, Timer } from "lucide-react";
+import {
+  AlertTriangle,
+  Building2,
+  CircleDot,
+  PauseCircle,
+  Timer,
+} from "lucide-react";
 import { Link } from "react-router-dom";
 
 import { platformService } from "./platformService";
@@ -129,8 +135,8 @@ function OverviewBody({ metrics }: { metrics: OverviewMetrics }): ReactElement {
             PKR {metrics.mrr_pkr}
           </p>
           <p className="mt-2 text-[11px] text-slate-500">
-            Sum of plan price over active subscriptions. Computed on request, never
-            stored.
+            Sum of plan price over active subscriptions. Computed on request,
+            never stored.
           </p>
         </div>
 

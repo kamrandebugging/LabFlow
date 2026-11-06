@@ -36,7 +36,8 @@ export function PlatformEnrollScreen(): ReactElement {
         setOtpauthUri(result.otpauth_uri);
       })
       .catch(() => {
-        if (!cancelled) setError("Could not start enrolment. Please sign in again.");
+        if (!cancelled)
+          setError("Could not start enrolment. Please sign in again.");
       });
     return () => {
       cancelled = true;
@@ -59,7 +60,9 @@ export function PlatformEnrollScreen(): ReactElement {
         });
       }
     } catch {
-      setError("That code did not match. Check the device clock and try again.");
+      setError(
+        "That code did not match. Check the device clock and try again.",
+      );
     } finally {
       setBusy(false);
     }

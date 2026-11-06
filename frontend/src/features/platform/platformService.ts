@@ -53,7 +53,9 @@ export const platformService = {
     });
   },
 
-  provisionTenant(payload: ProvisionTenantPayload): Promise<ProvisionTenantResult> {
+  provisionTenant(
+    payload: ProvisionTenantPayload,
+  ): Promise<ProvisionTenantResult> {
     return apiRequest<ProvisionTenantResult>("/platform/tenants", {
       method: "POST",
       session: "platform",
@@ -86,11 +88,14 @@ export const platformService = {
   },
 
   retryProvisioning(id: string): Promise<TenantDetail> {
-    return apiRequest<TenantDetail>(`/platform/tenants/${id}/retry-provisioning`, {
-      method: "POST",
-      session: "platform",
-      body: {},
-    });
+    return apiRequest<TenantDetail>(
+      `/platform/tenants/${id}/retry-provisioning`,
+      {
+        method: "POST",
+        session: "platform",
+        body: {},
+      },
+    );
   },
 
   resendActivation(id: string): Promise<{ detail?: string }> {

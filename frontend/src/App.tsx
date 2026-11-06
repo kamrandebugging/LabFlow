@@ -614,7 +614,10 @@ function App(): JSX.Element {
         <Route path="/settlements/:id" element={<SettlementDetailWrapper />} />
 
         {/* Platform Master Dashboard — Phase 1 (Command & Tenants) */}
-        <Route path="/platform" element={<Navigate to="/platform/overview" replace />} />
+        <Route
+          path="/platform"
+          element={<Navigate to="/platform/overview" replace />}
+        />
         <Route path="/platform/login" element={<PlatformLoginScreen />} />
         <Route path="/platform/login/2fa" element={<PlatformTotpScreen />} />
         <Route

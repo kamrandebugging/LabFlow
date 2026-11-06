@@ -31,7 +31,9 @@ export function ProvisionScreen(): ReactElement {
   const provision = useMutation({
     mutationFn: () => platformService.provisionTenant(form),
     onSuccess: async (result) => {
-      await queryClient.invalidateQueries({ queryKey: ["platform", "tenants"] });
+      await queryClient.invalidateQueries({
+        queryKey: ["platform", "tenants"],
+      });
       // 202: the tenant exists in provisioning; the detail screen polls it.
       navigate(`/platform/tenants/${result.id}`, { replace: true });
     },
@@ -57,9 +59,9 @@ export function ProvisionScreen(): ReactElement {
           Provision a new lab
         </h1>
         <p className="text-sm text-slate-600">
-          Creates the tenant record, primary domain and subscription, then queues
-          the provisioning pipeline. The lab stays in provisioning until every
-          step completes.
+          Creates the tenant record, primary domain and subscription, then
+          queues the provisioning pipeline. The lab stays in provisioning until
+          every step completes.
         </p>
       </header>
 
@@ -83,7 +85,10 @@ export function ProvisionScreen(): ReactElement {
           />
         </Field>
 
-        <Field label="Slug" hint="Becomes <slug>.<platform-domain> and schema tenant_<slug>.">
+        <Field
+          label="Slug"
+          hint="Becomes <slug>.<platform-domain> and schema tenant_<slug>."
+        >
           <input
             required
             value={form.slug}
@@ -103,7 +108,9 @@ export function ProvisionScreen(): ReactElement {
           {slugError ? (
             <p className="mt-1 text-[11px] text-red-700">{slugError}</p>
           ) : form.slug ? (
-            <p className="mt-1 text-[11px] text-emerald-700">Slug looks valid.</p>
+            <p className="mt-1 text-[11px] text-emerald-700">
+              Slug looks valid.
+            </p>
           ) : null}
         </Field>
 
@@ -112,7 +119,10 @@ export function ProvisionScreen(): ReactElement {
             required
             value={form.plan_id}
             onChange={(event) =>
-              setForm((previous) => ({ ...previous, plan_id: event.target.value }))
+              setForm((previous) => ({
+                ...previous,
+                plan_id: event.target.value,
+              }))
             }
             className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[#0E6B3A] focus:outline-none focus:ring-1 focus:ring-[#0E6B3A]"
           >
@@ -209,7 +219,9 @@ function Field({
         {label}
       </span>
       {children}
-      {hint ? <span className="mt-1 block text-[11px] text-slate-500">{hint}</span> : null}
+      {hint ? (
+        <span className="mt-1 block text-[11px] text-slate-500">{hint}</span>
+      ) : null}
     </label>
   );
 }

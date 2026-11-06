@@ -93,9 +93,9 @@ export const platformAuthService = {
 
   /** Confirm enrolment with a live code; returns single-use backup codes. */
   confirmEnrollment(code: string): Promise<string[]> {
-    return post<{ backup_codes: string[] }>("/totp/enroll/confirm", { code }).then(
-      (result) => result.backup_codes,
-    );
+    return post<{ backup_codes: string[] }>("/totp/enroll/confirm", {
+      code,
+    }).then((result) => result.backup_codes);
   },
 
   /** Cookie-based refresh. Returns a new session, or throws when expired. */

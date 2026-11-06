@@ -212,6 +212,7 @@ export function slugProblem(slug: string): string | null {
   if (!SLUG_PATTERN.test(slug)) {
     return "3–30 lowercase letters or digits, starting with a letter, no hyphens.";
   }
-  if (RESERVED_SLUGS.includes(slug)) return "This slug is reserved by the platform.";
+  if (RESERVED_SLUGS.includes(slug))
+    return "This slug is reserved by the platform.";
   return null;
 }
