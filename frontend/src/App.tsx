@@ -58,6 +58,17 @@ import {
   SettlementDetailScreen,
 } from "./features/partners";
 import { ScreenCatalogViewer } from "./features/screens/ScreenCatalogViewer";
+import {
+  LabDetailScreen,
+  LabsListScreen,
+  OverviewScreen,
+  PlatformEnrollScreen,
+  PlatformGuard,
+  PlatformLayout,
+  PlatformLoginScreen,
+  PlatformTotpScreen,
+  ProvisionScreen,
+} from "./features/platform";
 import Hero from "./marketing/Hero";
 import TrustStrip from "./marketing/TrustStrip";
 import Problem from "./marketing/Problem";
@@ -496,6 +507,18 @@ function SettlementDetailWrapper(): JSX.Element {
   );
 }
 
+/**
+ * Platform (Super Admin) shell: guard + sidebar around a Phase 1 screen.
+ * Host separation is enforced by Caddy; this is the client-side UX guard.
+ */
+function PlatformShell({ children }: { children: JSX.Element }): JSX.Element {
+  return (
+    <PlatformGuard>
+      <PlatformLayout>{children}</PlatformLayout>
+    </PlatformGuard>
+  );
+}
+
 function App(): JSX.Element {
   useEffect(() => {
     // Attempt silent session restore via httpOnly refresh cookie on application mount
@@ -589,6 +612,54 @@ function App(): JSX.Element {
         {/* Settlements Suite (Screens 41–42) */}
         <Route path="/settlements" element={<SettlementsWrapper />} />
         <Route path="/settlements/:id" element={<SettlementDetailWrapper />} />
+
+        {/* Platform Master Dashboard — Phase 1 (Command & Tenants) */}
+        <Route
+          path="/platform"
+          element={<Navigate to="/platform/overview" replace />}
+        />
+        <Route path="/platform/login" element={<PlatformLoginScreen />} />
+        <Route path="/platform/login/2fa" element={<PlatformTotpScreen />} />
+        <Route
+          path="/platform/enroll"
+          element={
+            <PlatformGuard>
+              <PlatformEnrollScreen />
+            </PlatformGuard>
+          }
+        />
+        <Route
+          path="/platform/overview"
+          element={
+            <PlatformShell>
+              <OverviewScreen />
+            </PlatformShell>
+          }
+        />
+        <Route
+          path="/platform/tenants"
+          element={
+            <PlatformShell>
+              <LabsListScreen />
+            </PlatformShell>
+          }
+        />
+        <Route
+          path="/platform/tenants/new"
+          element={
+            <PlatformShell>
+              <ProvisionScreen />
+            </PlatformShell>
+          }
+        />
+        <Route
+          path="/platform/tenants/:id"
+          element={
+            <PlatformShell>
+              <LabDetailScreen />
+            </PlatformShell>
+          }
+        />
 
         <Route path="/screens" element={<ScreenCatalogViewer />} />
         <Route path="/screens/:screenId" element={<ScreenCatalogViewer />} />

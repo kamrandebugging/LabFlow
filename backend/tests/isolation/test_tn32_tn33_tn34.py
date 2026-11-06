@@ -213,6 +213,18 @@ class TestTN33ContextResetAndCache:
 # pre-existing call sites are allow-listed with written reasons, reviewed
 # like a schema change. New raw imports fail test_raw_cache_import_banned...
 RAW_CACHE_ALLOWLIST: dict[str, str] = {
+    "apps/platform/auth_service.py": (
+        "Apex-only platform auth state (login/TOTP challenges, denylist) — "
+        "never keyed per tenant schema, so no tenant can collide on these keys."
+    ),
+    "apps/platform/platform_session_registry.py": (
+        "Apex-only platform operator sessions keyed by user id; the platform "
+        "surface has no tenant schema context to segment on."
+    ),
+    "apps/platform/views_metrics.py": (
+        "The 60s overview cache is a single apex-wide snapshot aggregated from "
+        "the public schema only."
+    ),
     "apps/platform/access.py": (
         "Access-mode keys are tenant-segmented by construction "
         "(tenant:<slug>:access-mode, 60s TTL). Migration to a "

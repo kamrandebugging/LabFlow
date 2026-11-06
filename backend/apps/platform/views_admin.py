@@ -3,9 +3,13 @@
 Doc 04 §12 (platform admin surface), §15.1 (endpoint spec).
 """
 
+import re
 import uuid
+from decimal import Decimal
 from typing import Any
 
+from django.apps import apps as django_apps
+from django.conf import settings
 from django.db import connection, transaction
 from django.utils import timezone
 from rest_framework.request import Request
@@ -13,6 +17,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.core.models import Domain, PlatformAudit, PlatformUser, Subscription, Tenant
+from apps.platform.provisioning import get_provisioning_state
 from apps.platform.serializers import (
     PlatformAuditFilterSerializer,
     TenantOffboardCompleteSerializer,
@@ -110,41 +115,126 @@ def _tenant_list_item(tenant: Tenant) -> dict[str, Any]:
     }
 
 
-def _tenant_detail(tenant: Tenant) -> dict[str, Any]:
-    """Registry detail — adds domains, subscription, provisioning info.
+def _migration_state(tenant: Tenant) -> dict[str, Any]:
+    """Tenant schema migration state (Doc 04 §15.1, §12.2).
 
-    Per Doc 04 §12.2: schema size and migration state from PostgreSQL
-    catalogues (platform machinery). NO tenant row content, NO row counts.
+    Reads the tenant schema's own ``django_migrations`` bookkeeping table —
+    platform machinery, never tenant business rows — and compares it with the
+    migrations that exist on disk for the tenant apps.
+    """
+    state: dict[str, Any] = {
+        "schema_exists": False,
+        "applied_migrations": 0,
+        "pending_migrations": 0,
+        "in_sync": True,
+        "latest_applied": None,
+    }
+    schema = tenant.schema_name
+    if not re.fullmatch(r"tenant_[a-z0-9_]+", schema):
+        return state
+
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT 1 FROM information_schema.schemata WHERE schema_name = %s",
+                [schema],
+            )
+            if cursor.fetchone() is None:
+                return state
+            state["schema_exists"] = True
+            cursor.execute(
+                f'SELECT app, name, applied FROM "{schema}".django_migrations '
+                "ORDER BY applied DESC"
+            )
+            rows = cursor.fetchall()
+    except Exception:
+        return state
+
+    applied = {(str(row[0]), str(row[1])) for row in rows}
+    state["applied_migrations"] = len(applied)
+    if rows:
+        state["latest_applied"] = {
+            "app": str(rows[0][0]),
+            "name": str(rows[0][1]),
+            "applied_at": rows[0][2].isoformat() if rows[0][2] else None,
+        }
+
+    tenant_app_names = {app.split(".")[-1] for app in settings.TENANT_APPS}
+    on_disk: set[tuple[str, str]] = set()
+    for config in django_apps.get_app_configs():
+        if config.label not in tenant_app_names:
+            continue
+        migrations_dir = config.path + "/migrations"
+        try:
+            import os
+
+            for filename in os.listdir(migrations_dir):
+                if re.fullmatch(r"\d{4}_[a-z0-9_]+\.py", filename):
+                    on_disk.add((config.label, filename[:-3]))
+        except OSError:
+            continue
+
+    pending = on_disk - applied
+    state["pending_migrations"] = len(pending)
+    state["in_sync"] = not pending
+    return state
+
+
+def _tenant_detail(tenant: Tenant) -> dict[str, Any]:
+    """Registry detail — domains, subscription/plan, provisioning, schema state.
+
+    Per Doc 04 §12.2: schema size and migration state come from PostgreSQL
+    catalogues and the tenant's migration bookkeeping only. NO tenant row
+    content, NO per-tenant business counts. ``branches_used`` is read from the
+    denormalized public-schema counter (TP-4), never from the tenant schema.
     """
     domains = list(Domain.objects.filter(tenant=tenant).values("domain", "is_primary"))
+
     subscription = (
-        Subscription.objects.filter(tenant_id=tenant.id, ends_at__isnull=True)
+        Subscription.objects.filter(
+            tenant_id=tenant.id, status=Subscription.Status.ACTIVE
+        )
+        .select_related("plan")
         .order_by("-created_at")
         .first()
     )
+    if subscription is None:
+        subscription = (
+            Subscription.objects.filter(tenant_id=tenant.id)
+            .select_related("plan")
+            .order_by("-created_at")
+            .first()
+        )
+
     sub_data: dict[str, Any] | None = None
+    plan_data: dict[str, Any] | None = None
+    branches_limit: int | None = None
     if subscription is not None:
         sub_data = {
             "id": str(subscription.id),
             "plan_id": str(subscription.plan_id),
             "status": subscription.status,
-            "started_at": subscription.created_at.isoformat()
-            if subscription.created_at
+            "started_at": subscription.starts_at.isoformat()
+            if subscription.starts_at
             else None,
+            "ends_at": subscription.ends_at.isoformat()
+            if subscription.ends_at
+            else None,
+        }
+        plan = subscription.plan
+        branches_limit = plan.max_branches
+        plan_data = {
+            "id": str(plan.id),
+            "name": plan.name,
+            "price": str(Decimal(plan.price).quantize(Decimal("0.01"))),
+            "max_branches": plan.max_branches,
+            "is_active": plan.is_active,
         }
 
     # Schema size from PostgreSQL catalogues (platform machinery, §12.2)
     schema_size_bytes: int | None = None
     try:
         with connection.cursor() as cursor:
-            cursor.execute(
-                "SELECT pg_total_relation_size(c.oid) FROM pg_class c "
-                "JOIN pg_namespace n ON n.oid = c.relnamespace "
-                "WHERE n.nspname = %s",
-                [tenant.schema_name],
-            )
-            row = cursor.fetchone()
-            # Sum across relations in the schema
             cursor.execute(
                 "SELECT COALESCE(SUM(pg_total_relation_size(c.oid)), 0) "
                 "FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace "
@@ -157,27 +247,24 @@ def _tenant_detail(tenant: Tenant) -> dict[str, Any]:
     except Exception:
         schema_size_bytes = None
 
-    # Latest provisioning audit for step/failure detail
+    prov_state = get_provisioning_state(tenant)
     prov_audit = (
-        PlatformAudit.objects.filter(
-            entity_type="tenant",
-            entity_id=tenant.id,
-            action__in=[
-                "tenant.created",
-                "tenant.provisioning_retried",
-                "tenant.provisioning_failed",
-            ],
-        )
+        PlatformAudit.objects.filter(entity_type="tenant", entity_id=tenant.id)
+        .filter(action__startswith="tenant.")
         .order_by("-at")
         .first()
     )
-    provisioning: dict[str, Any] | None = None
-    if prov_audit is not None:
-        provisioning = {
-            "last_action": prov_audit.action,
-            "at": prov_audit.at.isoformat() if prov_audit.at else None,
-            "detail": prov_audit.after_jsonb,
-        }
+    provisioning: dict[str, Any] = {
+        "current_step": prov_state.current_step,
+        "completed_steps": prov_state.completed_steps,
+        "failed_step": prov_state.failed_step,
+        "error": prov_state.error,
+        "owner_email": prov_state.owner_email,
+        "last_action": prov_audit.action if prov_audit else None,
+        "last_action_at": prov_audit.at.isoformat()
+        if prov_audit and prov_audit.at
+        else None,
+    }
 
     return {
         **_tenant_list_item(tenant),
@@ -186,7 +273,11 @@ def _tenant_detail(tenant: Tenant) -> dict[str, Any]:
             {"domain": d["domain"], "is_primary": d["is_primary"]} for d in domains
         ],
         "subscription": sub_data,
+        "plan": plan_data,
+        "branches_used": tenant.branch_count,
+        "branches_limit": branches_limit,
         "schema_size_bytes": schema_size_bytes,
+        "migration_state": _migration_state(tenant),
         "provisioning": provisioning,
     }
 
@@ -696,6 +787,18 @@ class PlatformAuditListView(APIView):
             qs = qs.filter(action=f["action"])
         if f.get("entity_type"):
             qs = qs.filter(entity_type=f["entity_type"])
+        # Detail screens read one entity's trail, e.g. a tenant's history.
+        entity_id = request.query_params.get("entity_id")
+        if entity_id:
+            try:
+                qs = qs.filter(entity_id=uuid.UUID(str(entity_id)))
+            except ValueError:
+                return problem_response(
+                    code="validation_error",
+                    title="Validation error",
+                    detail="entity_id must be a UUID.",
+                    status_code=422,
+                )
         if f.get("date_from"):
             qs = qs.filter(at__gte=f["date_from"])
         if f.get("date_to"):

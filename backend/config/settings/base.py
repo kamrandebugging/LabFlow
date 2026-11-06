@@ -172,6 +172,12 @@ LABFLOW_TOTP_ENCRYPTION_KEY = env(
     default="sb_wYl5m_YtxnHje0H4_ZEZ35_8mNfguSqqV897s_ts=",
 )
 
+# Master dashboard Phase 1: founding-offer inventory (Doc 01 ADR-010).
+# The overview endpoint reports used/total from real subscriptions plus these
+# settings — the platform never hard-codes an offer size in code or UI.
+PLATFORM_FOUNDING_SLOTS_TOTAL = env.int("PLATFORM_FOUNDING_SLOTS_TOTAL", default=0)
+PLATFORM_FOUNDING_PLAN_NAME = env("PLATFORM_FOUNDING_PLAN_NAME", default="Founding")
+
 SPECTACULAR_SETTINGS = {
     "TITLE": "LabFlow Platform API",
     "DESCRIPTION": "Diagnostic Laboratory Multi-Tenant SaaS Platform API",

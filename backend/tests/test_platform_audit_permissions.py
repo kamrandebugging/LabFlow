@@ -50,21 +50,21 @@ def test_sql_generation_uses_configured_database_role() -> None:
 
 @pytest.mark.django_db
 def test_platform_audit_migration_is_reversible() -> None:
-    """Migration 0004 applies forwards and reverses cleanly via MigrationExecutor."""
+    """Latest core migration applies forwards and reverses cleanly."""
     executor = MigrationExecutor(connection)
     app_config = apps.get_app_config("core")
     assert app_config is not None
 
-    # Migrate forward to 0004
-    executor.migrate([("core", "0004_platform_audit_append_only")])
+    # Migrate forward to the head
+    executor.migrate([("core", "0005_master_dashboard_phase1")])
     current_migration = executor.loader.get_migration(
-        "core", "0004_platform_audit_append_only"
+        "core", "0005_master_dashboard_phase1"
     )
     assert current_migration is not None
 
-    # Rollback to 0003
-    executor.migrate([("core", "0003_platform_user_audit")])
+    # Rollback to the previous head
+    executor.migrate([("core", "0004_platform_audit_append_only")])
     executor.loader.build_graph()
 
-    # Re-apply forward to 0004 to leave schema in target state
-    executor.migrate([("core", "0004_platform_audit_append_only")])
+    # Re-apply forward to leave the schema in target state
+    executor.migrate([("core", "0005_master_dashboard_phase1")])

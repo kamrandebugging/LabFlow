@@ -18,22 +18,10 @@ from tests.factories.core import (
 
 
 def _platform_auth_headers(user: Any) -> dict[str, str]:
-    """Build Bearer <redacted> for a PlatformUser (mirrors test conventions)."""
-    import jwt
-    from django.conf import settings
+    """Build a valid platform access token (sub / role / jti / iat / exp / typ)."""
+    from apps.platform.platform_jwt import platform_mint_access_token
 
-    signing_key = getattr(
-        settings, "JWT_SIGNING_KEY", getattr(settings, "SECRET_KEY", "test-secret")
-    )
-    token = jwt.encode(
-        {
-            "sub": str(user.id),
-            "role": "super_admin",
-            "typ": "access",
-        },
-        str(signing_key),
-        algorithm="HS256",
-    )
+    token, _jti, _exp = platform_mint_access_token(user.id, "super_admin")
     return {"HTTP_AUTHORIZATION": f"Bearer {token}"}
 
 

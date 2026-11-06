@@ -1,5 +1,5 @@
 # ==============================================================================
-# LabFlow — Docker Compose Skeleton (Phase 0, Doc 01 §15)
+# LabFlow — Docker Compose (Doc 01 §15)
 # ==============================================================================
 # Architectural Rules & Standards (Doc 01 §15, Doc 08 §6):
 #
@@ -48,6 +48,36 @@ volumes:
     name: caddy_data
   caddy_config:
     name: caddy_config
+
+x-backend-common: &backend-common
+  image: labflow-backend:local
+  build:
+    context: ./backend
+    dockerfile: Dockerfile
+  restart: unless-stopped
+  networks:
+    - internal
+  depends_on:
+    postgres:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+  environment:
+    # Settings: public (shared) schema only for the platform surface.
+    DJANGO_SETTINGS_MODULE: config.settings.base
+    DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?error: DJANGO_SECRET_KEY is required — copy .env.example to .env and set it}
+    DJANGO_DEBUG: "False"
+    DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-.localhost,127.0.0.1,localhost}
+    DATABASE_URL: postgresql://${POSTGRES_USER:-labflow_app}:${POSTGRES_PASSWORD:?error: POSTGRES_PASSWORD is required — copy .env.example to .env and set it}@postgres:5432/${POSTGRES_DB:-labflow}
+    REDIS_URL: redis://redis:6379/0
+    CELERY_BROKER_URL: redis://redis:6379/0
+    LABFLOW_TOTP_ENCRYPTION_KEY: ${LABFLOW_TOTP_ENCRYPTION_KEY:?error: LABFLOW_TOTP_ENCRYPTION_KEY is required — copy .env.example to .env and set it}
+    PLATFORM_BASE_DOMAIN: ${PLATFORM_BASE_DOMAIN:-localhost}
+    PLATFORM_FOUNDING_SLOTS_TOTAL: ${PLATFORM_FOUNDING_SLOTS_TOTAL:-0}
+    PLATFORM_FOUNDING_PLAN_NAME: ${PLATFORM_FOUNDING_PLAN_NAME:-Founding}
+    R2_BUCKET_NAME: ${R2_BUCKET_NAME:-labflow}
+    R2_ACCESS_KEY_ID: ${R2_ACCESS_KEY_ID:-minioadmin}
+    R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY:-minioadmin123}
 
 services:
   postgres:
@@ -132,6 +162,61 @@ services:
         exit 0
       - /bin/sh
 
+  backend:
+    <<: *backend-common
+    container_name: labflow-backend
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.base
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?error: DJANGO_SECRET_KEY is required — copy .env.example to .env and set it}
+      DJANGO_DEBUG: "False"
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-.localhost,127.0.0.1,localhost}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-labflow_app}:${POSTGRES_PASSWORD:?error: POSTGRES_PASSWORD is required — copy .env.example to .env and set it}@postgres:5432/${POSTGRES_DB:-labflow}
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/0
+      LABFLOW_TOTP_ENCRYPTION_KEY: ${LABFLOW_TOTP_ENCRYPTION_KEY:?error: LABFLOW_TOTP_ENCRYPTION_KEY is required — copy .env.example to .env and set it}
+      PLATFORM_BASE_DOMAIN: ${PLATFORM_BASE_DOMAIN:-localhost}
+      PLATFORM_FOUNDING_SLOTS_TOTAL: ${PLATFORM_FOUNDING_SLOTS_TOTAL:-0}
+      PLATFORM_FOUNDING_PLAN_NAME: ${PLATFORM_FOUNDING_PLAN_NAME:-Founding}
+      R2_BUCKET_NAME: ${R2_BUCKET_NAME:-labflow}
+      R2_ACCESS_KEY_ID: ${R2_ACCESS_KEY_ID:-minioadmin}
+      R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY:-minioadmin123}
+      RUN_MIGRATIONS: "1"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=3)",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  # Celery worker: provisioning (P-3..P-9), reports, notifications, exports.
+  worker:
+    <<: *backend-common
+    container_name: labflow-worker
+    command:
+      - celery
+      - -A
+      - config
+      - worker
+      - --loglevel=info
+      - --concurrency=4
+
+  # Celery beat: the schedule in config/settings/base.py CELERY_BEAT_SCHEDULE.
+  beat:
+    <<: *backend-common
+    container_name: labflow-beat
+    command:
+      - celery
+      - -A
+      - config
+      - beat
+      - --loglevel=info
+
   n8n:
     image: docker.n8n.io/n8nio/n8n:1.70.0
     container_name: labflow-n8n
@@ -170,17 +255,19 @@ services:
       - PLATFORM_BASE_DOMAIN=${PLATFORM_BASE_DOMAIN:-localhost}
     volumes:
       - ./infra/Caddyfile:/etc/caddy/Caddyfile:ro
+      # Built single-page app; `cd frontend && npm run build` before `up`.
+      - ./frontend/dist:/srv/spa:ro
       - caddy_data:/data
       - caddy_config:/config
+    depends_on:
+      backend:
+        condition: service_started
     networks:
-      edge:
-      internal:
-        aliases:
-          - backend
+      - edge
+      - internal
     healthcheck:
       test: ["CMD", "caddy", "validate", "--config", "/etc/caddy/Caddyfile"]
       interval: 10s
       timeout: 5s
       retries: 3
       start_period: 5s
-

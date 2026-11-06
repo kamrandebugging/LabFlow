@@ -16,6 +16,7 @@ from apps.core.models import (
     Subscription,
     Tenant,
 )
+from apps.platform.platform_jwt import platform_mint_access_token
 from apps.platform.provisioning import RESERVED_SLUGS, validate_slug
 from tests.factories import PlanFactory, PlatformUserFactory, StaffUserFactory
 
@@ -61,20 +62,9 @@ EXPECTED_RESERVED_SLUGS = {
 
 
 def _platform_jwt(user: Any) -> str:
-    signing_key = getattr(
-        settings, "JWT_SIGNING_KEY", getattr(settings, "SECRET_KEY", "test-secret")
-    )
-    return str(
-        jwt.encode(
-            {
-                "sub": str(user.id),
-                "role": "super_admin",
-                "typ": "access",
-            },
-            str(signing_key),
-            algorithm="HS256",
-        )
-    )
+    """Mint a real platform access token (jti/iat/exp are mandatory claims)."""
+    token, _jti, _exp = platform_mint_access_token(user.id, "super_admin")
+    return token
 
 
 def _tenant_staff_jwt(staff_id: uuid.UUID | Any, tenant_slug: str = "tenant_a") -> str:

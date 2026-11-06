@@ -1,8 +1,11 @@
+import base64
+import binascii
 import uuid
+from datetime import datetime
 from typing import Any
 
-import jwt
-from django.conf import settings
+from django.db.models import Q
+from django.utils.dateparse import parse_datetime
 from rest_framework.authentication import BaseAuthentication
 from rest_framework.permissions import BasePermission
 from rest_framework.request import Request
@@ -10,6 +13,11 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.core.models import PlatformUser
+from apps.platform.auth_service import (
+    is_access_token_revoked,
+    token_is_stale_for_user,
+)
+from apps.platform.platform_jwt import platform_decode_jwt
 from apps.platform.provisioning import (
     ProvisioningError,
     ProvisionTenantInput,
@@ -45,28 +53,26 @@ def problem_response(
 
 
 def _authenticate_jwt_header(auth_header: str) -> PlatformUser | None:
-    """Resolve PlatformUser from Bearer JWT header."""
+    """Resolve a PlatformUser from a Bearer platform access token.
+
+    Rejects, in order: non-access token types (a refresh token presented as an
+    access token fails on ``typ`` alone), tenant-scoped tokens (they carry a
+    ``tenant`` claim that platform tokens never do), denylisted/revoked jtis,
+    tokens issued before the user's revocation marker, and inactive accounts.
+    """
     if not isinstance(auth_header, str) or not auth_header.startswith("Bearer "):
         return None
     token = auth_header[7:].strip()
-    signing_key = getattr(
-        settings,
-        "JWT_SIGNING_KEY",
-        getattr(settings, "SECRET_KEY", "test-secret"),
-    )
     try:
-        decoded = jwt.decode(token, str(signing_key), algorithms=["HS256"])
-    except jwt.PyJWTError:
+        decoded = platform_decode_jwt(token, expected_type="access")
+    except ValueError:
         return None
 
-    if decoded.get("typ", "access") != "access":
+    jti = decoded.get("jti")
+    if not jti:
         return None
-
-    # Reject tenant tokens
-    if decoded.get("tenant") is not None:
-        return None
-    role = decoded.get("role")
-    if role not in (None, "super_admin", "platform_admin", "platform"):
+    sid = decoded.get("sid")
+    if is_access_token_revoked(str(jti), str(sid) if sid else None):
         return None
 
     sub = decoded.get("sub") or decoded.get("user_id")
@@ -77,7 +83,34 @@ def _authenticate_jwt_header(auth_header: str) -> PlatformUser | None:
     except ValueError:
         return None
 
+    if token_is_stale_for_user(user_uuid, int(decoded.get("iat", 0) or 0)):
+        return None
+
+    role = decoded.get("role")
+    if role not in (None, "super_admin", "platform_admin", "platform"):
+        return None
+
     return PlatformUser.objects.filter(id=user_uuid, is_active=True).first()
+
+
+def _encode_cursor(created_at: datetime, tenant_id: uuid.UUID) -> str:
+    """Opaque keyset cursor for the tenant registry (created_at DESC, id DESC)."""
+    raw = f"{created_at.isoformat()}|{tenant_id}"
+    return base64.urlsafe_b64encode(raw.encode()).decode().rstrip("=")
+
+
+def _decode_cursor(cursor: str) -> tuple[datetime, uuid.UUID] | None:
+    """Decode a cursor, returning None for anything malformed."""
+    try:
+        padded = cursor + "=" * (-len(cursor) % 4)
+        raw = base64.urlsafe_b64decode(padded.encode()).decode()
+        stamp, _, identifier = raw.partition("|")
+        parsed = parse_datetime(stamp)
+        if parsed is None:
+            return None
+        return parsed, uuid.UUID(identifier)
+    except (ValueError, binascii.Error, UnicodeDecodeError):
+        return None
 
 
 class PlatformJWTAuthentication(BaseAuthentication):
@@ -134,7 +167,9 @@ class PlatformTenantCreateView(APIView):
     def get(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         """GET /api/v1/platform/tenants — registry list (Doc 04 §15.1, LAB-37).
 
-        Filters: status. Read-only. Metadata only — no tenant row content.
+        Filters: ``status``, ``q`` (slug/name substring), ``limit`` (1–100,
+        default 50) and the opaque ``cursor`` returned by the previous page.
+        Read-only and metadata-only — no tenant row content ever leaves here.
         """
         from apps.core.models import Tenant as _Tenant
 
@@ -148,7 +183,21 @@ class PlatformTenantCreateView(APIView):
             )
 
         status_filter = request.query_params.get("status")
-        qs = _Tenant.objects.all().order_by("-created_at")
+        query = (request.query_params.get("q") or "").strip()
+        raw_limit = request.query_params.get("limit") or "50"
+        try:
+            limit = max(1, min(int(raw_limit), 100))
+        except (TypeError, ValueError):
+            return problem_response(
+                code="validation_error",
+                title="Invalid limit",
+                detail="limit must be an integer between 1 and 100.",
+                status_code=422,
+            )
+
+        qs = _Tenant.objects.exclude(schema_name="public").order_by(
+            "-created_at", "-id"
+        )
         if status_filter:
             valid = {c.value for c in _Tenant.Status}
             if status_filter not in valid:
@@ -160,8 +209,34 @@ class PlatformTenantCreateView(APIView):
                 )
             qs = qs.filter(status=status_filter)
 
-        # Bounded page size — platform tenants are few, but never unbounded
-        tenants = list(qs[:100])
+        if query:
+            qs = qs.filter(Q(slug__icontains=query) | Q(name__icontains=query))
+
+        raw_cursor = request.query_params.get("cursor")
+        if raw_cursor:
+            decoded = _decode_cursor(raw_cursor)
+            if decoded is None:
+                return problem_response(
+                    code="validation_error",
+                    title="Invalid cursor",
+                    detail="The pagination cursor is malformed or expired.",
+                    status_code=422,
+                )
+            cursor_created_at, cursor_id = decoded
+            qs = qs.filter(
+                Q(created_at__lt=cursor_created_at)
+                | Q(created_at=cursor_created_at, id__lt=cursor_id)
+            )
+
+        rows = list(qs[: limit + 1])
+        has_more = len(rows) > limit
+        page = rows[:limit]
+        next_cursor = (
+            _encode_cursor(page[-1].created_at, page[-1].id)
+            if has_more and page
+            else None
+        )
+
         return Response(
             {
                 "tenants": [
@@ -173,8 +248,9 @@ class PlatformTenantCreateView(APIView):
                         "created_at": t.created_at.isoformat(),
                         "updated_at": t.updated_at.isoformat(),
                     }
-                    for t in tenants
-                ]
+                    for t in page
+                ],
+                "next_cursor": next_cursor,
             },
             status=200,
         )

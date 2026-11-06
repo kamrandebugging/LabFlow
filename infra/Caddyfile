@@ -6,6 +6,8 @@
 	}
 }
 
+# Internal probe surface for the on-demand TLS `ask` endpoint. Never published:
+# only reachable from inside the Compose network.
 http://backend:8000 {
 	respond /internal/tls-check 200
 }
@@ -20,8 +22,36 @@ http://backend:8000 {
 		respond 404
 	}
 
-	# Placeholder gateway response until backend & frontend are mounted
+	# Control plane: Django (apex admin API, tenant APIs, django admin, assets)
+	handle /api/* {
+		reverse_proxy backend:8000
+	}
+
+	handle /admin/* {
+		reverse_proxy backend:8000
+	}
+
+	handle /static/* {
+		reverse_proxy backend:8000
+	}
+
+	handle /media/* {
+		reverse_proxy backend:8000
+	}
+
+	handle /healthz {
+		reverse_proxy backend:8000
+	}
+
+	handle /readyz {
+		reverse_proxy backend:8000
+	}
+
+	# Everything else is the single-page application. The SPA owns client-side
+	# routing, so unknown paths fall back to index.html (Doc 07 §5).
 	handle {
-		respond "LabFlow Edge Gateway Ready" 200
+		root * /srv/spa
+		try_files {path} /index.html
+		file_server
 	}
 }
