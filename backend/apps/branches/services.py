@@ -37,7 +37,7 @@ from django.utils import timezone
 
 from apps.accounts.models import AuditLog, Role, StaffUser
 from apps.branches.models import Branch
-from apps.core.models import Subscription
+from apps.core.models import Subscription, Tenant
 from apps.patients.models import Patient
 from apps.samples.models import Sample, SampleTransfer
 
@@ -123,6 +123,42 @@ def _advisory_lock_key(tenant_id: Any) -> int:
     return int.from_bytes(digest[:8], "big") % (2**63)
 
 
+def _adjust_tenant_branch_count(delta: int) -> None:
+    """Mirror the active-branch counter onto ``public.tenant.branch_count``.
+
+    Seam for the platform surface (Doc 04 TP-4): the master dashboard reads
+    this column and must never query a tenant schema's ``branch`` table. The
+    update runs inside the caller's transaction, so the branch row and the
+    counter commit (or roll back) together.
+
+    Raw SQL against the fully-qualified ``public.tenant`` table keeps the
+    target unambiguous regardless of the connection's current search_path.
+    """
+    tenant = getattr(connection, "tenant", None)
+    tenant_id = getattr(tenant, "id", None)
+    if tenant_id is None:
+        # Requests set ``connection.tenant`` via TenantMainMiddleware; inside a
+        # bare ``schema_context`` (tests, management commands) only the schema
+        # name is known, so resolve the tenant from it.
+        schema_name = getattr(connection, "schema_name", None)
+        if not schema_name or schema_name == "public":
+            return
+        tenant_id = (
+            Tenant.objects.filter(schema_name=schema_name)
+            .values_list("id", flat=True)
+            .first()
+        )
+    if tenant_id is None:
+        return
+    with connection.cursor() as cursor:
+        cursor.execute(
+            "UPDATE public.tenant "
+            "SET branch_count = GREATEST(branch_count + %s, 0) "
+            "WHERE id = %s",
+            [delta, tenant_id],
+        )
+
+
 class BranchService:
     """Branch CRUD + close/reopen (Doc 04 §8.2, §8.3, §11.3)."""
 
@@ -158,11 +194,22 @@ class BranchService:
         branch creation).
         """
         tenant = getattr(connection, "tenant", None)
-        if tenant is None:
-            return None
+        tenant_id = getattr(tenant, "id", None)
+        if tenant_id is None:
+            schema_name = getattr(connection, "schema_name", None)
+            if not schema_name or schema_name == "public":
+                return None
+            tenant_id = (
+                Tenant.objects.filter(schema_name=schema_name)
+                .values_list("id", flat=True)
+                .first()
+            )
+            if tenant_id is None:
+                return None
+
         subscription = (
             Subscription.objects.filter(
-                tenant=tenant, status=Subscription.Status.ACTIVE
+                tenant_id=tenant_id, status=Subscription.Status.ACTIVE
             )
             .select_related("plan")
             .first()
@@ -179,7 +226,9 @@ class BranchService:
         surrounding transaction commits/rolls back, PgBouncer-safe (F-5).
         """
         tenant = getattr(connection, "tenant", None)
-        tenant_id = getattr(tenant, "id", "public") or "public"
+        tenant_id = getattr(tenant, "id", None)
+        if tenant_id is None:
+            tenant_id = getattr(connection, "schema_name", "public") or "public"
         key = _advisory_lock_key(tenant_id)
         with connection.cursor() as cursor:
             cursor.execute("SELECT pg_advisory_xact_lock(%s)", [key])
@@ -230,6 +279,7 @@ class BranchService:
                 raise DuplicateBranchCodeError(
                     f"Branch code {code} is already in use."
                 ) from None
+            _adjust_tenant_branch_count(1)
             cls._audit(
                 actor,
                 "branch.created",
@@ -387,6 +437,7 @@ class BranchService:
             before = {"deleted_at": None}
             branch.deleted_at = timezone.now()
             branch.save(update_fields=["deleted_at", "updated_at"])
+            _adjust_tenant_branch_count(-1)
             after = {"deleted_at": branch.deleted_at.isoformat()}
             cls._audit(actor, "branch.closed", branch, before, after, ip, user_agent)
         return branch
@@ -412,6 +463,7 @@ class BranchService:
             before = {"deleted_at": branch.deleted_at.isoformat()}
             branch.deleted_at = None
             branch.save(update_fields=["deleted_at", "updated_at"])
+            _adjust_tenant_branch_count(1)
             after = {"deleted_at": None}
             cls._audit(actor, "branch.reopened", branch, before, after, ip, user_agent)
         return branch

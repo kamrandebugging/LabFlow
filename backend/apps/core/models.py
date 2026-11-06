@@ -51,6 +51,13 @@ class Tenant(TenantMixin):
         default=Status.PROVISIONING,
         help_text="Lifecycle state (application-enforced only)",
     )
+    branch_count = models.PositiveIntegerField(
+        default=0,
+        help_text=(
+            "Active (non-closed) branch counter mirrored from the tenant "
+            "schema by BranchService (Doc 04 TP-4)."
+        ),
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -299,7 +306,12 @@ class PlatformAudit(models.Model):
         help_text="Polymorphic target entity type, e.g. tenant, plan",
     )
     entity_id = models.UUIDField(
-        help_text="Polymorphic target entity UUID (no FK)",
+        null=True,
+        blank=True,
+        help_text=(
+            "Polymorphic target entity UUID (no FK); NULL when the subject "
+            "could not be resolved, e.g. a failed login for an unknown email"
+        ),
     )
     before_jsonb = models.JSONField(
         null=True,
@@ -340,6 +352,47 @@ class PlatformAudit(models.Model):
         return f"{self.action} on {self.entity_type}:{self.entity_id} at {self.at}"
 
 
+class PlatformPasswordResetToken(models.Model):
+    """Single-use password reset token for a PlatformUser (Doc 08 §4.5).
+
+    Only the argon2id hash of the 32-byte raw token is stored. Tokens live in
+    the public schema because platform operators are global, not tenant-scoped.
+    """
+
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        db_default=RandomUUID(),
+        editable=False,
+    )
+    platform_user = models.ForeignKey(
+        "core.PlatformUser",
+        on_delete=models.CASCADE,
+        related_name="password_reset_tokens",
+        db_column="platform_user_id",
+    )
+    token_hash = models.CharField(max_length=255, help_text="argon2 token hash")
+    expires_at = models.DateTimeField(help_text="Hard expiry timestamp")
+    used_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Consumption timestamp; NULL while still usable",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "platform_password_reset_token"
+        indexes = [
+            models.Index(
+                fields=["platform_user", "used_at"],
+                name="idx_platform_reset_user_used",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"Platform reset token for {self.platform_user_id}"
+
+
 # Re-export TenantSetting for core/tenancy namespace access
 from apps.accounts.models import TenantSetting  # noqa: E402
 
@@ -350,5 +403,6 @@ __all__ = [
     "Subscription",
     "PlatformUser",
     "PlatformAudit",
+    "PlatformPasswordResetToken",
     "TenantSetting",
 ]
