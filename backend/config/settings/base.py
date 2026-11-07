@@ -178,6 +178,12 @@ LABFLOW_TOTP_ENCRYPTION_KEY = env(
 PLATFORM_FOUNDING_SLOTS_TOTAL = env.int("PLATFORM_FOUNDING_SLOTS_TOTAL", default=0)
 PLATFORM_FOUNDING_PLAN_NAME = env("PLATFORM_FOUNDING_PLAN_NAME", default="Founding")
 
+# Platform base domain for on-demand TLS (Doc 04 §6.4): the TLS ask endpoint
+# approves this apex plus tenant subdomains under it. Read from the
+# environment — compose sets it to `localhost` locally. Without this line the
+# ask only ever approved the hard-coded labflow.app apex and localhost got 404.
+PLATFORM_BASE_DOMAIN = env("PLATFORM_BASE_DOMAIN", default="labflow.app")
+
 SPECTACULAR_SETTINGS = {
     "TITLE": "LabFlow Platform API",
     "DESCRIPTION": "Diagnostic Laboratory Multi-Tenant SaaS Platform API",
