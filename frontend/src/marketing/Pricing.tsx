@@ -7,6 +7,7 @@ interface Plan {
   annualPrice: string;
   tagline: string;
   popular?: boolean;
+  oneTime?: boolean;
   features: string[];
 }
 
@@ -50,6 +51,34 @@ const PLANS: Plan[] = [
       "Everything in Growth",
       "Free white-glove setup",
       "Direct founder support",
+    ],
+  },
+  {
+    title: "Lifetime (Single Branch)",
+    monthlyPrice: "PKR 71,999",
+    annualPrice: "PKR 71,999",
+    oneTime: true,
+    tagline: "Own it forever — one branch.",
+    features: [
+      "1 branch",
+      "5 staff logins (all roles)",
+      "One-time payment — no monthly bills",
+      "All Growth features, forever",
+      "15–20% yearly maintenance after year one",
+    ],
+  },
+  {
+    title: "Lifetime (Multi-Branch)",
+    monthlyPrice: "PKR 143,999",
+    annualPrice: "PKR 143,999",
+    oneTime: true,
+    tagline: "Own it forever — unlimited branches.",
+    features: [
+      "Unlimited branches",
+      "Unlimited staff logins",
+      "One-time payment — no monthly bills",
+      "All Growth features, forever",
+      "15–20% yearly maintenance after year one",
     ],
   },
 ];
@@ -144,14 +173,19 @@ export default function Pricing() {
           </div>
         </div>
 
-        {/* Three cards */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-stretch">
+        {/* Five cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 items-stretch">
           {PLANS.map((plan) => {
-            const price =
-              billingPeriod === "monthly"
+            const price = plan.oneTime
+              ? plan.monthlyPrice
+              : billingPeriod === "monthly"
                 ? plan.monthlyPrice
                 : plan.annualPrice;
-            const period = billingPeriod === "monthly" ? "/month" : "/year";
+            const period = plan.oneTime
+              ? "one-time"
+              : billingPeriod === "monthly"
+                ? "/month"
+                : "/year";
 
             return (
               <div
@@ -232,118 +266,6 @@ export default function Pricing() {
               </div>
             );
           })}
-        </div>
-
-        {/* Lifetime card */}
-        <div
-          className="mt-12 rounded-xl p-8 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-8"
-          style={{
-            border: "1px solid rgba(16,22,19,0.08)",
-            backgroundColor: "#FFFFFF",
-          }}
-        >
-          {/* Left: Title + Bullets */}
-          <div className="text-center lg:text-left">
-            <h3
-              className="font-semibold text-xl mb-4"
-              style={{ color: "#101613" }}
-            >
-              Prefer to own it forever?
-            </h3>
-            <ul role="list" className="space-y-2.5 inline-block text-left">
-              <li className="flex items-start gap-2.5">
-                <div className="flex-shrink-0 mt-0.5">
-                  <Check
-                    size={16}
-                    style={{ color: "#0E6B3A" }}
-                    aria-hidden="true"
-                  />
-                </div>
-                <span className="text-sm" style={{ color: "#5b6660" }}>
-                  One-time payment — no monthly bills
-                </span>
-              </li>
-              <li className="flex items-start gap-2.5">
-                <div className="flex-shrink-0 mt-0.5">
-                  <Check
-                    size={16}
-                    style={{ color: "#0E6B3A" }}
-                    aria-hidden="true"
-                  />
-                </div>
-                <span className="text-sm" style={{ color: "#5b6660" }}>
-                  All Growth features, forever
-                </span>
-              </li>
-              <li className="flex items-start gap-2.5">
-                <div className="flex-shrink-0 mt-0.5">
-                  <Check
-                    size={16}
-                    style={{ color: "#0E6B3A" }}
-                    aria-hidden="true"
-                  />
-                </div>
-                <span className="text-sm" style={{ color: "#5b6660" }}>
-                  15–20% yearly maintenance after year one (support + updates)
-                </span>
-              </li>
-            </ul>
-          </div>
-
-          {/* Right: Prices + CTA */}
-          <div className="flex flex-col items-center lg:items-end gap-5 shrink-0">
-            <div className="flex items-center justify-center gap-6 sm:gap-8">
-              <div className="text-center lg:text-right">
-                <p
-                  className="text-xs font-medium uppercase tracking-wider mb-0.5"
-                  style={{ color: "#5b6660" }}
-                >
-                  Single-branch
-                </p>
-                <p
-                  className="font-heading font-extrabold text-2xl"
-                  style={{ color: "#101613" }}
-                >
-                  PKR 71,999
-                </p>
-                <p className="text-xs" style={{ color: "#5b6660" }}>
-                  one-time
-                </p>
-              </div>
-
-              <div
-                className="h-10 w-px"
-                style={{ backgroundColor: "rgba(16,22,19,0.08)" }}
-                aria-hidden="true"
-              />
-
-              <div className="text-center lg:text-right">
-                <p
-                  className="text-xs font-medium uppercase tracking-wider mb-0.5"
-                  style={{ color: "#5b6660" }}
-                >
-                  Multi-branch
-                </p>
-                <p
-                  className="font-heading font-extrabold text-2xl"
-                  style={{ color: "#101613" }}
-                >
-                  PKR 143,999
-                </p>
-                <p className="text-xs" style={{ color: "#5b6660" }}>
-                  one-time
-                </p>
-              </div>
-            </div>
-
-            <a
-              href="#demo"
-              className="w-full sm:w-auto inline-flex items-center justify-center px-8 py-3 rounded-lg text-sm font-semibold transition-opacity hover:opacity-95 text-center"
-              style={{ backgroundColor: "#0E6B3A", color: "#FFFFFF" }}
-            >
-              Book a Demo
-            </a>
-          </div>
         </div>
 
         {/* Payment line */}

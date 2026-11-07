@@ -241,30 +241,21 @@ class PlatformTenantCreateView(APIView):
         tenant_ids = [t.id for t in page]
         from apps.core.models import Subscription as SubModel
 
-        active_subs = {
-            s.tenant_id: s
-            for s in SubModel.objects.filter(
-                tenant_id__in=tenant_ids, status=SubModel.Status.ACTIVE
-            ).select_related("plan")
-        }
-        latest_subs = {
-            s.tenant_id: s
-            for s in SubModel.objects.filter(tenant_id__in=tenant_ids)
-            .select_related("plan")
-            .order_by("created_at")
-        }
+        from .plan_snapshot import tenant_plan_snapshot
+
+        # Same helper the Lab Detail screen uses, so list and detail can never
+        # disagree on plan name or price.
+        snapshots = tenant_plan_snapshot(tenant_ids)
 
         tenants_data = []
         for t in page:
-            sub = active_subs.get(t.id) or latest_subs.get(t.id)
-            plan_name = sub.plan.name if sub and sub.plan else "Starter"
-            plan_price = (
-                str(Decimal(sub.plan.price).quantize(Decimal("0.01")))
-                if sub and sub.plan
-                else "0.00"
-            )
+            snapshot = snapshots.get(t.id)
+            plan_name = snapshot["name"] if snapshot else "Starter"
+            plan_price = snapshot["price"] if snapshot else "0.00"
             mrr_contribution = (
-                plan_price if sub and sub.status == SubModel.Status.ACTIVE else "0.00"
+                plan_price
+                if snapshot and snapshot["status"] == SubModel.Status.ACTIVE
+                else "0.00"
             )
             tenants_data.append(
                 {
@@ -278,6 +269,8 @@ class PlatformTenantCreateView(APIView):
                     "staff_count": t.staff_count,
                     "plan_name": plan_name,
                     "plan_price": plan_price,
+                    "plan_status": snapshot["status"] if snapshot else None,
+                    "is_demo": bool(snapshot and snapshot.get("is_demo")),
                     "mrr_contribution": mrr_contribution,
                     "created_at": t.created_at.isoformat(),
                     "updated_at": t.updated_at.isoformat(),
@@ -434,7 +427,9 @@ class PlatformPlanListCreateView(_PlatformBaseView):
     def get(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         from apps.core.models import Plan as PlanModel
 
-        plans = PlanModel.objects.all().order_by("name")
+        # Retired plans (e.g. the old Standard Lab tier) stay in the table for
+        # historical subscriptions but are never offered for selection.
+        plans = PlanModel.objects.filter(is_active=True).order_by("price")
         return Response({"plans": [_plan_to_dict(p) for p in plans]}, status=200)
 
     def post(self, request: Request, *args: Any, **kwargs: Any) -> Response:

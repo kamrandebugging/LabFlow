@@ -285,7 +285,8 @@ export function LabsListScreen(): JSX.Element {
                             {lab.plan_name || "Growth"}
                           </span>
                           <span className="font-code-sm text-code-sm text-outline">
-                            PKR {lab.plan_price || "5,999"}/mo
+                            PKR {lab.plan_price}/mo
+                            {lab.is_demo ? " · demo" : ""}
                           </span>
                         </div>
                       </td>
@@ -327,7 +328,7 @@ export function LabsListScreen(): JSX.Element {
 
                       <td className="px-space-md py-space-xs text-right">
                         <span className="font-title-sm text-title-sm tabular-nums text-on-surface">
-                          {lab.mrr_contribution || lab.plan_price || "5,999"}
+                          {lab.mrr_contribution ?? lab.plan_price}
                         </span>
                       </td>
 

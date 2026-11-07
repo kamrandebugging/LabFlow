@@ -38,6 +38,8 @@ export interface TenantListItem {
   staff_count?: number;
   plan_name?: string;
   plan_price?: string;
+  plan_status?: string | null;
+  is_demo?: boolean;
   mrr_contribution?: string;
   created_at: string;
   updated_at: string;

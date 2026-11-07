@@ -425,7 +425,7 @@ export function LabDetailScreen(): JSX.Element {
               <div className="p-space-md rounded bg-surface-container-low/50 border border-outline-variant/30 flex items-center justify-between">
                 <div>
                   <span className="font-headline-sm text-headline-sm text-on-surface block">
-                    {tenant.plan?.name || "Growth Plan"}
+                    {tenant.plan?.name || "—"}
                   </span>
                   <span className="font-body-xs text-body-xs text-outline">
                     Enterprise multi-branch license
@@ -433,7 +433,7 @@ export function LabDetailScreen(): JSX.Element {
                 </div>
                 <div className="text-right">
                   <span className="font-headline-sm text-headline-sm text-primary font-bold block">
-                    PKR {tenant.plan?.price || "5,999"}
+                    PKR {tenant.plan?.price ?? "—"}
                   </span>
                   <span className="font-code-sm text-xs text-outline">/ month</span>
                 </div>

@@ -231,6 +231,15 @@ def _tenant_detail(tenant: Tenant) -> dict[str, Any]:
             "is_active": plan.is_active,
         }
 
+    # One source for plan name/price: the same snapshot the Labs List uses.
+    from .plan_snapshot import tenant_plan_snapshot
+
+    snapshot = tenant_plan_snapshot([tenant.id]).get(tenant.id)
+    if plan_data is not None and snapshot is not None:
+        plan_data["id"] = snapshot["plan_id"]
+        plan_data["name"] = snapshot["name"]
+        plan_data["price"] = snapshot["price"]
+
     # Schema size from PostgreSQL catalogues (platform machinery, §12.2)
     schema_size_bytes: int | None = None
     try:
@@ -286,7 +295,12 @@ def _tenant_detail(tenant: Tenant) -> dict[str, Any]:
         "plan_name": plan_data["name"] if plan_data else "Starter",
         "price": plan_data["price"] if plan_data else "0.00",
         "status": sub_data["status"] if sub_data else "active",
-        "billing_cycle": "Monthly",
+        "is_demo": bool(snapshot and snapshot.get("is_demo")),
+        "billing_cycle": (
+            "One-time"
+            if plan_data and "lifetime" in plan_data["name"].lower()
+            else "Monthly"
+        ),
         "started_at": sub_data["started_at"] if sub_data else None,
         "ends_at": sub_data["ends_at"] if sub_data else None,
     }
