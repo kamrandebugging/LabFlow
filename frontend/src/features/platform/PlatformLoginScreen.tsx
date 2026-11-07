@@ -1,6 +1,5 @@
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { ShieldCheck } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 import { usePlatformAuthStore } from "./platformAuthStore";
@@ -30,18 +29,18 @@ export function PlatformLoginScreen(): ReactElement {
         fontFamily: "'Inter', 'Plus Jakarta Sans', system-ui, sans-serif",
       }}
     >
-      <div className="w-full max-w-sm rounded-2xl bg-white p-8 shadow-xl">
-        <div className="mb-6 flex items-center gap-2">
-          <ShieldCheck className="h-6 w-6 text-[#0E6B3A]" aria-hidden="true" />
+      <div className="w-full max-w-sm rounded-xl bg-surface-container-lowest p-8 shadow-xl border border-outline-variant/40">
+        <div className="mb-6 flex items-center gap-3">
+          <img src="/logo.svg" alt="LabFlow" className="h-8 w-8 rounded object-contain" />
           <div>
             <p
-              className="text-lg font-bold leading-tight text-slate-900"
+              className="text-lg font-bold leading-tight text-on-surface"
               style={{ fontFamily: "'Plus Jakarta Sans', 'Inter', sans-serif" }}
             >
               LabFlow Platform
             </p>
-            <p className="text-[11px] uppercase tracking-widest text-[#0E6B3A]">
-              Apex Control
+            <p className="text-[11px] uppercase tracking-widest text-primary font-semibold">
+              Apex Master Console
             </p>
           </div>
         </div>

@@ -231,6 +231,16 @@ urlpatterns = [
     *_platform_paths(),
     # Platform overview metrics (master dashboard Phase 1)
     path(
+        "api/v1/platform/metrics",
+        PlatformOverviewMetricsView.as_view(),
+        name="platform-metrics-root",
+    ),
+    path(
+        "api/v1/platform/metrics/",
+        PlatformOverviewMetricsView.as_view(),
+        name="platform-metrics-root-slash",
+    ),
+    path(
         "api/v1/platform/metrics/overview",
         PlatformOverviewMetricsView.as_view(),
         name="platform-metrics-overview",

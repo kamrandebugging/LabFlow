@@ -120,6 +120,13 @@ class ProvisioningError(Exception):
         self.errors = errors or {}
 
 
+def generate_temp_password() -> str:
+    chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+    part1 = "".join(secrets.choice(chars) for _ in range(4))
+    part2 = "".join(secrets.choice(chars) for _ in range(2))
+    return f"LBF-{part1}-{part2}#"
+
+
 @dataclass(frozen=True)
 class ProvisionTenantInput:
     name: str
@@ -127,6 +134,12 @@ class ProvisionTenantInput:
     plan_id: uuid.UUID
     owner_email: str
     owner_name: str
+    city: str = ""
+    province: str = ""
+    owner_phone: str = ""
+    staff_seats: int | None = None
+    branch_count: int = 1
+    enabled_roles: list[str] = None  # type: ignore[assignment]
     actor_id: uuid.UUID | None = None
     idempotency_key: str | None = None
     ip_address: str | None = None
@@ -140,6 +153,7 @@ class ProvisionTenantResult:
     subscription: Subscription
     owner_email: str
     owner_name: str
+    temp_password: str = ""
 
 
 @dataclass(frozen=True)
@@ -339,11 +353,34 @@ def create_tenant_provisioning(data: ProvisionTenantInput) -> ProvisionTenantRes
                         },
                     )
 
+            temp_pass = generate_temp_password()
+            temp_expires = timezone.now() + timedelta(hours=24)
+            roles = (
+                list(data.enabled_roles)
+                if data.enabled_roles is not None
+                else ["owner"]
+            )
+            if "owner" not in roles:
+                roles.append("owner")
+
             tenant = Tenant(
                 slug=data.slug,
                 name=cleaned_name,
                 schema_name=schema_name,
                 status="provisioning",
+                city=data.city.strip() if data.city else "",
+                province=data.province.strip() if data.province else "",
+                owner_name=cleaned_owner_name,
+                owner_email=cleaned_owner_email,
+                owner_phone=data.owner_phone.strip() if data.owner_phone else "",
+                staff_seats_limit=data.staff_seats,
+                staff_count=1,
+                branch_count=max(
+                    1, data.branch_count if data.branch_count is not None else 1
+                ),
+                temp_password=temp_pass,
+                temp_password_expires_at=temp_expires,
+                enabled_roles=roles,
             )
             tenant.auto_create_schema = False
             tenant.save()
@@ -372,6 +409,9 @@ def create_tenant_provisioning(data: ProvisionTenantInput) -> ProvisionTenantRes
                 "subscription_id": str(subscription.id),
                 "owner_email": cleaned_owner_email,
                 "owner_name": cleaned_owner_name,
+                "temp_password": temp_pass,
+                "city": tenant.city,
+                "province": tenant.province,
                 "current_step": "P-2",
                 "completed_steps": ["P-1", "P-2"],
             }
@@ -409,6 +449,7 @@ def create_tenant_provisioning(data: ProvisionTenantInput) -> ProvisionTenantRes
         subscription=subscription,
         owner_email=cleaned_owner_email,
         owner_name=cleaned_owner_name,
+        temp_password=tenant.temp_password,
     )
 
 

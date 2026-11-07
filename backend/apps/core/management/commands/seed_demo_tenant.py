@@ -74,6 +74,9 @@ class Command(BaseCommand):
         # 1. Platform Operator (Super Admin in public schema)
         operator_creds = self._seed_platform_operator(fernet)
 
+        # 1b. Official Platform Plans
+        self._seed_plans()
+
         # 2. Demo Tenants Configuration
         tenants_config = [
             {
@@ -141,6 +144,51 @@ class Command(BaseCommand):
             "password": raw_password,
             "totp_secret": totp_secret,
         }
+
+    def _seed_plans(self) -> None:
+        """Seed official platform plans and retire old demo tiers."""
+        from apps.core.models import Plan
+
+        Plan.objects.filter(name__icontains="Standard Lab").update(is_active=False)
+        official_plans = [
+            {
+                "name": "Starter",
+                "price": Decimal("2999.00"),
+                "max_branches": 1,
+                "max_staff": 5,
+                "is_active": True,
+            },
+            {
+                "name": "Growth",
+                "price": Decimal("5999.00"),
+                "max_branches": 3,
+                "max_staff": None,
+                "is_active": True,
+            },
+            {
+                "name": "Scale",
+                "price": Decimal("9999.00"),
+                "max_branches": None,
+                "max_staff": None,
+                "is_active": True,
+            },
+            {
+                "name": "Lifetime (Single Branch)",
+                "price": Decimal("71999.00"),
+                "max_branches": 1,
+                "max_staff": 5,
+                "is_active": True,
+            },
+            {
+                "name": "Lifetime (Multi-Branch)",
+                "price": Decimal("143999.00"),
+                "max_branches": None,
+                "max_staff": None,
+                "is_active": True,
+            },
+        ]
+        for p in official_plans:
+            Plan.objects.update_or_create(name=p["name"], defaults=p)
 
     def _seed_single_tenant(
         self, conf: dict[str, Any], fernet: Fernet, reset: bool

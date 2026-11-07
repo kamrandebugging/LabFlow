@@ -2,6 +2,7 @@ import base64
 import binascii
 import uuid
 from datetime import datetime
+from decimal import Decimal
 from typing import Any
 
 from django.db.models import Q
@@ -237,19 +238,55 @@ class PlatformTenantCreateView(APIView):
             else None
         )
 
+        tenant_ids = [t.id for t in page]
+        from apps.core.models import Subscription as SubModel
+
+        active_subs = {
+            s.tenant_id: s
+            for s in SubModel.objects.filter(
+                tenant_id__in=tenant_ids, status=SubModel.Status.ACTIVE
+            ).select_related("plan")
+        }
+        latest_subs = {
+            s.tenant_id: s
+            for s in SubModel.objects.filter(tenant_id__in=tenant_ids)
+            .select_related("plan")
+            .order_by("created_at")
+        }
+
+        tenants_data = []
+        for t in page:
+            sub = active_subs.get(t.id) or latest_subs.get(t.id)
+            plan_name = sub.plan.name if sub and sub.plan else "Starter"
+            plan_price = (
+                str(Decimal(sub.plan.price).quantize(Decimal("0.01")))
+                if sub and sub.plan
+                else "0.00"
+            )
+            mrr_contribution = (
+                plan_price if sub and sub.status == SubModel.Status.ACTIVE else "0.00"
+            )
+            tenants_data.append(
+                {
+                    "id": str(t.id),
+                    "slug": t.slug,
+                    "name": t.name,
+                    "status": t.status,
+                    "city": t.city or "Lahore",
+                    "province": t.province or "Punjab",
+                    "branch_count": t.branch_count,
+                    "staff_count": t.staff_count,
+                    "plan_name": plan_name,
+                    "plan_price": plan_price,
+                    "mrr_contribution": mrr_contribution,
+                    "created_at": t.created_at.isoformat(),
+                    "updated_at": t.updated_at.isoformat(),
+                }
+            )
+
         return Response(
             {
-                "tenants": [
-                    {
-                        "id": str(t.id),
-                        "slug": t.slug,
-                        "name": t.name,
-                        "status": t.status,
-                        "created_at": t.created_at.isoformat(),
-                        "updated_at": t.updated_at.isoformat(),
-                    }
-                    for t in page
-                ],
+                "tenants": tenants_data,
                 "next_cursor": next_cursor,
             },
             status=200,
@@ -314,6 +351,12 @@ class PlatformTenantCreateView(APIView):
                 plan_id=validated["plan_id"],
                 owner_email=validated["resolved_owner_email"],
                 owner_name=validated["resolved_owner_name"],
+                city=validated.get("city", ""),
+                province=validated.get("province", ""),
+                owner_phone=validated.get("resolved_owner_phone", ""),
+                staff_seats=validated.get("staff_seats"),
+                branch_count=validated.get("branch_count", 1),
+                enabled_roles=validated.get("enabled_roles", []),
                 actor_id=platform_user.id,
                 idempotency_key=idempotency_key,
                 ip_address=ip_addr if isinstance(ip_addr, str) else None,
@@ -333,6 +376,7 @@ class PlatformTenantCreateView(APIView):
                 "subscription_id": str(result.subscription.id),
                 "owner_email": result.owner_email,
                 "owner_name": result.owner_name,
+                "temp_password": result.temp_password,
                 "created_at": result.tenant.created_at.isoformat(),
             },
             status=202,
@@ -377,6 +421,7 @@ def _plan_to_dict(plan: Any) -> dict[str, Any]:
         "name": plan.name,
         "price": str(plan.price),
         "max_branches": plan.max_branches,
+        "max_staff": getattr(plan, "max_staff", None),
         "is_active": plan.is_active,
         "created_at": plan.created_at.isoformat(),
         "updated_at": plan.updated_at.isoformat(),

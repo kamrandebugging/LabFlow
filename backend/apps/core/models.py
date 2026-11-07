@@ -58,6 +58,62 @@ class Tenant(TenantMixin):
             "schema by BranchService (Doc 04 TP-4)."
         ),
     )
+    city = models.CharField(
+        max_length=100,
+        blank=True,
+        default="",
+        help_text="Primary facility city",
+    )
+    province = models.CharField(
+        max_length=100,
+        blank=True,
+        default="",
+        help_text="Primary facility province/region",
+    )
+    owner_name = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+        help_text="Primary administrator / medical director name",
+    )
+    owner_email = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+        help_text="Primary administrator email address",
+    )
+    owner_phone = models.CharField(
+        max_length=50,
+        blank=True,
+        default="",
+        help_text="Primary contact phone / WhatsApp",
+    )
+    staff_seats_limit = models.IntegerField(
+        null=True,
+        blank=True,
+        help_text="Maximum allowed staff seats; NULL denotes unlimited",
+    )
+    staff_count = models.PositiveIntegerField(
+        default=1,
+        help_text="Current staff count",
+    )
+    temp_password = models.CharField(
+        max_length=64,
+        blank=True,
+        default="",
+        help_text="Initial temporary credential issued during provisioning",
+    )
+    temp_password_expires_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Expiry timestamp for temporary credential (24h)",
+    )
+    enabled_roles = ArrayField(
+        models.CharField(max_length=50),
+        default=list,
+        blank=True,
+        help_text="List of roles enabled during provisioning",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -135,6 +191,11 @@ class Plan(models.Model):
         null=True,
         blank=True,
         help_text="Maximum branches permitted; NULL denotes unlimited",
+    )
+    max_staff = models.IntegerField(
+        null=True,
+        blank=True,
+        help_text="Maximum staff permitted; NULL denotes unlimited",
     )
     is_active = models.BooleanField(
         default=True,

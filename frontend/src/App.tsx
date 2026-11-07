@@ -68,6 +68,7 @@ import {
   PlatformLoginScreen,
   PlatformTotpScreen,
   ProvisionScreen,
+  Phase2PlaceholderScreen,
 } from "./features/platform";
 import Hero from "./marketing/Hero";
 import TrustStrip from "./marketing/TrustStrip";
@@ -657,6 +658,62 @@ function App(): JSX.Element {
           element={
             <PlatformShell>
               <LabDetailScreen />
+            </PlatformShell>
+          }
+        />
+        <Route
+          path="/platform/subscriptions"
+          element={
+            <PlatformShell>
+              <Phase2PlaceholderScreen title="Subscriptions & Billing" />
+            </PlatformShell>
+          }
+        />
+        <Route
+          path="/platform/access"
+          element={
+            <PlatformShell>
+              <Phase2PlaceholderScreen title="Access Control & Security Scopes" />
+            </PlatformShell>
+          }
+        />
+        <Route
+          path="/platform/users"
+          element={
+            <PlatformShell>
+              <Phase2PlaceholderScreen title="Platform Operators & Users" />
+            </PlatformShell>
+          }
+        />
+        <Route
+          path="/platform/demo-requests"
+          element={
+            <PlatformShell>
+              <Phase2PlaceholderScreen title="Demo Requests Inbox" />
+            </PlatformShell>
+          }
+        />
+        <Route
+          path="/platform/health"
+          element={
+            <PlatformShell>
+              <Phase2PlaceholderScreen title="System Health & Infrastructure" />
+            </PlatformShell>
+          }
+        />
+        <Route
+          path="/platform/audit"
+          element={
+            <PlatformShell>
+              <Phase2PlaceholderScreen title="Platform Audit Trail" />
+            </PlatformShell>
+          }
+        />
+        <Route
+          path="/platform/settings"
+          element={
+            <PlatformShell>
+              <Phase2PlaceholderScreen title="Platform Settings" />
             </PlatformShell>
           }
         />

@@ -15,3 +15,4 @@ export * from "./OverviewScreen";
 export * from "./LabsListScreen";
 export * from "./LabDetailScreen";
 export * from "./ProvisionScreen";
+export * from "./Phase2PlaceholderScreen";

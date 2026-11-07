@@ -30,6 +30,40 @@ class TenantProvisionRequestSerializer(serializers.Serializer[dict[str, Any]]):
         child=serializers.CharField(allow_blank=True, trim_whitespace=False),
         required=False,
     )
+    city = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        default="",
+    )
+    province = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        default="",
+    )
+    phone = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        default="",
+    )
+    whatsapp = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        default="",
+    )
+    staff_seats = serializers.IntegerField(
+        required=False,
+        allow_null=True,
+        default=None,
+    )
+    branch_count = serializers.IntegerField(
+        required=False,
+        default=1,
+    )
+    enabled_roles = serializers.ListField(
+        child=serializers.CharField(),
+        required=False,
+        default=list,
+    )
 
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
         owner_dict = attrs.get("owner") or {}
@@ -40,8 +74,13 @@ class TenantProvisionRequestSerializer(serializers.Serializer[dict[str, Any]]):
         if not owner_name and isinstance(owner_dict, dict):
             owner_name = owner_dict.get("name", "")
 
+        phone = attrs.get("phone") or attrs.get("whatsapp")
+        if not phone and isinstance(owner_dict, dict):
+            phone = owner_dict.get("phone", "")
+
         attrs["resolved_owner_email"] = email if isinstance(email, str) else ""
         attrs["resolved_owner_name"] = owner_name if isinstance(owner_name, str) else ""
+        attrs["resolved_owner_phone"] = phone if isinstance(phone, str) else ""
         return attrs
 
 

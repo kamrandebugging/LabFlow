@@ -51,14 +51,15 @@ def test_sql_generation_uses_configured_database_role() -> None:
 @pytest.mark.django_db
 def test_platform_audit_migration_is_reversible() -> None:
     """Latest core migration applies forwards and reverses cleanly."""
+    connection.set_schema_to_public()
     executor = MigrationExecutor(connection)
     app_config = apps.get_app_config("core")
     assert app_config is not None
 
     # Migrate forward to the head
-    executor.migrate([("core", "0005_master_dashboard_phase1")])
+    executor.migrate([("core", "0006_platform_dashboard_phase1_rebuild")])
     current_migration = executor.loader.get_migration(
-        "core", "0005_master_dashboard_phase1"
+        "core", "0006_platform_dashboard_phase1_rebuild"
     )
     assert current_migration is not None
 
@@ -67,4 +68,4 @@ def test_platform_audit_migration_is_reversible() -> None:
     executor.loader.build_graph()
 
     # Re-apply forward to leave the schema in target state
-    executor.migrate([("core", "0005_master_dashboard_phase1")])
+    executor.migrate([("core", "0006_platform_dashboard_phase1_rebuild")])

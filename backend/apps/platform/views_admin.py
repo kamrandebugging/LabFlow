@@ -259,26 +259,72 @@ def _tenant_detail(tenant: Tenant) -> dict[str, Any]:
         "completed_steps": prov_state.completed_steps,
         "failed_step": prov_state.failed_step,
         "error": prov_state.error,
-        "owner_email": prov_state.owner_email,
+        "owner_email": prov_state.owner_email or tenant.owner_email,
         "last_action": prov_audit.action if prov_audit else None,
         "last_action_at": prov_audit.at.isoformat()
         if prov_audit and prov_audit.at
         else None,
     }
 
+    # Fetch recent audit timeline for this tenant
+    recent_audits = PlatformAudit.objects.filter(
+        entity_type="tenant", entity_id=tenant.id
+    ).order_by("-at")[:20]
+    audit_timeline = [
+        {
+            "id": str(a.id),
+            "action": a.action,
+            "actor_id": str(a.actor_id) if a.actor_id else None,
+            "at": a.at.isoformat() if a.at else None,
+            "before": a.before_jsonb,
+            "after": a.after_jsonb,
+        }
+        for a in recent_audits
+    ]
+
+    billing_summary = {
+        "plan_name": plan_data["name"] if plan_data else "Starter",
+        "price": plan_data["price"] if plan_data else "0.00",
+        "status": sub_data["status"] if sub_data else "active",
+        "billing_cycle": "Monthly",
+        "started_at": sub_data["started_at"] if sub_data else None,
+        "ends_at": sub_data["ends_at"] if sub_data else None,
+    }
+
+    owner_data = {
+        "name": tenant.owner_name or prov_state.owner_name or "Lab Director",
+        "email": tenant.owner_email or prov_state.owner_email,
+        "phone": tenant.owner_phone or "+92 300 0000000",
+        "whatsapp": tenant.owner_phone or "+92 300 0000000",
+    }
+
     return {
         **_tenant_list_item(tenant),
+        "city": tenant.city or "Lahore",
+        "province": tenant.province or "Punjab",
         "schema_name": tenant.schema_name,
         "domains": [
             {"domain": d["domain"], "is_primary": d["is_primary"]} for d in domains
         ],
+        "owner": owner_data,
         "subscription": sub_data,
         "plan": plan_data,
         "branches_used": tenant.branch_count,
         "branches_limit": branches_limit,
+        "staff_seats_limit": (
+            tenant.staff_seats_limit
+            or (plan.max_staff if subscription and plan else None)
+        ),
+        "staff_count": tenant.staff_count,
+        "temp_password": tenant.temp_password,
+        "temp_password_expires_at": tenant.temp_password_expires_at.isoformat()
+        if tenant.temp_password_expires_at
+        else None,
         "schema_size_bytes": schema_size_bytes,
         "migration_state": _migration_state(tenant),
         "provisioning": provisioning,
+        "billing_summary": billing_summary,
+        "audit_timeline": audit_timeline,
     }
 
 
@@ -788,10 +834,12 @@ class PlatformAuditListView(APIView):
         if f.get("entity_type"):
             qs = qs.filter(entity_type=f["entity_type"])
         # Detail screens read one entity's trail, e.g. a tenant's history.
-        entity_id = request.query_params.get("entity_id")
-        if entity_id:
+        raw_entity_id = request.query_params.get(
+            "entity_id"
+        ) or request.query_params.get("tenant_id")
+        if raw_entity_id:
             try:
-                qs = qs.filter(entity_id=uuid.UUID(str(entity_id)))
+                qs = qs.filter(entity_id=uuid.UUID(str(raw_entity_id)))
             except ValueError:
                 return problem_response(
                     code="validation_error",
