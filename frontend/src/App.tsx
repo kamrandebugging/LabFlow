@@ -59,6 +59,11 @@ import {
 } from "./features/partners";
 import { ScreenCatalogViewer } from "./features/screens/ScreenCatalogViewer";
 import {
+  AccessControlScreen,
+  AuditLogScreen,
+  DemoRequestDetailScreen,
+  DemoRequestsScreen,
+  HealthScreen,
   LabDetailScreen,
   LabsListScreen,
   OverviewScreen,
@@ -68,7 +73,10 @@ import {
   PlatformLoginScreen,
   PlatformTotpScreen,
   ProvisionScreen,
-  Phase2PlaceholderScreen,
+  SettingsScreen,
+  SubscriptionDetailScreen,
+  SubscriptionsScreen,
+  UsersScreen,
 } from "./features/platform";
 import Hero from "./marketing/Hero";
 import TrustStrip from "./marketing/TrustStrip";
@@ -665,7 +673,15 @@ function App(): JSX.Element {
           path="/platform/subscriptions"
           element={
             <PlatformShell>
-              <Phase2PlaceholderScreen title="Subscriptions & Billing" />
+              <SubscriptionsScreen />
+            </PlatformShell>
+          }
+        />
+        <Route
+          path="/platform/subscriptions/:id"
+          element={
+            <PlatformShell>
+              <SubscriptionDetailScreen />
             </PlatformShell>
           }
         />
@@ -673,7 +689,15 @@ function App(): JSX.Element {
           path="/platform/access"
           element={
             <PlatformShell>
-              <Phase2PlaceholderScreen title="Access Control & Security Scopes" />
+              <AccessControlScreen />
+            </PlatformShell>
+          }
+        />
+        <Route
+          path="/platform/access/:tenantId"
+          element={
+            <PlatformShell>
+              <AccessControlScreen />
             </PlatformShell>
           }
         />
@@ -681,7 +705,7 @@ function App(): JSX.Element {
           path="/platform/users"
           element={
             <PlatformShell>
-              <Phase2PlaceholderScreen title="Platform Operators & Users" />
+              <UsersScreen />
             </PlatformShell>
           }
         />
@@ -689,7 +713,15 @@ function App(): JSX.Element {
           path="/platform/demo-requests"
           element={
             <PlatformShell>
-              <Phase2PlaceholderScreen title="Demo Requests Inbox" />
+              <DemoRequestsScreen />
+            </PlatformShell>
+          }
+        />
+        <Route
+          path="/platform/demo-requests/:id"
+          element={
+            <PlatformShell>
+              <DemoRequestDetailScreen />
             </PlatformShell>
           }
         />
@@ -697,7 +729,7 @@ function App(): JSX.Element {
           path="/platform/health"
           element={
             <PlatformShell>
-              <Phase2PlaceholderScreen title="System Health & Infrastructure" />
+              <HealthScreen />
             </PlatformShell>
           }
         />
@@ -705,7 +737,7 @@ function App(): JSX.Element {
           path="/platform/audit"
           element={
             <PlatformShell>
-              <Phase2PlaceholderScreen title="Platform Audit Trail" />
+              <AuditLogScreen />
             </PlatformShell>
           }
         />
@@ -713,7 +745,7 @@ function App(): JSX.Element {
           path="/platform/settings"
           element={
             <PlatformShell>
-              <Phase2PlaceholderScreen title="Platform Settings" />
+              <SettingsScreen />
             </PlatformShell>
           }
         />

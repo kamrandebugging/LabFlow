@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { platformService } from "./platformService";
 import type { ProvisionTenantPayload } from "./types";
@@ -7,6 +7,7 @@ import { slugProblem } from "./types";
 
 export function ProvisionScreen(): JSX.Element {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const queryClient = useQueryClient();
 
   // Form Fields
@@ -49,6 +50,24 @@ export function ProvisionScreen(): JSX.Element {
   useEffect(() => {
     generateNewPassword();
   }, []);
+
+  useEffect(() => {
+    const qName = searchParams.get("name");
+    const qOwner = searchParams.get("owner");
+    const qPhone = searchParams.get("phone");
+    if (qName) {
+      setLabName(qName);
+      const generated = qName
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, "")
+        .slice(0, 18);
+      if (generated && !slug) {
+        setSlug(generated);
+      }
+    }
+    if (qOwner) setOwnerName(qOwner);
+    if (qPhone) setOwnerPhone(qPhone);
+  }, [searchParams]);
 
   // Fetch real platform plans from API
   const { data: plansData, isLoading: plansLoading } = useQuery({

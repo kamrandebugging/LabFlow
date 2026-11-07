@@ -23,6 +23,7 @@ from apps.platform.views import (
     PlatformTenantCreateView,
     PlatformTenantSubscriptionView,
 )
+from apps.platform.views_access import PlatformAccessControlView
 from apps.platform.views_admin import (
     PlatformAuditListView,
     PlatformTenantCompleteOffboardView,
@@ -33,7 +34,26 @@ from apps.platform.views_admin import (
     PlatformTenantRetryProvisioningView,
     PlatformTenantSuspendView,
 )
+from apps.platform.views_demo_requests import (
+    PlatformDemoRequestConvertView,
+    PlatformDemoRequestDetailView,
+    PlatformDemoRequestListView,
+    PublicDemoRequestCaptureView,
+)
+from apps.platform.views_health import PlatformHealthRetryView, PlatformHealthView
 from apps.platform.views_metrics import PlatformOverviewMetricsView
+from apps.platform.views_platform_settings import PlatformSettingsView
+from apps.platform.views_subscriptions import (
+    PlatformSubscriptionChangePlanView,
+    PlatformSubscriptionDetailView,
+    PlatformSubscriptionListView,
+    PlatformSubscriptionMarkPaidView,
+)
+from apps.platform.views_users import (
+    PlatformUserDisableView,
+    PlatformUserInviteView,
+    PlatformUsersListView,
+)
 
 
 def healthz_view(_request: object) -> JsonResponse:
@@ -249,6 +269,161 @@ urlpatterns = [
         "api/v1/platform/metrics/overview/",
         PlatformOverviewMetricsView.as_view(),
         name="platform-metrics-overview-slash",
+    ),
+    # Public demo request capture
+    path(
+        "api/v1/demo-requests",
+        PublicDemoRequestCaptureView.as_view(),
+        name="demo-requests-capture",
+    ),
+    path(
+        "api/v1/demo-requests/",
+        PublicDemoRequestCaptureView.as_view(),
+        name="demo-requests-capture-slash",
+    ),
+    # Platform Subscriptions (Phase 2)
+    path(
+        "api/v1/platform/subscriptions",
+        PlatformSubscriptionListView.as_view(),
+        name="platform-subscriptions-list",
+    ),
+    path(
+        "api/v1/platform/subscriptions/",
+        PlatformSubscriptionListView.as_view(),
+        name="platform-subscriptions-list-slash",
+    ),
+    path(
+        "api/v1/platform/subscriptions/<uuid:subscription_id>",
+        PlatformSubscriptionDetailView.as_view(),
+        name="platform-subscriptions-detail",
+    ),
+    path(
+        "api/v1/platform/subscriptions/<uuid:subscription_id>/",
+        PlatformSubscriptionDetailView.as_view(),
+        name="platform-subscriptions-detail-slash",
+    ),
+    path(
+        "api/v1/platform/subscriptions/<uuid:subscription_id>/mark-paid",
+        PlatformSubscriptionMarkPaidView.as_view(),
+        name="platform-subscriptions-mark-paid",
+    ),
+    path(
+        "api/v1/platform/subscriptions/<uuid:subscription_id>/mark-paid/",
+        PlatformSubscriptionMarkPaidView.as_view(),
+        name="platform-subscriptions-mark-paid-slash",
+    ),
+    path(
+        "api/v1/platform/subscriptions/<uuid:subscription_id>/change-plan",
+        PlatformSubscriptionChangePlanView.as_view(),
+        name="platform-subscriptions-change-plan",
+    ),
+    path(
+        "api/v1/platform/subscriptions/<uuid:subscription_id>/change-plan/",
+        PlatformSubscriptionChangePlanView.as_view(),
+        name="platform-subscriptions-change-plan-slash",
+    ),
+    # Platform Access Control (Phase 2)
+    path(
+        "api/v1/platform/access/<uuid:tenant_id>",
+        PlatformAccessControlView.as_view(),
+        name="platform-access-detail",
+    ),
+    path(
+        "api/v1/platform/access/<uuid:tenant_id>/",
+        PlatformAccessControlView.as_view(),
+        name="platform-access-detail-slash",
+    ),
+    # Platform Users (Phase 2)
+    path(
+        "api/v1/platform/users",
+        PlatformUsersListView.as_view(),
+        name="platform-users-list",
+    ),
+    path(
+        "api/v1/platform/users/",
+        PlatformUsersListView.as_view(),
+        name="platform-users-list-slash",
+    ),
+    path(
+        "api/v1/platform/users/invite",
+        PlatformUserInviteView.as_view(),
+        name="platform-users-invite",
+    ),
+    path(
+        "api/v1/platform/users/invite/",
+        PlatformUserInviteView.as_view(),
+        name="platform-users-invite-slash",
+    ),
+    path(
+        "api/v1/platform/users/<uuid:user_id>/disable",
+        PlatformUserDisableView.as_view(),
+        name="platform-users-disable",
+    ),
+    path(
+        "api/v1/platform/users/<uuid:user_id>/disable/",
+        PlatformUserDisableView.as_view(),
+        name="platform-users-disable-slash",
+    ),
+    # Platform Demo Requests (Phase 2)
+    path(
+        "api/v1/platform/demo-requests",
+        PlatformDemoRequestListView.as_view(),
+        name="platform-demo-requests-list",
+    ),
+    path(
+        "api/v1/platform/demo-requests/",
+        PlatformDemoRequestListView.as_view(),
+        name="platform-demo-requests-list-slash",
+    ),
+    path(
+        "api/v1/platform/demo-requests/<uuid:request_id>",
+        PlatformDemoRequestDetailView.as_view(),
+        name="platform-demo-requests-detail",
+    ),
+    path(
+        "api/v1/platform/demo-requests/<uuid:request_id>/",
+        PlatformDemoRequestDetailView.as_view(),
+        name="platform-demo-requests-detail-slash",
+    ),
+    path(
+        "api/v1/platform/demo-requests/<uuid:request_id>/convert",
+        PlatformDemoRequestConvertView.as_view(),
+        name="platform-demo-requests-convert",
+    ),
+    path(
+        "api/v1/platform/demo-requests/<uuid:request_id>/convert/",
+        PlatformDemoRequestConvertView.as_view(),
+        name="platform-demo-requests-convert-slash",
+    ),
+    # Platform Health & Telemetry (Phase 2)
+    path(
+        "api/v1/platform/health", PlatformHealthView.as_view(), name="platform-health"
+    ),
+    path(
+        "api/v1/platform/health/",
+        PlatformHealthView.as_view(),
+        name="platform-health-slash",
+    ),
+    path(
+        "api/v1/platform/health/failures/<str:failure_id>/retry",
+        PlatformHealthRetryView.as_view(),
+        name="platform-health-retry",
+    ),
+    path(
+        "api/v1/platform/health/failures/<str:failure_id>/retry/",
+        PlatformHealthRetryView.as_view(),
+        name="platform-health-retry-slash",
+    ),
+    # Platform Settings (Phase 2)
+    path(
+        "api/v1/platform/settings",
+        PlatformSettingsView.as_view(),
+        name="platform-settings",
+    ),
+    path(
+        "api/v1/platform/settings/",
+        PlatformSettingsView.as_view(),
+        name="platform-settings-slash",
     ),
     # Platform operator auth (master dashboard Phase 1, Doc 08 §4)
     *_platform_auth_paths(),

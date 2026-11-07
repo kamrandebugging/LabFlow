@@ -847,10 +847,12 @@ class PlatformAuditListView(APIView):
                     detail="entity_id must be a UUID.",
                     status_code=422,
                 )
-        if f.get("date_from"):
-            qs = qs.filter(at__gte=f["date_from"])
-        if f.get("date_to"):
-            qs = qs.filter(at__lte=f["date_to"])
+        d_from = f.get("date_from") or f.get("start_date")
+        if d_from:
+            qs = qs.filter(at__gte=d_from)
+        d_to = f.get("date_to") or f.get("end_date")
+        if d_to:
+            qs = qs.filter(at__lte=d_to)
 
         rows = [
             {
@@ -866,4 +868,4 @@ class PlatformAuditListView(APIView):
             }
             for a in qs[:200]
         ]
-        return Response({"audit": rows}, status=200)
+        return Response({"audit": rows, "audits": rows}, status=200)

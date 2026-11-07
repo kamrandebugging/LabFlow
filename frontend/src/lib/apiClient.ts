@@ -42,6 +42,7 @@ export class ApiError extends Error {
 
 export interface RequestOptions {
   method?: "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
+  headers?: Record<string, string>;
   body?: unknown;
   query?: Record<string, string | number | boolean | null | undefined>;
   session?: SessionKind;
@@ -107,6 +108,7 @@ export async function apiRequest<T>(
   const send = async (token: string | null): Promise<Response> => {
     const headers: Record<string, string> = {
       Accept: "application/json",
+      ...(options.headers || {}),
     };
     if (body !== undefined) headers["Content-Type"] = "application/json";
     if (token) headers.Authorization = `Bearer ${token}`;

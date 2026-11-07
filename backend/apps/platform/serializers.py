@@ -159,5 +159,8 @@ class PlatformAuditFilterSerializer(serializers.Serializer[dict[str, Any]]):
 
     action = serializers.CharField(required=False, allow_blank=True)
     entity_type = serializers.CharField(required=False, allow_blank=True)
+    tenant_id = serializers.UUIDField(required=False)
     date_from = serializers.DateTimeField(required=False)
     date_to = serializers.DateTimeField(required=False)
+    start_date = serializers.DateTimeField(required=False)
+    end_date = serializers.DateTimeField(required=False)

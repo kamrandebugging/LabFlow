@@ -11,6 +11,7 @@ from django.contrib.postgres.functions import RandomUUID
 from django.core.validators import RegexValidator
 from django.db import models
 from django.db.models import F, Q
+from django.utils import timezone
 from django_tenants.models import DomainMixin, TenantMixin
 
 slug_validator = RegexValidator(
@@ -254,6 +255,16 @@ class Subscription(models.Model):
         default=Status.ACTIVE,
         help_text="Subscription lifecycle status (Doc 02 §4.1)",
     )
+    billing_cycle = models.CharField(
+        max_length=20,
+        default="monthly",
+        help_text="Billing cadence: monthly, annual, lifetime",
+    )
+    next_due = models.DateField(
+        null=True,
+        blank=True,
+        help_text="Next payment renewal due date",
+    )
     starts_at = models.DateTimeField(
         help_text="Start timestamp of the subscription period",
     )
@@ -454,6 +465,226 @@ class PlatformPasswordResetToken(models.Model):
         return f"Platform reset token for {self.platform_user_id}"
 
 
+class SubscriptionPayment(models.Model):
+    """Payment record for a tenant subscription (Phase 2 Mark Paid)."""
+
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        db_default=RandomUUID(),
+        editable=False,
+    )
+    tenant = models.ForeignKey(
+        "core.Tenant",
+        on_delete=models.CASCADE,
+        related_name="payments",
+        db_column="tenant_id",
+    )
+    subscription = models.ForeignKey(
+        "core.Subscription",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="payments",
+        db_column="subscription_id",
+    )
+    amount = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        help_text="Settled amount in PKR",
+    )
+    method = models.CharField(
+        max_length=50,
+        help_text="Payment method: Bank Transfer, Easypaisa, JazzCash",
+    )
+    reference = models.CharField(
+        max_length=100,
+        help_text="Bank transaction or gateway reference number",
+    )
+    notes = models.TextField(
+        blank=True,
+        default="",
+        help_text="Settlement reason or operator notes",
+    )
+    paid_date = models.DateField(
+        default=timezone.now,
+        help_text="Date funds were received",
+    )
+    recorded_by = models.ForeignKey(
+        "core.PlatformUser",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="recorded_payments",
+        db_column="recorded_by_id",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "subscription_payment"
+        indexes = [
+            models.Index(fields=["tenant"], name="idx_sub_payment_tenant"),
+            models.Index(fields=["subscription"], name="idx_sub_payment_sub"),
+            models.Index(fields=["paid_date"], name="idx_sub_payment_paid_date"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.tenant.slug} - PKR {self.amount} via {self.method}"
+
+
+class TenantFeatureFlag(models.Model):
+    """Per-lab enterprise feature scope toggles (Doc 10)."""
+
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        db_default=RandomUUID(),
+        editable=False,
+    )
+    tenant = models.ForeignKey(
+        "core.Tenant",
+        on_delete=models.CASCADE,
+        related_name="feature_flags",
+        db_column="tenant_id",
+    )
+    flag_key = models.CharField(
+        max_length=100,
+        help_text="Feature flag identifier: referral_partners, settlements, etc.",
+    )
+    enabled = models.BooleanField(
+        default=False,
+        help_text="Whether this enterprise feature scope is unlocked",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "tenant_feature_flag"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["tenant", "flag_key"],
+                name="uq_tenant_feature_flag",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["tenant"], name="idx_tenant_feature_flag_t"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.tenant.slug}:{self.flag_key} = {self.enabled}"
+
+
+class DemoRequest(models.Model):
+    """Prospective laboratory demo inquiry and conversion lifecycle (Doc 16/17)."""
+
+    class Status(models.TextChoices):
+        NEW = "new", "New"
+        CONTACTED = "contacted", "Contacted"
+        DEMO_DONE = "demo_done", "Demo Done"
+        CONVERTED = "converted", "Converted"
+        LOST = "lost", "Lost"
+
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        db_default=RandomUUID(),
+        editable=False,
+    )
+    lab_name = models.CharField(max_length=255, help_text="Facility display name")
+    contact_person = models.CharField(
+        max_length=255, help_text="Primary director/doctor"
+    )
+    whatsapp = models.CharField(max_length=50, help_text="Direct mobile / WhatsApp")
+    message = models.TextField(
+        blank=True, default="", help_text="Original inquiry text"
+    )
+    status = models.CharField(
+        max_length=50,
+        choices=Status.choices,
+        default=Status.NEW,
+        help_text="Commercial lead qualification status",
+    )
+    notes = models.TextField(blank=True, default="", help_text="Internal account notes")
+    requested_at = models.DateTimeField(auto_now_add=True)
+    converted_tenant = models.ForeignKey(
+        "core.Tenant",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="demo_requests",
+        db_column="converted_tenant_id",
+    )
+
+    class Meta:
+        db_table = "demo_request"
+        indexes = [
+            models.Index(fields=["status"], name="idx_demo_req_status"),
+            models.Index(fields=["requested_at"], name="idx_demo_req_requested_at"),
+            models.Index(fields=["converted_tenant"], name="idx_demo_req_tenant"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.lab_name} ({self.contact_person}) - {self.status}"
+
+
+class PlatformSetting(models.Model):
+    """Global commercial and operational configuration (Doc 15)."""
+
+    key = models.CharField(max_length=100, primary_key=True)
+    value = models.JSONField(default=dict)
+    updated_at = models.DateTimeField(auto_now=True)
+    updated_by = models.ForeignKey(
+        "core.PlatformUser",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        db_column="updated_by_id",
+    )
+
+    class Meta:
+        db_table = "platform_setting"
+
+    def __str__(self) -> str:
+        return self.key
+
+
+class PlatformUserInvitation(models.Model):
+    """Pending platform operator invitations."""
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending"
+        ACCEPTED = "accepted", "Accepted"
+        REVOKED = "revoked", "Revoked"
+
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        db_default=RandomUUID(),
+        editable=False,
+    )
+    email = models.EmailField(max_length=254, unique=True)
+    role = models.CharField(max_length=50, default="support")
+    invited_by = models.ForeignKey(
+        "core.PlatformUser",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        db_column="invited_by_id",
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.PENDING,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "platform_user_invitation"
+
+    def __str__(self) -> str:
+        return f"{self.email} ({self.role}) - {self.status}"
+
+
 # Re-export TenantSetting for core/tenancy namespace access
 from apps.accounts.models import TenantSetting  # noqa: E402
 
@@ -462,6 +693,11 @@ __all__ = [
     "Domain",
     "Plan",
     "Subscription",
+    "SubscriptionPayment",
+    "TenantFeatureFlag",
+    "DemoRequest",
+    "PlatformSetting",
+    "PlatformUserInvitation",
     "PlatformUser",
     "PlatformAudit",
     "PlatformPasswordResetToken",

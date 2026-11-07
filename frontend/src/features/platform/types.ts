@@ -292,3 +292,251 @@ export function slugProblem(slug: string): string | null {
     return "This slug is reserved by the platform.";
   return null;
 }
+
+/* =========================================================================
+ * Phase 2 Types
+ * ========================================================================= */
+
+export type SubscriptionBillingCycle = "monthly" | "annual" | "lifetime";
+export type SubscriptionStatus =
+  | "active"
+  | "past_due"
+  | "canceled"
+  | "trialing"
+  | "founding";
+
+export interface SubscriptionListItem {
+  id: string;
+  tenant_id: string;
+  tenant_name: string;
+  tenant_slug: string;
+  city: string;
+  province: string;
+  plan_id: string;
+  plan_name: string;
+  billing_cycle: SubscriptionBillingCycle;
+  amount: string;
+  status: SubscriptionStatus;
+  next_due: string | null;
+  started_at: string | null;
+  ends_at: string | null;
+  is_founding: boolean;
+  is_lifetime: boolean;
+}
+
+export interface SubscriptionListSummary {
+  mrr_pkr: string;
+  overdue_count: number;
+  overdue_amount_pkr: string;
+  lifetime_sold_count: number;
+  founding_slots_used: number;
+  founding_slots_total: number;
+}
+
+export interface SubscriptionListResponse {
+  subscriptions: SubscriptionListItem[];
+  summary: SubscriptionListSummary;
+}
+
+export interface SubscriptionPaymentRecord {
+  id: string;
+  amount: string;
+  method: string;
+  reference: string;
+  notes: string;
+  paid_date: string;
+  recorded_by: string;
+  created_at: string;
+}
+
+export interface SubscriptionDetailData {
+  id: string;
+  tenant_id: string;
+  tenant_name: string;
+  tenant_slug: string;
+  plan_id: string;
+  plan_name: string;
+  plan_price: string;
+  billing_cycle: SubscriptionBillingCycle;
+  status: SubscriptionStatus;
+  next_due: string | null;
+  started_at: string | null;
+  ends_at: string | null;
+  is_founding: boolean;
+  is_lifetime: boolean;
+}
+
+export interface SubscriptionDetailResponse {
+  subscription: SubscriptionDetailData;
+  payments: SubscriptionPaymentRecord[];
+  available_plans: TenantPlan[];
+}
+
+export interface MarkPaidPayload {
+  method: string;
+  reference: string;
+  amount: string;
+  notes?: string;
+  paid_date?: string;
+}
+
+export interface AccessControlData {
+  tenant_id: string;
+  tenant_name: string;
+  tenant_slug: string;
+  plan_name: string;
+  max_branches: number | null;
+  max_staff: number | null;
+  branch_limit: number;
+  staff_limit: number | null;
+  enabled_roles: string[];
+  feature_flags: Record<string, boolean>;
+}
+
+export interface AccessControlPayload {
+  branch_limit?: number;
+  staff_limit?: number | null;
+  enabled_roles?: string[];
+  feature_flags?: Record<string, boolean>;
+}
+
+export interface LabOwnerUserItem {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  whatsapp: string;
+  lab_name: string;
+  lab_slug: string;
+  status: string;
+  last_login: string | null;
+  created_at: string;
+}
+
+export interface PlatformTeamMember {
+  id: string;
+  email: string;
+  role: string;
+  totp_enabled: boolean;
+  is_active: boolean;
+  date_joined: string;
+}
+
+export interface PlatformUserInviteItem {
+  id: string;
+  email: string;
+  role: string;
+  status: string;
+  created_at: string;
+}
+
+export interface UsersListResponse {
+  lab_owners: LabOwnerUserItem[];
+  platform_team: PlatformTeamMember[];
+  invitations: PlatformUserInviteItem[];
+}
+
+export type DemoRequestStatus =
+  | "new"
+  | "contacted"
+  | "demo_done"
+  | "converted"
+  | "lost";
+
+export interface DemoRequestItem {
+  id: string;
+  lab_name: string;
+  contact_person: string;
+  whatsapp: string;
+  message: string;
+  status: DemoRequestStatus;
+  notes: string;
+  requested_at: string;
+  converted_tenant: {
+    id: string;
+    name: string;
+    slug: string;
+  } | null;
+}
+
+export interface DemoRequestSummary {
+  new_count: number;
+  contacted_count: number;
+  demo_done_count: number;
+  converted_count: number;
+  lost_count: number;
+  total_count: number;
+}
+
+export interface DemoRequestListResponse {
+  demo_requests: DemoRequestItem[];
+  summary: DemoRequestSummary;
+}
+
+export interface HealthTelemetrySignal {
+  status: "operational" | "degraded" | "outage";
+  failed_count: number;
+  pending_count: number;
+  avg_render_ms?: number;
+  active_workers?: number;
+}
+
+export interface HealthFailureItem {
+  id: string;
+  type: string;
+  lab_name: string;
+  error: string;
+  occurred_at: string;
+  retryable: boolean;
+}
+
+export interface HealthSchemaSizeItem {
+  schema_name: string;
+  tenant_name: string;
+  total_size: string;
+  table_count: number;
+}
+
+export interface PlatformHealthResponse {
+  report_generation: HealthTelemetrySignal;
+  deliveries: HealthTelemetrySignal;
+  webhooks: HealthTelemetrySignal;
+  celery_queue: HealthTelemetrySignal;
+  storage_used_pct: number;
+  database: {
+    engine: string;
+    status: "operational" | "unreachable";
+  };
+  cache: {
+    engine: string;
+    status: "operational" | "unreachable";
+  };
+  failures: HealthFailureItem[];
+  schema_sizes: HealthSchemaSizeItem[];
+}
+
+export interface CommercialTiersConfig {
+  starter_price_pkr: string;
+  growth_price_pkr: string;
+  scale_price_pkr: string;
+  lifetime_single_pkr: string;
+  lifetime_multi_pkr: string;
+  annual_maintenance_pct: number;
+}
+
+export interface FoundingOfferConfig {
+  active: boolean;
+  slots_used: number;
+  slots_total: number;
+}
+
+export interface PlatformTogglesConfig {
+  allow_new_signups: boolean;
+  maintenance_mode: boolean;
+}
+
+export interface PlatformSettingsResponse {
+  commercial_tiers: CommercialTiersConfig;
+  founding_offer: FoundingOfferConfig;
+  platform_toggles: PlatformTogglesConfig;
+}

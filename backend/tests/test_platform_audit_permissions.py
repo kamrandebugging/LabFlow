@@ -57,15 +57,15 @@ def test_platform_audit_migration_is_reversible() -> None:
     assert app_config is not None
 
     # Migrate forward to the head
-    executor.migrate([("core", "0006_platform_dashboard_phase1_rebuild")])
+    executor.migrate([("core", "0007_platform_dashboard_phase2")])
     current_migration = executor.loader.get_migration(
-        "core", "0006_platform_dashboard_phase1_rebuild"
+        "core", "0007_platform_dashboard_phase2"
     )
     assert current_migration is not None
 
     # Rollback to the previous head
-    executor.migrate([("core", "0004_platform_audit_append_only")])
+    executor.migrate([("core", "0006_platform_dashboard_phase1_rebuild")])
     executor.loader.build_graph()
 
     # Re-apply forward to leave the schema in target state
-    executor.migrate([("core", "0006_platform_dashboard_phase1_rebuild")])
+    executor.migrate([("core", "0007_platform_dashboard_phase2")])
