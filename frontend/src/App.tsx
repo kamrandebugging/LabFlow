@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import {
   BrowserRouter,
   Routes,
@@ -90,11 +90,34 @@ import Faq from "./marketing/Faq";
 import FinalCta from "./marketing/FinalCta";
 import Footer from "./marketing/Footer";
 
+import {
+  fetchTenantContext,
+  getSubdomainTenant,
+  type TenantContextInfo,
+} from "./features/auth/tenantContext";
+
 function StaffLoginWrapper(): JSX.Element {
   const navigate = useNavigate();
+  const [tenantInfo, setTenantInfo] = useState<TenantContextInfo | null>(() =>
+    getSubdomainTenant(),
+  );
+
+  useEffect(() => {
+    let active = true;
+    void fetchTenantContext().then((info) => {
+      if (active && info) {
+        setTenantInfo(info);
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   return (
     <StaffLoginScreen
+      tenantName={tenantInfo?.name}
+      nodeId={tenantInfo?.nodeId}
       onTotpRequired={(email) => {
         navigate(`/login/2fa?email=${encodeURIComponent(email)}`);
       }}
@@ -110,11 +133,28 @@ function TwoFactorAuthWrapper(): JSX.Element {
   const navigate = useNavigate();
   const location = useLocation();
   const queryParams = new URLSearchParams(location.search);
-  const emailParam = queryParams.get("email") || "owner@labflow.app";
+  const emailParam = queryParams.get("email") || undefined;
+  const [tenantInfo, setTenantInfo] = useState<TenantContextInfo | null>(() =>
+    getSubdomainTenant(),
+  );
+
+  useEffect(() => {
+    let active = true;
+    void fetchTenantContext().then((info) => {
+      if (active && info) {
+        setTenantInfo(info);
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   return (
     <TwoFactorAuthScreen
       email={emailParam}
+      tenantName={tenantInfo?.name}
+      terminalId={tenantInfo?.terminalId}
       onBack={() => navigate("/login")}
       onSuccess={(session) => {
         useAuthStore.getState().setSession(session.access, session.user);

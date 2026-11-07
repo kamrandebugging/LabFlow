@@ -12,6 +12,7 @@ from apps.accounts.views_auth import (
     RevokeAllSessionsView,
     SessionDetailView,
     SessionListView,
+    TenantContextView,
     TotpEnrollConfirmView,
     TotpEnrollView,
     TotpVerifyView,
@@ -19,6 +20,8 @@ from apps.accounts.views_auth import (
 
 urlpatterns = [
     # Login & Token endpoints
+    path("tenant", TenantContextView.as_view(), name="auth-tenant"),
+    path("tenant/", TenantContextView.as_view(), name="auth-tenant-slash"),
     path("login", LoginView.as_view(), name="auth-login"),
     path("login/", LoginView.as_view(), name="auth-login-slash"),
     path("refresh", RefreshView.as_view(), name="auth-refresh"),

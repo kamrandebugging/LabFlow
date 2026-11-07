@@ -21,8 +21,8 @@ export interface StaffLoginScreenProps {
 }
 
 export function StaffLoginScreen({
-  tenantName = "City Diagnostic Lab — Lahore",
-  nodeId = "PK-LHE-01",
+  tenantName,
+  nodeId,
   authService = defaultAuthService,
   onSuccess,
   onTotpRequired,
@@ -108,22 +108,11 @@ export function StaffLoginScreen({
         {/* Brand Header */}
         <header className="flex items-center justify-between mb-6">
           <div className="flex items-center space-x-2.5">
-            <div className="w-9 h-9 rounded-lg bg-teal-700/10 flex items-center justify-center text-teal-800">
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                viewBox="0 0 24 24"
-                aria-hidden="true"
-              >
-                <path d="M10 2v7.31L4.1 19.34A2 2 0 0 0 5.8 22h12.4a2 2 0 0 0 1.7-2.66L14 9.31V2" />
-                <path d="M8.5 2h7" />
-                <path d="M7 16h10" />
-              </svg>
-            </div>
+            <img
+              src="/logo.svg"
+              alt="LabFlow"
+              className="w-9 h-9 object-contain"
+            />
             <div className="flex items-baseline space-x-1.5">
               <span className="text-xl font-bold tracking-tight text-slate-900">
                 LabFlow
@@ -138,24 +127,28 @@ export function StaffLoginScreen({
           </span>
         </header>
 
-        {/* Tenant Banner */}
-        <section
-          aria-label="Lab node details"
-          className="mb-6 bg-slate-50 border border-slate-100 rounded-lg p-3"
-        >
-          <div className="flex items-start justify-between">
-            <div>
-              <h1 className="text-sm font-semibold text-slate-900 flex items-center gap-1.5">
-                {tenantName}
-              </h1>
-              <p className="text-xs text-slate-500 mt-0.5">Staff sign in</p>
+        {/* Tenant Banner (only rendered when tenant is resolved) */}
+        {tenantName && (
+          <section
+            aria-label="Lab node details"
+            className="mb-6 bg-slate-50 border border-slate-100 rounded-lg p-3"
+          >
+            <div className="flex items-start justify-between">
+              <div>
+                <h1 className="text-sm font-semibold text-slate-900 flex items-center gap-1.5">
+                  {tenantName}
+                </h1>
+                <p className="text-xs text-slate-500 mt-0.5">Staff sign in</p>
+              </div>
+              {nodeId && (
+                <span className="inline-flex items-center gap-1 text-xs text-teal-800 px-1.5 py-0.5 rounded bg-teal-100/70 font-mono">
+                  <span className="w-1.5 h-1.5 rounded-full bg-teal-600 animate-pulse" />
+                  {nodeId}
+                </span>
+              )}
             </div>
-            <span className="inline-flex items-center gap-1 text-xs text-teal-800 px-1.5 py-0.5 rounded bg-teal-100/70 font-mono">
-              <span className="w-1.5 h-1.5 rounded-full bg-teal-600 animate-pulse" />
-              {nodeId}
-            </span>
-          </div>
-        </section>
+          </section>
+        )}
 
         {/* Login Form */}
         <form

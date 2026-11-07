@@ -54,6 +54,61 @@ def _get_tenant_id(request: Request) -> str:
     return "tenant"
 
 
+class TenantContextView(APIView):
+    """GET /api/v1/auth/tenant — Resolve tenant branding and node identity for pre-login."""
+
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request: Request) -> Response:
+        tenant = getattr(request, "tenant", None)
+        if not tenant or getattr(tenant, "schema_name", "public") == "public":
+            return Response({"tenant": None}, status=status.HTTP_200_OK)
+
+        city = getattr(tenant, "city", "") or ""
+        city_lower = city.lower()
+        slug = getattr(tenant, "slug", "") or ""
+
+        city_code_map = {
+            "islamabad": "PK-ISB-01",
+            "lahore": "PK-LHE-01",
+            "karachi": "PK-KHI-01",
+            "rawalpindi": "PK-RWP-01",
+            "peshawar": "PK-PEW-01",
+            "multan": "PK-MUX-01",
+            "faisalabad": "PK-FSD-01",
+            "gujranwala": "PK-GUJ-01",
+            "quetta": "PK-UET-01",
+        }
+        if city_lower in city_code_map:
+            node_id = city_code_map[city_lower]
+        elif "isb" in slug:
+            node_id = "PK-ISB-01"
+        elif "lhr" in slug or "lhe" in slug:
+            node_id = "PK-LHE-01"
+        elif "khi" in slug:
+            node_id = "PK-KHI-01"
+        elif slug:
+            node_id = f"PK-{slug[:3].upper()}-01"
+        else:
+            node_id = "PK-ISB-01"
+
+        terminal_id = node_id.replace("-01", "-04")
+
+        return Response(
+            {
+                "tenant": {
+                    "id": str(getattr(tenant, "id", "")),
+                    "name": tenant.name,
+                    "slug": tenant.slug,
+                    "city": city,
+                    "node_id": node_id,
+                    "terminal_id": terminal_id,
+                }
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
 class LoginView(APIView):
     """POST /api/v1/auth/login."""
 

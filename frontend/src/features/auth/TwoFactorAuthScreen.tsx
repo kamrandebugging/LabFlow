@@ -5,7 +5,6 @@ import {
   ShieldCheck,
   AlertCircle,
   ArrowLeft,
-  KeyRound,
 } from "lucide-react";
 import type { AuthService, LoginSuccessSession } from "./types";
 import { defaultAuthService } from "./authService";
@@ -21,9 +20,9 @@ export interface TwoFactorAuthScreenProps {
 }
 
 export function TwoFactorAuthScreen({
-  email = "ali.raza@citylab.pk",
-  tenantName = "City Diagnostic Lab — Lahore",
-  terminalId = "PK-LHE-04",
+  email,
+  tenantName,
+  terminalId,
   authService = defaultAuthService,
   onSuccess,
   onBack,
@@ -112,9 +111,11 @@ export function TwoFactorAuthScreen({
         {/* Brand Header */}
         <header className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-teal-700 flex items-center justify-center text-white shadow-sm">
-              <KeyRound className="w-4 h-4" />
-            </div>
+            <img
+              src="/logo.svg"
+              alt="LabFlow"
+              className="w-8 h-8 object-contain"
+            />
             <span className="text-xl font-bold tracking-tight text-slate-900">
               LabFlow
             </span>
@@ -129,18 +130,24 @@ export function TwoFactorAuthScreen({
         </header>
 
         {/* Tenant & User Context Banner */}
-        <section
-          aria-label="Tenant and session identity"
-          className="bg-slate-50 border border-slate-100 p-3 rounded-lg flex flex-col gap-1"
-        >
-          <div className="flex items-center gap-1.5 text-teal-800 font-medium text-xs">
-            <span className="font-semibold text-slate-900">{tenantName}</span>
-          </div>
-          <div className="text-xs text-slate-500">
-            Signing in as{" "}
-            <strong className="font-medium text-slate-800">{email}</strong>
-          </div>
-        </section>
+        {(tenantName || email) && (
+          <section
+            aria-label="Tenant and session identity"
+            className="bg-slate-50 border border-slate-100 p-3 rounded-lg flex flex-col gap-1"
+          >
+            {tenantName && (
+              <div className="flex items-center gap-1.5 text-teal-800 font-medium text-xs">
+                <span className="font-semibold text-slate-900">{tenantName}</span>
+              </div>
+            )}
+            {email && (
+              <div className="text-xs text-slate-500">
+                Signing in as{" "}
+                <strong className="font-medium text-slate-800">{email}</strong>
+              </div>
+            )}
+          </section>
+        )}
 
         {/* Title & Guidance */}
         <div className="flex flex-col gap-0.5">
@@ -271,9 +278,11 @@ export function TwoFactorAuthScreen({
               <span className="text-[11px] font-semibold text-slate-800 uppercase tracking-wide">
                 ISO 15189 Certified Node
               </span>
-              <span className="text-[10px] font-mono text-slate-400">
-                Encrypted Terminal {terminalId}
-              </span>
+              {terminalId && (
+                <span className="text-[10px] font-mono text-slate-400">
+                  Encrypted Terminal {terminalId}
+                </span>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-1 bg-white border border-slate-200 px-2 py-0.5 rounded text-[11px] font-mono text-slate-700">
