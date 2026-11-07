@@ -52,14 +52,22 @@ def _clear_cache() -> Any:
 
 
 @pytest.mark.django_db
-def test_list_plans_returns_all(authed_client: APIClient) -> None:
+def test_list_plans_returns_active_by_default(authed_client: APIClient) -> None:
     PlanFactory(name="Starter", price=Decimal("3000.00"))
     PlanFactory(name="Pro", price=Decimal("9000.00"), is_active=False)
 
     resp = authed_client.get("/api/v1/platform/plans", HTTP_HOST="localhost")
     assert resp.status_code == 200
     names = {p["name"] for p in resp.json()["plans"]}
-    assert {"Starter", "Pro"} <= names
+    assert "Starter" in names
+    assert "Pro" not in names
+
+    resp_all = authed_client.get(
+        "/api/v1/platform/plans?include_inactive=true", HTTP_HOST="localhost"
+    )
+    assert resp_all.status_code == 200
+    names_all = {p["name"] for p in resp_all.json()["plans"]}
+    assert {"Starter", "Pro"} <= names_all
 
 
 @pytest.mark.django_db

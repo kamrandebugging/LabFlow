@@ -427,9 +427,17 @@ class PlatformPlanListCreateView(_PlatformBaseView):
     def get(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         from apps.core.models import Plan as PlanModel
 
-        # Retired plans (e.g. the old Standard Lab tier) stay in the table for
-        # historical subscriptions but are never offered for selection.
-        plans = PlanModel.objects.filter(is_active=True).order_by("price")
+        include_inactive = request.query_params.get("include_inactive", "").lower() in (
+            "1",
+            "true",
+            "yes",
+        )
+        if include_inactive:
+            plans = PlanModel.objects.all().order_by("name")
+        else:
+            # Retired plans (e.g. the old Standard Lab tier) stay in the table for
+            # historical subscriptions but are never offered for selection.
+            plans = PlanModel.objects.filter(is_active=True).order_by("price")
         return Response({"plans": [_plan_to_dict(p) for p in plans]}, status=200)
 
     def post(self, request: Request, *args: Any, **kwargs: Any) -> Response:
