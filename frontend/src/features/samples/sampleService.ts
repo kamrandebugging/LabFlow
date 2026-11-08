@@ -13,7 +13,6 @@ import type {
   SampleListFilter,
   SampleListResponse,
   SampleRejectInput,
-  SampleSummary,
   SampleTransferInput,
 } from "./types";
 
@@ -40,6 +39,11 @@ export const sampleService = {
   async listSamples(
     filters: SampleListFilter = {},
   ): Promise<SampleListResponse> {
+    const token = useAuthStore.getState().accessToken;
+    if (!token) {
+      throw new Error("Authentication required: no access token found");
+    }
+
     const url = new URL(API_BASE, window.location.origin);
     if (filters.q) url.searchParams.set("q", filters.q);
     if (filters.status && filters.status !== "all") {

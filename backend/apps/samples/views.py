@@ -32,11 +32,13 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.accounts.models import Role, StaffUser
-from apps.branches.scope_views import IsInBranchScope
+from apps.branches.scope_views import BranchScopedAPIView, IsInBranchScope
+from apps.samples.models import Sample
 from apps.samples.serializers import (
     SampleCancelSerializer,
     SampleCreateSerializer,
     SampleLabelSerializer,
+    SampleListSerializer,
     SampleRejectSerializer,
     SampleSerializer,
     TransferCreateSerializer,
@@ -47,6 +49,7 @@ from apps.samples.services import (
     SAMPLE_CANCEL_ROLES,
     SAMPLE_EVENTS_ROLES,
     SAMPLE_LABEL_ROLES,
+    SAMPLE_READ_ROLES,
     SAMPLE_RECEIVE_ROLES,
     SAMPLE_RECOLLECT_ROLES,
     SAMPLE_REJECT_ROLES,
@@ -76,15 +79,56 @@ def _format_error(code: str, message: str, details: Any = None) -> dict[str, Any
     return {"error": err}
 
 
-class SampleCollectionView(APIView):
+class SampleCollectionView(BranchScopedAPIView):
     """POST /api/v1/samples — collect a sample (SM-1..SM-3).
+    GET /api/v1/samples — list samples (SM-1..SM-11, Screen 16).
 
-    Branch scope (Doc 04 §8.5 Layer 3): no branch travels in the body (the
-    invoice carries it), so only the zero-assignment gate applies — BS-2.
+    Branch scope (Doc 04 §8.5 Layer 2 & 3): zero-assignment gate applies — BS-2.
     """
 
+    scoped_model = Sample
     permission_classes = [permissions.IsAuthenticated, IsInBranchScope]
     scope_branch_source = None
+
+    def get(self, request: Request) -> Response:
+        user = cast(StaffUser, request.user)
+        role = getattr(user, "role", None)
+        if (
+            role is not None
+            and role not in SAMPLE_READ_ROLES
+            and str(role).lower() not in SAMPLE_READ_ROLES
+        ):
+            return Response(
+                _format_error("forbidden", "Role not permitted to view samples."),
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        branch_id_param = request.query_params.get("branch_id")
+        if branch_id_param and branch_id_param != "all":
+            try:
+                uuid.UUID(str(branch_id_param).strip())
+            except (ValueError, AttributeError):
+                return Response(
+                    _format_error("validation_error", "Invalid branch_id"),
+                    status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                )
+
+        try:
+            samples, total = SampleService.list_samples(
+                actor=user,
+                status=request.query_params.get("status"),
+                branch_id=branch_id_param,
+                q=request.query_params.get("q"),
+                limit=request.query_params.get("limit"),
+            )
+        except ValueError:
+            return Response(
+                _format_error("validation_error", "Invalid query parameters"),
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+
+        serializer = SampleListSerializer(samples, many=True)
+        return Response({"results": serializer.data, "total": total})
 
     def post(self, request: Request) -> Response:
         user = cast(StaffUser, request.user)

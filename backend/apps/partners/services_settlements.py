@@ -215,10 +215,11 @@ class SettlementService:
         if period is not None:
             qs = qs.filter(period=period)
         if status is not None:
+            status_norm = status.strip().upper()
             valid = {c for c, _ in Settlement.Status.choices}
-            if status not in valid:
+            if status_norm not in valid:
                 raise ValidationError(f"Unknown status filter: {status}.")
-            qs = qs.filter(status=status)
+            qs = qs.filter(status=status_norm)
         try:
             limit_value = max(1, min(int(limit), 200))
         except (TypeError, ValueError):

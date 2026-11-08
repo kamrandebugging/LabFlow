@@ -7,6 +7,7 @@ KAN-138 / LAB-22).
 
 from typing import Any
 
+from django.utils import timezone
 from rest_framework import serializers
 
 from apps.samples.models import Sample
@@ -52,6 +53,67 @@ class SampleSerializer(serializers.Serializer):
     collected_by = serializers.EmailField(
         source="collected_by.email", allow_null=True, default=None
     )
+
+
+class SampleListSerializer(serializers.Serializer):
+    """List serializer for GET /api/v1/samples satisfying SampleSummary."""
+
+    id = serializers.UUIDField(read_only=True)
+    accession_id = serializers.CharField(read_only=True)
+    invoice_id = serializers.UUIDField(source="invoice.id", read_only=True)
+    patient_id = serializers.UUIDField(source="invoice.patient.id", read_only=True)
+    patient_name = serializers.CharField(source="invoice.patient.name", read_only=True)
+    patient_mrn = serializers.CharField(source="invoice.patient.mrn", read_only=True)
+    patient_sex = serializers.CharField(
+        source="invoice.patient.sex", allow_null=True, required=False, read_only=True
+    )
+    patient_age_years = serializers.SerializerMethodField()
+    branch_id = serializers.UUIDField(source="branch.id", read_only=True)
+    branch_name = serializers.CharField(source="branch.name", read_only=True)
+    status = serializers.CharField(read_only=True)
+    tests = serializers.SerializerMethodField()
+    collected_at = serializers.DateTimeField(read_only=True)
+    age_display = serializers.SerializerMethodField()
+    rejection_reason_code = serializers.CharField(
+        allow_null=True, required=False, read_only=True
+    )
+    rejection_note = serializers.CharField(
+        allow_null=True, required=False, read_only=True
+    )
+
+    def get_patient_age_years(self, obj: Sample) -> int | None:
+        patient = getattr(getattr(obj, "invoice", None), "patient", None)
+        if not patient or not patient.date_of_birth:
+            return None
+        today = timezone.localdate()
+        dob = patient.date_of_birth
+        return today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
+
+    def get_age_display(self, obj: Sample) -> str | None:
+        patient = getattr(getattr(obj, "invoice", None), "patient", None)
+        if not patient or not patient.date_of_birth:
+            return None
+        collected_on = (
+            timezone.localtime(obj.collected_at).date()
+            if obj.collected_at
+            else timezone.localdate()
+        )
+        days = (collected_on - patient.date_of_birth).days
+        if days < 0:
+            return None
+        if days < 30:
+            return f"{days}d"
+        months = days // 30
+        if months < 24:
+            return f"{months}m"
+        return f"{months // 12}y"
+
+    def get_tests(self, obj: Sample) -> list[str]:
+        return [
+            st.test.name
+            for st in obj.sample_tests.all()  # type: ignore[attr-defined]
+            if getattr(st, "test", None) and getattr(st.test, "name", None)
+        ]
 
 
 class SampleLabelSerializer(serializers.Serializer):

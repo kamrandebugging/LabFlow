@@ -1,3 +1,1 @@
-"""Pytest root configuration hooking tests.conftest."""
-
-pytest_plugins = ["tests.conftest"]
+"""Pytest root configuration."""

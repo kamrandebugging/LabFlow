@@ -51,7 +51,11 @@ export function StaffLoginScreen({
     try {
       const result = await authService.login({ email, password });
       if (result.totpRequired) {
-        onTotpRequired?.(email, result.challengeToken);
+        if (result.challengeToken) {
+          onTotpRequired?.(email, result.challengeToken);
+        } else {
+          onTotpRequired?.(email);
+        }
         return;
       }
 

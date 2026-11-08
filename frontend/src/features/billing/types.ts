@@ -76,6 +76,8 @@ export interface InvoiceDetail {
   patient_name?: string;
   patient_mrn?: string;
   patient_phone?: string;
+  patient_sex?: string;
+  patient_age?: string;
   branch_id: string;
   branch_name?: string;
   referral_partner_id?: string | null;

@@ -280,7 +280,7 @@ describe("resultsService unit tests", () => {
     expect(worklist[1]!.status).toBe("in_process");
   });
 
-  it("derives approvals queue prioritizing critical items", async () => {
+  it("derives approvals queue without inventing clinical values", async () => {
     vi.spyOn(sampleService, "listSamples").mockResolvedValueOnce({
       total: 2,
       results: [
@@ -307,7 +307,7 @@ describe("resultsService unit tests", () => {
           branch_id: "br-01",
           branch_name: "Gulberg",
           status: "in_process",
-          tests: ["Potassium (K+)"], // Critical!
+          tests: ["Potassium (K+)"],
           collected_at: "2026-10-20T09:00:00Z",
         },
       ],
@@ -315,12 +315,17 @@ describe("resultsService unit tests", () => {
 
     const queue = await resultsService.getApprovalsQueue();
 
-    // Critical potassium should be sorted first despite being collected later
     expect(queue).toHaveLength(2);
-    expect(queue[0]!.test_name).toBe("Potassium (K+)");
-    expect(queue[0]!.is_critical).toBe(true);
-    expect(queue[1]!.test_name).toBe("Routine Glucose");
+    expect(queue[0]!.test_name).toBe("Routine Glucose");
+    expect(queue[0]!.value).toBe("—");
+    expect(queue[0]!.is_critical).toBe(false);
+    expect(queue[0]!.delta_alert).toBeUndefined();
+    expect(queue[0]!.previous_value).toBeUndefined();
+    expect(queue[1]!.test_name).toBe("Potassium (K+)");
+    expect(queue[1]!.value).toBe("—");
     expect(queue[1]!.is_critical).toBe(false);
+    expect(queue[1]!.delta_alert).toBeUndefined();
+    expect(queue[1]!.previous_value).toBeUndefined();
   });
 
   it("fetches result detail and generates honest detail record", async () => {
@@ -347,8 +352,8 @@ describe("resultsService unit tests", () => {
     expect(detail).not.toBeNull();
     expect(detail?.sample_id).toBe("smp-01");
     expect(detail?.test_name).toBe("Potassium (K+)");
-    expect(detail?.is_critical).toBe(true);
-    expect(detail?.value).toBe("6.8");
+    expect(detail?.is_critical).toBe(false);
+    expect(detail?.value).toBe("—");
   });
 
   it("returns null when sample is not found in getResultDetail", async () => {

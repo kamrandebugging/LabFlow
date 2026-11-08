@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { billingService } from "../billing/billingService";
+import { useAuthStore } from "../auth/authStore";
 import { partnersService } from "../partners/partnersService";
 import { reportsService } from "../reports/reportsService";
 import { sampleService } from "../samples/sampleService";
@@ -53,6 +54,7 @@ const INITIAL_STATS: DashboardStats = {
 
 export function OwnerDashboardScreen(): ReactElement {
   const [stats, setStats] = useState<DashboardStats>(INITIAL_STATS);
+  const accessToken = useAuthStore((s) => s.accessToken);
 
   // Format today's date in PKT
   const pktDateString = useMemo(() => {
@@ -75,6 +77,7 @@ export function OwnerDashboardScreen(): ReactElement {
 
     // Fetch real metrics from existing tenant APIs
     const loadRealData = async () => {
+      if (!accessToken) return;
       let invCount = 0;
       let invTotal = 0;
       let collTotal = 0;
@@ -176,7 +179,7 @@ export function OwnerDashboardScreen(): ReactElement {
     return () => {
       active = false;
     };
-  }, []);
+  }, [accessToken]);
 
   return (
     <div className="p-8">

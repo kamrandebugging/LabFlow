@@ -51,7 +51,10 @@ def _problem_response(
 
 
 def _check_staff_role(user: StaffUser) -> Response | None:
-    if getattr(user, "role", None) not in REPORT_READ_ROLES:
+    role = getattr(user, "role", None)
+    if role is None or (
+        role not in REPORT_READ_ROLES and str(role).lower() not in REPORT_READ_ROLES
+    ):
         return _problem_response(
             status.HTTP_403_FORBIDDEN,
             "forbidden",

@@ -7,7 +7,6 @@ import type {
   InvoiceCreateInput,
   InvoiceDetail,
   InvoiceListResponse,
-  InvoiceSummary,
   PaymentCreateInput,
   PaymentRecord,
 } from "./types";

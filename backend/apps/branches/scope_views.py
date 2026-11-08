@@ -139,8 +139,9 @@ def get_branch_scoped_list_views() -> list[type[APIView]]:
     """
     from apps.billing.views import InvoiceCollectionView
     from apps.patients.views import PatientListCreateView
+    from apps.samples.views import SampleCollectionView
 
-    return [PatientListCreateView, InvoiceCollectionView]
+    return [PatientListCreateView, InvoiceCollectionView, SampleCollectionView]
 
 
 def assert_branch_scope_conformance(

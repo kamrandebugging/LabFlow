@@ -59,6 +59,7 @@ export function TenantLayout(): ReactElement {
     });
 
     const loadBadges = async () => {
+      if (!accessToken) return;
       try {
         const [sampleRes, stRes, exRes] = await Promise.allSettled([
           sampleService.listSamples(),
@@ -96,7 +97,7 @@ export function TenantLayout(): ReactElement {
     return () => {
       active = false;
     };
-  }, [location.pathname]);
+  }, [location.pathname, accessToken]);
 
   if (!accessToken) {
     return <Navigate to="/login" replace />;

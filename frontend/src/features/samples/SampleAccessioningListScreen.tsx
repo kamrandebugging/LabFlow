@@ -9,6 +9,7 @@ import {
   X,
 } from "lucide-react";
 import { sampleService } from "./sampleService";
+import { useAuthStore } from "../auth/authStore";
 import { settingsService } from "../settings/settingsService";
 import type { Branch } from "../settings/types";
 import type { SampleStatus, SampleSummary } from "./types";
@@ -88,11 +89,18 @@ export function SampleAccessioningListScreen({
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  const accessToken = useAuthStore((s) => s.accessToken);
+
   const searchInputId = useId();
   const statusSelectId = useId();
   const branchSelectId = useId();
 
   const loadSamples = useCallback(async () => {
+    // When using default sampleService, never fire without authentication
+    if (service === sampleService && !useAuthStore.getState().accessToken) {
+      setIsLoading(false);
+      return;
+    }
     try {
       setIsLoading(true);
       setErrorMessage(null);
@@ -112,8 +120,11 @@ export function SampleAccessioningListScreen({
   }, [searchQuery, selectedStatus, selectedBranch, service]);
 
   useEffect(() => {
+    if (service === sampleService && !accessToken) {
+      return;
+    }
     loadSamples();
-  }, [loadSamples]);
+  }, [loadSamples, service, accessToken]);
 
   useEffect(() => {
     let active = true;

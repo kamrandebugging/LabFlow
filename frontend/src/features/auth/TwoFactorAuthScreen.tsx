@@ -6,7 +6,7 @@ import {
   AlertCircle,
   ArrowLeft,
 } from "lucide-react";
-import type { AuthService, LoginSuccessSession } from "./types";
+import type { AuthService, LoginSuccessSession, TotpVerifyPayload } from "./types";
 import { defaultAuthService } from "./authService";
 import { GENERIC_AUTH_ERROR } from "./authStore";
 
@@ -102,19 +102,17 @@ export function TwoFactorAuthScreen({
     setError(null);
 
     try {
-      const session = await authService.verifyTotp({
+      const payload: TotpVerifyPayload = {
         code,
         isBackupCode: isBackupMode,
-        email: email?.trim(),
-        challengeToken,
-      });
+      };
+      if (challengeToken) {
+        payload.challengeToken = challengeToken;
+      }
+      const session = await authService.verifyTotp(payload);
       onSuccess?.(session);
-    } catch (err) {
-      const message =
-        err instanceof Error && err.message
-          ? err.message
-          : GENERIC_AUTH_ERROR;
-      setError(message);
+    } catch {
+      setError(GENERIC_AUTH_ERROR);
     } finally {
       setIsLoading(false);
     }
@@ -185,10 +183,7 @@ export function TwoFactorAuthScreen({
             {email && (
               <div className="rounded-lg border border-teal-200 bg-teal-50/80 p-3">
                 <p className="text-xs font-medium text-teal-950">
-                  Enter the code for{" "}
-                  <strong className="font-semibold text-slate-900">
-                    {email}
-                  </strong>
+                  Enter the code from your authenticator app
                 </p>
                 <div className="mt-1 flex items-center justify-between text-[11px] text-teal-800">
                   <span>Current code valid for</span>
@@ -226,10 +221,7 @@ export function TwoFactorAuthScreen({
             <div className="flex items-center justify-between text-xs font-mono text-slate-400 px-1">
               <span className="flex items-center gap-1">
                 <span className="w-1.5 h-1.5 rounded-full bg-teal-600 animate-pulse" />
-                Current code valid:{" "}
-                <strong className="text-teal-900 font-bold">
-                  {secondsLeft}s
-                </strong>
+                Time-synced TOTP ({secondsLeft}s)
               </span>
               <span className="text-slate-500">SHA-1 / 30s</span>
             </div>

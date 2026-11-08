@@ -90,6 +90,19 @@ SAMPLE_EVENTS_ROLES = {
     Role.TECHNICIAN,
     Role.PATHOLOGIST,
 }
+SAMPLE_READ_ROLES = {
+    Role.OWNER,
+    Role.MANAGER,
+    Role.RECEPTION,
+    Role.TECHNICIAN,
+    Role.PATHOLOGIST,
+    "owner",
+    "manager",
+    "reception",
+    "receptionist",
+    "technician",
+    "pathologist",
+}
 TRANSFER_EXCEPTIONS_ROLES = {Role.OWNER, Role.MANAGER}
 
 # tenant_setting key for the late-transfer threshold (Doc 04 §9.4).
@@ -269,6 +282,43 @@ def _write_event_and_audit(
 
 class SampleService:
     """Sample accessioning: collect + label."""
+
+    @staticmethod
+    def list_samples(
+        *,
+        actor: StaffUser,
+        status: str | None = None,
+        branch_id: str | None = None,
+        q: str | None = None,
+        limit: int | None = None,
+    ) -> tuple[list[Sample], int]:
+        """List samples with search and filters, bounded to prevent DoS."""
+        qs = (
+            Sample.objects.scoped_to(actor)
+            .select_related("invoice__patient", "branch")
+            .prefetch_related("sample_tests__test")
+            .order_by("-collected_at", "-created_at")
+        )
+
+        if status and status != "all":
+            qs = qs.filter(status=status.strip().lower())
+
+        if branch_id and branch_id != "all":
+            b_uuid = uuid.UUID(str(branch_id).strip())
+            qs = qs.filter(branch_id=b_uuid)
+
+        if q:
+            term = q.strip()[:100]
+            if term:
+                qs = qs.filter(
+                    Q(accession_id__icontains=term)
+                    | Q(invoice__patient__name__icontains=term)
+                    | Q(invoice__patient__mrn__icontains=term)
+                )
+
+        total = qs.count()
+        limit_val = max(1, min(int(limit), 200)) if limit is not None else 100
+        return list(qs[:limit_val]), total
 
     @staticmethod
     def collect_sample(

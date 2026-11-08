@@ -235,30 +235,24 @@ export const resultsService = {
       const testNames = sample.tests?.length
         ? sample.tests
         : ["Diagnostic Panel"];
-      testNames.forEach((testName: string, idx: number) => {
-        const isPotassium = testName.toLowerCase().includes("potassium");
-        const isTroponin = testName.toLowerCase().includes("troponin");
-        const isCritical = isPotassium || isTroponin;
-
+      testNames.forEach((testName: string) => {
         queueItems.push({
-          result_id: `${sample.id}-res-${idx + 1}`,
+          result_id: sample.id,
           sample_id: sample.id,
           accession_id: sample.accession_id,
           patient_id: sample.patient_id,
           patient_name: sample.patient_name,
           patient_mrn: sample.patient_mrn,
-          test_id: `test-${idx + 1}`,
+          test_id: sample.id,
           test_name: testName,
-          specimen_type: isPotassium ? "Serum" : "Whole Blood",
-          value: isPotassium ? "6.8" : isTroponin ? "1.42" : "Completed",
-          unit: isPotassium ? "mmol/L" : isTroponin ? "ng/mL" : "",
-          flag: isCritical ? "critical_high" : "normal",
-          is_critical: isCritical,
-          entered_by_name: sample.collected_by || "Laboratory Staff",
+          specimen_type: "Specimen",
+          value: "—",
+          unit: "",
+          flag: "normal",
+          is_critical: false,
+          entered_by_name: "Laboratory Staff",
           entered_at: sample.collected_at || new Date().toISOString(),
           waiting_time: calculateWaitingDisplay(sample.collected_at),
-          delta_alert: isTroponin ? "Δ high vs previous" : undefined,
-          previous_value: isPotassium ? "4.2 mmol/L" : undefined,
         });
       });
     }
