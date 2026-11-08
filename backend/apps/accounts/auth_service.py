@@ -503,14 +503,24 @@ class AuthService:
 
     @classmethod
     def enroll_totp(cls, user: StaffUser) -> tuple[str, str]:
-        """Generate pending secret and otpauth URI (Doc 08 §4.4, §17 A-25)."""
-        secret = pyotp.random_base32()
+        """Generate or reuse pending secret and otpauth URI (Doc 08 §4.4, §17 A-25).
+
+        Reuses any pending secret still active in Redis (under 15 min) so that a
+        page refresh or reconnect does not invalidate the secret already added
+        to the user's authenticator app.
+        """
+        pending_key = f"auth:totp_pending:{user.id}"
+        existing_secret = cache.get(pending_key)
+        if existing_secret and isinstance(existing_secret, str):
+            secret = existing_secret
+        else:
+            secret = pyotp.random_base32()
+            cache.set(pending_key, secret, timeout=900)
+
         otpauth_uri = pyotp.totp.TOTP(secret).provisioning_uri(
             name=user.email,
             issuer_name="LabFlow",
         )
-        # Store pending secret in Redis for 15 minutes
-        cache.set(f"auth:totp_pending:{user.id}", secret, timeout=900)
         return secret, otpauth_uri
 
     @classmethod

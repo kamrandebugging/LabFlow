@@ -32,6 +32,16 @@ export function TwoFactorAuthScreen({
   const [backupCode, setBackupCode] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [secondsLeft, setSecondsLeft] = useState<number>(
+    () => 30 - (Math.floor(Date.now() / 1000) % 30),
+  );
+
+  React.useEffect(() => {
+    const timer = setInterval(() => {
+      setSecondsLeft(30 - (Math.floor(Date.now() / 1000) % 30));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   const inputRefs = useRef<Array<HTMLInputElement | null>>([]);
 
@@ -137,7 +147,9 @@ export function TwoFactorAuthScreen({
           >
             {tenantName && (
               <div className="flex items-center gap-1.5 text-teal-800 font-medium text-xs">
-                <span className="font-semibold text-slate-900">{tenantName}</span>
+                <span className="font-semibold text-slate-900">
+                  {tenantName}
+                </span>
               </div>
             )}
             {email && (
@@ -162,6 +174,22 @@ export function TwoFactorAuthScreen({
         {/* Verification Inputs */}
         {!isBackupMode ? (
           <div className="flex flex-col gap-2">
+            {email && (
+              <div className="rounded-lg border border-teal-200 bg-teal-50/80 p-3">
+                <p className="text-xs font-medium text-teal-950">
+                  Enter the code for{" "}
+                  <strong className="font-semibold text-slate-900">
+                    {email}
+                  </strong>
+                </p>
+                <div className="mt-1 flex items-center justify-between text-[11px] text-teal-800">
+                  <span>Current code valid for</span>
+                  <span className="font-mono font-bold text-teal-900">
+                    {secondsLeft}s
+                  </span>
+                </div>
+              </div>
+            )}
             {/* 6-digit OTP Inputs */}
             <div
               className="flex items-center justify-between gap-2"
@@ -189,8 +217,11 @@ export function TwoFactorAuthScreen({
             {/* Live sync / validity feedback hint */}
             <div className="flex items-center justify-between text-xs font-mono text-slate-400 px-1">
               <span className="flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-teal-600" />
-                Time-synced TOTP
+                <span className="w-1.5 h-1.5 rounded-full bg-teal-600 animate-pulse" />
+                Current code valid:{" "}
+                <strong className="text-teal-900 font-bold">
+                  {secondsLeft}s
+                </strong>
               </span>
               <span className="text-slate-500">SHA-1 / 30s</span>
             </div>

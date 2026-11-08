@@ -22,6 +22,16 @@ export function TenantEnrollScreen(): ReactElement {
   const [code, setCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [secondsLeft, setSecondsLeft] = useState<number>(
+    () => 30 - (Math.floor(Date.now() / 1000) % 30),
+  );
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setSecondsLeft(30 - (Math.floor(Date.now() / 1000) % 30));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     if (!accessToken) {
@@ -85,7 +95,9 @@ export function TenantEnrollScreen(): ReactElement {
         setSession(accessToken, { ...user });
       }
     } catch {
-      setError("That code did not match. Check the device clock and try again.");
+      setError(
+        "That code did not match. Check the device clock and try again.",
+      );
     } finally {
       setBusy(false);
     }
@@ -131,7 +143,11 @@ export function TenantEnrollScreen(): ReactElement {
             </div>
             <button
               type="button"
-              onClick={() => navigate("/invoices", { replace: true })}
+              onClick={() =>
+                navigate(user?.role === "owner" ? "/" : "/invoices", {
+                  replace: true,
+                })
+              }
               className="w-full rounded-lg bg-[#0E6B3A] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0A522C]"
             >
               I have saved my codes — continue
@@ -159,6 +175,20 @@ export function TenantEnrollScreen(): ReactElement {
             </div>
 
             <div>
+              <div className="mb-2 rounded-lg border border-teal-200 bg-teal-50/80 p-3">
+                <p className="text-xs font-medium text-teal-950">
+                  Enter the code for{" "}
+                  <strong className="font-semibold text-slate-900">
+                    {user?.email || "your account"}
+                  </strong>
+                </p>
+                <div className="mt-1 flex items-center justify-between text-[11px] text-teal-800">
+                  <span>Current code valid for</span>
+                  <span className="font-mono font-bold text-teal-900">
+                    {secondsLeft}s
+                  </span>
+                </div>
+              </div>
               <label
                 htmlFor="enroll-code"
                 className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-600"

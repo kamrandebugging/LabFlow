@@ -59,6 +59,7 @@ import {
   SettlementDetailScreen,
 } from "./features/partners";
 import { ScreenCatalogViewer } from "./features/screens/ScreenCatalogViewer";
+import { OwnerDashboardScreen } from "./features/dashboard/OwnerDashboardScreen";
 import {
   AccessControlScreen,
   AuditLogScreen,
@@ -97,6 +98,15 @@ import {
   type TenantContextInfo,
 } from "./features/auth/tenantContext";
 
+function OwnerDashboardWrapper(): JSX.Element {
+  const user = useAuthStore((state) => state.user);
+  const accessToken = useAuthStore((state) => state.accessToken);
+  if (!accessToken || user?.role !== "owner") {
+    return <Navigate to="/login" replace />;
+  }
+  return <OwnerDashboardScreen />;
+}
+
 function StaffLoginWrapper(): JSX.Element {
   const navigate = useNavigate();
   const [tenantInfo, setTenantInfo] = useState<TenantContextInfo | null>(() =>
@@ -128,7 +138,8 @@ function StaffLoginWrapper(): JSX.Element {
       }}
       onSuccess={(session) => {
         useAuthStore.getState().setSession(session.access, session.user);
-        navigate("/invoices");
+        const target = session.user?.role === "owner" ? "/" : "/invoices";
+        navigate(target);
       }}
     />
   );
@@ -163,7 +174,8 @@ function TwoFactorAuthWrapper(): JSX.Element {
       onBack={() => navigate("/login")}
       onSuccess={(session) => {
         useAuthStore.getState().setSession(session.access, session.user);
-        navigate("/invoices");
+        const target = session.user?.role === "owner" ? "/" : "/invoices";
+        navigate(target);
       }}
     />
   );
@@ -594,7 +606,19 @@ function App(): JSX.Element {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<Navigate to="/login" replace />} />
+        <Route path="/" element={<OwnerDashboardWrapper />} />
+        <Route
+          path="/approvals"
+          element={<Navigate to="/results/approvals" replace />}
+        />
+        <Route
+          path="/catalog"
+          element={<Navigate to="/catalog/tests" replace />}
+        />
+        <Route
+          path="/settings"
+          element={<Navigate to="/settings/tenant" replace />}
+        />
         <Route path="/login" element={<StaffLoginWrapper />} />
         <Route path="/login/2fa" element={<TwoFactorAuthWrapper />} />
         <Route path="/login/enroll" element={<TenantEnrollScreen />} />
