@@ -78,42 +78,12 @@ export function CollectSampleStep1Screen({
         // Auto-select all items by default
         const allItemIds = new Set(data.items.map((i) => i.id));
         setSelectedItemIds(allItemIds);
-      } catch {
-        // Fallback demo invoice if backend search fails
-        const demoInvoice: InvoiceDetail = {
-          id: "00000000-0000-0000-0000-000000000011",
-          patient_id: "00000000-0000-0000-0000-000000000001",
-          patient_name: "Muhammad Imran",
-          patient_mrn: "MRN-2026-00417",
-          branch_id: userBranchId || "00000000-0000-0000-0000-000000000001",
-          status: "paid",
-          subtotal: "2450.00",
-          discount_amount: "0.00",
-          total: "2450.00",
-          net_paid: "2450.00",
-          items: [
-            {
-              id: "ii-01",
-              test_id: "t-01",
-              description: "Complete Blood Count (CBC)",
-              unit_price: "850.00",
-              quantity: 1,
-              line_total: "850.00",
-            },
-            {
-              id: "ii-02",
-              test_id: "t-02",
-              description: "Glycated Hemoglobin (HbA1c)",
-              unit_price: "1600.00",
-              quantity: 1,
-              line_total: "1600.00",
-            },
-          ],
-          payments: [],
-          created_at: new Date().toISOString(),
-        };
-        setInvoice(demoInvoice);
-        setSelectedItemIds(new Set(demoInvoice.items.map((i) => i.id)));
+      } catch (err) {
+        setInvoice(null);
+        setSelectedItemIds(new Set());
+        setErrorMessage(
+          err instanceof Error ? err.message : "Invoice not found.",
+        );
       } finally {
         setIsLoading(false);
       }
@@ -156,12 +126,12 @@ export function CollectSampleStep1Screen({
     const draft: SampleCollectionDraft = {
       invoice_id: invoice.id,
       patient_id: invoice.patient_id,
-      patient_name: invoice.patient_name || "Muhammad Imran",
-      patient_mrn: invoice.patient_mrn || "MRN-2026-00417",
-      patient_sex: "M",
-      patient_age: "34 years",
+      patient_name: invoice.patient_name || "—",
+      patient_mrn: invoice.patient_mrn || "—",
+      patient_sex: invoice.patient_sex || "",
+      patient_age: invoice.patient_age || "",
       branch_id: invoice.branch_id,
-      branch_name: "Central Diagnostic Lab",
+      branch_name: invoice.branch_name || "Main Branch",
       selected_item_ids: Array.from(selectedItemIds),
       test_labels: selectedItems.map(
         (i) => i.name || i.description || "Diagnostic Test",
@@ -307,14 +277,21 @@ export function CollectSampleStep1Screen({
             <div className="bg-slate-50 border border-slate-200/80 rounded-lg px-3.5 py-2.5 flex items-center justify-between text-sm flex-wrap gap-2">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="font-semibold text-slate-900">
-                  {invoice.patient_name || "Muhammad Imran"}
+                  {invoice.patient_name || "—"}
                 </span>
                 <span className="text-slate-300">·</span>
                 <span className="font-mono text-xs text-slate-700 bg-white border border-slate-200 px-1.5 py-0.5 rounded">
-                  {invoice.patient_mrn || "MRN-2026-00417"}
+                  {invoice.patient_mrn || "—"}
                 </span>
-                <span className="text-slate-300">·</span>
-                <span className="text-slate-600 text-xs">Male, 34 years</span>
+                {invoice.patient_sex && (
+                  <>
+                    <span className="text-slate-300">·</span>
+                    <span className="text-slate-600 text-xs">
+                      {invoice.patient_sex}
+                      {invoice.patient_age ? `, ${invoice.patient_age}` : ""}
+                    </span>
+                  </>
+                )}
               </div>
               <div className="flex items-center gap-1.5 text-xs text-emerald-700 font-medium bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md shrink-0">
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />

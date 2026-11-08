@@ -37,95 +37,31 @@ export class DuplicatePatientError extends Error {
   }
 }
 
-export const DEFAULT_FALLBACK_PATIENTS: PatientSummary[] = [
-  {
-    id: "f472ea8a-5726-475c-883e-4f468546aa77",
-    mrn: "MRN-26-000001",
-    name: "Muhammad Ahmed",
-    phone: "+92 300 1111111",
-    sex: "MALE",
-    branch_id: "96f2a138-334e-490c-9dd3-805dd45022f0",
-    is_cross_branch: false,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  {
-    id: "6843d696-c36f-457a-a9e1-0df14f9740f8",
-    mrn: "MRN-26-000002",
-    name: "Fatima Bibi",
-    phone: "+92 300 2222222",
-    sex: "FEMALE",
-    branch_id: "96f2a138-334e-490c-9dd3-805dd45022f0",
-    is_cross_branch: false,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  {
-    id: "d9719042-1363-40c2-b40a-4a9e63769d7b",
-    mrn: "MRN-26-000003",
-    name: "Zainab Khan",
-    phone: "+92 300 3333333",
-    sex: "FEMALE",
-    branch_id: "96f2a138-334e-490c-9dd3-805dd45022f0",
-    is_cross_branch: false,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  {
-    id: "0085aa3d-70d2-4708-9183-23ac5a9c77fd",
-    mrn: "MRN-26-000004",
-    name: "Ali Raza",
-    phone: "+92 300 4444444",
-    sex: "MALE",
-    branch_id: "96f2a138-334e-490c-9dd3-805dd45022f0",
-    is_cross_branch: false,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  {
-    id: "efe72027-953a-4ac6-b2d1-6000f478e77c",
-    mrn: "MRN-26-000005",
-    name: "Usman Tariq",
-    phone: "+92 300 5555555",
-    sex: "MALE",
-    branch_id: "96f2a138-334e-490c-9dd3-805dd45022f0",
-    is_cross_branch: false,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-];
-
 export const patientService = {
   async listPatients(
     params: { q?: string; branchId?: string } = {},
   ): Promise<PatientSummary[]> {
-    try {
-      const url = new URL(API_BASE, window.location.origin);
-      if (params.q) url.searchParams.set("q", params.q);
-      if (params.branchId) url.searchParams.set("branch_id", params.branchId);
+    const url = new URL(API_BASE, window.location.origin);
+    if (params.q) url.searchParams.set("q", params.q);
+    if (params.branchId) url.searchParams.set("branch_id", params.branchId);
 
-      const res = await fetch(url.toString(), {
-        method: "GET",
-        headers: getAuthHeaders(),
-        credentials: "include",
-      });
+    const res = await fetch(url.toString(), {
+      method: "GET",
+      headers: getAuthHeaders(),
+      credentials: "include",
+    });
 
-      if (!res.ok) {
-        return DEFAULT_FALLBACK_PATIENTS.filter((p) =>
-          params.q
-            ? p.name.toLowerCase().includes(params.q.toLowerCase()) ||
-              p.mrn.toLowerCase().includes(params.q.toLowerCase()) ||
-              (p.phone && p.phone.includes(params.q))
-            : true,
-        );
-      }
-
-      const data = await res.json();
-      if (Array.isArray(data) && data.length > 0) return data;
-      return DEFAULT_FALLBACK_PATIENTS;
-    } catch {
-      return DEFAULT_FALLBACK_PATIENTS;
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(
+        err?.error?.message || `Failed to fetch patients (${res.status})`,
+      );
     }
+
+    const data = await res.json();
+    if (Array.isArray(data)) return data;
+    if (data && Array.isArray(data.results)) return data.results;
+    return [];
   },
 
   async getPatient(id: string): Promise<PatientDetail> {

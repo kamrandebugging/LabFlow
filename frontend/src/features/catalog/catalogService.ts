@@ -33,153 +33,36 @@ function getAuthHeaders(
   return headers;
 }
 
-export const DEFAULT_FALLBACK_TESTS: DiagnosticTest[] = [
-  {
-    id: "65cfd909-503d-421c-a4b2-cae254c8ce15",
-    code: "HB",
-    name: "Haemoglobin",
-    category: "Haematology",
-    unit: "g/dL",
-    price: "500.00",
-    is_active: true,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  {
-    id: "67acc0be-a9b8-4ff9-adee-86d28e4ea261",
-    code: "HBA1C",
-    name: "HbA1c (Glycated Hemoglobin)",
-    category: "Biochemistry",
-    unit: "%",
-    price: "1500.00",
-    is_active: true,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  {
-    id: "db42b6e3-8328-46d7-8cab-44796c58a1a8",
-    code: "BSF",
-    name: "Blood Sugar (Fasting)",
-    category: "Biochemistry",
-    unit: "mg/dL",
-    price: "400.00",
-    is_active: true,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  {
-    id: "44741a87-2a10-4154-9da8-85d90bbdc6a9",
-    code: "BSR",
-    name: "Blood Sugar (Random)",
-    category: "Biochemistry",
-    unit: "mg/dL",
-    price: "350.00",
-    is_active: true,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  {
-    id: "736eb3ad-a1de-4548-9be2-ed385e488b69",
-    code: "URE",
-    name: "Urine Routine Examination",
-    category: "Clinical Pathology",
-    unit: "pH",
-    price: "600.00",
-    is_active: true,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  {
-    id: "9fa4509d-a7cd-4841-89c7-b15887df6423",
-    code: "TSH",
-    name: "Thyroid Stimulating Hormone",
-    category: "Endocrinology",
-    unit: "mIU/L",
-    price: "1800.00",
-    is_active: true,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-];
-
-export const DEFAULT_FALLBACK_PANELS: DiagnosticPanel[] = [
-  {
-    id: "f77f8243-af52-4653-bcce-eaa7e38af87a",
-    code: "CBC",
-    name: "Complete Blood Count (CBC)",
-    price: "800.00",
-    is_active: true,
-    test_ids: ["65cfd909-503d-421c-a4b2-cae254c8ce15"],
-    tests: [],
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  {
-    id: "92ce4c3d-b8f6-4bc7-95b8-5034e77ac76a",
-    code: "LFT",
-    name: "Liver Function Tests (LFT)",
-    price: "1800.00",
-    is_active: true,
-    test_ids: [],
-    tests: [],
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  {
-    id: "dc398512-739a-43ca-b2f4-faa38af51fed",
-    code: "RFT",
-    name: "Renal Function Tests (RFT)",
-    price: "1600.00",
-    is_active: true,
-    test_ids: [],
-    tests: [],
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  {
-    id: "57e34ea4-bb91-494d-a03b-4d25e929aef6",
-    code: "LIPID",
-    name: "Lipid Profile",
-    price: "2000.00",
-    is_active: true,
-    test_ids: [],
-    tests: [],
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-];
-
 export const catalogService = {
   // Tests
   async listTests(
     params: { q?: string; category?: string; isActive?: boolean } = {},
   ): Promise<DiagnosticTest[]> {
-    try {
-      const url = new URL(`${API_BASE}/tests`, window.location.origin);
-      if (params.q) url.searchParams.set("q", params.q);
-      if (params.category) url.searchParams.set("category", params.category);
-      if (params.isActive !== undefined) {
-        url.searchParams.set("active", String(params.isActive));
-        url.searchParams.set("is_active", String(params.isActive));
-      }
-
-      const res = await fetch(url.toString(), {
-        method: "GET",
-        headers: getAuthHeaders(),
-        credentials: "include",
-      });
-
-      if (!res.ok) {
-        return DEFAULT_FALLBACK_TESTS;
-      }
-
-      const data = await res.json();
-      return Array.isArray(data) && data.length > 0
-        ? data
-        : DEFAULT_FALLBACK_TESTS;
-    } catch {
-      return DEFAULT_FALLBACK_TESTS;
+    const url = new URL(`${API_BASE}/tests`, window.location.origin);
+    if (params.q) url.searchParams.set("q", params.q);
+    if (params.category) url.searchParams.set("category", params.category);
+    if (params.isActive !== undefined) {
+      url.searchParams.set("active", String(params.isActive));
+      url.searchParams.set("is_active", String(params.isActive));
     }
+
+    const res = await fetch(url.toString(), {
+      method: "GET",
+      headers: getAuthHeaders(),
+      credentials: "include",
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(
+        err?.error?.message || `Failed to fetch tests (${res.status})`,
+      );
+    }
+
+    const data = await res.json();
+    if (Array.isArray(data)) return data;
+    if (data && Array.isArray(data.results)) return data.results;
+    return [];
   },
 
   async getTest(id: string): Promise<DiagnosticTest> {
@@ -370,27 +253,26 @@ export const catalogService = {
 
   // Panels
   async listPanels(params: { q?: string } = {}): Promise<DiagnosticPanel[]> {
-    try {
-      const url = new URL(`${API_BASE}/panels`, window.location.origin);
-      if (params.q) url.searchParams.set("q", params.q);
+    const url = new URL(`${API_BASE}/panels`, window.location.origin);
+    if (params.q) url.searchParams.set("q", params.q);
 
-      const res = await fetch(url.toString(), {
-        method: "GET",
-        headers: getAuthHeaders(),
-        credentials: "include",
-      });
+    const res = await fetch(url.toString(), {
+      method: "GET",
+      headers: getAuthHeaders(),
+      credentials: "include",
+    });
 
-      if (!res.ok) {
-        return DEFAULT_FALLBACK_PANELS;
-      }
-
-      const data = await res.json();
-      return Array.isArray(data) && data.length > 0
-        ? data
-        : DEFAULT_FALLBACK_PANELS;
-    } catch {
-      return DEFAULT_FALLBACK_PANELS;
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(
+        err?.error?.message || `Failed to fetch panels (${res.status})`,
+      );
     }
+
+    const data = await res.json();
+    if (Array.isArray(data)) return data;
+    if (data && Array.isArray(data.results)) return data.results;
+    return [];
   },
 
   async getPanel(id: string): Promise<DiagnosticPanel> {

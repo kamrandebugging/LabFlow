@@ -14,15 +14,19 @@ InvoiceQueryService.
 
 import uuid
 from datetime import UTC, datetime
+from decimal import Decimal
 from typing import Any, cast
 
+from django.db.models import Sum
 from django.http import QueryDict
+from django.utils import timezone
 from rest_framework import permissions, status
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.accounts.models import StaffUser
+from apps.billing.models import Invoice
 from apps.billing.serializers import (
     InvoiceCancelSerializer,
     InvoiceCreateSerializer,
@@ -91,9 +95,17 @@ class InvoiceCollectionView(BranchScopedAPIView):
                 _format_error(exc.error_code, str(exc) or exc.error_code),
                 status=exc.status_code,
             )
+        today = timezone.localdate()
+        today_total = (
+            Invoice.objects.scoped_to(user)
+            .filter(created_at__date=today)
+            .exclude(status=Invoice.Status.CANCELLED)
+            .aggregate(sum=Sum("total"))["sum"]
+        ) or Decimal("0.00")
         body = {
             "results": InvoiceSummarySerializer(rows, many=True).data,
             "next_cursor": next_cursor,
+            "daily_total": f"{today_total:.2f}",
         }
         return Response(body, status=status.HTTP_200_OK)
 

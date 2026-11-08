@@ -250,11 +250,11 @@ export const resultsService = {
           test_id: `test-${idx + 1}`,
           test_name: testName,
           specimen_type: isPotassium ? "Serum" : "Whole Blood",
-          value: isPotassium ? "6.8" : isTroponin ? "1.42" : "Normal",
+          value: isPotassium ? "6.8" : isTroponin ? "1.42" : "Completed",
           unit: isPotassium ? "mmol/L" : isTroponin ? "ng/mL" : "",
           flag: isCritical ? "critical_high" : "normal",
           is_critical: isCritical,
-          entered_by_name: "Usman Tariq (Technician)",
+          entered_by_name: sample.collected_by || "Laboratory Staff",
           entered_at: sample.collected_at || new Date().toISOString(),
           waiting_time: calculateWaitingDisplay(sample.collected_at),
           delta_alert: isTroponin ? "Δ high vs previous" : undefined,
@@ -287,10 +287,8 @@ export const resultsService = {
       const sample = await sampleService.getSample(sampleId);
       if (!sample) return null;
 
-      const testName = sample.tests?.[0] || "Potassium (K+)";
-      const isCritical =
-        testName.toLowerCase().includes("potassium") ||
-        testName.toLowerCase().includes("troponin");
+      const test = sample.sample_tests?.[0];
+      const testName = test?.test_name || sample.tests?.[0] || "Diagnostic Test";
 
       return {
         id: resultId,
@@ -301,41 +299,21 @@ export const resultsService = {
         patient_mrn: sample.patient_mrn,
         patient_sex: sample.patient_sex,
         patient_age_years: sample.patient_age_years,
-        test_id: "test-001",
+        test_id: test?.test_id || "test",
         test_name: testName,
-        method: "Ion-Selective Electrode (ISE)",
-        specimen_type: "Serum (Gold top)",
-        analyzer: "Roche Cobas c501",
-        value: "6.8",
-        unit: "mmol/L",
-        flag: isCritical ? "critical_high" : "normal",
-        is_critical: isCritical,
-        status: "entered",
-        matched_range: "3.5 – 5.1 mmol/L",
-        critical_threshold: "> 6.2 mmol/L",
-        entered_by_name: "Usman Tariq (Technician #409)",
+        method: "Standard Analytical Method",
+        specimen_type: test?.specimen_type || "Specimen",
+        analyzer: "Validated Laboratory System",
+        value: "—",
+        unit: "",
+        flag: "normal",
+        is_critical: false,
+        status: sample.status === "ready" ? "approved" : "entered",
+        matched_range: "Per Reference Range",
+        critical_threshold: "—",
+        entered_by_name: sample.collected_by || "Laboratory Staff",
         entered_at: sample.collected_at || new Date().toISOString(),
-        previous_value: "4.2 mmol/L",
-        previous_date: "14 Sep 2026",
-        shift_rate: "+61.9% in 36 days",
-        delta_note: "Δ +2.6 — exceeds delta limit",
-        audit_history: [
-          {
-            version: "v1.0",
-            value: "6.8",
-            unit: "mmol/L",
-            status: "approved",
-            timestamp: new Date(Date.now() - 3600000).toISOString(),
-            actor_name: "Dr. Ayesha Khan (Pathologist)",
-            note: "Initial urgent intake flagged for high potassium.",
-          },
-        ],
-        critical_notification: {
-          notified_name: "Dr. Tariq Niazi (Ward 4-B)",
-          notified_at: new Date(Date.now() - 1800000).toISOString(),
-          read_back: true,
-          recipient_role: "Ward Medical Officer",
-        },
+        audit_history: [],
       };
     } catch {
       return null;
