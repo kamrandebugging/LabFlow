@@ -157,6 +157,25 @@ REST_FRAMEWORK = {
 # Security & Auth Engine Configuration (Doc 01 §14, Doc 08 §4, Doc 08 §10)
 # -----------------------------------------------------------------------------
 
+# Distributed Redis Cache (Doc 02 §3.4, Doc 08 §4)
+REDIS_URL = env("REDIS_URL", default="redis://localhost:6379/0")
+
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "LOCATION": REDIS_URL,
+        "KEY_PREFIX": "labflow",
+    }
+}
+
+# Security & Cookie Flags (Production Hardening)
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+SESSION_COOKIE_SECURE = env.bool("SESSION_COOKIE_SECURE", default=not DEBUG)
+CSRF_COOKIE_SECURE = env.bool("CSRF_COOKIE_SECURE", default=not DEBUG)
+SECURE_BROWSER_XSS_FILTER = True
+SECURE_CONTENT_TYPE_NOSNIFF = True
+X_FRAME_OPTIONS = "DENY"
+
 PASSWORD_HASHERS = [
     "django.contrib.auth.hashers.Argon2PasswordHasher",
     "django.contrib.auth.hashers.PBKDF2PasswordHasher",

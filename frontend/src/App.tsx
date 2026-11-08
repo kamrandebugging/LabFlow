@@ -129,8 +129,10 @@ function StaffLoginWrapper(): JSX.Element {
     <StaffLoginScreen
       tenantName={tenantInfo?.name}
       nodeId={tenantInfo?.nodeId}
-      onTotpRequired={(email) => {
-        navigate(`/login/2fa?email=${encodeURIComponent(email)}`);
+      onTotpRequired={(email, challengeToken) => {
+        const query = new URLSearchParams({ email });
+        if (challengeToken) query.set("challenge", challengeToken);
+        navigate(`/login/2fa?${query.toString()}`);
       }}
       onTotpEnrollmentRequired={(session) => {
         useAuthStore.getState().setSession(session.access, session.user);
@@ -150,6 +152,7 @@ function TwoFactorAuthWrapper(): JSX.Element {
   const location = useLocation();
   const queryParams = new URLSearchParams(location.search);
   const emailParam = queryParams.get("email") || undefined;
+  const challengeParam = queryParams.get("challenge") || undefined;
   const [tenantInfo, setTenantInfo] = useState<TenantContextInfo | null>(() =>
     getSubdomainTenant(),
   );
@@ -169,6 +172,7 @@ function TwoFactorAuthWrapper(): JSX.Element {
   return (
     <TwoFactorAuthScreen
       email={emailParam}
+      challengeToken={challengeParam}
       tenantName={tenantInfo?.name}
       terminalId={tenantInfo?.terminalId}
       onBack={() => navigate("/login")}
@@ -657,6 +661,11 @@ function App(): JSX.Element {
 
         {/* Results Management Suite (Screens 21–25) */}
         <Route path="/worklist" element={<WorklistWrapper />} />
+        <Route path="/results" element={<Navigate to="/worklist" replace />} />
+        <Route
+          path="/approvals"
+          element={<Navigate to="/results/approvals" replace />}
+        />
         <Route
           path="/results/entry/:sampleId"
           element={<ResultEntryWrapper />}

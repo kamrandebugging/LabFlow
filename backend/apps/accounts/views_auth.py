@@ -6,6 +6,7 @@ from typing import cast
 
 from django.conf import settings
 from django.contrib.auth.hashers import make_password
+from django.core.cache import cache
 from django.db import transaction
 from rest_framework import permissions, status
 from rest_framework.request import Request
@@ -197,16 +198,34 @@ class LoginView(APIView):
 
         # 3. TOTP Challenge required?
         if payload.get("totp_required"):
-            challenge_token = AuthService.create_totp_challenge(payload["user_id"])
-            response = Response({"totp_required": True}, status=status.HTTP_200_OK)
+            challenge_token = AuthService.create_totp_challenge(
+                payload["user_id"], tenant_id=tenant_id
+            )
+            clean_email = email.strip().lower()
+            cache.set(
+                f"auth:challenge_email:{clean_email}",
+                challenge_token,
+                timeout=FIVE_MINUTES_SECONDS,
+            )
+            response = Response(
+                {
+                    "totp_required": True,
+                    "challenge_token": challenge_token,
+                    "email": clean_email,
+                },
+                status=status.HTTP_200_OK,
+            )
+            is_secure = request.is_secure() or getattr(
+                settings, "SESSION_COOKIE_SECURE", False
+            )
             response.set_cookie(
                 key=CHALLENGE_COOKIE_NAME,
                 value=challenge_token,
                 max_age=FIVE_MINUTES_SECONDS,
                 httponly=True,
-                secure=getattr(settings, "SESSION_COOKIE_SECURE", False),
+                secure=is_secure,
                 samesite="Lax",
-                path=COOKIE_PATH,
+                path="/",
             )
             return response
 
@@ -574,6 +593,13 @@ class TotpVerifyView(APIView):
             "challenge_token"
         )
         if not challenge_token:
+            email_param = data.get("email") or request.query_params.get("email")
+            if email_param:
+                challenge_token = cache.get(
+                    f"auth:challenge_email:{str(email_param).strip().lower()}"
+                )
+
+        if not challenge_token:
             return Response(
                 {
                     "error": {
@@ -623,6 +649,7 @@ class TotpVerifyView(APIView):
                     },
                     status=status.HTTP_401_UNAUTHORIZED,
                 )
+                res.delete_cookie(CHALLENGE_COOKIE_NAME, path="/")
                 res.delete_cookie(CHALLENGE_COOKIE_NAME, path=COOKIE_PATH)
                 return res
 
@@ -654,6 +681,7 @@ class TotpVerifyView(APIView):
             samesite="Lax",
             path=COOKIE_PATH,
         )
+        response.delete_cookie(CHALLENGE_COOKIE_NAME, path="/")
         response.delete_cookie(CHALLENGE_COOKIE_NAME, path=COOKIE_PATH)
         return response
 

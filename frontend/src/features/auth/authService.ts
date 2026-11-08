@@ -15,8 +15,14 @@ import type {
 
 const API_BASE_URL = "/api/v1";
 
+let currentChallengeToken: string | null = null;
+let currentChallengeEmail: string | null = null;
+
 export const defaultAuthService: AuthService = {
   async login(credentials: LoginCredentials): Promise<LoginResult> {
+    currentChallengeToken = null;
+    currentChallengeEmail = credentials.email.trim().toLowerCase();
+
     const response = await fetch(`${API_BASE_URL}/auth/login`, {
       method: "POST",
       headers: {
@@ -32,8 +38,11 @@ export const defaultAuthService: AuthService = {
 
     const data = await response.json();
     if (data.totp_required) {
+      currentChallengeToken = data.challenge_token || null;
       return {
         totpRequired: true,
+        challengeToken: data.challenge_token,
+        email: currentChallengeEmail,
       };
     }
 
@@ -50,6 +59,10 @@ export const defaultAuthService: AuthService = {
   },
 
   async verifyTotp(payload: TotpVerifyPayload): Promise<LoginSuccessSession> {
+    const payloadEmail = payload.email || currentChallengeEmail || undefined;
+    const payloadChallenge =
+      payload.challengeToken || currentChallengeToken || undefined;
+
     const response = await fetch(`${API_BASE_URL}/auth/totp/verify`, {
       method: "POST",
       headers: {
@@ -59,11 +72,22 @@ export const defaultAuthService: AuthService = {
       body: JSON.stringify({
         code: payload.code,
         is_backup_code: payload.isBackupCode ?? false,
+        challenge_token: payloadChallenge,
+        email: payloadEmail,
       }),
     });
 
     if (!response.ok) {
-      throw new Error("401 invalid_code");
+      let errorMsg = "Email, password or code is not correct";
+      try {
+        const errJson = await response.json();
+        if (errJson?.error?.message) {
+          errorMsg = errJson.error.message;
+        }
+      } catch {
+        // Non-JSON response
+      }
+      throw new Error(errorMsg);
     }
 
     const data = await response.json();

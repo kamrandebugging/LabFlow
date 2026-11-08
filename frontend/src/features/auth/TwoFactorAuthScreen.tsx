@@ -12,6 +12,7 @@ import { GENERIC_AUTH_ERROR } from "./authStore";
 
 export interface TwoFactorAuthScreenProps {
   email?: string;
+  challengeToken?: string;
   tenantName?: string;
   terminalId?: string;
   authService?: AuthService;
@@ -21,6 +22,7 @@ export interface TwoFactorAuthScreenProps {
 
 export function TwoFactorAuthScreen({
   email,
+  challengeToken,
   tenantName,
   terminalId,
   authService = defaultAuthService,
@@ -103,10 +105,16 @@ export function TwoFactorAuthScreen({
       const session = await authService.verifyTotp({
         code,
         isBackupCode: isBackupMode,
+        email: email?.trim(),
+        challengeToken,
       });
       onSuccess?.(session);
-    } catch {
-      setError(GENERIC_AUTH_ERROR);
+    } catch (err) {
+      const message =
+        err instanceof Error && err.message
+          ? err.message
+          : GENERIC_AUTH_ERROR;
+      setError(message);
     } finally {
       setIsLoading(false);
     }

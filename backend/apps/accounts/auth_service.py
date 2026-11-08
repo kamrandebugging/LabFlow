@@ -494,11 +494,16 @@ class AuthService:
         return Fernet(key)
 
     @classmethod
-    def create_totp_challenge(cls, user_id: str) -> str:
+    def create_totp_challenge(
+        cls, user_id: str, tenant_id: str | None = None
+    ) -> str:
         """Create a 5-minute TOTP challenge in Redis tracking attempts (Doc 08 §4.4)."""
         challenge_token = str(uuid.uuid4())
         cache_key = f"auth:challenge:{challenge_token}"
-        cache.set(cache_key, {"user_id": user_id, "attempts": 0}, timeout=300)
+        data = {"user_id": user_id, "attempts": 0}
+        if tenant_id:
+            data["tenant_id"] = tenant_id
+        cache.set(cache_key, data, timeout=300)
         return challenge_token
 
     @classmethod
@@ -599,67 +604,72 @@ class AuthService:
             return False, None, "totp_challenge_expired"
 
         user_id = challenge.get("user_id")
-        user = StaffUser.objects.filter(id=user_id, is_active=True).first()
-        if not user:
-            cache.delete(cache_key)
-            return False, None, "invalid_credentials"
+        schema = tenant_id or challenge.get("tenant_id") or "public"
 
-        is_matched = False
-
-        # In DEBUG mode, allow master dev code 123456
-        if getattr(settings, "DEBUG", False) and code == "123456":
-            is_matched = True
-
-        # 1. Try TOTP secret match if enrolled
-        if not is_matched and user.totp_secret_encrypted:
-            try:
-                fernet = cls._get_fernet()
-                raw_secret = fernet.decrypt(
-                    user.totp_secret_encrypted.encode()
-                ).decode()
-                totp = pyotp.TOTP(raw_secret)
-                if totp.verify(code, valid_window=1):
-                    is_matched = True
-            except Exception as exc:
-                logger.error("Failed decrypting TOTP secret: %s", exc)
-
-        # 2. Try single-use backup code match if not matched by TOTP
-        if not is_matched and user.totp_backup_codes_hash:
-            matched_hash = None
-            for h in user.totp_backup_codes_hash:
-                if check_password(code, h):
-                    matched_hash = h
-                    is_matched = True
-                    break
-
-            if matched_hash:
-                with transaction.atomic():
-                    user.totp_backup_codes_hash.remove(matched_hash)
-                    user.save(update_fields=["totp_backup_codes_hash", "updated_at"])
-
-        if not is_matched:
-            if attempts >= 5:
+        with schema_context(schema):
+            user = StaffUser.objects.filter(id=user_id, is_active=True).first()
+            if not user:
                 cache.delete(cache_key)
-                return False, None, "totp_challenge_expired"
-            cache.set(cache_key, challenge, timeout=300)
-            return False, None, "invalid_credentials"
+                return False, None, "invalid_credentials"
 
-        # Verification succeeded
-        cache.delete(cache_key)
-        session_data = cls.create_session(
-            user,
-            ip=ip,
-            user_agent=user_agent,
-            tenant_id=tenant_id,
-        )
-        LoginEvent.objects.create(
-            staff_user=user,
-            email_attempted=user.email,
-            success=True,
-            ip=ip,
-            user_agent=user_agent,
-        )
-        return True, session_data, None
+            is_matched = False
+
+            # In DEBUG mode, allow master dev code 123456
+            if getattr(settings, "DEBUG", False) and code == "123456":
+                is_matched = True
+
+            # 1. Try TOTP secret match if enrolled
+            if not is_matched and user.totp_secret_encrypted:
+                try:
+                    fernet = cls._get_fernet()
+                    raw_secret = fernet.decrypt(
+                        user.totp_secret_encrypted.encode()
+                    ).decode()
+                    totp = pyotp.TOTP(raw_secret)
+                    if totp.verify(code, valid_window=1):
+                        is_matched = True
+                except Exception as exc:
+                    logger.error("Failed decrypting TOTP secret: %s", exc)
+
+            # 2. Try single-use backup code match if not matched by TOTP
+            if not is_matched and user.totp_backup_codes_hash:
+                matched_hash = None
+                for h in user.totp_backup_codes_hash:
+                    if check_password(code, h):
+                        matched_hash = h
+                        is_matched = True
+                        break
+
+                if matched_hash:
+                    with transaction.atomic():
+                        user.totp_backup_codes_hash.remove(matched_hash)
+                        user.save(
+                            update_fields=["totp_backup_codes_hash", "updated_at"]
+                        )
+
+            if not is_matched:
+                if attempts >= 5:
+                    cache.delete(cache_key)
+                    return False, None, "totp_challenge_expired"
+                cache.set(cache_key, challenge, timeout=300)
+                return False, None, "invalid_credentials"
+
+            # Verification succeeded
+            cache.delete(cache_key)
+            session_data = cls.create_session(
+                user,
+                ip=ip,
+                user_agent=user_agent,
+                tenant_id=schema,
+            )
+            LoginEvent.objects.create(
+                staff_user=user,
+                email_attempted=user.email,
+                success=True,
+                ip=ip,
+                user_agent=user_agent,
+            )
+            return True, session_data, None
 
     @classmethod
     def reset_staff_totp(

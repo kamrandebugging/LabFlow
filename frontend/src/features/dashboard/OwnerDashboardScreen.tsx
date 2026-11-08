@@ -348,7 +348,7 @@ export function OwnerDashboardScreen(): ReactElement {
               <span>Worklist</span>
             </Link>
             <Link
-              to="/results"
+              to="/worklist"
               className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition-colors"
             >
               <span className="material-symbols-outlined text-[18px]">
@@ -357,7 +357,7 @@ export function OwnerDashboardScreen(): ReactElement {
               <span>Results Entry</span>
             </Link>
             <Link
-              to="/approvals"
+              to="/results/approvals"
               className="flex items-center justify-between px-3 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition-colors"
             >
               <div className="flex items-center gap-2.5">
@@ -371,7 +371,7 @@ export function OwnerDashboardScreen(): ReactElement {
               </span>
             </Link>
             <Link
-              to="/results"
+              to="/exceptions"
               className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition-colors"
             >
               <span className="material-symbols-outlined text-[18px]">

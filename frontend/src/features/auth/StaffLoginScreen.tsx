@@ -17,7 +17,7 @@ export interface StaffLoginScreenProps {
   nodeId?: string;
   authService?: AuthService;
   onSuccess?: (session: LoginSuccessSession) => void;
-  onTotpRequired?: (email: string) => void;
+  onTotpRequired?: (email: string, challengeToken?: string) => void;
   onTotpEnrollmentRequired?: (session: LoginSuccessSession) => void;
 }
 
@@ -51,7 +51,7 @@ export function StaffLoginScreen({
     try {
       const result = await authService.login({ email, password });
       if (result.totpRequired) {
-        onTotpRequired?.(email);
+        onTotpRequired?.(email, result.challengeToken);
         return;
       }
 

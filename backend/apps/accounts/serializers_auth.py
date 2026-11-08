@@ -4,13 +4,13 @@ from rest_framework import serializers
 
 
 class LoginRequestSerializer(serializers.Serializer):
-    email = serializers.EmailField(required=True)
-    password = serializers.CharField(required=True, write_only=True)
+    email = serializers.EmailField(required=True, max_length=255)
+    password = serializers.CharField(required=True, write_only=True, max_length=128)
 
 
 class PasswordChangeRequestSerializer(serializers.Serializer):
-    current_password = serializers.CharField(required=True, write_only=True)
-    new_password = serializers.CharField(required=True, write_only=True)
+    current_password = serializers.CharField(required=True, write_only=True, max_length=128)
+    new_password = serializers.CharField(required=True, write_only=True, max_length=128)
 
 
 class SessionItemSerializer(serializers.Serializer):
@@ -29,16 +29,23 @@ class TotpEnrollConfirmSerializer(serializers.Serializer):
 class TotpVerifySerializer(serializers.Serializer):
     code = serializers.CharField(required=True, min_length=6, max_length=32)
     is_backup_code = serializers.BooleanField(required=False, default=False)
+    challenge_token = serializers.CharField(
+        required=False, allow_null=True, allow_blank=True, max_length=255
+    )
+    email = serializers.EmailField(
+        required=False, allow_null=True, allow_blank=True, max_length=255
+    )
 
 
 class PasswordResetRequestSerializer(serializers.Serializer):
-    email = serializers.EmailField(required=True)
+    email = serializers.EmailField(required=True, max_length=255)
 
 
 class PasswordResetConfirmSerializer(serializers.Serializer):
-    token = serializers.CharField(required=True, allow_blank=False)
+    token = serializers.CharField(required=True, allow_blank=False, max_length=255)
     new_password = serializers.CharField(
         required=True,
         write_only=True,
         allow_blank=False,
+        max_length=128,
     )

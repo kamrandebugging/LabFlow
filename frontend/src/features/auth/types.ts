@@ -32,12 +32,16 @@ export interface LoginSuccessSession {
 export interface LoginResult {
   totpRequired: boolean;
   totpEnrollmentRequired?: boolean;
+  challengeToken?: string;
+  email?: string;
   session?: LoginSuccessSession;
 }
 
 export interface TotpVerifyPayload {
   code: string;
   isBackupCode?: boolean;
+  challengeToken?: string;
+  email?: string;
 }
 
 export interface AuthService {

@@ -165,3 +165,37 @@ def check_and_record_password_reset_throttle(
     except Exception:
         # Doc 08 §10.1: Invisible fail-closed on Redis outage
         return True, PASSWORD_RESET_WINDOW_SECONDS
+
+
+def check_and_record_generic_throttle(
+    key_prefix: str,
+    identifier: str,
+    max_attempts: int,
+    window_seconds: int,
+) -> tuple[bool, int]:
+    """Generic atomic sliding/fixed window throttle.
+
+    Returns (is_throttled, retry_after_seconds).
+    Fails closed silently on Redis outage.
+    """
+    key = f"{key_prefix}:{identifier}"
+    time_key = f"{key}:start"
+    try:
+        now = time.time()
+        current_count = cache.get(key)
+        if current_count is not None and int(current_count) >= max_attempts:
+            start_time = float(cache.get(time_key) or now)
+            return True, _get_retry_after(start_time, window_seconds)
+
+        if current_count is None:
+            cache.set(key, 1, timeout=window_seconds)
+            cache.set(time_key, now, timeout=window_seconds)
+        else:
+            try:
+                cache.incr(key)
+            except ValueError:
+                cache.set(key, int(current_count) + 1, timeout=window_seconds)
+
+        return False, 0
+    except Exception:
+        return True, window_seconds
