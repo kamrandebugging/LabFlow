@@ -55,7 +55,7 @@ def _get_tenant_id(request: Request) -> str:
 
 
 class TenantContextView(APIView):
-    """GET /api/v1/auth/tenant — Resolve tenant branding and node identity for pre-login."""
+    """GET /api/v1/auth/tenant — Resolve tenant branding and node identity."""
 
     permission_classes = [permissions.AllowAny]
 
@@ -217,6 +217,8 @@ class LoginView(APIView):
             "expires_in": payload["expires_in"],
             "user": payload["user"],
         }
+        if payload.get("totp_enrollment_required"):
+            body_data["totp_enrollment_required"] = True
 
         response = Response(body_data, status=status.HTTP_200_OK)
         response.set_cookie(

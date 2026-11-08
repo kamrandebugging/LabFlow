@@ -10,6 +10,7 @@ import {
 } from "react-router-dom";
 import { useAuthStore } from "./features/auth/authStore";
 import { StaffLoginScreen } from "./features/auth/StaffLoginScreen";
+import { TenantEnrollScreen } from "./features/auth/TenantEnrollScreen";
 import { TwoFactorAuthScreen } from "./features/auth/TwoFactorAuthScreen";
 import { PatientListScreen } from "./features/patients/PatientListScreen";
 import { RegisterPatientScreen } from "./features/patients/RegisterPatientScreen";
@@ -120,6 +121,10 @@ function StaffLoginWrapper(): JSX.Element {
       nodeId={tenantInfo?.nodeId}
       onTotpRequired={(email) => {
         navigate(`/login/2fa?email=${encodeURIComponent(email)}`);
+      }}
+      onTotpEnrollmentRequired={(session) => {
+        useAuthStore.getState().setSession(session.access, session.user);
+        navigate("/login/enroll");
       }}
       onSuccess={(session) => {
         useAuthStore.getState().setSession(session.access, session.user);
@@ -592,6 +597,7 @@ function App(): JSX.Element {
         <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="/login" element={<StaffLoginWrapper />} />
         <Route path="/login/2fa" element={<TwoFactorAuthWrapper />} />
+        <Route path="/login/enroll" element={<TenantEnrollScreen />} />
         <Route path="/patients" element={<PatientListWrapper />} />
         <Route path="/patients/new" element={<RegisterPatientWrapper />} />
         <Route path="/patients/:id" element={<PatientDetailsWrapper />} />

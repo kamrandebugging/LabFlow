@@ -1082,7 +1082,7 @@ def run_provisioning_state_machine(tenant_slug: str) -> dict[str, Any]:
                     "tenant_slug": tenant.slug,
                 },
             )
-            # Mark tenant provisioning_failed so UI / detail immediately reflects the failure
+            # Mark tenant provisioning_failed so UI immediately reflects the failure
             Tenant.objects.filter(id=tenant.id).update(
                 status="provisioning_failed", updated_at=timezone.now()
             )

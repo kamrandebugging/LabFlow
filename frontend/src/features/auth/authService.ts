@@ -39,10 +39,12 @@ export const defaultAuthService: AuthService = {
 
     return {
       totpRequired: false,
+      totpEnrollmentRequired: Boolean(data.totp_enrollment_required),
       session: {
         access: data.access,
         expires_in: data.expires_in,
         user: data.user,
+        totp_enrollment_required: Boolean(data.totp_enrollment_required),
       },
     };
   },

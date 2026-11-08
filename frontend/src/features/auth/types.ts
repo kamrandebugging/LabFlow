@@ -26,10 +26,12 @@ export interface LoginSuccessSession {
   access: string;
   expires_in: number;
   user: AuthUser;
+  totp_enrollment_required?: boolean;
 }
 
 export interface LoginResult {
   totpRequired: boolean;
+  totpEnrollmentRequired?: boolean;
   session?: LoginSuccessSession;
 }
 

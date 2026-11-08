@@ -2,7 +2,6 @@ import base64
 import binascii
 import uuid
 from datetime import datetime
-from decimal import Decimal
 from typing import Any
 
 from django.db.models import Q

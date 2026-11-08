@@ -105,10 +105,11 @@ class AuthService:
             return False, None, "invalid_credentials"
 
         # Check TOTP requirements (Doc 01 §14, Doc 08 §4.1)
-        totp_required = user.totp_enabled or (
+        totp_mandated = (
             user.role in MANDATORY_TOTP_ROLES and not getattr(settings, "DEBUG", False)
         )
-        if totp_required:
+
+        if user.totp_enabled:
             LoginEvent.objects.create(
                 staff_user=user,
                 email_attempted=clean_email,
@@ -118,13 +119,18 @@ class AuthService:
             )
             return True, {"totp_required": True, "user_id": str(user.id)}, None
 
-        # Issue full session
+        # If TOTP is mandated for this role but not yet enabled, issue a limited session
+        # flagged totp_enrollment_required instead of blocking with an unanswerable
+        # challenge.
         session_data = cls.create_session(
             user,
             ip=ip,
             user_agent=user_agent,
             tenant_id=tenant_id,
         )
+        if totp_mandated and not user.totp_enabled:
+            session_data["totp_enrollment_required"] = True
+
         LoginEvent.objects.create(
             staff_user=user,
             email_attempted=clean_email,

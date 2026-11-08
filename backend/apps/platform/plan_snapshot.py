@@ -46,17 +46,17 @@ def tenant_plan_snapshot(
 
     snapshots: dict[uuid.UUID, dict[str, Any] | None] = {}
     for tenant_id, subs in grouped.items():
-        sub = _pick(subs)
-        if sub is None or sub.plan is None:
+        chosen_sub = _pick(subs)
+        if chosen_sub is None or chosen_sub.plan is None:
             snapshots[tenant_id] = None
             continue
-        plan = sub.plan
+        plan = chosen_sub.plan
         snapshots[tenant_id] = {
             "plan_id": str(plan.id),
             "name": plan.name,
             "price": str(Decimal(plan.price).quantize(Decimal("0.01"))),
-            "status": sub.status,
+            "status": chosen_sub.status,
             "is_active_plan": plan.is_active,
-            "is_demo": sub.status != Subscription.Status.ACTIVE,
+            "is_demo": chosen_sub.status != Subscription.Status.ACTIVE,
         }
     return snapshots

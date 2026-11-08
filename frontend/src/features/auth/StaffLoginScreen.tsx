@@ -18,6 +18,7 @@ export interface StaffLoginScreenProps {
   authService?: AuthService;
   onSuccess?: (session: LoginSuccessSession) => void;
   onTotpRequired?: (email: string) => void;
+  onTotpEnrollmentRequired?: (session: LoginSuccessSession) => void;
 }
 
 export function StaffLoginScreen({
@@ -26,6 +27,7 @@ export function StaffLoginScreen({
   authService = defaultAuthService,
   onSuccess,
   onTotpRequired,
+  onTotpEnrollmentRequired,
 }: StaffLoginScreenProps): JSX.Element {
   const { i18n } = useTranslation();
   const [email, setEmail] = useState("");
@@ -54,6 +56,10 @@ export function StaffLoginScreen({
       }
 
       if (result.session) {
+        if (result.totpEnrollmentRequired || result.session.totp_enrollment_required) {
+          onTotpEnrollmentRequired?.(result.session);
+          return;
+        }
         onSuccess?.(result.session);
         return;
       }
