@@ -243,6 +243,9 @@ services:
       timeout: 5s
       retries: 5
       start_period: 15s
+    ports:
+      - "127.0.0.1:5678:5678"
+
 
   caddy:
     image: caddy:2.8.4-alpine
