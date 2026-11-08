@@ -1,6 +1,6 @@
 import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
-import { ShieldCheck } from "lucide-react";
+import { Check, Copy, ShieldCheck } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 import { platformAuthService } from "./platformAuthService";
@@ -25,6 +25,8 @@ export function PlatformEnrollScreen(): ReactElement {
   const [code, setCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [copiedKey, setCopiedKey] = useState(false);
+  const [copiedCodes, setCopiedCodes] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -43,6 +45,22 @@ export function PlatformEnrollScreen(): ReactElement {
       cancelled = true;
     };
   }, []);
+
+  const handleCopyKey = () => {
+    if (secret) {
+      void navigator.clipboard.writeText(secret);
+      setCopiedKey(true);
+      setTimeout(() => setCopiedKey(false), 2000);
+    }
+  };
+
+  const handleCopyCodes = () => {
+    if (backupCodes) {
+      void navigator.clipboard.writeText(backupCodes.join("\n"));
+      setCopiedCodes(true);
+      setTimeout(() => setCopiedCodes(false), 2000);
+    }
+  };
 
   const handleConfirm = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -94,9 +112,29 @@ export function PlatformEnrollScreen(): ReactElement {
         {backupCodes ? (
           <div className="space-y-4">
             <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
-              <p className="text-sm font-semibold text-amber-900">
-                Save these backup codes now
-              </p>
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-sm font-semibold text-amber-900">
+                  Save these backup codes now
+                </p>
+                <button
+                  type="button"
+                  onClick={handleCopyCodes}
+                  className="inline-flex items-center gap-1.5 rounded-md border border-amber-300 bg-white px-2.5 py-1 text-xs font-semibold text-amber-950 hover:bg-amber-100/70 transition-colors shadow-xs"
+                  title="Copy all backup codes"
+                >
+                  {copiedCodes ? (
+                    <>
+                      <Check className="h-3.5 w-3.5 text-emerald-600" />
+                      <span className="text-emerald-700 font-bold">Copied</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="h-3.5 w-3.5 text-amber-800" />
+                      <span>Copy codes</span>
+                    </>
+                  )}
+                </button>
+              </div>
               <p className="mt-1 text-xs text-amber-800">
                 Each code works once. They are shown only on this screen.
               </p>
@@ -128,10 +166,34 @@ export function PlatformEnrollScreen(): ReactElement {
                 <p className="mt-2 text-xs text-slate-500">Preparing…</p>
               )}
               {secret ? (
-                <p className="mt-2 text-[11px] text-slate-500">
-                  Manual key:{" "}
-                  <span className="font-mono text-slate-800">{secret}</span>
-                </p>
+                <div className="mt-2 flex items-center justify-between gap-2">
+                  <p className="text-[11px] text-slate-500">
+                    Manual key:{" "}
+                    <span className="font-mono text-slate-800 font-medium select-all">
+                      {secret}
+                    </span>
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleCopyKey}
+                    className="inline-flex items-center gap-1 rounded border border-slate-300 bg-white px-2 py-0.5 text-xs font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors shadow-xs"
+                    title="Copy manual key"
+                  >
+                    {copiedKey ? (
+                      <>
+                        <Check className="h-3.5 w-3.5 text-emerald-600" />
+                        <span className="text-emerald-700 font-semibold">
+                          Copied
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="h-3.5 w-3.5 text-slate-500" />
+                        <span>Copy key</span>
+                      </>
+                    )}
+                  </button>
+                </div>
               ) : null}
             </div>
 
