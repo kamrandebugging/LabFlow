@@ -841,14 +841,25 @@ def create_tenant_owner_activation(
         now = timezone.now()
         owner = StaffUser.objects.filter(email=cleaned_email).first()
         if owner is None:
+            # If tenant has an issued temporary master password, configure it so
+            # owner can log in immediately on the tenant login screen.
+            initial_password_hash = (
+                make_password(tenant.temp_password)
+                if getattr(tenant, "temp_password", None)
+                else make_password(None)
+            )
             owner = StaffUser.objects.create(
                 email=cleaned_email,
                 role=Role.OWNER,
                 branch=None,
-                password_hash=make_password(None),
-                is_active=False,
+                password_hash=initial_password_hash,
+                is_active=bool(getattr(tenant, "temp_password", None)),
                 totp_enabled=False,
             )
+        elif not owner.is_active and getattr(tenant, "temp_password", None):
+            owner.is_active = True
+            owner.password_hash = make_password(tenant.temp_password)
+            owner.save(update_fields=["is_active", "password_hash", "updated_at"])
 
         if owner.is_active:
             latest_token = (
@@ -920,7 +931,7 @@ def execute_step_p9_activate(tenant: Tenant, _state: ProvisioningStateSnapshot) 
 
     with transaction.atomic():
         locked = Tenant.objects.select_for_update().get(id=tenant.id)
-        if locked.status != "provisioning":
+        if locked.status not in ("provisioning", "provisioning_failed"):
             raise ProvisioningError(
                 code="invalid_state_transition",
                 title="Invalid state transition",
@@ -1020,7 +1031,7 @@ def run_provisioning_state_machine(tenant_slug: str) -> dict[str, Any]:
             "completed_steps": state.completed_steps,
         }
 
-    if tenant.status != "provisioning":
+    if tenant.status not in ("provisioning", "provisioning_failed"):
         return {
             "tenant_slug": tenant.slug,
             "status": tenant.status,
@@ -1063,7 +1074,7 @@ def run_provisioning_state_machine(tenant_slug: str) -> dict[str, Any]:
                 action="tenant.provisioning_failed",
                 entity_type="tenant",
                 entity_id=tenant.id,
-                before_jsonb={"status": "provisioning", "step": step},
+                before_jsonb={"status": tenant.status, "step": step},
                 after_jsonb={
                     "failed_step": step,
                     "error": error_msg,
@@ -1071,6 +1082,11 @@ def run_provisioning_state_machine(tenant_slug: str) -> dict[str, Any]:
                     "tenant_slug": tenant.slug,
                 },
             )
+            # Mark tenant provisioning_failed so UI / detail immediately reflects the failure
+            Tenant.objects.filter(id=tenant.id).update(
+                status="provisioning_failed", updated_at=timezone.now()
+            )
+            tenant.status = "provisioning_failed"
             raise
 
         duration_ms = (time.monotonic() - step_start) * 1000.0

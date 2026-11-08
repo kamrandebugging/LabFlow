@@ -28,6 +28,7 @@ ALLOWED_HOSTS = env.list(
 SHARED_APPS: tuple[str, ...] = (
     "django_tenants",
     "apps.core",
+    "apps.platform",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",

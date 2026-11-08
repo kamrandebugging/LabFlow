@@ -41,6 +41,16 @@ export function LabDetailScreen(): JSX.Element {
     },
   });
 
+  const retryProvisioningMutation = useMutation({
+    mutationFn: () => platformService.retryProvisioning(id!),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["platform", "tenant", id] });
+    },
+    onError: (err: any) => {
+      setActionError(err.message || "Failed to retry provisioning.");
+    },
+  });
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -279,6 +289,31 @@ export function LabDetailScreen(): JSX.Element {
           <span className="font-body-xs text-body-xs text-outline">Full Tenant Isolation</span>
         </div>
       </div>
+
+      {/* Provisioning Failure Alert */}
+      {(tenant.status === "provisioning_failed" || tenant.provisioning?.error) && (
+        <div className="bg-error-container/20 border border-error/40 p-space-md rounded-lg flex items-start justify-between gap-space-md">
+          <div className="flex items-start gap-space-sm">
+            <span className="material-symbols-outlined text-error text-[24px]">error</span>
+            <div>
+              <div className="font-title-sm text-title-sm text-error font-bold">
+                Provisioning Failed (Step: {tenant.provisioning?.failed_step || tenant.provisioning?.current_step || "Unknown"})
+              </div>
+              <div className="font-body-sm text-body-sm text-on-surface mt-1">
+                {tenant.provisioning?.error || "An unexpected error occurred during database isolation or schema migration."}
+              </div>
+            </div>
+          </div>
+          <button
+            onClick={() => retryProvisioningMutation.mutate()}
+            disabled={retryProvisioningMutation.isPending}
+            className="px-space-md py-space-xs bg-error hover:bg-error/90 text-on-error rounded font-label-sm text-label-sm shrink-0 flex items-center gap-1 transition-colors"
+          >
+            <span className="material-symbols-outlined text-[16px]">refresh</span>
+            <span>Retry Provisioning</span>
+          </button>
+        </div>
+      )}
 
       {/* Temporary Password Credential Banner (Doc 1) */}
       {tenant.temp_password && (

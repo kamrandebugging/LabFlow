@@ -262,6 +262,7 @@ class PlatformTenantCreateView(APIView):
                     "id": str(t.id),
                     "slug": t.slug,
                     "name": t.name,
+                    "schema_name": t.schema_name,
                     "status": t.status,
                     "city": t.city or "Lahore",
                     "province": t.province or "Punjab",

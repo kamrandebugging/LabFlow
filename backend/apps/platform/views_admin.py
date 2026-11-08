@@ -713,13 +713,13 @@ class PlatformTenantRetryProvisioningView(APIView):
             return err
         assert tenant is not None
 
-        if tenant.status != Tenant.Status.PROVISIONING:
+        if tenant.status not in (Tenant.Status.PROVISIONING, "provisioning_failed"):
             return problem_response(
                 code="invalid_state_transition",
                 title="Invalid state transition",
                 detail=(
                     "Provisioning can only be retried while status is "
-                    f"provisioning (current: {tenant.status})."
+                    f"provisioning or provisioning_failed (current: {tenant.status})."
                 ),
                 status_code=409,
             )
@@ -745,7 +745,7 @@ class PlatformTenantRetryProvisioningView(APIView):
         try:
             from apps.platform.tasks import provision_tenant_task
 
-            provision_tenant_task.delay(str(tenant.id))
+            provision_tenant_task.delay(tenant.slug)
         except Exception:
             pass
 

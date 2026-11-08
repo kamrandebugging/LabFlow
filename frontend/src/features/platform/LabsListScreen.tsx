@@ -259,7 +259,7 @@ export function LabsListScreen(): JSX.Element {
                             <span>
                               schema:{" "}
                               <strong className="text-on-surface-variant font-normal">
-                                tenant_{lab.slug}
+                                {lab.schema_name || `tenant_${lab.slug.replace(/-/g, "_")}`}
                               </strong>
                             </span>
                             <span>•</span>

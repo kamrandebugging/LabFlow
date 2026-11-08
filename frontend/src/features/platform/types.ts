@@ -5,11 +5,12 @@
  * the client. Money is a string with two decimals in PKR.
  */
 
-export type TenantStatus = "provisioning" | "active" | "suspended" | "deleted";
+export type TenantStatus = "provisioning" | "provisioning_failed" | "active" | "suspended" | "deleted";
 
 export const TENANT_STATUSES: readonly TenantStatus[] = [
   "active",
   "provisioning",
+  "provisioning_failed",
   "suspended",
   "deleted",
 ];
@@ -31,6 +32,7 @@ export interface TenantListItem {
   id: string;
   slug: string;
   name: string;
+  schema_name?: string;
   status: TenantStatus;
   city?: string;
   province?: string;
