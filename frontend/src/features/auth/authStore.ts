@@ -178,7 +178,9 @@ registerSession("staff", {
       if (!data?.access) {
         return null;
       }
-      useAuthStore.getState().setSession(data.access);
+      useAuthStore
+        .getState()
+        .setSession(data.access, data.user ?? undefined);
       return data.access;
     } catch {
       return null;

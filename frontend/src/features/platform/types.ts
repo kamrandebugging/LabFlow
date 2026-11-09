@@ -223,6 +223,8 @@ export interface ProvisionTenantPayload {
   whatsapp?: string;
   staff_seats?: number | null;
   branch_count?: number;
+  /** Extra branches beyond Main Branch, created during provisioning (P-6). */
+  branches?: Array<{ name: string; address?: string }>;
   enabled_roles?: string[];
 }
 

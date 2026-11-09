@@ -4,6 +4,24 @@ from typing import Any
 from rest_framework import serializers
 
 
+class BranchProvisionInputSerializer(serializers.Serializer[dict[str, Any]]):
+    """A branch the owner wants created during provisioning (P-6)."""
+
+    name = serializers.CharField(
+        required=True,
+        allow_blank=False,
+        trim_whitespace=True,
+        max_length=120,
+    )
+    address = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        default="",
+        trim_whitespace=True,
+        max_length=255,
+    )
+
+
 class TenantProvisionRequestSerializer(serializers.Serializer[dict[str, Any]]):
     name = serializers.CharField(
         required=True,
@@ -59,6 +77,7 @@ class TenantProvisionRequestSerializer(serializers.Serializer[dict[str, Any]]):
         required=False,
         default=1,
     )
+    branches = BranchProvisionInputSerializer(many=True, required=False, default=list)
     enabled_roles = serializers.ListField(
         child=serializers.CharField(),
         required=False,

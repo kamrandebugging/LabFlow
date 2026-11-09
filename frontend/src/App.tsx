@@ -566,22 +566,64 @@ function PlatformShell({ children }: { children: JSX.Element }): JSX.Element {
 }
 
 function App(): JSX.Element {
+  // Boot gate: the access token is memory-only, so a reload must silently
+  // rebuild the session from the httpOnly refresh cookie *before* any
+  // protected route (and its first API call) renders.
+  const [bootstrapped, setBootstrapped] = useState(false);
+
   useEffect(() => {
-    // Attempt silent session restore via httpOnly refresh cookie on application mount
+    let active = true;
+    const finish = () => {
+      if (active) setBootstrapped(true);
+    };
+
+    if (useAuthStore.getState().accessToken) {
+      finish();
+      return () => {
+        active = false;
+      };
+    }
+
     fetch("/api/v1/auth/refresh", {
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: "{}",
     })
-      .then((res) => (res.ok ? res.json() : null))
+      .then(async (res) => (res.ok ? await res.json() : null))
       .then((data) => {
-        if (data?.access && data?.user) {
-          useAuthStore.getState().setSession(data.access, data.user);
+        if (!active) return;
+        if (data?.access) {
+          useAuthStore.getState().setSession(data.access, data.user ?? null);
+          return;
         }
+        const path = window.location.pathname;
+        const isPublicRoute =
+          path.startsWith("/login") ||
+          path.startsWith("/platform") ||
+          path.startsWith("/report-access") ||
+          path.startsWith("/link-expired");
+        if (!isPublicRoute) {
+          window.location.replace("/login?reason=session_expired");
+          return;
+        }
+        finish();
       })
-      .catch(() => {});
+      .catch(() => finish())
+      .finally(finish);
+
+    return () => {
+      active = false;
+    };
   }, []);
+
+  if (!bootstrapped) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 text-sm text-slate-500">
+        Restoring session…
+      </div>
+    );
+  }
 
   return (
     <BrowserRouter>

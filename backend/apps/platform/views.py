@@ -349,6 +349,7 @@ class PlatformTenantCreateView(APIView):
                 owner_phone=validated.get("resolved_owner_phone", ""),
                 staff_seats=validated.get("staff_seats"),
                 branch_count=validated.get("branch_count", 1),
+                branches=list(validated.get("branches", [])),
                 enabled_roles=validated.get("enabled_roles", []),
                 actor_id=platform_user.id,
                 idempotency_key=idempotency_key,

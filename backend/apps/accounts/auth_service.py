@@ -322,6 +322,13 @@ class AuthService:
                 "access": new_access_token,
                 "expires_in": ACCESS_TOKEN_LIFETIME_SECONDS,
                 "refresh_token": new_refresh_token,
+                # Returned so a page reload can rebuild the in-memory session
+                # (role-gated screens need the user, not just the token).
+                "user": {
+                    "id": str(user.id),
+                    "email": user.email,
+                    "role": user.role,
+                },
             },
             None,
         )

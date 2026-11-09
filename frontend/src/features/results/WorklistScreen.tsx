@@ -16,6 +16,8 @@ import {
 } from "lucide-react";
 import { resultsService } from "./resultsService";
 import type { WorklistItem } from "./types";
+import { settingsService } from "../settings/settingsService";
+import type { Branch } from "../settings/types";
 
 export function WorklistScreen(): JSX.Element {
   const branchFilterId = useId();
@@ -23,6 +25,7 @@ export function WorklistScreen(): JSX.Element {
   const testFilterId = useId();
 
   const [items, setItems] = useState<WorklistItem[]>([]);
+  const [branches, setBranches] = useState<Branch[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -54,6 +57,21 @@ export function WorklistScreen(): JSX.Element {
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [statusFilter]);
+
+  useEffect(() => {
+    let active = true;
+    void settingsService
+      .getBranches(false)
+      .then((list) => {
+        if (active && Array.isArray(list)) {
+          setBranches(list);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, []);
 
   // Client-side filtering
   const filteredItems = items.filter((item) => {
@@ -105,9 +123,11 @@ export function WorklistScreen(): JSX.Element {
               className="w-full appearance-none bg-slate-50 text-slate-900 text-sm rounded-lg px-3 py-2 pr-8 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-600 cursor-pointer"
             >
               <option value="all">All Branches</option>
-              <option value="gulberg">Gulberg Branch</option>
-              <option value="dha">DHA Phase 5 Branch</option>
-              <option value="johar">Johar Town Branch</option>
+              {branches.map((branch) => (
+                <option key={branch.id} value={branch.id}>
+                  {branch.name}
+                </option>
+              ))}
             </select>
             <ChevronDown className="w-4 h-4 text-slate-400 pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2" />
           </div>

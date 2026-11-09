@@ -20,6 +20,8 @@ import {
   X,
 } from "lucide-react";
 import { sampleService } from "./sampleService";
+import { settingsService } from "../settings/settingsService";
+import type { Branch } from "../settings/types";
 import type { RejectionReasonCode, SampleDetail, SampleStatus } from "./types";
 
 export interface SampleDetailScreenProps {
@@ -38,19 +40,6 @@ const REJECTION_REASONS: Array<{ code: RejectionReasonCode; label: string }> = [
   { code: "mislabelled", label: "Mislabeled / unlabeled tube" },
   { code: "damaged_transport", label: "Container cracked or leaking" },
   { code: "other", label: "Other quality deviation" },
-];
-
-const AVAILABLE_BRANCHES = [
-  {
-    id: "96f2a138-334e-490c-9dd3-805dd45022f0",
-    name: "Main Reference Lab (Lahore)",
-  },
-  { id: "00000000-0000-0000-0000-000000000002", name: "Gulberg Branch Hub" },
-  {
-    id: "00000000-0000-0000-0000-000000000003",
-    name: "DHA Phase 5 Collection Center",
-  },
-  { id: "00000000-0000-0000-0000-000000000004", name: "Johar Town Branch" },
 ];
 
 function getStatusPill(status: SampleStatus): JSX.Element {
@@ -127,10 +116,9 @@ export function SampleDetailScreen({
   const [rejectReasonNote, setRejectReasonNote] = useState("");
   const [isRejecting, setIsRejecting] = useState(false);
 
+  const [branches, setBranches] = useState<Branch[]>([]);
   const [showTransferModal, setShowTransferModal] = useState(false);
-  const [transferBranchId, setTransferBranchId] = useState(
-    AVAILABLE_BRANCHES[1]?.id ?? "",
-  );
+  const [transferBranchId, setTransferBranchId] = useState("");
   const [transferNotes, setTransferNotes] = useState("");
   const [isTransferring, setIsTransferring] = useState(false);
 
@@ -163,6 +151,31 @@ export function SampleDetailScreen({
   useEffect(() => {
     loadDetail();
   }, [loadDetail]);
+
+  useEffect(() => {
+    let active = true;
+    void settingsService
+      .getBranches(false)
+      .then((list) => {
+        if (active && Array.isArray(list)) {
+          setBranches(list);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  // Default the transfer destination to the first real branch other than the
+  // one the specimen currently sits at.
+  useEffect(() => {
+    if (transferBranchId) return;
+    const candidate = branches.find((b) => b.id !== sample?.branch_id);
+    if (candidate) {
+      setTransferBranchId(candidate.id);
+    }
+  }, [branches, sample?.branch_id, transferBranchId]);
 
   // Toast Auto-Dismiss
   useEffect(() => {
@@ -281,6 +294,7 @@ export function SampleDetailScreen({
   }
 
   const s = sample!;
+  const originBranch = branches.find((b) => b.id === s.branch_id);
 
   return (
     <main className="w-full min-h-screen bg-slate-50 relative pb-16">
@@ -473,8 +487,14 @@ export function SampleDetailScreen({
               <span className="text-base text-slate-900 font-semibold">
                 {s.branch_name}
               </span>
-              <span className="text-xs text-slate-500">
-                Diagnostic Node · Gulberg
+              <span className="text-xs text-slate-500 font-mono">
+                {originBranch
+                  ? `${originBranch.code} · ${
+                      originBranch.is_collection_centre
+                        ? "Collection Centre"
+                        : "Testing Facility"
+                    }`
+                  : "Branch facility"}
               </span>
             </div>
 
@@ -758,11 +778,15 @@ export function SampleDetailScreen({
                   onChange={(e) => setTransferBranchId(e.target.value)}
                   className="w-full text-xs rounded-lg border border-slate-300 py-2 px-3 focus:outline-none focus:ring-2 focus:ring-teal-500"
                 >
-                  {AVAILABLE_BRANCHES.map((b) => (
-                    <option key={b.id} value={b.id}>
-                      {b.name}
-                    </option>
-                  ))}
+                  {branches.filter((b) => b.id !== s.branch_id).length ===
+                    0 && <option value="">No other branch available</option>}
+                  {branches
+                    .filter((b) => b.id !== s.branch_id)
+                    .map((b) => (
+                      <option key={b.id} value={b.id}>
+                        {b.name}
+                      </option>
+                    ))}
                 </select>
               </div>
 
@@ -795,7 +819,7 @@ export function SampleDetailScreen({
               <button
                 type="button"
                 onClick={handleConfirmTransfer}
-                disabled={isTransferring}
+                disabled={isTransferring || !transferBranchId}
                 className="px-4 py-2 text-xs font-semibold text-white bg-teal-600 hover:bg-teal-700 rounded-lg shadow-sm disabled:opacity-50"
               >
                 {isTransferring ? "Dispatching..." : "Initiate Transfer"}

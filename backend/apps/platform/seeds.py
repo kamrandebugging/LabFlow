@@ -1897,7 +1897,9 @@ def _seed_reference_ranges_for_test(
         )
 
 
-def seed_tenant_p6_data(tenant: Tenant) -> None:
+def seed_tenant_p6_data(
+    tenant: Tenant, extra_branches: list[dict[str, str]] | None = None
+) -> None:
     """
     Execute Step P-6 inside `tenant.schema_name` (Doc 02 §16, Doc 04 §5 P-6):
     1. Default branch (`HQ1` — Main Branch).
@@ -1934,6 +1936,23 @@ def seed_tenant_p6_data(tenant: Tenant) -> None:
                 "result_entry_enabled": False,
             },
         )
+
+        # 1b. Branches requested on the provisioning form (name required,
+        # location optional). Codes B02… stay within the 3-char branch-code rule.
+        for index, branch_data in enumerate(extra_branches or [], start=2):
+            branch_name = str(branch_data.get("name", "")).strip()
+            if not branch_name:
+                continue
+            Branch.objects.get_or_create(
+                code=f"B{index:02d}",
+                defaults={
+                    "name": branch_name,
+                    "address": str(branch_data.get("address", "")).strip(),
+                    "phone": "",
+                    "is_collection_centre": False,
+                    "result_entry_enabled": False,
+                },
+            )
 
         # 2a. Starter Panels + Component Tests + PanelTest + ReferenceRange + TestPrice
         for panel_code, panel_name, panel_price in STARTER_PANELS:

@@ -303,7 +303,11 @@ class RefreshView(APIView):
         # Set new rotated refresh cookie
         new_refresh_token = data["refresh_token"]
         response = Response(
-            {"access": data["access"], "expires_in": data["expires_in"]},
+            {
+                "access": data["access"],
+                "expires_in": data["expires_in"],
+                "user": data.get("user"),
+            },
             status=status.HTTP_200_OK,
         )
         response.set_cookie(

@@ -19,7 +19,9 @@ export function ProvisionScreen(): JSX.Element {
   const [ownerEmail, setOwnerEmail] = useState("");
   const [ownerPhone, setOwnerPhone] = useState("");
   const [selectedPlanId, setSelectedPlanId] = useState<string>("");
-  const [branchQuota, setBranchQuota] = useState<string>("3");
+  const [extraBranches, setExtraBranches] = useState<
+    Array<{ name: string; address: string }>
+  >([]);
   const [staffSeats, setStaffSeats] = useState<number>(10);
   const [enabledRoles, setEnabledRoles] = useState<string[]>([
     "owner",
@@ -120,6 +122,34 @@ export function ProvisionScreen(): JSX.Element {
     setTimeout(() => setCopiedPass(false), 2000);
   };
 
+  // Branches: Main Branch always exists; extras are created during provisioning.
+  const planBranchLimit =
+    plans.find((p) => p.id === selectedPlanId)?.max_branches ?? null;
+  const branchCount = 1 + extraBranches.length;
+  const branchLimitReached =
+    planBranchLimit !== null && branchCount >= planBranchLimit;
+
+  const addBranch = () => {
+    if (branchLimitReached) return;
+    setExtraBranches((prev) => [...prev, { name: "", address: "" }]);
+  };
+
+  const updateBranch = (
+    index: number,
+    field: "name" | "address",
+    value: string,
+  ) => {
+    setExtraBranches((prev) =>
+      prev.map((branch, i) =>
+        i === index ? { ...branch, [field]: value } : branch,
+      ),
+    );
+  };
+
+  const removeBranch = (index: number) => {
+    setExtraBranches((prev) => prev.filter((_, i) => i !== index));
+  };
+
   // Provision Mutation
   const provisionMutation = useMutation({
     mutationFn: (payload: ProvisionTenantPayload) =>
@@ -164,6 +194,17 @@ export function ProvisionScreen(): JSX.Element {
     if (!selectedPlanId) {
       errors.plan_id = "Please select a subscription tier.";
     }
+    const planForLimit = plans.find((p) => p.id === selectedPlanId);
+    const branchLimit = planForLimit?.max_branches ?? null;
+    if (branchLimit !== null && 1 + extraBranches.length > branchLimit) {
+      errors.branches = `The ${planForLimit?.name} plan allows at most ${branchLimit} branch(es) including the Main Branch.`;
+    }
+    const incompleteBranch = extraBranches.findIndex(
+      (branch) => !branch.name.trim(),
+    );
+    if (incompleteBranch !== -1) {
+      errors.branches = `Branch ${incompleteBranch + 2} needs a name.`;
+    }
 
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors);
@@ -181,7 +222,11 @@ export function ProvisionScreen(): JSX.Element {
       phone: ownerPhone.trim() || "+92 300 0000000",
       whatsapp: ownerPhone.trim() || "+92 300 0000000",
       staff_seats: staffSeats,
-      branch_count: branchQuota === "Unlimited" ? 99 : Number(branchQuota),
+      branch_count: 1 + extraBranches.length,
+      branches: extraBranches.map((branch) => ({
+        name: branch.name.trim(),
+        address: branch.address.trim(),
+      })),
       enabled_roles: enabledRoles,
     };
 
@@ -580,29 +625,86 @@ export function ProvisionScreen(): JSX.Element {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-space-md pt-space-xs">
-              <div className="space-y-space-2xs">
-                <label className="block font-label-sm text-label-sm text-on-surface uppercase tracking-wider">
-                  Branches Allowed
-                </label>
-                <div className="grid grid-cols-3 gap-2">
-                  {["1", "3", "Unlimited"].map((opt) => (
-                    <button
-                      key={opt}
-                      type="button"
-                      onClick={() => setBranchQuota(opt)}
-                      className={`h-9 rounded font-label-sm text-label-sm font-semibold transition-colors border ${
-                        branchQuota === opt
-                          ? "bg-primary text-on-primary border-primary shadow-xs"
-                          : "bg-surface-container-low text-on-surface border-outline-variant/60 hover:bg-surface-container"
-                      }`}
+              <div className="space-y-space-2xs md:col-span-2">
+                <div className="flex items-center justify-between">
+                  <label className="block font-label-sm text-label-sm text-on-surface uppercase tracking-wider">
+                    Branches
+                  </label>
+                  <span className="font-code-sm text-code-sm text-outline">
+                    {branchCount} of {planBranchLimit ?? "∞"} allowed
+                  </span>
+                </div>
+
+                <div className="space-y-2 pt-1">
+                  <div className="flex items-center h-9 px-space-sm bg-surface-container-low rounded border border-outline-variant/60">
+                    <span className="material-symbols-outlined text-primary text-[16px]">account_balance</span>
+                    <span className="ml-2 font-body-sm text-body-sm text-on-surface font-medium">
+                      Main Branch
+                    </span>
+                    <span className="ml-auto font-code-sm text-xs text-outline">
+                      HQ1 · included
+                    </span>
+                  </div>
+
+                  {extraBranches.map((branch, index) => (
+                    <div
+                      key={index}
+                      className="flex flex-col sm:flex-row items-stretch gap-2"
                     >
-                      {opt} {opt === "1" ? "Branch" : opt === "3" ? "Branches" : ""}
-                    </button>
+                      <input
+                        className="flex-1 h-9 px-space-sm bg-surface-container-lowest text-on-surface font-body-sm text-body-sm rounded outline-none border border-outline-variant focus:border-primary focus:ring-1 focus:ring-primary"
+                        placeholder={`Branch ${index + 2} name *`}
+                        type="text"
+                        value={branch.name}
+                        onChange={(e) =>
+                          updateBranch(index, "name", e.target.value)
+                        }
+                      />
+                      <input
+                        className="flex-1 h-9 px-space-sm bg-surface-container-lowest text-on-surface font-body-sm text-body-sm rounded outline-none border border-outline-variant focus:border-primary focus:ring-1 focus:ring-primary"
+                        placeholder="Location (optional)"
+                        type="text"
+                        value={branch.address}
+                        onChange={(e) =>
+                          updateBranch(index, "address", e.target.value)
+                        }
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeBranch(index)}
+                        className="h-9 w-9 shrink-0 flex items-center justify-center rounded border border-outline-variant/60 text-outline hover:text-error hover:bg-error-container/20 transition-colors"
+                        aria-label={`Remove branch ${index + 2}`}
+                      >
+                        <span className="material-symbols-outlined text-[18px]">delete</span>
+                      </button>
+                    </div>
                   ))}
                 </div>
-                <span className="font-body-xs text-body-xs text-outline block">
-                  Synced to public branch counter
-                </span>
+
+                {fieldErrors.branches && (
+                  <span className="text-xs text-error block">
+                    {fieldErrors.branches}
+                  </span>
+                )}
+
+                <div className="flex items-center justify-between gap-space-sm pt-1">
+                  <button
+                    type="button"
+                    onClick={addBranch}
+                    disabled={branchLimitReached}
+                    className="inline-flex items-center gap-1 h-8 px-space-sm rounded border border-outline-variant text-on-surface font-label-sm text-label-sm hover:bg-surface-container transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    <span className="material-symbols-outlined text-[16px]">add</span>
+                    <span>Add branch</span>
+                  </button>
+                  <span className="font-body-xs text-body-xs text-outline">
+                    {planBranchLimit === null
+                      ? "This plan has no branch limit."
+                      : branchLimitReached
+                        ? `Plan limit reached (${planBranchLimit}).`
+                        : `Up to ${planBranchLimit} branch(es) on this plan.`}
+                  </span>
+                </div>
               </div>
 
               <div className="space-y-space-2xs">
@@ -837,7 +939,8 @@ export function ProvisionScreen(): JSX.Element {
                   Branch Capacity
                 </span>
                 <span className="text-on-surface font-semibold">
-                  {branchQuota} {branchQuota === "1" ? "Branch" : "Branches"}
+                  {branchCount} {branchCount === 1 ? "Branch" : "Branches"}
+                  {planBranchLimit !== null ? ` / ${planBranchLimit} max` : ""}
                 </span>
               </div>
               <div className="flex items-center justify-between py-space-2xs">
