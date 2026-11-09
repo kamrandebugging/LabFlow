@@ -8,7 +8,6 @@ import pytest
 from cryptography.fernet import Fernet
 from django.conf import settings
 from django.core.cache import cache
-from django.test import override_settings
 from rest_framework.test import APIClient
 
 from apps.core.models import PlatformAudit, PlatformUser
@@ -142,14 +141,6 @@ def test_deactivated_account_cannot_log_in() -> None:
 
 
 @pytest.mark.django_db
-# Isolate this test's throttle counters in LocMemCache. Under pytest-xdist
-# the other workers' autouse cache.clear() fixtures flush the shared Redis
-# DB 0 mid-test, wiping the login-attempt counters so the 6th login never
-# sees 5 prior failures (flaky 401 instead of 429). LocMemCache is
-# per-process, so no other worker can clear it mid-flight.
-@override_settings(
-    CACHES={"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}}
-)
 def test_login_is_throttled_after_five_failures() -> None:
     user = PlatformUserFactory(totp_enabled=False)
     client = APIClient()
