@@ -200,8 +200,15 @@ class InvoiceDetailSerializer(serializers.Serializer):
     """Detail for GET /invoices/{id} — items + payments + net_paid."""
 
     id = serializers.UUIDField()
+    invoice_number = serializers.CharField()
     patient_id = serializers.UUIDField()
+    patient_name = serializers.CharField()
+    patient_mrn = serializers.CharField()
+    patient_sex = serializers.CharField(allow_null=True)
+    patient_age = serializers.CharField(allow_null=True)
+    patient_phone = serializers.CharField(allow_null=True)
     branch_id = serializers.UUIDField()
+    branch_name = serializers.CharField()
     referral_partner_id = serializers.UUIDField(allow_null=True)
     status = serializers.CharField()
     subtotal = MoneyField()

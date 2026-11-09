@@ -198,6 +198,39 @@ class TestDetailView(APIView):
         )
         return Response(TestSerializer(updated).data, status=status.HTTP_200_OK)
 
+    def delete(self, request: Request, pk: uuid.UUID) -> Response:
+        user = cast(StaffUser, request.user)
+        if user.role != Role.OWNER:
+            return Response(
+                _format_error("forbidden", "Only the Owner may delete catalog tests."),
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        test_obj = get_object_or_404(Test, pk=pk)
+        is_used = (
+            test_obj.invoice_items.exists()
+            or test_obj.sample_tests.exists()
+            or test_obj.results.exists()
+            or test_obj.panel_memberships.exists()
+        )
+        if is_used:
+            # Default or referenced tests: deactivate/hide only — never hard-delete
+            test_obj.is_active = False
+            test_obj.save(update_fields=["is_active", "updated_at"])
+            return Response(
+                {
+                    "status": "deactivated",
+                    "message": (
+                        "Test is referenced by existing records; "
+                        "deactivated instead of deleted."
+                    ),
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        test_obj.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
 
 class PanelListCreateView(APIView):
     """GET /api/v1/panels & POST /api/v1/panels."""

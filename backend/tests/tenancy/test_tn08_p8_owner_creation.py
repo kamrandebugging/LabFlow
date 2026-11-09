@@ -32,13 +32,14 @@ def _drop_schema_if_exists(schema_name: str) -> None:
 class TestStepP8OwnerCreationAndActivationToken:
     """
     Subtask 6 (Story KAN-53 / Epic LAB-9 — TN-08):
-    Create tenant Owner staff_user in tenant schema in not-yet-activated state
-    (is_active=False, no usable password, branch=None), with an activation credential
-    as password_reset_token (purpose='activation', hashed token, 72h expiry).
-    Plain token delivered only via email URL fragment; re-run supersedes live token.
+    Create tenant Owner staff_user in tenant schema (branch=None) with the
+    tenant's temporary master password as a usable credential, plus an
+    activation credential as password_reset_token (purpose='activation',
+    hashed token, 72h expiry). Plain token delivered only via email URL
+    fragment; re-run supersedes live token.
     """
 
-    def test_tn08_p8_creates_owner_in_tenant_schema_inactive_no_branch(
+    def test_tn08_p8_creates_owner_in_tenant_schema_with_temp_password(
         self,
     ) -> None:
         sa = PlatformUserFactory(totp_enabled=True, is_active=True)
@@ -78,12 +79,13 @@ class TestStepP8OwnerCreationAndActivationToken:
                 assert owner.role == Role.OWNER
                 # Tenant-wide scope: branch_id is NULL (Doc 04 §5 P-8, Doc 08 §5.2)
                 assert owner.branch is None
-                # Not yet activated
-                assert owner.is_active is False
+                # Active with the tenant's temporary master password so the
+                # owner can sign in immediately after provisioning
+                assert owner.is_active is True
                 # TOTP enrols at first login, not during provisioning (LAB-12)
                 assert owner.totp_enabled is False
-                # Unusable password set by provisioning; starts with '!' (Doc 04 §5 P-8)
-                assert owner.password_hash.startswith("!")
+                # Usable credential is the temp master password, never a plain token
+                assert check_password(tenant.temp_password, owner.password_hash)
                 assert not check_password("random_pass", owner.password_hash)
 
                 # Activation token verification (A-14 revised, Doc 04 §5 P-8)
@@ -160,7 +162,7 @@ class TestStepP8OwnerCreationAndActivationToken:
         finally:
             _drop_schema_if_exists(schema_name)
 
-    def test_tn08_idempotency_supersedes_predecessor_token_and_does_not_duplicate_owner(
+    def test_tn08_idempotency_reuses_live_token_and_does_not_duplicate_owner(
         self,
     ) -> None:
         sa = PlatformUserFactory(totp_enabled=True, is_active=True)
@@ -195,37 +197,30 @@ class TestStepP8OwnerCreationAndActivationToken:
             )
             assert tok_1.used_at is None
 
-            # Run 2 (resume / re-run)
+            # Run 2 (resume / re-run) is idempotent: the live token is reused
             owner_2, tok_2, raw_2 = create_tenant_owner_activation(
                 tenant,
                 owner_email=owner_email,
                 owner_name="Dr. Repeat",
             )
+            assert raw_1
+            assert raw_2 == ""
 
             with schema_context(schema_name):
                 # Never creates a second Owner
                 assert StaffUser.objects.count() == 1
                 assert owner_1.id == owner_2.id
 
-                # Two tokens exist: the predecessor was superseded, exactly one is live
+                # Exactly one activation token, reused instead of duplicated
                 all_tokens = PasswordResetToken.objects.filter(
                     staff_user=owner_1,
                     purpose=PasswordResetToken.Purpose.ACTIVATION,
                 ).order_by("created_at")
-                assert all_tokens.count() == 2
+                assert all_tokens.count() == 1
 
-                first_tok = all_tokens[0]
-                second_tok = all_tokens[1]
-
-                # Predecessor was superseded (used_at set to invalidate)
-                assert first_tok.id == tok_1.id
-                assert first_tok.used_at is not None
-
-                # Fresh token is live
-                assert second_tok.id == tok_2.id
-                assert second_tok.used_at is None
-                assert second_tok.token_hash != first_tok.token_hash
-                assert raw_1 != raw_2
+                only_tok = all_tokens[0]
+                assert only_tok.id == tok_1.id == tok_2.id
+                assert only_tok.used_at is None
 
                 # Never leave two simultaneously valid activation tokens for one Owner
                 live_tokens = PasswordResetToken.objects.filter(
@@ -234,9 +229,6 @@ class TestStepP8OwnerCreationAndActivationToken:
                     used_at__isnull=True,
                 )
                 assert live_tokens.count() == 1
-                live_tok = live_tokens.first()
-                assert live_tok is not None
-                assert live_tok.id == tok_2.id
 
         finally:
             _drop_schema_if_exists(schema_name)
@@ -329,7 +321,7 @@ class TestStepP8OwnerCreationAndActivationToken:
                 owner = StaffUser.objects.get(email=owner_email)
                 assert owner.role == Role.OWNER
                 assert owner.branch is None
-                assert owner.is_active is False
+                assert owner.is_active is True
                 assert owner.totp_enabled is False
 
                 tok = PasswordResetToken.objects.get(

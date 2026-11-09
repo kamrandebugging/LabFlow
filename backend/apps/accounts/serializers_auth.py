@@ -9,7 +9,9 @@ class LoginRequestSerializer(serializers.Serializer):
 
 
 class PasswordChangeRequestSerializer(serializers.Serializer):
-    current_password = serializers.CharField(required=True, write_only=True, max_length=128)
+    current_password = serializers.CharField(
+        required=True, write_only=True, max_length=128
+    )
     new_password = serializers.CharField(required=True, write_only=True, max_length=128)
 
 

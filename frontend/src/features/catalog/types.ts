@@ -10,6 +10,8 @@ export interface DiagnosticTest {
   unit: string | null;
   is_active: boolean;
   price?: string | null;
+  panel_codes?: string[];
+  is_panel_only?: boolean;
   created_at: string;
   updated_at: string;
 }

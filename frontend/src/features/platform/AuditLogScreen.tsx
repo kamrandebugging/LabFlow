@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { platformService } from "./platformService";
 import type { AuditEntry } from "./types";
 
@@ -13,7 +13,7 @@ export function AuditLogScreen() {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
 
-  const loadAudits = async () => {
+  const loadAudits = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -26,15 +26,17 @@ export function AuditLogScreen() {
       });
       setAudits(res.audit || []);
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Failed to load audit records.");
+      setError(
+        e instanceof Error ? e.message : "Failed to load audit records.",
+      );
     } finally {
       setLoading(false);
     }
-  };
+  }, [actionFilter, tenantFilter, startDate, endDate]);
 
   useEffect(() => {
     loadAudits();
-  }, [actionFilter, startDate, endDate]);
+  }, [loadAudits]);
 
   const getActionBadge = (action: string) => {
     if (action.includes("suspended") || action.includes("disabled")) {
@@ -71,7 +73,9 @@ export function AuditLogScreen() {
       <div className="flex flex-col gap-space-2xs">
         <div className="flex items-center gap-space-xs text-outline font-label-sm text-label-sm">
           <span>Platform Governance</span>
-          <span className="material-symbols-outlined text-[14px]">chevron_right</span>
+          <span className="material-symbols-outlined text-[14px]">
+            chevron_right
+          </span>
           <span className="text-primary font-semibold">Audit Trail</span>
         </div>
 
@@ -82,12 +86,16 @@ export function AuditLogScreen() {
                 Immutable Platform Audit Log
               </h1>
               <span className="px-2 py-0.5 bg-primary-fixed text-primary font-code-sm text-xs font-bold uppercase rounded flex items-center gap-1">
-                <span className="material-symbols-outlined text-[14px]">lock</span>
+                <span className="material-symbols-outlined text-[14px]">
+                  lock
+                </span>
                 Append-Only Ledger
               </span>
             </div>
             <p className="font-body-sm text-body-sm text-on-surface-variant mt-1">
-              Cryptographically timestamped record of administrative interventions, payment settlements, quota changes, and platform configurations.
+              Cryptographically timestamped record of administrative
+              interventions, payment settlements, quota changes, and platform
+              configurations.
             </p>
           </div>
 
@@ -96,7 +104,9 @@ export function AuditLogScreen() {
             onClick={loadAudits}
             className="h-8 px-space-sm bg-surface-container-low hover:bg-surface-container text-on-surface rounded font-label-sm text-label-sm flex items-center gap-1 transition-colors self-start md:self-auto shadow-sm"
           >
-            <span className="material-symbols-outlined text-[16px]">refresh</span>
+            <span className="material-symbols-outlined text-[16px]">
+              refresh
+            </span>
             Refresh Log
           </button>
         </div>
@@ -169,11 +179,15 @@ export function AuditLogScreen() {
         {loading ? (
           <div className="p-12 text-center text-outline">
             <span className="inline-block w-6 h-6 border-2 border-primary/20 border-t-primary rounded-full animate-spin mb-2" />
-            <p className="font-body-sm text-body-sm">Reading tamper-evident audit ledger...</p>
+            <p className="font-body-sm text-body-sm">
+              Reading tamper-evident audit ledger...
+            </p>
           </div>
         ) : error ? (
           <div className="p-8 text-center text-error bg-error/5">
-            <span className="material-symbols-outlined text-[32px] mb-1">error</span>
+            <span className="material-symbols-outlined text-[32px] mb-1">
+              error
+            </span>
             <p className="font-title-sm text-title-sm font-bold">{error}</p>
           </div>
         ) : audits.length === 0 ? (
@@ -194,13 +208,20 @@ export function AuditLogScreen() {
                   <th className="px-3 py-1 font-semibold">Actor</th>
                   <th className="px-3 py-1 font-semibold">Event Action</th>
                   <th className="px-3 py-1 font-semibold">Target Entity</th>
-                  <th className="px-3 py-1 font-semibold">Structured Mutation (Before → After)</th>
-                  <th className="px-3 py-1 font-semibold text-right">Client IP</th>
+                  <th className="px-3 py-1 font-semibold">
+                    Structured Mutation (Before → After)
+                  </th>
+                  <th className="px-3 py-1 font-semibold text-right">
+                    Client IP
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-surface-container-high font-body-sm text-body-sm text-on-surface">
                 {audits.map((a) => (
-                  <tr key={a.id} className="h-12 hover:bg-surface-container-low transition-colors">
+                  <tr
+                    key={a.id}
+                    className="h-12 hover:bg-surface-container-low transition-colors"
+                  >
                     <td className="px-3 py-2 font-code-sm text-xs text-outline whitespace-nowrap">
                       {a.at
                         ? new Date(a.at).toLocaleString("en-PK", {
@@ -218,19 +239,31 @@ export function AuditLogScreen() {
                     </td>
                     <td className="px-3 py-2">{getActionBadge(a.action)}</td>
                     <td className="px-3 py-2 font-code-sm text-xs text-outline">
-                      <span className="font-semibold text-on-surface">{a.entity_type}</span>
-                      <span className="block text-[11px] truncate max-w-[120px]">{a.entity_id}</span>
+                      <span className="font-semibold text-on-surface">
+                        {a.entity_type}
+                      </span>
+                      <span className="block text-[11px] truncate max-w-[120px]">
+                        {a.entity_id}
+                      </span>
                     </td>
                     <td className="px-3 py-2 font-code-sm text-xs max-w-lg">
                       <div className="flex flex-col gap-0.5">
                         {a.before && Object.keys(a.before).length > 0 && (
-                          <div className="text-outline truncate" title={JSON.stringify(a.before)}>
-                            <span className="font-bold text-error">-</span> {JSON.stringify(a.before)}
+                          <div
+                            className="text-outline truncate"
+                            title={JSON.stringify(a.before)}
+                          >
+                            <span className="font-bold text-error">-</span>{" "}
+                            {JSON.stringify(a.before)}
                           </div>
                         )}
                         {a.after && Object.keys(a.after).length > 0 && (
-                          <div className="text-on-surface font-semibold truncate" title={JSON.stringify(a.after)}>
-                            <span className="font-bold text-primary">+</span> {JSON.stringify(a.after)}
+                          <div
+                            className="text-on-surface font-semibold truncate"
+                            title={JSON.stringify(a.after)}
+                          >
+                            <span className="font-bold text-primary">+</span>{" "}
+                            {JSON.stringify(a.after)}
                           </div>
                         )}
                       </div>
@@ -246,7 +279,10 @@ export function AuditLogScreen() {
         )}
 
         <div className="p-space-sm bg-surface-container-low/50 border-t border-surface-container flex items-center justify-between font-body-xs text-body-xs text-outline">
-          <span>Audit entries are immutable. Direct writes and updates are prohibited by database security triggers.</span>
+          <span>
+            Audit entries are immutable. Direct writes and updates are
+            prohibited by database security triggers.
+          </span>
           <span>Ledger Node: PK-ISB-01</span>
         </div>
       </div>

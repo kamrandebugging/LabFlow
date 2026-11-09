@@ -570,6 +570,11 @@ class TestSettlementListDetail:
         resp = api_client.get("/api/v1/settlements?status=BOGUS")
         assert resp.status_code == 422
 
+        resp = api_client.get("/api/v1/settlements?status=draft")
+        assert resp.status_code == 200
+        ids = [r["id"] for r in resp.json()["results"]]
+        assert str(s1.id) in ids
+
     def test_detail_includes_lines(
         self, tenant_a: Tenant, api_client: APIClient, active_subscription: Subscription
     ) -> None:

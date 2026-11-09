@@ -23,17 +23,27 @@ from apps.results.engine import evaluate_result, parse_result
 from apps.results.models import CriticalNotification, Result, ResultApproval
 from apps.samples.models import Sample, SampleEvent, SampleTest, SampleTransfer
 
-# Doc 03 §6.6: POST /api/v1/samples/{id}/results — roles cell is exactly "T P".
-RESULT_ENTRY_ROLES = {Role.TECHNICIAN, Role.PATHOLOGIST}
-# Doc 03 §6.6: POST /api/v1/results/{id}/approve — roles cell is exactly "P".
-RESULT_APPROVE_ROLES = {Role.PATHOLOGIST}
-# Doc 03 §6.6: POST /api/v1/results/{id}/withdraw — roles cell "T P (author only)".
-RESULT_WITHDRAW_ROLES = {Role.TECHNICIAN, Role.PATHOLOGIST}
-# Doc 03 §6.6: POST /api/v1/results/{id}/amend — roles cell is exactly "T P".
-RESULT_AMEND_ROLES = {Role.TECHNICIAN, Role.PATHOLOGIST}
+# Doc 03 §6.6: POST /api/v1/samples/{id}/results — roles Technician, Pathologist, Owner.
+RESULT_ENTRY_ROLES = {Role.TECHNICIAN, Role.PATHOLOGIST, Role.OWNER}
+# Doc 03 §6.6: POST /api/v1/results/{id}/approve — roles Pathologist, Owner.
+RESULT_APPROVE_ROLES = {Role.PATHOLOGIST, Role.OWNER}
+# Doc 03 §6.6: POST /api/v1/results/{id}/withdraw — roles Technician,
+# Pathologist, Owner (author only).
+RESULT_WITHDRAW_ROLES = {Role.TECHNICIAN, Role.PATHOLOGIST, Role.OWNER}
+# Doc 03 §6.6: POST /api/v1/results/{id}/amend — roles Technician, Pathologist, Owner.
+RESULT_AMEND_ROLES = {Role.TECHNICIAN, Role.PATHOLOGIST, Role.OWNER}
 # Doc 03 §6.6: POST /api/v1/results/{id}/critical-notifications —
-# roles cell is exactly "M P" (Manager + Pathologist only).
-RESULT_NOTIFY_ROLES = {Role.MANAGER, Role.PATHOLOGIST}
+# roles Manager, Pathologist, Owner.
+RESULT_NOTIFY_ROLES = {Role.MANAGER, Role.PATHOLOGIST, Role.OWNER}
+# Result reads (approvals queue + result detail): all clinical/administrative
+# staff may read; writes stay constrained above.
+RESULT_READ_ROLES = {
+    Role.OWNER,
+    Role.MANAGER,
+    Role.RECEPTION,
+    Role.TECHNICIAN,
+    Role.PATHOLOGIST,
+}
 
 
 class ResultError(Exception):
@@ -267,8 +277,203 @@ def _evaluate_plan(
     }
 
 
+def _fmt_num(value: Any) -> str | None:
+    """Render a Decimal/string bound without trailing zero noise."""
+    if value is None:
+        return None
+    text = str(value)
+    if "." in text:
+        text = text.rstrip("0").rstrip(".")
+    return text
+
+
+def _age_in_years(dob: date | None, as_of: date) -> int | None:
+    if dob is None:
+        return None
+    return as_of.year - dob.year - ((as_of.month, as_of.day) < (dob.month, dob.day))
+
+
+def _range_display(summary: dict[str, Any] | None) -> str:
+    if not summary:
+        return "No reference range configured"
+    low = _fmt_num(summary.get("low"))
+    high = _fmt_num(summary.get("high"))
+    unit = summary.get("unit") or ""
+    if low is not None and high is not None:
+        return f"{low} – {high} {unit}".strip()
+    if low is not None:
+        return f">= {low} {unit}".strip()
+    if high is not None:
+        return f"<= {high} {unit}".strip()
+    return "No reference range configured"
+
+
+def _critical_display(summary: dict[str, Any] | None) -> str | None:
+    if not summary:
+        return None
+    unit = summary.get("unit") or ""
+    parts: list[str] = []
+    if summary.get("critical_low") is not None:
+        parts.append(f"< {_fmt_num(summary['critical_low'])} {unit}".strip())
+    if summary.get("critical_high") is not None:
+        parts.append(f"> {_fmt_num(summary['critical_high'])} {unit}".strip())
+    return " / ".join(parts) if parts else None
+
+
+def _audit_history(result: Result) -> list[dict[str, Any]]:
+    logs = list(
+        AuditLog.objects.filter(entity_type="result", entity_id=result.id).order_by(
+            "at"
+        )
+    )
+    actor_ids = {log.actor_id for log in logs if log.actor_id is not None}
+    emails = dict(StaffUser.objects.filter(id__in=actor_ids).values_list("id", "email"))
+    history: list[dict[str, Any]] = []
+    for log in logs:
+        after = log.after_jsonb or {}
+        history.append(
+            {
+                "action": log.action,
+                "value": after.get("value"),
+                "status": after.get("decision") or after.get("status"),
+                "timestamp": log.at.isoformat(),
+                "actor_name": emails.get(log.actor_id) if log.actor_id else None,
+                "note": after.get("note"),
+                "reason": after.get("reason"),
+            }
+        )
+    return history
+
+
+def _serialize_result(
+    result: Result, *, include_detail: bool = False
+) -> dict[str, Any]:
+    """Shape one real Result row for read screens (no invented values)."""
+    sample = result.sample
+    patient = sample.invoice.patient
+    collected_on = sample.collected_at.date()
+    age_days = _age_in_days(patient.date_of_birth, collected_on)
+    rr_model = CatalogService.resolve_reference_range(
+        test_id=result.test_id,
+        patient_sex=patient.sex,
+        patient_age_days=age_days,
+        collection_date=sample.collected_at,
+    )
+    summary = _range_summary(rr_model)
+    payload: dict[str, Any] = {
+        "id": str(result.id),
+        "sample_id": str(sample.id),
+        "sample_status": sample.status,
+        "accession_id": sample.accession_id,
+        "patient_id": str(patient.id),
+        "patient_name": patient.name,
+        "patient_mrn": patient.mrn,
+        "patient_sex": patient.sex,
+        "patient_age_years": _age_in_years(patient.date_of_birth, collected_on),
+        "branch_id": str(sample.branch_id),
+        "branch_name": sample.branch.name,
+        "test_id": str(result.test_id),
+        "test_name": result.test.name,
+        "test_code": result.test.code,
+        "specimen_type": None,
+        "value": result.value,
+        "unit": result.unit or result.test.unit,
+        "flag": result.flag,
+        "is_critical": result.flag in ("critical_low", "critical_high"),
+        "status": result.status,
+        "matched_range": _range_display(summary),
+        "critical_threshold": _critical_display(summary),
+        "entered_by_id": str(result.entered_by_id),
+        "entered_by_name": result.entered_by.email,
+        "entered_at": result.created_at.isoformat(),
+        "amend_reason": result.amend_reason,
+        "supersedes": str(result.supersedes_id) if result.supersedes_id else None,
+    }
+    if include_detail:
+        approval = (
+            result.approvals.select_related("pathologist")
+            .order_by("-created_at")
+            .first()
+        )
+        notification = (
+            result.critical_notifications.select_related("recorded_by")
+            .order_by("-created_at")
+            .first()
+        )
+        payload["approved_by_name"] = (
+            approval.pathologist.email if approval is not None else None
+        )
+        payload["approved_at"] = (
+            approval.created_at.isoformat() if approval is not None else None
+        )
+        payload["audit_history"] = _audit_history(result)
+        payload["critical_notification"] = (
+            {
+                "notified_name": notification.notified_name,
+                "notified_at": notification.notified_at.isoformat(),
+                "read_back": notification.read_back,
+                "recorded_by_name": notification.recorded_by.email,
+            }
+            if notification is not None
+            else None
+        )
+    return payload
+
+
 class ResultService:
     """Batch result entry (RS-1/RS-2/RS-3/RS-V2, §8)."""
+
+    @staticmethod
+    def list_results(
+        *, actor: StaffUser, status: str | None = None
+    ) -> list[dict[str, Any]]:
+        """List real result rows visible to the caller (approvals queue)."""
+        rows = Result.objects.select_related(
+            "sample__invoice__patient",
+            "sample__branch",
+            "test",
+            "entered_by",
+        )
+        if actor.branch_id:
+            rows = rows.filter(sample__branch_id=actor.branch_id)
+        if status:
+            rows = rows.filter(status=status.strip().lower())
+        return [_serialize_result(row) for row in rows.order_by("created_at")]
+
+    @staticmethod
+    def list_results_for_sample(
+        *, sample_id: uuid.UUID, actor: StaffUser
+    ) -> list[dict[str, Any]]:
+        """All real result rows recorded for one sample (read-only)."""
+        _get_sample(sample_id)
+        rows = (
+            Result.objects.select_related(
+                "sample__invoice__patient",
+                "sample__branch",
+                "test",
+                "entered_by",
+            )
+            .filter(sample_id=sample_id)
+            .order_by("created_at")
+        )
+        return [_serialize_result(row) for row in rows]
+
+    @staticmethod
+    def get_result(*, result_id: uuid.UUID, actor: StaffUser) -> dict[str, Any]:
+        """One real result row with approvals, notifications and audit trail."""
+        try:
+            results = Result.objects.select_related(
+                "sample__invoice__patient",
+                "sample__branch",
+                "test",
+                "entered_by",
+            )
+            if actor.branch_id:
+                results = results.filter(sample__branch_id=actor.branch_id)
+            result = results.get(pk=result_id)
+        except Result.DoesNotExist:
+            raise ResultNotFoundError("Result not found.") from None
+        return _serialize_result(result, include_detail=True)
 
     @staticmethod
     def enter_results(
@@ -522,17 +727,22 @@ class ResultService:
 
             # RS-6 self-approval: the entering pathologist may not approve,
             # unless this tenant has exactly one active pathologist account.
+            # The Owner is a superrole acting as signing authority and may approve
+            # all results including results entered by the Owner.
             # The exception is recorded visibly in audit, never silent.
             audit_note: str | None = None
             if result.entered_by_id == actor.id:
-                active_pathologists = StaffUser.objects.filter(
-                    role=Role.PATHOLOGIST, is_active=True
-                ).count()
-                if active_pathologists != 1:
-                    raise SelfApprovalNotPermittedError(
-                        "A pathologist may not approve a result they entered."
-                    )
-                audit_note = "single_pathologist_self_approval"
+                if actor.role == Role.OWNER:
+                    audit_note = "owner_self_approval"
+                else:
+                    active_pathologists = StaffUser.objects.filter(
+                        role=Role.PATHOLOGIST, is_active=True
+                    ).count()
+                    if active_pathologists != 1:
+                        raise SelfApprovalNotPermittedError(
+                            "A pathologist may not approve a result they entered."
+                        )
+                    audit_note = "single_pathologist_self_approval"
 
             # RS-10: NULL flag on a numeric test with an unparseable value
             # requires a note; qualitative NULL-flag results do not.

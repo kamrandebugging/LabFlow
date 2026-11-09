@@ -24,7 +24,7 @@ import type { ApprovalQueueItem } from "./types";
 
 export function ApprovalsQueueScreen(): JSX.Element {
   const user = useAuthStore((state) => state.user);
-  const isPathologist = user?.role === "pathologist";
+  const isAuthorized = user?.role === "pathologist" || user?.role === "owner";
 
   const [queue, setQueue] = useState<ApprovalQueueItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -136,18 +136,18 @@ export function ApprovalsQueueScreen(): JSX.Element {
     }
   };
 
-  // Role restriction view: Pathologist only
-  if (!isPathologist) {
+  // Role restriction view: Pathologist or Owner only
+  if (!isAuthorized) {
     return (
       <div className="w-full max-w-4xl mx-auto px-4 py-12">
         <div className="bg-red-50 border border-red-200 rounded-xl p-8 text-center space-y-4">
           <ShieldAlert className="w-12 h-12 text-red-600 mx-auto" />
           <h2 className="text-xl font-bold text-red-950">
-            Access Denied · Pathologist Desk Restricted
+            Access Denied · Role Restricted
           </h2>
           <p className="text-sm text-red-800 max-w-md mx-auto">
-            Only a registered Pathologist may access the clinical verification
-            and approvals queue (Doc 03 §6.6).
+            Only a registered Pathologist or Owner may access the clinical
+            verification and approvals queue (Doc 03 §6.6).
           </p>
           <div className="pt-2">
             <Link

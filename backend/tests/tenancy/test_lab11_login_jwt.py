@@ -183,10 +183,12 @@ class TestLAB11LoginEndpoint:
         assert response.status_code == 401
         assert response.json()["error"]["code"] == "invalid_credentials"
 
-    def test_totp_mandatory_role_returns_totp_required_and_no_session(
+    def test_totp_mandatory_role_without_enrollment_gets_enrollment_session(
         self, client: Client, owner: StaffUser
     ) -> None:
-        """Owner role requires TOTP: returns totp_required: true challenge cookie."""
+        """Owner role mandates TOTP; before enrolment the login succeeds with a
+        session flagged totp_enrollment_required instead of an unanswerable
+        challenge (Doc 01 §14, Doc 08 §4.1)."""
         response = client.post(
             "/api/v1/auth/login",
             data={
@@ -197,10 +199,9 @@ class TestLAB11LoginEndpoint:
         )
         assert response.status_code == 200
         data = response.json()
-        assert data.get("totp_required") is True
-        assert "access" not in data
-        assert "refresh_token" not in response.cookies
-        assert "auth_challenge" in response.cookies
+        assert data.get("totp_enrollment_required") is True
+        assert data.get("access")
+        assert "auth_challenge" not in response.cookies
 
     def test_login_throttling_after_5_failed_attempts_returns_429(
         self, client: Client, receptionist: StaffUser, tenant_a: Any

@@ -16,6 +16,9 @@ import {
 } from "lucide-react";
 import { resultsService } from "./resultsService";
 import type { WorklistItem } from "./types";
+import { settingsService } from "../settings/settingsService";
+import type { Branch } from "../settings/types";
+import { sampleService } from "../samples/sampleService";
 
 export function WorklistScreen(): JSX.Element {
   const branchFilterId = useId();
@@ -23,8 +26,10 @@ export function WorklistScreen(): JSX.Element {
   const testFilterId = useId();
 
   const [items, setItems] = useState<WorklistItem[]>([]);
+  const [branches, setBranches] = useState<Branch[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [receivingId, setReceivingId] = useState<string | null>(null);
 
   // Filters
   const [branchFilter, setBranchFilter] = useState("all");
@@ -55,7 +60,41 @@ export function WorklistScreen(): JSX.Element {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [statusFilter]);
 
+  const handleReceive = async (sampleId: string) => {
+    try {
+      setReceivingId(sampleId);
+      setErrorMessage(null);
+      await sampleService.receiveSample(sampleId);
+      await loadData();
+    } catch (err) {
+      setErrorMessage(
+        err instanceof Error ? err.message : "Failed to receive sample.",
+      );
+    } finally {
+      setReceivingId(null);
+    }
+  };
+
+  useEffect(() => {
+    let active = true;
+    void settingsService
+      .getBranches(false)
+      .then((list) => {
+        if (active && Array.isArray(list)) {
+          setBranches(list);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, []);
+
   // Client-side filtering
+  const testOptions = Array.from(
+    new Set(items.flatMap((item) => item.tests).filter(Boolean)),
+  ).sort((a, b) => a.localeCompare(b));
+
   const filteredItems = items.filter((item) => {
     if (branchFilter !== "all" && item.branch_id !== branchFilter) return false;
     if (statusFilter !== "all" && item.status !== statusFilter) return false;
@@ -105,9 +144,11 @@ export function WorklistScreen(): JSX.Element {
               className="w-full appearance-none bg-slate-50 text-slate-900 text-sm rounded-lg px-3 py-2 pr-8 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-600 cursor-pointer"
             >
               <option value="all">All Branches</option>
-              <option value="gulberg">Gulberg Branch</option>
-              <option value="dha">DHA Phase 5 Branch</option>
-              <option value="johar">Johar Town Branch</option>
+              {branches.map((branch) => (
+                <option key={branch.id} value={branch.id}>
+                  {branch.name}
+                </option>
+              ))}
             </select>
             <ChevronDown className="w-4 h-4 text-slate-400 pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2" />
           </div>
@@ -132,7 +173,7 @@ export function WorklistScreen(): JSX.Element {
               <option value="all">All</option>
               <option value="ready">Ready for entry</option>
               <option value="in_process">In process</option>
-              <option value="rejected">Sample rejected</option>
+              <option value="rejected">Sample rejected</option>{" "}
             </select>
             <ChevronDown className="w-4 h-4 text-slate-400 pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2" />
           </div>
@@ -155,12 +196,11 @@ export function WorklistScreen(): JSX.Element {
               className="w-full appearance-none bg-slate-50 text-slate-900 text-sm rounded-lg px-3 py-2 pr-8 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-600 cursor-pointer"
             >
               <option value="all">All Tests</option>
-              <option value="cbc">CBC</option>
-              <option value="lipid">Lipid Profile</option>
-              <option value="lft">LFT</option>
-              <option value="tsh">TSH</option>
-              <option value="hba1c">HbA1c</option>
-              <option value="urine">Urine R/E</option>
+              {testOptions.map((testName) => (
+                <option key={testName} value={testName}>
+                  {testName}
+                </option>
+              ))}
             </select>
             <ChevronDown className="w-4 h-4 text-slate-400 pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2" />
           </div>
@@ -266,7 +306,7 @@ export function WorklistScreen(): JSX.Element {
                         </div>
                       </td>
                       <td className="py-4 px-6 text-slate-600">
-                        {item.tests.join(", ") || "General Diagnostics"}
+                        {item.tests.join(", ") || "—"}
                       </td>
                       <td className="py-4 px-6 font-mono text-xs text-slate-500">
                         {item.collected_at
@@ -289,12 +329,19 @@ export function WorklistScreen(): JSX.Element {
                         </span>
                       </td>
                       <td className="py-4 px-6">
-                        {item.status === "ready" && (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700">
-                            <span className="w-1.5 h-1.5 rounded-full bg-blue-600" />
-                            Ready for entry
+                        {item.sample_status === "collected" && (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700">
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-600" />
+                            Awaiting receipt
                           </span>
                         )}
+                        {item.status === "ready" &&
+                          item.sample_status !== "collected" && (
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700">
+                              <span className="w-1.5 h-1.5 rounded-full bg-blue-600" />
+                              Ready for entry
+                            </span>
+                          )}
                         {item.status === "in_process" && (
                           <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-50 text-orange-700">
                             <span className="w-1.5 h-1.5 rounded-full bg-orange-600" />
@@ -313,6 +360,20 @@ export function WorklistScreen(): JSX.Element {
                           <span className="text-slate-300 font-mono text-xs select-none pr-3">
                             —
                           </span>
+                        ) : item.sample_status === "collected" ? (
+                          <button
+                            type="button"
+                            onClick={() => handleReceive(item.sample_id)}
+                            disabled={receivingId === item.sample_id}
+                            className="px-3 py-1.5 rounded-lg bg-teal-50 hover:bg-teal-100 text-teal-800 text-xs font-semibold transition-colors disabled:opacity-50 cursor-pointer inline-flex items-center gap-1"
+                          >
+                            <span>
+                              {receivingId === item.sample_id
+                                ? "Receiving..."
+                                : "Receive sample"}
+                            </span>
+                            <ArrowRight className="w-3.5 h-3.5" />
+                          </button>
                         ) : (
                           <Link
                             to={`/results/entry/${item.sample_id}`}

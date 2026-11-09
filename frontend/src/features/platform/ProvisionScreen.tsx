@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { platformService } from "./platformService";
@@ -19,7 +19,9 @@ export function ProvisionScreen(): JSX.Element {
   const [ownerEmail, setOwnerEmail] = useState("");
   const [ownerPhone, setOwnerPhone] = useState("");
   const [selectedPlanId, setSelectedPlanId] = useState<string>("");
-  const [branchQuota, setBranchQuota] = useState<string>("3");
+  const [extraBranches, setExtraBranches] = useState<
+    Array<{ name: string; address: string }>
+  >([]);
   const [staffSeats, setStaffSeats] = useState<number>(10);
   const [enabledRoles, setEnabledRoles] = useState<string[]>([
     "owner",
@@ -41,9 +43,11 @@ export function ProvisionScreen(): JSX.Element {
   const generateNewPassword = () => {
     const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
     let p1 = "";
-    for (let i = 0; i < 4; i++) p1 += chars.charAt(Math.floor(Math.random() * chars.length));
+    for (let i = 0; i < 4; i++)
+      p1 += chars.charAt(Math.floor(Math.random() * chars.length));
     let p2 = "";
-    for (let i = 0; i < 2; i++) p2 += chars.charAt(Math.floor(Math.random() * chars.length));
+    for (let i = 0; i < 2; i++)
+      p2 += chars.charAt(Math.floor(Math.random() * chars.length));
     setTempPass(`LBF-${p1}-${p2}#`);
   };
 
@@ -67,7 +71,7 @@ export function ProvisionScreen(): JSX.Element {
     }
     if (qOwner) setOwnerName(qOwner);
     if (qPhone) setOwnerPhone(qPhone);
-  }, [searchParams]);
+  }, [searchParams, slug]);
 
   // Fetch real platform plans from API
   const { data: plansData, isLoading: plansLoading } = useQuery({
@@ -75,7 +79,7 @@ export function ProvisionScreen(): JSX.Element {
     queryFn: () => platformService.listPlans(),
   });
 
-  const plans = plansData?.plans || [];
+  const plans = useMemo(() => plansData?.plans || [], [plansData]);
 
   // Pre-select "Growth" plan by default
   useEffect(() => {
@@ -104,13 +108,18 @@ export function ProvisionScreen(): JSX.Element {
 
   const handleSlugChange = (val: string) => {
     setSlugManuallyEdited(true);
-    setSlug(val.toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 20));
+    setSlug(
+      val
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, "")
+        .slice(0, 20),
+    );
   };
 
   const toggleRole = (role: string) => {
     if (role === "owner") return; // Immutable
     setEnabledRoles((prev) =>
-      prev.includes(role) ? prev.filter((r) => r !== role) : [...prev, role]
+      prev.includes(role) ? prev.filter((r) => r !== role) : [...prev, role],
     );
   };
 
@@ -118,6 +127,34 @@ export function ProvisionScreen(): JSX.Element {
     navigator.clipboard.writeText(tempPass);
     setCopiedPass(true);
     setTimeout(() => setCopiedPass(false), 2000);
+  };
+
+  // Branches: Main Branch always exists; extras are created during provisioning.
+  const planBranchLimit =
+    plans.find((p) => p.id === selectedPlanId)?.max_branches ?? null;
+  const branchCount = 1 + extraBranches.length;
+  const branchLimitReached =
+    planBranchLimit !== null && branchCount >= planBranchLimit;
+
+  const addBranch = () => {
+    if (branchLimitReached) return;
+    setExtraBranches((prev) => [...prev, { name: "", address: "" }]);
+  };
+
+  const updateBranch = (
+    index: number,
+    field: "name" | "address",
+    value: string,
+  ) => {
+    setExtraBranches((prev) =>
+      prev.map((branch, i) =>
+        i === index ? { ...branch, [field]: value } : branch,
+      ),
+    );
+  };
+
+  const removeBranch = (index: number) => {
+    setExtraBranches((prev) => prev.filter((_, i) => i !== index));
   };
 
   // Provision Mutation
@@ -129,15 +166,20 @@ export function ProvisionScreen(): JSX.Element {
       queryClient.invalidateQueries({ queryKey: ["platform", "metrics"] });
       navigate(`/platform/tenants/${data.id}`);
     },
-    onError: (err: any) => {
-      if (err.problem?.errors) {
+    onError: (err: unknown) => {
+      const problem = (
+        err as { problem?: { errors?: Record<string, unknown> } }
+      ).problem;
+      if (problem?.errors) {
         const errors: Record<string, string> = {};
-        for (const [k, v] of Object.entries(err.problem.errors)) {
-          errors[k] = Array.isArray(v) ? v[0] : String(v);
+        for (const [k, v] of Object.entries(problem.errors)) {
+          errors[k] = Array.isArray(v) ? String(v[0]) : String(v);
         }
         setFieldErrors(errors);
       } else {
-        setGeneralError(err.message || "Failed to provision tenant.");
+        setGeneralError(
+          (err as Error).message || "Failed to provision tenant.",
+        );
       }
     },
   });
@@ -164,6 +206,17 @@ export function ProvisionScreen(): JSX.Element {
     if (!selectedPlanId) {
       errors.plan_id = "Please select a subscription tier.";
     }
+    const planForLimit = plans.find((p) => p.id === selectedPlanId);
+    const branchLimit = planForLimit?.max_branches ?? null;
+    if (branchLimit !== null && 1 + extraBranches.length > branchLimit) {
+      errors.branches = `The ${planForLimit?.name} plan allows at most ${branchLimit} branch(es) including the Main Branch.`;
+    }
+    const incompleteBranch = extraBranches.findIndex(
+      (branch) => !branch.name.trim(),
+    );
+    if (incompleteBranch !== -1) {
+      errors.branches = `Branch ${incompleteBranch + 2} needs a name.`;
+    }
 
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors);
@@ -181,7 +234,11 @@ export function ProvisionScreen(): JSX.Element {
       phone: ownerPhone.trim() || "+92 300 0000000",
       whatsapp: ownerPhone.trim() || "+92 300 0000000",
       staff_seats: staffSeats,
-      branch_count: branchQuota === "Unlimited" ? 99 : Number(branchQuota),
+      branch_count: 1 + extraBranches.length,
+      branches: extraBranches.map((branch) => ({
+        name: branch.name.trim(),
+        address: branch.address.trim(),
+      })),
       enabled_roles: enabledRoles,
     };
 
@@ -201,7 +258,9 @@ export function ProvisionScreen(): JSX.Element {
               to="/platform/tenants"
               className="hover:text-primary transition-colors flex items-center gap-1"
             >
-              <span className="material-symbols-outlined text-[16px]">biotech</span>
+              <span className="material-symbols-outlined text-[16px]">
+                biotech
+              </span>
               <span>Labs</span>
             </Link>
             <span className="text-outline-variant font-code-sm">/</span>
@@ -214,7 +273,9 @@ export function ProvisionScreen(): JSX.Element {
               <span className="inline-block w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>
               INFRA READY: REGION PK-ISB-01
             </span>
-            <span className="font-code-sm text-code-sm text-outline">SCHEMA ENGINE v4.2</span>
+            <span className="font-code-sm text-code-sm text-outline">
+              SCHEMA ENGINE v4.2
+            </span>
           </div>
         </div>
 
@@ -225,11 +286,14 @@ export function ProvisionScreen(): JSX.Element {
               Provision a new lab — grant access
             </h1>
             <p className="font-body-md text-body-md text-on-surface-variant mt-space-2xs max-w-3xl">
-              Initialize an isolated tenant database, configure staff quotas, and issue primary administrator credentials.
+              Initialize an isolated tenant database, configure staff quotas,
+              and issue primary administrator credentials.
             </p>
           </div>
           <div className="flex items-center gap-space-sm bg-surface-container-low px-space-md py-space-xs rounded border border-outline-variant/30">
-            <span className="material-symbols-outlined text-primary text-[18px]">verified_user</span>
+            <span className="material-symbols-outlined text-primary text-[18px]">
+              verified_user
+            </span>
             <span className="font-label-sm text-label-sm text-on-surface font-medium">
               Auto-sandboxed Multi-Tenant Cluster
             </span>
@@ -244,7 +308,10 @@ export function ProvisionScreen(): JSX.Element {
       )}
 
       {/* Form Grid: 2 Columns (8 Cols left, 4 Cols right) */}
-      <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-12 gap-space-lg">
+      <form
+        onSubmit={handleSubmit}
+        className="grid grid-cols-1 lg:grid-cols-12 gap-space-lg"
+      >
         {/* Left Column: Form Sections (8 Cols) */}
         <div className="lg:col-span-8 flex flex-col gap-space-lg">
           {/* Section 1: Lab Information */}
@@ -259,17 +326,21 @@ export function ProvisionScreen(): JSX.Element {
                     Lab Information
                   </h2>
                   <p className="font-body-xs text-body-xs text-outline">
-                    Laboratory legal entity name, operating zone, and routing subdomain
+                    Laboratory legal entity name, operating zone, and routing
+                    subdomain
                   </p>
                 </div>
               </div>
-              <span className="material-symbols-outlined text-outline">domain</span>
+              <span className="material-symbols-outlined text-outline">
+                domain
+              </span>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-space-md pt-space-xs">
               <div className="space-y-space-2xs md:col-span-2">
                 <label className="block font-label-sm text-label-sm text-on-surface uppercase tracking-wider">
-                  Laboratory Entity Display Name <span className="text-error">*</span>
+                  Laboratory Entity Display Name{" "}
+                  <span className="text-error">*</span>
                 </label>
                 <input
                   className="w-full h-9 px-space-sm bg-surface-container-lowest text-on-surface font-body-sm text-body-sm rounded outline-none border border-outline-variant focus:border-primary focus:ring-1 focus:ring-primary"
@@ -279,7 +350,9 @@ export function ProvisionScreen(): JSX.Element {
                   onChange={(e) => handleLabNameChange(e.target.value)}
                 />
                 {fieldErrors.name && (
-                  <span className="text-xs text-error block">{fieldErrors.name}</span>
+                  <span className="text-xs text-error block">
+                    {fieldErrors.name}
+                  </span>
                 )}
                 <span className="font-body-xs text-body-xs text-outline">
                   Registered name as recognized by healthcare regulatory bodies
@@ -300,7 +373,9 @@ export function ProvisionScreen(): JSX.Element {
                   <option value="Rawalpindi">Rawalpindi (Punjab North)</option>
                   <option value="Karachi">Karachi (Sindh Zone A)</option>
                   <option value="Peshawar">Peshawar (KPK Northern)</option>
-                  <option value="Faisalabad">Faisalabad (Punjab Central)</option>
+                  <option value="Faisalabad">
+                    Faisalabad (Punjab Central)
+                  </option>
                   <option value="Multan">Multan (Punjab South)</option>
                   <option value="Quetta">Quetta (Balochistan)</option>
                 </select>
@@ -340,10 +415,15 @@ export function ProvisionScreen(): JSX.Element {
                   </span>
                 </div>
                 {fieldErrors.slug && (
-                  <span className="text-xs text-error block">{fieldErrors.slug}</span>
+                  <span className="text-xs text-error block">
+                    {fieldErrors.slug}
+                  </span>
                 )}
                 <span className="font-body-xs text-body-xs text-outline">
-                  Isolated database schema suffix: <strong className="text-on-surface font-normal">tenant_{slug || "..."}</strong>
+                  Isolated database schema suffix:{" "}
+                  <strong className="text-on-surface font-normal">
+                    tenant_{slug || "..."}
+                  </strong>
                 </span>
               </div>
             </div>
@@ -361,11 +441,14 @@ export function ProvisionScreen(): JSX.Element {
                     Superadmin Access
                   </h2>
                   <p className="font-body-xs text-body-xs text-outline">
-                    Primary administrator profile, contact channels, and temporary credential
+                    Primary administrator profile, contact channels, and
+                    temporary credential
                   </p>
                 </div>
               </div>
-              <span className="material-symbols-outlined text-outline">badge</span>
+              <span className="material-symbols-outlined text-outline">
+                badge
+              </span>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-space-md pt-space-xs">
@@ -381,7 +464,9 @@ export function ProvisionScreen(): JSX.Element {
                   onChange={(e) => setOwnerName(e.target.value)}
                 />
                 {fieldErrors.owner_name && (
-                  <span className="text-xs text-error block">{fieldErrors.owner_name}</span>
+                  <span className="text-xs text-error block">
+                    {fieldErrors.owner_name}
+                  </span>
                 )}
               </div>
 
@@ -420,7 +505,9 @@ export function ProvisionScreen(): JSX.Element {
                   />
                 </div>
                 {fieldErrors.owner_email && (
-                  <span className="text-xs text-error block">{fieldErrors.owner_email}</span>
+                  <span className="text-xs text-error block">
+                    {fieldErrors.owner_email}
+                  </span>
                 )}
               </div>
             </div>
@@ -445,7 +532,9 @@ export function ProvisionScreen(): JSX.Element {
                     onClick={generateNewPassword}
                     className="px-space-xs py-space-2xs bg-surface-container hover:bg-surface-container-high rounded text-xs text-on-surface flex items-center gap-1 transition-colors"
                   >
-                    <span className="material-symbols-outlined text-[14px]">refresh</span>
+                    <span className="material-symbols-outlined text-[14px]">
+                      refresh
+                    </span>
                     <span>Regenerate</span>
                   </button>
                   <button
@@ -478,16 +567,21 @@ export function ProvisionScreen(): JSX.Element {
                     Subscription Tier &amp; SLA
                   </h2>
                   <p className="font-body-xs text-body-xs text-outline">
-                    Select the commercial license tier and synchronization pipeline
+                    Select the commercial license tier and synchronization
+                    pipeline
                   </p>
                 </div>
               </div>
-              <span className="material-symbols-outlined text-outline">loyalty</span>
+              <span className="material-symbols-outlined text-outline">
+                loyalty
+              </span>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-space-md pt-space-xs">
               {plansLoading ? (
-                <div className="col-span-2 text-center py-4 text-outline">Loading plans...</div>
+                <div className="col-span-2 text-center py-4 text-outline">
+                  Loading plans...
+                </div>
               ) : (
                 plans.map((p) => {
                   const isSelected = selectedPlanId === p.id;
@@ -528,7 +622,9 @@ export function ProvisionScreen(): JSX.Element {
                             isSelected ? "text-primary" : "text-outline"
                           }`}
                         >
-                          {isSelected ? "radio_button_checked" : "radio_button_unchecked"}
+                          {isSelected
+                            ? "radio_button_checked"
+                            : "radio_button_unchecked"}
                         </span>
                       </div>
 
@@ -546,8 +642,12 @@ export function ProvisionScreen(): JSX.Element {
                           check_circle
                         </span>
                         <span>
-                          {p.max_branches ? `Up to ${p.max_branches} branch(es)` : "Unlimited branches"}
-                          {p.max_staff ? `, ${p.max_staff} staff seats` : ", unlimited staff seats"}
+                          {p.max_branches
+                            ? `Up to ${p.max_branches} branch(es)`
+                            : "Unlimited branches"}
+                          {p.max_staff
+                            ? `, ${p.max_staff} staff seats`
+                            : ", unlimited staff seats"}
                         </span>
                       </p>
                     </label>
@@ -556,7 +656,9 @@ export function ProvisionScreen(): JSX.Element {
               )}
             </div>
             {fieldErrors.plan_id && (
-              <span className="text-xs text-error block">{fieldErrors.plan_id}</span>
+              <span className="text-xs text-error block">
+                {fieldErrors.plan_id}
+              </span>
             )}
           </section>
 
@@ -576,33 +678,98 @@ export function ProvisionScreen(): JSX.Element {
                   </p>
                 </div>
               </div>
-              <span className="material-symbols-outlined text-outline">tune</span>
+              <span className="material-symbols-outlined text-outline">
+                tune
+              </span>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-space-md pt-space-xs">
-              <div className="space-y-space-2xs">
-                <label className="block font-label-sm text-label-sm text-on-surface uppercase tracking-wider">
-                  Branches Allowed
-                </label>
-                <div className="grid grid-cols-3 gap-2">
-                  {["1", "3", "Unlimited"].map((opt) => (
-                    <button
-                      key={opt}
-                      type="button"
-                      onClick={() => setBranchQuota(opt)}
-                      className={`h-9 rounded font-label-sm text-label-sm font-semibold transition-colors border ${
-                        branchQuota === opt
-                          ? "bg-primary text-on-primary border-primary shadow-xs"
-                          : "bg-surface-container-low text-on-surface border-outline-variant/60 hover:bg-surface-container"
-                      }`}
+              <div className="space-y-space-2xs md:col-span-2">
+                <div className="flex items-center justify-between">
+                  <label className="block font-label-sm text-label-sm text-on-surface uppercase tracking-wider">
+                    Branches
+                  </label>
+                  <span className="font-code-sm text-code-sm text-outline">
+                    {branchCount} of {planBranchLimit ?? "∞"} allowed
+                  </span>
+                </div>
+
+                <div className="space-y-2 pt-1">
+                  <div className="flex items-center h-9 px-space-sm bg-surface-container-low rounded border border-outline-variant/60">
+                    <span className="material-symbols-outlined text-primary text-[16px]">
+                      account_balance
+                    </span>
+                    <span className="ml-2 font-body-sm text-body-sm text-on-surface font-medium">
+                      Main Branch
+                    </span>
+                    <span className="ml-auto font-code-sm text-xs text-outline">
+                      HQ1 · included
+                    </span>
+                  </div>
+
+                  {extraBranches.map((branch, index) => (
+                    <div
+                      key={index}
+                      className="flex flex-col sm:flex-row items-stretch gap-2"
                     >
-                      {opt} {opt === "1" ? "Branch" : opt === "3" ? "Branches" : ""}
-                    </button>
+                      <input
+                        className="flex-1 h-9 px-space-sm bg-surface-container-lowest text-on-surface font-body-sm text-body-sm rounded outline-none border border-outline-variant focus:border-primary focus:ring-1 focus:ring-primary"
+                        placeholder={`Branch ${index + 2} name *`}
+                        type="text"
+                        value={branch.name}
+                        onChange={(e) =>
+                          updateBranch(index, "name", e.target.value)
+                        }
+                      />
+                      <input
+                        className="flex-1 h-9 px-space-sm bg-surface-container-lowest text-on-surface font-body-sm text-body-sm rounded outline-none border border-outline-variant focus:border-primary focus:ring-1 focus:ring-primary"
+                        placeholder="Location (optional)"
+                        type="text"
+                        value={branch.address}
+                        onChange={(e) =>
+                          updateBranch(index, "address", e.target.value)
+                        }
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeBranch(index)}
+                        className="h-9 w-9 shrink-0 flex items-center justify-center rounded border border-outline-variant/60 text-outline hover:text-error hover:bg-error-container/20 transition-colors"
+                        aria-label={`Remove branch ${index + 2}`}
+                      >
+                        <span className="material-symbols-outlined text-[18px]">
+                          delete
+                        </span>
+                      </button>
+                    </div>
                   ))}
                 </div>
-                <span className="font-body-xs text-body-xs text-outline block">
-                  Synced to public branch counter
-                </span>
+
+                {fieldErrors.branches && (
+                  <span className="text-xs text-error block">
+                    {fieldErrors.branches}
+                  </span>
+                )}
+
+                <div className="flex items-center justify-between gap-space-sm pt-1">
+                  <button
+                    type="button"
+                    onClick={addBranch}
+                    disabled={branchLimitReached}
+                    className="inline-flex items-center gap-1 h-8 px-space-sm rounded border border-outline-variant text-on-surface font-label-sm text-label-sm hover:bg-surface-container transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    <span className="material-symbols-outlined text-[16px]">
+                      add
+                    </span>
+                    <span>Add branch</span>
+                  </button>
+                  <span className="font-body-xs text-body-xs text-outline">
+                    {planBranchLimit === null
+                      ? "This plan has no branch limit."
+                      : branchLimitReached
+                        ? `Plan limit reached (${planBranchLimit}).`
+                        : `Up to ${planBranchLimit} branch(es) on this plan.`}
+                  </span>
+                </div>
               </div>
 
               <div className="space-y-space-2xs">
@@ -612,10 +779,14 @@ export function ProvisionScreen(): JSX.Element {
                 <div className="flex items-center h-9 border border-outline-variant rounded overflow-hidden bg-surface-container-lowest">
                   <button
                     type="button"
-                    onClick={() => setStaffSeats((prev) => Math.max(1, prev - 1))}
+                    onClick={() =>
+                      setStaffSeats((prev) => Math.max(1, prev - 1))
+                    }
                     className="w-9 h-full flex items-center justify-center bg-surface-container-low hover:bg-surface-container text-on-surface transition-colors select-none"
                   >
-                    <span className="material-symbols-outlined text-[18px]">remove</span>
+                    <span className="material-symbols-outlined text-[18px]">
+                      remove
+                    </span>
                   </button>
                   <input
                     type="number"
@@ -627,10 +798,14 @@ export function ProvisionScreen(): JSX.Element {
                   />
                   <button
                     type="button"
-                    onClick={() => setStaffSeats((prev) => Math.min(100, prev + 1))}
+                    onClick={() =>
+                      setStaffSeats((prev) => Math.min(100, prev + 1))
+                    }
                     className="w-9 h-full flex items-center justify-center bg-surface-container-low hover:bg-surface-container text-on-surface transition-colors select-none"
                   >
-                    <span className="material-symbols-outlined text-[18px]">add</span>
+                    <span className="material-symbols-outlined text-[18px]">
+                      add
+                    </span>
                   </button>
                 </div>
                 <span className="font-body-xs text-body-xs text-outline block">
@@ -652,7 +827,9 @@ export function ProvisionScreen(): JSX.Element {
                   <span className="font-code-sm text-code-sm font-bold text-primary">
                     1,000 Free SMS
                   </span>
-                  <span className="material-symbols-outlined text-primary text-[18px]">sms</span>
+                  <span className="material-symbols-outlined text-primary text-[18px]">
+                    sms
+                  </span>
                 </div>
               </div>
             </div>
@@ -674,7 +851,9 @@ export function ProvisionScreen(): JSX.Element {
                   </p>
                 </div>
               </div>
-              <span className="material-symbols-outlined text-outline">security</span>
+              <span className="material-symbols-outlined text-outline">
+                security
+              </span>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-space-sm pt-space-xs">
@@ -688,7 +867,9 @@ export function ProvisionScreen(): JSX.Element {
                 <div className="flex flex-col">
                   <span className="font-title-sm text-title-sm text-on-surface flex items-center gap-1 font-semibold">
                     Owner / Managing Director
-                    <span className="font-code-sm text-xs text-primary font-bold">(IMMUTABLE)</span>
+                    <span className="font-code-sm text-xs text-primary font-bold">
+                      (IMMUTABLE)
+                    </span>
                   </span>
                   <span className="font-body-xs text-body-xs text-outline">
                     Full system orchestration, fiscal logs, audit access
@@ -742,7 +923,8 @@ export function ProvisionScreen(): JSX.Element {
                     Lab Technician
                   </span>
                   <span className="font-body-xs text-body-xs text-outline">
-                    Worklist processing, machine result entry, internal calibration
+                    Worklist processing, machine result entry, internal
+                    calibration
                   </span>
                 </div>
               </label>
@@ -759,7 +941,8 @@ export function ProvisionScreen(): JSX.Element {
                     Consultant Pathologist
                   </span>
                   <span className="font-body-xs text-body-xs text-outline">
-                    Verification & electronic signing of hematology, histology, micro and PCR reports
+                    Verification & electronic signing of hematology, histology,
+                    micro and PCR reports
                   </span>
                 </div>
               </label>
@@ -772,7 +955,9 @@ export function ProvisionScreen(): JSX.Element {
           <div className="bg-surface-container-lowest p-space-lg rounded-lg shadow-sm border-t-4 border-t-primary border-x border-b border-outline-variant/30 space-y-space-md sticky top-20">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-space-xs">
-                <span className="material-symbols-outlined text-primary text-[20px]">verified</span>
+                <span className="material-symbols-outlined text-primary text-[20px]">
+                  verified
+                </span>
                 <span className="font-title-sm text-title-sm text-on-surface uppercase tracking-wider font-bold">
                   Tenant Spec
                 </span>
@@ -792,7 +977,9 @@ export function ProvisionScreen(): JSX.Element {
                   {labName || "Lab Entity Preview"}
                 </div>
                 <div className="flex items-center gap-space-2xs font-code-sm text-code-sm text-primary truncate">
-                  <span className="material-symbols-outlined text-[14px]">link</span>
+                  <span className="material-symbols-outlined text-[14px]">
+                    link
+                  </span>
                   <span>{slug || "slug"}.labflow.app</span>
                 </div>
               </div>
@@ -829,7 +1016,8 @@ export function ProvisionScreen(): JSX.Element {
                   Target Tier
                 </span>
                 <span className="text-primary font-bold">
-                  {selectedPlan?.name || "Growth"} (PKR {selectedPlan?.price || "5,999"}/mo)
+                  {selectedPlan?.name || "Growth"} (PKR{" "}
+                  {selectedPlan?.price || "5,999"}/mo)
                 </span>
               </div>
               <div className="flex items-center justify-between py-space-2xs">
@@ -837,31 +1025,41 @@ export function ProvisionScreen(): JSX.Element {
                   Branch Capacity
                 </span>
                 <span className="text-on-surface font-semibold">
-                  {branchQuota} {branchQuota === "1" ? "Branch" : "Branches"}
+                  {branchCount} {branchCount === 1 ? "Branch" : "Branches"}
+                  {planBranchLimit !== null ? ` / ${planBranchLimit} max` : ""}
                 </span>
               </div>
               <div className="flex items-center justify-between py-space-2xs">
                 <span className="text-outline font-label-sm text-label-sm uppercase">
                   Staff Quota
                 </span>
-                <span className="text-on-surface font-semibold">{staffSeats} Logins</span>
+                <span className="text-on-surface font-semibold">
+                  {staffSeats} Logins
+                </span>
               </div>
               <div className="flex items-center justify-between py-space-2xs">
                 <span className="text-outline font-label-sm text-label-sm uppercase">
                   Schema Engine
                 </span>
-                <span className="font-code-sm text-code-sm text-primary">tenant_{slug || "..."}</span>
+                <span className="font-code-sm text-code-sm text-primary">
+                  tenant_{slug || "..."}
+                </span>
               </div>
             </div>
 
             {/* Security Notice */}
             <div className="p-space-sm bg-surface-container rounded space-y-space-2xs">
               <div className="flex items-center gap-space-2xs text-secondary font-label-sm text-label-sm font-bold">
-                <span className="material-symbols-outlined text-[16px]">info</span>
+                <span className="material-symbols-outlined text-[16px]">
+                  info
+                </span>
                 <span>Automated Onboarding Sequence</span>
               </div>
               <p className="font-body-xs text-body-xs text-on-surface-variant leading-relaxed">
-                Clicking <strong className="text-on-surface">Create Lab</strong> provisions an isolated database tenant, issues master credentials, and configures laboratory barcode numbering templates.
+                Clicking <strong className="text-on-surface">Create Lab</strong>{" "}
+                provisions an isolated database tenant, issues master
+                credentials, and configures laboratory barcode numbering
+                templates.
               </p>
             </div>
           </div>
@@ -873,7 +1071,9 @@ export function ProvisionScreen(): JSX.Element {
             <span className="w-2.5 h-2.5 rounded-full bg-primary animate-ping"></span>
             <span className="font-medium text-on-surface">
               CLUSTER PK-ISB-01 // TENANT SCHEMA:{" "}
-              <strong className="text-primary font-code-sm font-bold">tenant_{slug || "slug"}</strong>
+              <strong className="text-primary font-code-sm font-bold">
+                tenant_{slug || "slug"}
+              </strong>
             </span>
           </div>
 
@@ -890,7 +1090,9 @@ export function ProvisionScreen(): JSX.Element {
               disabled={provisionMutation.isPending}
               className="h-9 px-space-xl bg-primary hover:bg-primary-container text-on-primary rounded font-label-sm text-label-sm flex items-center gap-space-sm shadow transition-all active:scale-[0.98] disabled:opacity-50 font-bold"
             >
-              <span className="material-symbols-outlined text-[18px]">verified</span>
+              <span className="material-symbols-outlined text-[18px]">
+                verified
+              </span>
               <span>
                 {provisionMutation.isPending
                   ? "Provisioning Tenant..."

@@ -200,7 +200,7 @@ class TestTN33ContextResetAndCache:
                 ):
                     raw = True
                 if raw:
-                    rel = str(path.relative_to(BACKEND_ROOT))
+                    rel = path.relative_to(BACKEND_ROOT).as_posix()
                     if rel not in RAW_CACHE_ALLOWLIST:
                         offenders.append(rel)
         assert not offenders, (
@@ -254,6 +254,15 @@ RAW_CACHE_ALLOWLIST: dict[str, str] = {
         "TLS-ask cache keys are platform-scope (platform keys per Doc 04 "
         "§13.3), not tenant data. Migration to a platform:-prefixed wrapper "
         "is tracked follow-up work, not this ticket."
+    ),
+    "apps/platform/views_health.py": (
+        "The health probe stores a single apex-wide 'platform:health_probe' "
+        "marker (5s TTL) with no tenant data; it verifies the cache backend is "
+        "reachable and is keyed at platform scope only."
+    ),
+    "apps/accounts/tests/test_auth_security.py": (
+        "Test module: it inspects and clears raw cache keys directly because "
+        "the auth challenge/denylist cache is the system under test."
     ),
 }
 

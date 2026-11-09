@@ -166,7 +166,53 @@ describe("Screen 22: Result Entry (/results/entry/:sampleId)", () => {
       tests: ["Hemoglobin (Hb)", "WBC", "Platelets"],
       collected_at: "2026-10-20T09:15:00Z",
       collected_by: "usr-tech-01",
-      sample_tests: [],
+      sample_tests: [
+        {
+          id: "st-1",
+          test_id: "test-hb",
+          test_name: "Hemoglobin (Hb)",
+          test_code: "HB",
+          invoice_item_id: "item-1",
+          category: "Complete Blood Count",
+          unit: "g/dL",
+          reference_range: {
+            low: "13.0",
+            high: "17.0",
+            unit: "g/dL",
+          },
+          panel_codes: ["CBC"],
+        },
+        {
+          id: "st-2",
+          test_id: "test-wbc",
+          test_name: "WBC",
+          test_code: "WBC",
+          invoice_item_id: "item-1",
+          category: "Complete Blood Count",
+          unit: "×10⁹/L",
+          reference_range: {
+            low: "4.0",
+            high: "11.0",
+            unit: "×10⁹/L",
+          },
+          panel_codes: ["CBC"],
+        },
+        {
+          id: "st-3",
+          test_id: "test-plt",
+          test_name: "Platelets",
+          test_code: "PLT",
+          invoice_item_id: "item-1",
+          category: "Complete Blood Count",
+          unit: "×10⁹/L",
+          reference_range: {
+            low: "150",
+            high: "410",
+            unit: "×10⁹/L",
+          },
+          panel_codes: ["CBC"],
+        },
+      ],
     });
   });
 
@@ -186,7 +232,7 @@ describe("Screen 22: Result Entry (/results/entry/:sampleId)", () => {
 
     expect(await screen.findByText("Muhammad Imran")).toBeInTheDocument();
     expect(screen.getByText("MRN-2026-00417")).toBeInTheDocument();
-    expect(screen.getByText(/Hemoglobin \(Hb\)/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/Hemoglobin \(Hb\)/i).length).toBeGreaterThan(0);
 
     // Find input for Hemoglobin
     const hbInput = screen.getByLabelText(/Hemoglobin.*value/i);
@@ -306,8 +352,36 @@ describe("Screen 22: Result Entry (/results/entry/:sampleId)", () => {
       await screen.findByText(/Access Denied · Role Restricted/i),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/Only Technician or Pathologist may enter results/i),
+      screen.getByText(
+        /Only Technician, Pathologist, or Owner may enter results/i,
+      ),
     ).toBeInTheDocument();
+  });
+
+  it("allows owner superrole to access result entry", async () => {
+    useAuthStore.setState({
+      isAuthenticated: true,
+      user: {
+        id: "usr-owner-01",
+        email: "owner@labflow.pk",
+        name: "Lab Owner",
+        role: "owner",
+        branch_ids: ["br-01"],
+      },
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/results/entry/smp-001"]}>
+        <Routes>
+          <Route
+            path="/results/entry/:sampleId"
+            element={<ResultEntryScreen />}
+          />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText("Muhammad Imran")).toBeInTheDocument();
   });
 });
 
@@ -504,6 +578,32 @@ describe("Screen 23: Approvals Queue (/results/approvals)", () => {
         note: "Specimen clotted. Recollect required.",
       });
     });
+  });
+
+  it("allows owner superrole to access approvals queue", async () => {
+    useAuthStore.setState({
+      isAuthenticated: true,
+      user: {
+        id: "usr-owner-01",
+        email: "owner@labflow.pk",
+        name: "Lab Owner",
+        role: "owner",
+        branch_ids: ["br-01"],
+      },
+    });
+
+    vi.mocked(resultsService.getApprovalsQueue).mockResolvedValueOnce([]);
+
+    render(
+      <MemoryRouter initialEntries={["/results/approvals"]}>
+        <Routes>
+          <Route path="/results/approvals" element={<ApprovalsQueueScreen />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText(/Approvals queue/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Access Denied/i)).not.toBeInTheDocument();
   });
 });
 

@@ -9,6 +9,9 @@ import {
   X,
 } from "lucide-react";
 import { sampleService } from "./sampleService";
+import { useAuthStore } from "../auth/authStore";
+import { settingsService } from "../settings/settingsService";
+import type { Branch } from "../settings/types";
 import type { SampleStatus, SampleSummary } from "./types";
 
 export interface SampleAccessioningListScreenProps {
@@ -81,15 +84,23 @@ export function SampleAccessioningListScreen({
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
   const [selectedBranch, setSelectedBranch] = useState<string>("all");
+  const [branches, setBranches] = useState<Branch[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const accessToken = useAuthStore((s) => s.accessToken);
 
   const searchInputId = useId();
   const statusSelectId = useId();
   const branchSelectId = useId();
 
   const loadSamples = useCallback(async () => {
+    // When using default sampleService, never fire without authentication
+    if (service === sampleService && !useAuthStore.getState().accessToken) {
+      setIsLoading(false);
+      return;
+    }
     try {
       setIsLoading(true);
       setErrorMessage(null);
@@ -109,8 +120,26 @@ export function SampleAccessioningListScreen({
   }, [searchQuery, selectedStatus, selectedBranch, service]);
 
   useEffect(() => {
+    if (service === sampleService && !accessToken) {
+      return;
+    }
     loadSamples();
-  }, [loadSamples]);
+  }, [loadSamples, service, accessToken]);
+
+  useEffect(() => {
+    let active = true;
+    void settingsService
+      .getBranches()
+      .then((list) => {
+        if (active && Array.isArray(list)) {
+          setBranches(list);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const toggleSelectAll = () => {
     if (selectedIds.size === samples.length) {
@@ -235,12 +264,11 @@ export function SampleAccessioningListScreen({
               className="w-full appearance-none pl-3 pr-8 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-800 font-medium focus:outline-none focus:border-teal-600 focus:bg-white transition-colors cursor-pointer"
             >
               <option value="all">All branches</option>
-              <option value="00000000-0000-0000-0000-000000000001">
-                Central Diagnostic Lab
-              </option>
-              <option value="00000000-0000-0000-0000-000000000002">
-                Gulberg Branch
-              </option>
+              {branches.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.name}
+                </option>
+              ))}
             </select>
           </div>
 

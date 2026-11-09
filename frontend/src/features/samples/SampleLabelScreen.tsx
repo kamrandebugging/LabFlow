@@ -101,8 +101,7 @@ export function SampleLabelScreen({
   }
 
   const d = labelData;
-  const testsSummary =
-    d.tests && d.tests.length > 0 ? d.tests.join(", ") : "CBC, HbA1c";
+  const testsSummary = d.tests && d.tests.length > 0 ? d.tests.join(", ") : "—";
 
   return (
     <main className="w-full min-h-screen bg-slate-50 flex flex-col justify-between p-6 sm:p-8">
@@ -152,7 +151,16 @@ export function SampleLabelScreen({
             </nav>
             <div className="text-xs text-slate-500 flex items-center gap-1.5">
               <Clock className="w-3.5 h-3.5 text-slate-400" />
-              <span>20 Oct 2026 · times are PKT</span>
+              <span>
+                {d.collected_at
+                  ? `${new Date(d.collected_at).toLocaleDateString("en-GB", {
+                      day: "2-digit",
+                      month: "short",
+                      year: "numeric",
+                      timeZone: "Asia/Karachi",
+                    })} · times are PKT`
+                  : "Times are PKT"}
+              </span>
             </div>
           </div>
 
@@ -230,8 +238,8 @@ export function SampleLabelScreen({
                       hour12: false,
                       timeZone: "Asia/Karachi",
                     })
-                  : "20 Oct 2026 11:05"}{" "}
-                · {d.branch_name}
+                  : "—"}{" "}
+                · {d.branch_name || "—"}
               </div>
             </div>
           </div>
@@ -251,24 +259,23 @@ export function SampleLabelScreen({
                 Primary Specimen
               </span>
               <span className="font-medium text-slate-800">
-                EDTA Whole Blood + Fluoride
+                {d.tests?.length ? d.tests.join(", ") : "—"}
               </span>
             </div>
             <div>
               <span className="text-slate-400 block text-[11px]">
-                Sample Status
-              </span>
-              <span className="inline-flex items-center gap-1 font-medium text-emerald-600">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                <span>Collected</span>
-              </span>
-            </div>
-            <div>
-              <span className="text-slate-400 block text-[11px]">
-                Accessioning Bench
+                Collected By
               </span>
               <span className="font-medium text-slate-800">
-                SPECIMEN-INTAKE-GLB
+                {d.collected_by || "—"}
+              </span>
+            </div>
+            <div>
+              <span className="text-slate-400 block text-[11px]">
+                Accessioning Branch
+              </span>
+              <span className="font-medium text-slate-800">
+                {d.branch_name || "—"}
               </span>
             </div>
           </div>

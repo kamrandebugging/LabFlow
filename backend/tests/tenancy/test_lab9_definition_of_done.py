@@ -7,6 +7,7 @@ from unittest.mock import patch
 import jwt
 import pytest
 from django.conf import settings
+from django.contrib.auth.hashers import check_password
 from django.db import DatabaseError, connection
 from django_tenants.utils import schema_context
 from rest_framework.test import APIClient
@@ -204,10 +205,10 @@ class TestLab9DefinitionOfDoneVerification:
                 assert Branch.objects.count() == 1
                 assert Panel.objects.count() == 4
                 assert PanelTest.objects.count() == 32
-                assert Test.objects.count() == 37
-                assert TestPrice.objects.count() == 9  # 4 panels + 5 standalone
-                # 37 M + 37 F + 27 B (unisex)
-                assert ReferenceRange.objects.count() == 101
+                assert Test.objects.count() == 150
+                assert TestPrice.objects.count() == 122  # 4 panels + 118 standalone
+                # 150 M + 150 F + 127 B (each test with a unisex seeding entry)
+                assert ReferenceRange.objects.count() == 427
                 starter_keys = {
                     "sample_collected",
                     "report_ready",
@@ -227,8 +228,8 @@ class TestLab9DefinitionOfDoneVerification:
                 owner = StaffUser.objects.get(email=owner_email)
                 assert owner.role == Role.OWNER
                 assert owner.branch is None
-                assert owner.is_active is False
-                assert owner.password_hash.startswith("!")
+                assert owner.is_active is True
+                assert check_password(tenant.temp_password, owner.password_hash)
 
                 tokens = PasswordResetToken.objects.filter(staff_user=owner)
                 assert tokens.count() == 1
@@ -415,8 +416,9 @@ class TestLab9DefinitionOfDoneVerification:
     def test_verify_check_5_resume_case_tp3(self) -> None:
         """
         Check 5: Resume case (TP-3)
-        Kill worker mid-seed (P-6) on fresh tenant -> status remains provisioning and
-        failed step recorded; retry task -> resumes, completes, passes with no dupes.
+        Kill worker mid-seed (P-6) on fresh tenant -> status becomes
+        provisioning_failed and the failed step is recorded; retry task ->
+        resumes, completes, passes with no dupes.
         """
         sa = PlatformUserFactory(totp_enabled=True, is_active=True)
         plan = PlanFactory(is_active=True)
@@ -445,9 +447,9 @@ class TestLab9DefinitionOfDoneVerification:
             ):
                 provision_tenant_task(slug)
 
-            # Tenant status remains provisioning; failed step recorded by name
+            # Tenant status is provisioning_failed; failed step recorded by name
             res.tenant.refresh_from_db()
-            assert res.tenant.status == "provisioning"
+            assert res.tenant.status == "provisioning_failed"
             state_after_crash = get_provisioning_state(res.tenant)
             assert state_after_crash.failed_step == "P-6"
             assert "Worker killed mid-seed at P-6" in str(state_after_crash.error)
@@ -462,7 +464,7 @@ class TestLab9DefinitionOfDoneVerification:
             with schema_context(schema_name):
                 assert Branch.objects.count() == 1
                 assert Panel.objects.count() == 4
-                assert Test.objects.count() == 37
+                assert Test.objects.count() == 150
                 assert PanelTest.objects.count() == 32
                 starter_keys = {
                     "sample_collected",

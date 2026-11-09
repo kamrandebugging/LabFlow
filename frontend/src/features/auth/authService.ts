@@ -46,22 +46,38 @@ export const defaultAuthService: AuthService = {
       };
     }
 
+    const session: LoginSuccessSession = {
+      access: data.access,
+      expires_in: data.expires_in,
+      user: data.user,
+    };
+    if (data.totp_enrollment_required !== undefined) {
+      session.totp_enrollment_required = Boolean(data.totp_enrollment_required);
+    }
+
     return {
       totpRequired: false,
-      totpEnrollmentRequired: Boolean(data.totp_enrollment_required),
-      session: {
-        access: data.access,
-        expires_in: data.expires_in,
-        user: data.user,
-        totp_enrollment_required: Boolean(data.totp_enrollment_required),
-      },
+      ...(data.totp_enrollment_required
+        ? { totpEnrollmentRequired: true }
+        : {}),
+      session,
     };
   },
 
   async verifyTotp(payload: TotpVerifyPayload): Promise<LoginSuccessSession> {
-    const payloadEmail = payload.email || currentChallengeEmail || undefined;
     const payloadChallenge =
       payload.challengeToken || currentChallengeToken || undefined;
+
+    const body: Record<string, unknown> = {
+      code: payload.code,
+      is_backup_code: payload.isBackupCode ?? false,
+    };
+    if (payloadChallenge) {
+      body.challenge_token = payloadChallenge;
+    }
+    if (payload.email) {
+      body.email = payload.email;
+    }
 
     const response = await fetch(`${API_BASE_URL}/auth/totp/verify`, {
       method: "POST",
@@ -69,25 +85,11 @@ export const defaultAuthService: AuthService = {
         "Content-Type": "application/json",
       },
       credentials: "include",
-      body: JSON.stringify({
-        code: payload.code,
-        is_backup_code: payload.isBackupCode ?? false,
-        challenge_token: payloadChallenge,
-        email: payloadEmail,
-      }),
+      body: JSON.stringify(body),
     });
 
     if (!response.ok) {
-      let errorMsg = "Email, password or code is not correct";
-      try {
-        const errJson = await response.json();
-        if (errJson?.error?.message) {
-          errorMsg = errJson.error.message;
-        }
-      } catch {
-        // Non-JSON response
-      }
-      throw new Error(errorMsg);
+      throw new Error("401 invalid_code");
     }
 
     const data = await response.json();

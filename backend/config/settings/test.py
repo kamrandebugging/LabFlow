@@ -117,7 +117,7 @@ PASSWORD_HASHERS = [
 REDIS_URL = _resolve_default_redis_url()
 os.environ.setdefault("REDIS_URL", REDIS_URL)
 
-CACHES: dict[str, dict[str, Any]] = {
+CACHES: dict[str, dict[str, Any]] = {  # type: ignore[no-redef]
     "default": {
         "BACKEND": "django.core.cache.backends.redis.RedisCache",
         "LOCATION": REDIS_URL,

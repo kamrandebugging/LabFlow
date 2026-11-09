@@ -208,7 +208,7 @@ class TestStepP5AppendOnlyRevokeEnforcement:
 
             assert p6_called is False
             res.tenant.refresh_from_db()
-            assert res.tenant.status == "provisioning"
+            assert res.tenant.status == "provisioning_failed"
 
             failed_state = get_provisioning_state(res.tenant)
             assert failed_state.failed_step == "P-5"

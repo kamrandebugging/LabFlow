@@ -35,6 +35,12 @@ REPORT_READ_ROLES = {
     Role.RECEPTION,
     Role.TECHNICIAN,
     Role.PATHOLOGIST,
+    "owner",
+    "manager",
+    "reception",
+    "receptionist",
+    "technician",
+    "pathologist",
 }
 
 LIST_DEFAULT_LIMIT = 50
@@ -382,16 +388,21 @@ class ReportExceptionsService:
             .order_by("-updated_at")[:100]
         )
         for r in failed_reports:
+            sample = getattr(r, "sample", None)
+            accession_id = sample.accession_id if sample else ""
+            invoice = getattr(sample, "invoice", None) if sample else None
+            patient = getattr(invoice, "patient", None) if invoice else None
+            branch = getattr(sample, "branch", None) if sample else None
             results.append(
                 {
                     "id": f"gen-{r.id}",
                     "kind": "failed_generation",
-                    "title": f"Report generation failed ({r.sample.accession_id})",
+                    "title": f"Report generation failed ({accession_id})",
                     "severity": "error",
                     "reference_id": str(r.id),
-                    "reference_code": r.sample.accession_id,
-                    "patient_name": r.sample.invoice.patient.name,
-                    "branch_name": r.sample.branch.name if r.sample.branch else None,
+                    "reference_code": accession_id,
+                    "patient_name": patient.name if patient else None,
+                    "branch_name": branch.name if branch else None,
                     "created_at": r.updated_at.isoformat(),
                     "details": {
                         "report_id": str(r.id),
@@ -430,18 +441,24 @@ class ReportExceptionsService:
             "contact",
         ).order_by("-updated_at")[:100]
         for d in failed_deliveries:
+            report = getattr(d, "report", None)
+            sample = getattr(report, "sample", None) if report else None
+            accession_id = sample.accession_id if sample else ""
+            invoice = getattr(sample, "invoice", None) if sample else None
+            patient = getattr(invoice, "patient", None) if invoice else None
+            branch = getattr(sample, "branch", None) if sample else None
+            ch = getattr(d, "channel", None)
+            channel_title = ch.capitalize() if ch else "Channel"
             results.append(
                 {
                     "id": f"del-{d.id}",
                     "kind": "failed_delivery",
-                    "title": f"Failed delivery via {d.channel.capitalize()}",
+                    "title": f"Failed delivery via {channel_title}",
                     "severity": "error",
                     "reference_id": str(d.report_id),
-                    "reference_code": d.report.sample.accession_id,
-                    "patient_name": d.report.sample.invoice.patient.name,
-                    "branch_name": d.report.sample.branch.name
-                    if d.report.sample.branch
-                    else None,
+                    "reference_code": accession_id,
+                    "patient_name": patient.name if patient else None,
+                    "branch_name": branch.name if branch else None,
                     "created_at": d.updated_at.isoformat(),
                     "details": {
                         "delivery_id": str(d.id),
@@ -528,6 +545,20 @@ class ReportExceptionsService:
             crit_title = (
                 f"Unacknowledged critical: {cr.test.name} ({cr.value} {cr.unit or ''})"
             )
+            sample = cr.sample
+            patient_name = None
+            patient_mrn = None
+            accession_id = ""
+            branch_name = None
+            if sample:
+                accession_id = sample.accession_id
+                if sample.branch:
+                    branch_name = sample.branch.name
+                invoice = getattr(sample, "invoice", None)
+                if invoice and getattr(invoice, "patient", None):
+                    patient_name = invoice.patient.name
+                    patient_mrn = invoice.patient.mrn
+
             results.append(
                 {
                     "id": f"crit-{cr.id}",
@@ -535,9 +566,9 @@ class ReportExceptionsService:
                     "title": crit_title,
                     "severity": "critical",
                     "reference_id": str(cr.sample_id),
-                    "reference_code": cr.sample.accession_id,
-                    "patient_name": cr.sample.invoice.patient.name,
-                    "branch_name": cr.sample.branch.name if cr.sample.branch else None,
+                    "reference_code": accession_id,
+                    "patient_name": patient_name,
+                    "branch_name": branch_name,
                     "created_at": cr.created_at.isoformat(),
                     "details": {
                         "result_id": str(cr.id),
@@ -547,7 +578,7 @@ class ReportExceptionsService:
                         "value": cr.value,
                         "unit": cr.unit,
                         "flag": cr.flag,
-                        "patient_mrn": cr.sample.invoice.patient.mrn,
+                        "patient_mrn": patient_mrn,
                     },
                 }
             )
@@ -568,6 +599,14 @@ class ReportExceptionsService:
             .order_by("collected_at")[:100]
         )
         for s in stuck_samples:
+            patient_name = None
+            if getattr(s, "invoice", None) and getattr(s.invoice, "patient", None):
+                patient_name = s.invoice.patient.name
+            collected_str = (
+                s.collected_at.isoformat()
+                if s.collected_at
+                else s.created_at.isoformat()
+            )
             results.append(
                 {
                     "id": f"stuck-{s.id}",
@@ -576,14 +615,14 @@ class ReportExceptionsService:
                     "severity": "warning",
                     "reference_id": str(s.id),
                     "reference_code": s.accession_id,
-                    "patient_name": s.invoice.patient.name,
+                    "patient_name": patient_name,
                     "branch_name": s.branch.name if s.branch else None,
-                    "created_at": s.collected_at.isoformat(),
+                    "created_at": collected_str,
                     "details": {
                         "sample_id": str(s.id),
                         "accession_id": s.accession_id,
                         "sample_status": s.status,
-                        "collected_at": s.collected_at.isoformat(),
+                        "collected_at": collected_str,
                     },
                 }
             )

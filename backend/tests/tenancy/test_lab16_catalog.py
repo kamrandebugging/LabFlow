@@ -495,3 +495,44 @@ class TestTestPricingAndXOR:
                 effective_from=now,
             )
             assert tp.id is not None
+
+    def test_delete_test_unused_and_referenced_deactivation(
+        self, tenant_a: Any, catalog_staff_setup: Any, auth_headers: Any
+    ) -> None:
+        """Owner can delete unused custom test; referenced test is deactivated."""
+        owner = catalog_staff_setup["owner"]
+        headers = auth_headers(owner)
+
+        with tenant_context(tenant_a):
+            unused_test = Test.objects.create(code="UNUSED_T1", name="Unused Test")
+            referenced_test = Test.objects.create(code="REF_T1", name="Referenced Test")
+            p = Panel.objects.create(code="PANEL_REF", name="Panel Reference")
+            PanelTest.objects.create(panel=p, test=referenced_test)
+
+        # 1. Delete unused custom test -> 204 hard delete
+        res = Client().delete(f"/api/v1/tests/{unused_test.id}", **headers)
+        assert res.status_code == 204
+        with tenant_context(tenant_a):
+            assert not Test.objects.filter(code="UNUSED_T1").exists()
+
+        # 2. Delete referenced test -> 200 soft deactivation
+        res2 = Client().delete(f"/api/v1/tests/{referenced_test.id}", **headers)
+        assert res2.status_code == 200
+        assert res2.json().get("status") == "deactivated"
+        with tenant_context(tenant_a):
+            reloaded = Test.objects.get(code="REF_T1")
+            assert reloaded.is_active is False
+
+        # 3. Filter with is_active=true excludes deactivated test
+        res3 = Client().get("/api/v1/tests?is_active=true", **headers)
+        assert res3.status_code == 200
+        codes = [item["code"] for item in res3.json()]
+        assert "REF_T1" not in codes
+
+    def test_seed_catalog_command(self, tenant_a: Any) -> None:
+        """seed_catalog management command idempotently populates 150 tests."""
+        from django.core.management import call_command
+
+        with tenant_context(tenant_a):
+            call_command("seed_catalog", tenant=tenant_a.schema_name)
+            assert Test.objects.count() == 150

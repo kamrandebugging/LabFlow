@@ -28,7 +28,9 @@ export function UsersScreen() {
   const [inviteError, setInviteError] = useState<string | null>(null);
 
   // Disable modal
-  const [userToDisable, setUserToDisable] = useState<PlatformTeamMember | null>(null);
+  const [userToDisable, setUserToDisable] = useState<PlatformTeamMember | null>(
+    null,
+  );
   const [disableLoading, setDisableLoading] = useState(false);
   const [disableError, setDisableError] = useState<string | null>(null);
 
@@ -41,7 +43,9 @@ export function UsersScreen() {
       setPlatformTeam(res.platform_team);
       setInvitations(res.invitations);
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Failed to load users directory.");
+      setError(
+        e instanceof Error ? e.message : "Failed to load users directory.",
+      );
     } finally {
       setLoading(false);
     }
@@ -60,7 +64,7 @@ export function UsersScreen() {
         o.email.toLowerCase().includes(q) ||
         o.lab_name.toLowerCase().includes(q) ||
         o.lab_slug.toLowerCase().includes(q) ||
-        o.whatsapp.toLowerCase().includes(q)
+        o.whatsapp.toLowerCase().includes(q),
     );
   }, [labOwners, search]);
 
@@ -75,7 +79,7 @@ export function UsersScreen() {
       const res = await platformService.invitePlatformUser(
         inviteEmail.trim(),
         inviteRole,
-        totpCode
+        totpCode,
       );
       setInviteTotpOpen(false);
       setInviteModalOpen(false);
@@ -94,12 +98,17 @@ export function UsersScreen() {
     try {
       setDisableLoading(true);
       setDisableError(null);
-      const res = await platformService.disablePlatformUser(userToDisable.id, totpCode);
+      const res = await platformService.disablePlatformUser(
+        userToDisable.id,
+        totpCode,
+      );
       setUserToDisable(null);
       setSuccess(res.detail || "Account status updated.");
       loadUsers();
     } catch (e: unknown) {
-      setDisableError(e instanceof Error ? e.message : "Account update failed.");
+      setDisableError(
+        e instanceof Error ? e.message : "Account update failed.",
+      );
     } finally {
       setDisableLoading(false);
     }
@@ -112,14 +121,19 @@ export function UsersScreen() {
         <div className="flex flex-col gap-space-2xs">
           <div className="flex items-center gap-space-xs text-outline font-label-sm text-label-sm uppercase tracking-wider">
             <span>Platform Management</span>
-            <span className="material-symbols-outlined text-[14px]">chevron_right</span>
-            <span className="text-primary font-bold">Identity & User Directory</span>
+            <span className="material-symbols-outlined text-[14px]">
+              chevron_right
+            </span>
+            <span className="text-primary font-bold">
+              Identity & User Directory
+            </span>
           </div>
           <h1 className="font-headline-xl text-headline-xl text-on-surface tracking-tight font-extrabold">
             Users & Account Governance
           </h1>
           <p className="font-body-md text-body-md text-on-surface-variant max-w-3xl">
-            Administer tenant laboratory owner credentials and internal LabFlow platform operators across Pakistani municipal zones.
+            Administer tenant laboratory owner credentials and internal LabFlow
+            platform operators across Pakistani municipal zones.
           </p>
         </div>
 
@@ -143,10 +157,15 @@ export function UsersScreen() {
       {success && (
         <div className="p-space-md bg-primary-fixed/30 border border-primary text-primary-container rounded flex items-center justify-between font-title-sm text-title-sm font-semibold">
           <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-[20px]">check_circle</span>
+            <span className="material-symbols-outlined text-[20px]">
+              check_circle
+            </span>
             <span>{success}</span>
           </div>
-          <button onClick={() => setSuccess(null)} className="text-on-surface-variant hover:text-on-surface">
+          <button
+            onClick={() => setSuccess(null)}
+            className="text-on-surface-variant hover:text-on-surface"
+          >
             <span className="material-symbols-outlined text-[18px]">close</span>
           </button>
         </div>
@@ -163,13 +182,17 @@ export function UsersScreen() {
       <div className="bg-surface-container-lowest p-space-lg rounded shadow-sm flex flex-col gap-space-md">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-space-sm pb-space-xs border-b border-surface-container">
           <div className="flex items-center gap-space-xs">
-            <span className="material-symbols-outlined text-primary text-[22px]">medical_services</span>
+            <span className="material-symbols-outlined text-primary text-[22px]">
+              medical_services
+            </span>
             <div>
               <h2 className="font-title-md text-title-md text-on-surface font-bold">
                 Tenant Laboratory Owners
               </h2>
               <p className="font-body-xs text-body-xs text-outline">
-                Primary director contacts extracted strictly from public tenant registration records. (Tenant staff are strictly isolated in tenant databases).
+                Primary director contacts extracted strictly from public tenant
+                registration records. (Tenant staff are strictly isolated in
+                tenant databases).
               </p>
             </div>
           </div>
@@ -181,11 +204,15 @@ export function UsersScreen() {
         {loading ? (
           <div className="p-12 text-center text-outline">
             <span className="inline-block w-6 h-6 border-2 border-primary/20 border-t-primary rounded-full animate-spin mb-2" />
-            <p className="font-body-sm text-body-sm">Loading laboratory accounts...</p>
+            <p className="font-body-sm text-body-sm">
+              Loading laboratory accounts...
+            </p>
           </div>
         ) : filteredOwners.length === 0 ? (
           <div className="p-8 text-center text-outline">
-            <p className="font-body-sm text-body-sm">No laboratory owner records found matching query.</p>
+            <p className="font-body-sm text-body-sm">
+              No laboratory owner records found matching query.
+            </p>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -193,11 +220,17 @@ export function UsersScreen() {
               <thead>
                 <tr className="bg-surface-container-low h-9 font-label-sm text-label-sm text-outline uppercase tracking-wider">
                   <th className="px-3 py-1 font-semibold">Owner Identity</th>
-                  <th className="px-3 py-1 font-semibold">Laboratory Facility</th>
+                  <th className="px-3 py-1 font-semibold">
+                    Laboratory Facility
+                  </th>
                   <th className="px-3 py-1 font-semibold">WhatsApp / Phone</th>
                   <th className="px-3 py-1 font-semibold">Status</th>
-                  <th className="px-3 py-1 font-semibold">Last Login / Active</th>
-                  <th className="px-3 py-1 font-semibold text-right">Actions</th>
+                  <th className="px-3 py-1 font-semibold">
+                    Last Login / Active
+                  </th>
+                  <th className="px-3 py-1 font-semibold text-right">
+                    Actions
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-surface-container-high font-body-sm text-body-sm text-on-surface">
@@ -205,7 +238,10 @@ export function UsersScreen() {
                   const isActive = owner.status === "active";
 
                   return (
-                    <tr key={owner.id} className="h-12 hover:bg-surface-container-low transition-colors">
+                    <tr
+                      key={owner.id}
+                      className="h-12 hover:bg-surface-container-low transition-colors"
+                    >
                       <td className="px-3 py-2">
                         <div className="flex flex-col">
                           <span className="font-title-sm text-title-sm font-bold text-inverse-surface">
@@ -223,7 +259,9 @@ export function UsersScreen() {
                             className="font-medium text-on-surface hover:text-primary transition-colors flex items-center gap-1"
                           >
                             <span>{owner.lab_name}</span>
-                            <span className="material-symbols-outlined text-[14px] text-outline">launch</span>
+                            <span className="material-symbols-outlined text-[14px] text-outline">
+                              launch
+                            </span>
                           </Link>
                           <span className="font-code-sm text-code-sm text-outline">
                             {owner.lab_slug}
@@ -238,11 +276,15 @@ export function UsersScreen() {
                             rel="noopener noreferrer"
                             className="inline-flex items-center gap-1.5 text-primary hover:underline font-code-sm font-semibold"
                           >
-                            <span className="material-symbols-outlined text-[16px]">chat</span>
+                            <span className="material-symbols-outlined text-[16px]">
+                              chat
+                            </span>
                             <span>{owner.whatsapp}</span>
                           </a>
                         ) : (
-                          <span className="text-outline font-code-sm">Not configured</span>
+                          <span className="text-outline font-code-sm">
+                            Not configured
+                          </span>
                         )}
                       </td>
                       <td className="px-3 py-2">
@@ -264,7 +306,9 @@ export function UsersScreen() {
                               hour: "2-digit",
                               minute: "2-digit",
                             })
-                          : `Registered ${new Date(owner.created_at).toLocaleDateString("en-PK", {
+                          : `Registered ${new Date(
+                              owner.created_at,
+                            ).toLocaleDateString("en-PK", {
                               day: "numeric",
                               month: "short",
                             })}`}
@@ -292,13 +336,16 @@ export function UsersScreen() {
       <div className="bg-surface-container-lowest p-space-lg rounded shadow-sm flex flex-col gap-space-md">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-space-sm pb-space-xs border-b border-surface-container">
           <div className="flex items-center gap-space-xs">
-            <span className="material-symbols-outlined text-primary text-[22px]">admin_panel_settings</span>
+            <span className="material-symbols-outlined text-primary text-[22px]">
+              admin_panel_settings
+            </span>
             <div>
               <h2 className="font-title-md text-title-md text-on-surface font-bold">
                 Platform Internal Team & Operators
               </h2>
               <p className="font-body-xs text-body-xs text-outline">
-                Super administrator and regional operations engineers with root access to multi-tenant orchestration.
+                Super administrator and regional operations engineers with root
+                access to multi-tenant orchestration.
               </p>
             </div>
           </div>
@@ -307,7 +354,9 @@ export function UsersScreen() {
             onClick={() => setInviteModalOpen(true)}
             className="h-8 px-space-md bg-primary text-on-primary font-label-sm text-label-sm font-bold rounded hover:bg-primary-container transition-colors flex items-center gap-1 self-start sm:self-auto shadow-sm"
           >
-            <span className="material-symbols-outlined text-[16px]">person_add</span>
+            <span className="material-symbols-outlined text-[16px]">
+              person_add
+            </span>
             <span>Invite Platform Operator</span>
           </button>
         </div>
@@ -329,7 +378,10 @@ export function UsersScreen() {
                 const isSuper = u.role === "super_admin";
 
                 return (
-                  <tr key={u.id} className="h-12 hover:bg-surface-container-low transition-colors">
+                  <tr
+                    key={u.id}
+                    className="h-12 hover:bg-surface-container-low transition-colors"
+                  >
                     <td className="px-3 py-2">
                       <div className="flex items-center gap-space-sm">
                         <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-on-primary font-bold">
@@ -339,7 +391,9 @@ export function UsersScreen() {
                           <span className="font-title-sm text-title-sm font-bold text-on-surface">
                             {u.email.split("@")[0]}
                           </span>
-                          <span className="font-code-sm text-code-sm text-outline">{u.email}</span>
+                          <span className="font-code-sm text-code-sm text-outline">
+                            {u.email}
+                          </span>
                         </div>
                       </div>
                     </td>
@@ -357,12 +411,16 @@ export function UsersScreen() {
                     <td className="px-3 py-2">
                       {u.totp_enabled ? (
                         <span className="inline-flex items-center gap-1 text-primary font-body-xs font-semibold">
-                          <span className="material-symbols-outlined text-[16px]">verified_user</span>
+                          <span className="material-symbols-outlined text-[16px]">
+                            verified_user
+                          </span>
                           <span>Hardware TOTP Enforced</span>
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1 text-error font-body-xs font-semibold">
-                          <span className="material-symbols-outlined text-[16px]">warning</span>
+                          <span className="material-symbols-outlined text-[16px]">
+                            warning
+                          </span>
                           <span>TOTP Pending Enrollment</span>
                         </span>
                       )}
@@ -411,9 +469,14 @@ export function UsersScreen() {
             </span>
             <div className="divide-y divide-surface-container-high">
               {invitations.map((inv) => (
-                <div key={inv.id} className="py-2 flex items-center justify-between text-body-sm">
+                <div
+                  key={inv.id}
+                  className="py-2 flex items-center justify-between text-body-sm"
+                >
                   <div className="flex items-center gap-space-sm font-code-sm">
-                    <span className="material-symbols-outlined text-outline text-[18px]">mail</span>
+                    <span className="material-symbols-outlined text-outline text-[18px]">
+                      mail
+                    </span>
                     <span className="font-semibold">{inv.email}</span>
                     <span className="px-1.5 py-0.5 bg-surface-container-high rounded text-xs text-on-surface-variant uppercase">
                       {inv.role}
@@ -434,13 +497,17 @@ export function UsersScreen() {
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-surface-container-lowest max-w-md w-full p-space-lg rounded-lg shadow-xl border border-outline-variant/40 flex flex-col gap-space-md">
             <div className="flex items-center gap-space-xs">
-              <span className="material-symbols-outlined text-primary text-[24px]">person_add</span>
+              <span className="material-symbols-outlined text-primary text-[24px]">
+                person_add
+              </span>
               <h3 className="font-title-md text-title-md text-on-surface font-bold">
                 Invite Platform Operator
               </h3>
             </div>
             <p className="font-body-sm text-body-sm text-outline">
-              Create an administrative invitation for support engineers or operations staff. They will be required to enroll a hardware TOTP authenticator upon initial password establishment.
+              Create an administrative invitation for support engineers or
+              operations staff. They will be required to enroll a hardware TOTP
+              authenticator upon initial password establishment.
             </p>
 
             <div className="flex flex-col gap-space-sm">
@@ -466,9 +533,15 @@ export function UsersScreen() {
                   onChange={(e) => setInviteRole(e.target.value)}
                   className="w-full h-9 bg-surface-container-low px-2 font-body-sm text-body-sm text-on-surface rounded border border-outline-variant/60 focus:outline-none focus:border-primary cursor-pointer"
                 >
-                  <option value="support">Support Operator (Read-only + health telemetry)</option>
-                  <option value="admin">Platform Admin (Lab lifecycle + settlements)</option>
-                  <option value="super_admin">Super Administrator (Full root control)</option>
+                  <option value="support">
+                    Support Operator (Read-only + health telemetry)
+                  </option>
+                  <option value="admin">
+                    Platform Admin (Lab lifecycle + settlements)
+                  </option>
+                  <option value="super_admin">
+                    Super Administrator (Full root control)
+                  </option>
                 </select>
               </div>
             </div>
@@ -513,7 +586,9 @@ export function UsersScreen() {
         isOpen={Boolean(userToDisable)}
         title="Authorize Account Modification"
         description={`You are toggling the active status of platform operator ${userToDisable?.email}. Enter your 6-digit TOTP code to authorize.`}
-        confirmLabel={userToDisable?.is_active ? "Disable Operator" : "Re-enable Operator"}
+        confirmLabel={
+          userToDisable?.is_active ? "Disable Operator" : "Re-enable Operator"
+        }
         confirmVariant={userToDisable?.is_active ? "danger" : "primary"}
         isLoading={disableLoading}
         error={disableError}

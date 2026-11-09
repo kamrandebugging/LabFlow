@@ -15,7 +15,7 @@ import logging
 from typing import Any
 from uuid import UUID
 
-from django.db import transaction
+from django.db import connection, transaction
 
 from apps.accounts.models import AuditLog, TenantSetting
 from apps.platform.settings_registry import (
@@ -59,7 +59,30 @@ def get_setting(key: str) -> Any:
         return spec.validator(get_default(key))
 
     if row is None:
+        if key == "brand_display_name":
+            tenant = getattr(connection, "tenant", None)
+            if tenant and getattr(tenant, "name", None):
+                return tenant.name
+            schema_name = getattr(connection, "schema_name", None)
+            if schema_name and schema_name != "public":
+                from apps.core.models import Tenant
+
+                t = Tenant.objects.filter(schema_name=schema_name).first()
+                if t and t.name:
+                    return t.name
         return spec.validator(get_default(key))
+
+    if key == "brand_display_name" and (not row.value or not row.value.strip()):
+        tenant = getattr(connection, "tenant", None)
+        if tenant and getattr(tenant, "name", None):
+            return tenant.name
+        schema_name = getattr(connection, "schema_name", None)
+        if schema_name and schema_name != "public":
+            from apps.core.models import Tenant
+
+            t = Tenant.objects.filter(schema_name=schema_name).first()
+            if t and t.name:
+                return t.name
 
     try:
         return spec.validator(row.value)

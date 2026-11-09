@@ -18,8 +18,16 @@ export interface ProblemDetails {
   status?: number;
   detail?: string;
   code?: string;
+  error?:
+    | {
+        code?: string;
+        message?: string;
+        [key: string]: unknown;
+      }
+    | string;
   errors?: Record<string, string[] | string>;
   required?: string;
+  [key: string]: unknown;
 }
 
 export class ApiError extends Error {
@@ -32,11 +40,34 @@ export class ApiError extends Error {
     problem: ProblemDetails | null,
     fallback: string,
   ) {
-    super(problem?.detail || problem?.title || fallback);
+    const errObj =
+      problem?.error && typeof problem.error === "object"
+        ? (problem.error as { code?: string; message?: string })
+        : null;
+    const errStr = typeof problem?.error === "string" ? problem.error : null;
+
+    const rawMsg =
+      errObj?.message ||
+      errStr ||
+      problem?.detail ||
+      problem?.title ||
+      (problem?.code && typeof problem.code === "string"
+        ? problem.code
+        : null) ||
+      (problem && typeof problem === "object"
+        ? (Object.values(problem).find(
+            (v) =>
+              typeof v === "string" ||
+              (Array.isArray(v) && typeof v[0] === "string"),
+          ) as string | string[] | undefined)
+        : null) ||
+      fallback;
+    const resolvedMsg = Array.isArray(rawMsg) ? rawMsg[0] : rawMsg;
+    super(String(resolvedMsg || fallback));
     this.name = "ApiError";
     this.status = status;
     this.problem = problem;
-    this.code = problem?.code ?? null;
+    this.code = errObj?.code || problem?.code || errStr || null;
   }
 }
 
@@ -74,6 +105,17 @@ async function refreshOnce(kind: SessionKind): Promise<string | null> {
   return pending;
 }
 
+/**
+ * Refresh a session through the same single-flight promise used by the 401
+ * retry path, so concurrent callers (boot gate double-mount, parallel 401s)
+ * never present the same rotating refresh token twice.
+ */
+export function refreshSession(
+  kind: SessionKind = "staff",
+): Promise<string | null> {
+  return refreshOnce(kind);
+}
+
 function buildUrl(path: string, query?: RequestOptions["query"]): string {
   const url = path.startsWith("/api/") ? path : `${API_PREFIX}${path}`;
   if (!query) return url;
@@ -103,7 +145,14 @@ export async function apiRequest<T>(
   path: string,
   options: RequestOptions = {},
 ): Promise<T> {
-  const { method = "GET", body, query, session, signal, noRetry } = options;
+  const {
+    method = "GET",
+    body,
+    query,
+    session = "staff",
+    signal,
+    noRetry,
+  } = options;
 
   const send = async (token: string | null): Promise<Response> => {
     const headers: Record<string, string> = {
@@ -116,7 +165,7 @@ export async function apiRequest<T>(
     return fetch(buildUrl(path, query), {
       method,
       headers,
-      credentials: session === "platform" ? "include" : "same-origin",
+      credentials: "include",
       signal,
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     });
@@ -138,11 +187,11 @@ export async function apiRequest<T>(
 
   if (!response.ok) {
     const problem = await parseProblem(response);
-    throw new ApiError(
-      response.status,
-      problem,
-      `Request failed with status ${response.status}.`,
-    );
+    const fallback =
+      response.status >= 500
+        ? `Server error (${response.status})`
+        : `Request failed with status ${response.status}.`;
+    throw new ApiError(response.status, problem, fallback);
   }
 
   return (await response.json()) as T;

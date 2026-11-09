@@ -189,17 +189,25 @@ export function AmendResultScreen(): JSX.Element {
 
             <div>
               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
-                Assayed Analyte: {detail?.test_name}
+                Assayed Analyte: {detail?.test_name || "—"}
               </span>
               <div className="flex items-baseline gap-2 mt-1">
                 <span className="text-4xl font-extrabold font-mono text-slate-900">
-                  {detail?.value}
+                  {detail?.value || "—"}
                 </span>
                 <span className="text-base font-semibold text-slate-600">
                   {detail?.unit}
                 </span>
-                <span className="ml-auto inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-xs font-bold bg-red-100 text-red-800">
-                  HIGH (CRITICAL)
+                <span
+                  className={`ml-auto inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-xs font-bold ${
+                    detail?.is_critical
+                      ? "bg-red-100 text-red-800"
+                      : "bg-slate-100 text-slate-700"
+                  }`}
+                >
+                  {detail?.is_critical
+                    ? "CRITICAL"
+                    : (detail?.flag || "NO FLAG").toUpperCase()}
                 </span>
               </div>
             </div>
@@ -209,25 +217,34 @@ export function AmendResultScreen(): JSX.Element {
               <div className="flex items-center justify-between">
                 <span className="text-slate-500">Sign-off Authority:</span>
                 <span className="font-semibold text-slate-800">
-                  Dr. Ayesha Khan (Pathologist)
+                  {detail?.approved_by_name || "Not approved"}
                 </span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-slate-500">Timestamp:</span>
+                <span className="text-slate-500">Approved At:</span>
                 <span className="font-mono text-slate-800">
-                  20 Oct 2026, 10:12 PKT
+                  {detail?.approved_at
+                    ? new Date(detail.approved_at).toLocaleString([], {
+                        day: "2-digit",
+                        month: "short",
+                        year: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        hour12: false,
+                      })
+                    : "—"}
                 </span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-slate-500">Specimen Matrix:</span>
                 <span className="font-medium text-slate-800">
-                  {detail?.specimen_type || "Serum (Gold top)"}
+                  {detail?.specimen_type || "—"}
                 </span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-slate-500">Instrumentation:</span>
+                <span className="text-slate-500">Test Code:</span>
                 <span className="font-medium text-slate-800">
-                  {detail?.analyzer || "Roche Cobas c501"}
+                  {detail?.test_code || "—"}
                 </span>
               </div>
             </div>
@@ -285,7 +302,10 @@ export function AmendResultScreen(): JSX.Element {
               </div>
               <div className="text-[11px] text-slate-500 pt-0.5 flex items-center gap-1">
                 <Info className="w-3.5 h-3.5 text-slate-400" />
-                <span>Biological reference range: {detail?.matched_range}</span>
+                <span>
+                  Biological reference range:{" "}
+                  {detail?.matched_range || "Not configured"}
+                </span>
               </div>
             </div>
 
@@ -378,66 +398,59 @@ export function AmendResultScreen(): JSX.Element {
             </p>
           </div>
           <span className="font-mono text-xs text-slate-400">
-            Ledger Node: LIS-GUL-01
+            {detail?.accession_id || "—"}
           </span>
         </div>
 
-        <div className="space-y-4 relative pl-6 border-l-2 border-slate-200 ml-3">
-          {/* Version 1.0 */}
-          <div className="relative">
-            <div className="absolute -left-[31px] top-1 w-5 h-5 rounded-full bg-teal-700 text-white flex items-center justify-center text-[10px] ring-4 ring-white">
-              <Check className="w-3 h-3" />
-            </div>
-            <div className="bg-slate-50 p-3.5 rounded-lg border border-slate-200 space-y-1 text-xs">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="font-mono font-bold text-slate-900">
-                    v1.0
-                  </span>
-                  <span>·</span>
-                  <span className="font-semibold text-slate-900">
-                    {detail?.value} {detail?.unit}
-                  </span>
-                  <span className="bg-slate-200 text-slate-700 px-2 py-0.5 rounded text-[10px] font-semibold">
-                    APPROVED
-                  </span>
+        {detail?.audit_history && detail.audit_history.length > 0 ? (
+          <div className="space-y-4 relative pl-6 border-l-2 border-slate-200 ml-3">
+            {detail.audit_history.map((entry) => (
+              <div
+                className="relative"
+                key={`${entry.version}-${entry.timestamp}`}
+              >
+                <div className="absolute -left-[31px] top-1 w-5 h-5 rounded-full bg-teal-700 text-white flex items-center justify-center text-[10px] ring-4 ring-white">
+                  <Check className="w-3 h-3" />
                 </div>
-                <span className="text-slate-400 text-[11px]">10:12 PKT</span>
-              </div>
-              <p className="text-slate-600 text-xs">
-                Certified by Dr. Ayesha Khan. Initial urgent assay intake
-                flagged for high potassium threshold.
-              </p>
-            </div>
-          </div>
-
-          {/* Version 2.0 (Active Correction) */}
-          <div className="relative">
-            <div className="absolute -left-[31px] top-1 w-5 h-5 rounded-full bg-amber-500 text-white flex items-center justify-center text-[10px] ring-4 ring-white">
-              <Clock className="w-3 h-3" />
-            </div>
-            <div className="bg-amber-50/50 p-3.5 rounded-lg border border-amber-200 space-y-1 text-xs">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="font-mono font-bold text-slate-900">
-                    v2.0
-                  </span>
-                  <span>·</span>
-                  <span className="font-semibold text-slate-900">
-                    {correctedValue || "5.9"} {detail?.unit}
-                  </span>
-                  <span className="bg-amber-100 text-amber-800 px-2 py-0.5 rounded text-[10px] font-semibold">
-                    PENDING APPROVAL
-                  </span>
+                <div className="bg-slate-50 p-3.5 rounded-lg border border-slate-200 space-y-1 text-xs">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono font-bold text-slate-900">
+                        {entry.version}
+                      </span>
+                      <span>·</span>
+                      <span className="font-semibold text-slate-900">
+                        {entry.value || "—"} {entry.unit || ""}
+                      </span>
+                      <span className="bg-slate-200 text-slate-700 px-2 py-0.5 rounded text-[10px] font-semibold uppercase">
+                        {entry.status}
+                      </span>
+                    </div>
+                    <span className="text-slate-400 text-[11px]">
+                      {new Date(entry.timestamp).toLocaleString([], {
+                        day: "2-digit",
+                        month: "short",
+                        year: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        hour12: false,
+                      })}
+                    </span>
+                  </div>
+                  <p className="text-slate-600 text-xs">
+                    {entry.actor_name || "Unknown actor"}
+                    {entry.note ? ` · ${entry.note}` : ""}
+                    {entry.reason ? ` · ${entry.reason}` : ""}
+                  </p>
                 </div>
-                <span className="text-slate-400 text-[11px]">Draft</span>
               </div>
-              <p className="text-slate-600 text-xs">
-                Reason: {amendmentReason || "Calibration rerun underway."}
-              </p>
-            </div>
+            ))}
           </div>
-        </div>
+        ) : (
+          <p className="text-xs text-slate-500 bg-slate-50 p-4 rounded-lg border border-slate-100">
+            No amendment history has been recorded for this result yet.
+          </p>
+        )}
       </div>
     </div>
   );

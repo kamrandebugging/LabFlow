@@ -26,7 +26,9 @@ export function DemoRequestsScreen() {
       setRequests(res.demo_requests);
       setSummary(res.summary);
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Failed to load demo requests.");
+      setError(
+        e instanceof Error ? e.message : "Failed to load demo requests.",
+      );
     } finally {
       setLoading(false);
     }
@@ -95,7 +97,9 @@ export function DemoRequestsScreen() {
         <div className="flex flex-col gap-space-2xs">
           <div className="flex items-center gap-space-xs text-outline font-code-sm text-code-sm">
             <span>Platform Growth</span>
-            <span className="material-symbols-outlined text-[14px]">chevron_right</span>
+            <span className="material-symbols-outlined text-[14px]">
+              chevron_right
+            </span>
             <span className="text-on-surface font-semibold">Inbound Leads</span>
           </div>
           <div className="flex items-center gap-space-md">
@@ -121,47 +125,69 @@ export function DemoRequestsScreen() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-space-md">
         <div className="bg-surface-container-lowest p-space-md rounded shadow-sm flex flex-col justify-between">
           <div className="flex items-center justify-between text-outline">
-            <span className="font-label-sm text-label-sm uppercase tracking-wider">New Inbound</span>
-            <span className="material-symbols-outlined text-primary text-[20px]">mark_email_unread</span>
+            <span className="font-label-sm text-label-sm uppercase tracking-wider">
+              New Inbound
+            </span>
+            <span className="material-symbols-outlined text-primary text-[20px]">
+              mark_email_unread
+            </span>
           </div>
           <div className="my-space-xs">
             <span className="font-headline-xl text-headline-xl text-primary font-bold tabular-nums">
               {summary?.new_count ?? 0}
             </span>
           </div>
-          <span className="font-body-xs text-body-xs text-outline">Awaiting initial outreach</span>
+          <span className="font-body-xs text-body-xs text-outline">
+            Awaiting initial outreach
+          </span>
         </div>
 
         <div className="bg-surface-container-lowest p-space-md rounded shadow-sm flex flex-col justify-between">
           <div className="flex items-center justify-between text-outline">
-            <span className="font-label-sm text-label-sm uppercase tracking-wider">Contacted</span>
-            <span className="material-symbols-outlined text-on-surface-variant text-[20px]">forum</span>
+            <span className="font-label-sm text-label-sm uppercase tracking-wider">
+              Contacted
+            </span>
+            <span className="material-symbols-outlined text-on-surface-variant text-[20px]">
+              forum
+            </span>
           </div>
           <div className="my-space-xs">
             <span className="font-headline-xl text-headline-xl text-inverse-surface font-bold tabular-nums">
               {summary?.contacted_count ?? 0}
             </span>
           </div>
-          <span className="font-body-xs text-body-xs text-outline">In conversation / scheduled</span>
+          <span className="font-body-xs text-body-xs text-outline">
+            In conversation / scheduled
+          </span>
         </div>
 
         <div className="bg-surface-container-lowest p-space-md rounded shadow-sm flex flex-col justify-between">
           <div className="flex items-center justify-between text-outline">
-            <span className="font-label-sm text-label-sm uppercase tracking-wider">Demo Done</span>
-            <span className="material-symbols-outlined text-secondary text-[20px]">co_present</span>
+            <span className="font-label-sm text-label-sm uppercase tracking-wider">
+              Demo Done
+            </span>
+            <span className="material-symbols-outlined text-secondary text-[20px]">
+              co_present
+            </span>
           </div>
           <div className="my-space-xs">
             <span className="font-headline-xl text-headline-xl text-inverse-surface font-bold tabular-nums">
               {summary?.demo_done_count ?? 0}
             </span>
           </div>
-          <span className="font-body-xs text-body-xs text-outline">Walkthrough completed</span>
+          <span className="font-body-xs text-body-xs text-outline">
+            Walkthrough completed
+          </span>
         </div>
 
         <div className="bg-surface-container-lowest p-space-md rounded shadow-sm flex flex-col justify-between">
           <div className="flex items-center justify-between text-outline">
-            <span className="font-label-sm text-label-sm uppercase tracking-wider">Converted Labs</span>
-            <span className="material-symbols-outlined text-primary text-[20px]">verified</span>
+            <span className="font-label-sm text-label-sm uppercase tracking-wider">
+              Converted Labs
+            </span>
+            <span className="material-symbols-outlined text-primary text-[20px]">
+              verified
+            </span>
           </div>
           <div className="my-space-xs">
             <span className="font-headline-xl text-headline-xl text-inverse-surface font-bold tabular-nums">
@@ -169,7 +195,12 @@ export function DemoRequestsScreen() {
             </span>
           </div>
           <span className="font-body-xs text-body-xs text-primary font-semibold">
-            {summary?.total_count ? Math.round(((summary.converted_count) / summary.total_count) * 100) : 0}% win rate
+            {summary?.total_count
+              ? Math.round(
+                  (summary.converted_count / summary.total_count) * 100,
+                )
+              : 0}
+            % win rate
           </span>
         </div>
       </div>
@@ -256,11 +287,15 @@ export function DemoRequestsScreen() {
         {loading ? (
           <div className="p-12 text-center text-outline">
             <span className="inline-block w-6 h-6 border-2 border-primary/20 border-t-primary rounded-full animate-spin mb-2" />
-            <p className="font-body-sm text-body-sm">Loading demo requests...</p>
+            <p className="font-body-sm text-body-sm">
+              Loading demo requests...
+            </p>
           </div>
         ) : error ? (
           <div className="p-8 text-center text-error bg-error/5">
-            <span className="material-symbols-outlined text-[32px] mb-1">error</span>
+            <span className="material-symbols-outlined text-[32px] mb-1">
+              error
+            </span>
             <p className="font-title-sm text-title-sm font-bold">{error}</p>
           </div>
         ) : filtered.length === 0 ? (
@@ -277,12 +312,18 @@ export function DemoRequestsScreen() {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-surface-container-low h-9 font-label-sm text-label-sm text-outline uppercase tracking-wider">
-                  <th className="px-3 py-1 font-semibold">Facility Name & Inquiry</th>
+                  <th className="px-3 py-1 font-semibold">
+                    Facility Name & Inquiry
+                  </th>
                   <th className="px-3 py-1 font-semibold">Contact Person</th>
                   <th className="px-3 py-1 font-semibold">WhatsApp Mobile</th>
                   <th className="px-3 py-1 font-semibold">Requested At</th>
-                  <th className="px-3 py-1 font-semibold text-center">Status</th>
-                  <th className="px-3 py-1 font-semibold text-right">Actions</th>
+                  <th className="px-3 py-1 font-semibold text-center">
+                    Status
+                  </th>
+                  <th className="px-3 py-1 font-semibold text-right">
+                    Actions
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-surface-container-high font-body-sm text-body-sm text-on-surface">
@@ -296,7 +337,10 @@ export function DemoRequestsScreen() {
                     .toUpperCase();
 
                   return (
-                    <tr key={req.id} className="h-12 hover:bg-surface-container-low transition-colors">
+                    <tr
+                      key={req.id}
+                      className="h-12 hover:bg-surface-container-low transition-colors"
+                    >
                       <td className="px-3 py-2">
                         <div className="flex items-center gap-space-sm">
                           <div className="w-8 h-8 rounded bg-primary-fixed text-primary font-bold text-xs flex items-center justify-center shrink-0">
@@ -310,15 +354,20 @@ export function DemoRequestsScreen() {
                               {req.lab_name}
                             </Link>
                             <span className="font-body-xs text-body-xs text-outline line-clamp-1">
-                              {req.message || "Requested demo via public landing portal."}
+                              {req.message ||
+                                "Requested demo via public landing portal."}
                             </span>
                           </div>
                         </div>
                       </td>
                       <td className="px-3 py-2">
                         <div className="flex flex-col">
-                          <span className="font-medium text-on-surface">{req.contact_person}</span>
-                          <span className="font-code-sm text-xs text-outline">Lead Inquirer</span>
+                          <span className="font-medium text-on-surface">
+                            {req.contact_person}
+                          </span>
+                          <span className="font-code-sm text-xs text-outline">
+                            Lead Inquirer
+                          </span>
                         </div>
                       </td>
                       <td className="px-3 py-2 font-code-sm font-semibold">
@@ -330,7 +379,9 @@ export function DemoRequestsScreen() {
                             className="w-6 h-6 rounded bg-primary-fixed text-primary flex items-center justify-center hover:opacity-80 transition-opacity"
                             title="Chat on WhatsApp"
                           >
-                            <span className="material-symbols-outlined text-[14px]">chat</span>
+                            <span className="material-symbols-outlined text-[14px]">
+                              chat
+                            </span>
                           </a>
                           <span>{req.whatsapp}</span>
                         </div>
@@ -343,12 +394,16 @@ export function DemoRequestsScreen() {
                           minute: "2-digit",
                         })}
                       </td>
-                      <td className="px-3 py-2 text-center">{getStatusBadge(req.status)}</td>
+                      <td className="px-3 py-2 text-center">
+                        {getStatusBadge(req.status)}
+                      </td>
                       <td className="px-3 py-2 text-right">
                         <div className="inline-flex items-center gap-1 justify-end">
                           <button
                             type="button"
-                            onClick={() => navigate(`/platform/demo-requests/${req.id}`)}
+                            onClick={() =>
+                              navigate(`/platform/demo-requests/${req.id}`)
+                            }
                             className="h-7 px-2.5 bg-surface-container-low hover:bg-surface-container text-on-surface font-label-sm text-label-sm rounded transition-colors"
                           >
                             View Lead
@@ -363,7 +418,9 @@ export function DemoRequestsScreen() {
                                   phone: req.whatsapp,
                                   demo_id: req.id,
                                 });
-                                navigate(`/platform/tenants/new?${params.toString()}`);
+                                navigate(
+                                  `/platform/tenants/new?${params.toString()}`,
+                                );
                               }}
                               className="h-7 px-2.5 bg-primary-container hover:bg-primary text-on-primary font-label-sm text-label-sm font-bold rounded transition-colors shadow-xs"
                             >

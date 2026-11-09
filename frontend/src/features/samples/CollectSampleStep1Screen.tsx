@@ -29,9 +29,7 @@ export function CollectSampleStep1Screen({
 }: CollectSampleStep1ScreenProps): JSX.Element {
   const user = useAuthStore((s) => s.user);
 
-  const [invoiceQuery, setInvoiceQuery] = useState(
-    preselectedInvoiceId || "INV-0891A000",
-  );
+  const [invoiceQuery, setInvoiceQuery] = useState(preselectedInvoiceId || "");
   const [invoice, setInvoice] = useState<InvoiceDetail | null>(null);
   const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(
     new Set(),
@@ -64,7 +62,6 @@ export function CollectSampleStep1Screen({
   }, []);
 
   // Fetch invoice helper
-  const userBranchId = user?.branch_ids?.[0];
   const handleSearchInvoice = useCallback(
     async (idOrNumber: string) => {
       const q = idOrNumber.trim();
@@ -78,47 +75,17 @@ export function CollectSampleStep1Screen({
         // Auto-select all items by default
         const allItemIds = new Set(data.items.map((i) => i.id));
         setSelectedItemIds(allItemIds);
-      } catch {
-        // Fallback demo invoice if backend search fails
-        const demoInvoice: InvoiceDetail = {
-          id: "00000000-0000-0000-0000-000000000011",
-          patient_id: "00000000-0000-0000-0000-000000000001",
-          patient_name: "Muhammad Imran",
-          patient_mrn: "MRN-2026-00417",
-          branch_id: userBranchId || "00000000-0000-0000-0000-000000000001",
-          status: "paid",
-          subtotal: "2450.00",
-          discount_amount: "0.00",
-          total: "2450.00",
-          net_paid: "2450.00",
-          items: [
-            {
-              id: "ii-01",
-              test_id: "t-01",
-              description: "Complete Blood Count (CBC)",
-              unit_price: "850.00",
-              quantity: 1,
-              line_total: "850.00",
-            },
-            {
-              id: "ii-02",
-              test_id: "t-02",
-              description: "Glycated Hemoglobin (HbA1c)",
-              unit_price: "1600.00",
-              quantity: 1,
-              line_total: "1600.00",
-            },
-          ],
-          payments: [],
-          created_at: new Date().toISOString(),
-        };
-        setInvoice(demoInvoice);
-        setSelectedItemIds(new Set(demoInvoice.items.map((i) => i.id)));
+      } catch (err) {
+        setInvoice(null);
+        setSelectedItemIds(new Set());
+        setErrorMessage(
+          err instanceof Error ? err.message : "Invoice not found.",
+        );
       } finally {
         setIsLoading(false);
       }
     },
-    [billingServiceInstance, userBranchId],
+    [billingServiceInstance],
   );
 
   useEffect(() => {
@@ -155,33 +122,21 @@ export function CollectSampleStep1Screen({
 
     const draft: SampleCollectionDraft = {
       invoice_id: invoice.id,
+      invoice_number: invoice.invoice_number,
       patient_id: invoice.patient_id,
-      patient_name: invoice.patient_name || "Muhammad Imran",
-      patient_mrn: invoice.patient_mrn || "MRN-2026-00417",
-      patient_sex: "M",
-      patient_age: "34 years",
+      patient_name: invoice.patient_name || "—",
+      patient_mrn: invoice.patient_mrn || "—",
+      patient_sex: invoice.patient_sex || "",
+      patient_age: invoice.patient_age || "",
       branch_id: invoice.branch_id,
-      branch_name: "Central Diagnostic Lab",
+      branch_name: invoice.branch_name || "",
       selected_item_ids: Array.from(selectedItemIds),
       test_labels: selectedItems.map(
         (i) => i.name || i.description || "Diagnostic Test",
       ),
-      tubes_required: [
-        {
-          type: "K2-EDTA",
-          color: "Purple Top",
-          specimen: "EDTA Whole Blood",
-          count: 1,
-        },
-        {
-          type: "Fluoride Plasma",
-          color: "Grey Top",
-          specimen: "Fluoride Blood",
-          count: 1,
-        },
-      ],
+      tubes_required: [],
       collected_at: collectedAt,
-      collected_by: user?.email || "bilal.ahmed@labflow.pk",
+      collected_by: user?.email || "",
       notes: notes.trim() || undefined,
     };
 
@@ -215,9 +170,9 @@ export function CollectSampleStep1Screen({
             Collect sample
           </h1>
           <div className="flex items-center gap-2 text-xs font-mono text-slate-500 bg-white border border-slate-200 px-2.5 py-1 rounded-md shadow-xs">
-            <span className="text-slate-400">BENCH:</span>
+            <span className="text-slate-400">BRANCH:</span>
             <span className="font-semibold text-slate-700">
-              SPECIMEN-INTAKE-GLB
+              {invoice?.branch_name || "—"}
             </span>
           </div>
         </div>
@@ -283,11 +238,11 @@ export function CollectSampleStep1Screen({
               <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
                 <span className="font-mono font-medium text-slate-900">
-                  {invoice.id.substring(0, 13)}
+                  {invoice.invoice_number || invoice.id}
                 </span>
                 <span className="text-slate-300">—</span>
                 <span className="font-medium text-slate-800">
-                  {invoice.patient_name || "Patient Record"}
+                  {invoice.patient_name || "—"}
                 </span>
                 <span className="text-slate-400 ml-1">
                   · Status: {invoice.status.toUpperCase()} (PKR{" "}
@@ -307,18 +262,25 @@ export function CollectSampleStep1Screen({
             <div className="bg-slate-50 border border-slate-200/80 rounded-lg px-3.5 py-2.5 flex items-center justify-between text-sm flex-wrap gap-2">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="font-semibold text-slate-900">
-                  {invoice.patient_name || "Muhammad Imran"}
+                  {invoice.patient_name || "—"}
                 </span>
                 <span className="text-slate-300">·</span>
                 <span className="font-mono text-xs text-slate-700 bg-white border border-slate-200 px-1.5 py-0.5 rounded">
-                  {invoice.patient_mrn || "MRN-2026-00417"}
+                  {invoice.patient_mrn || "—"}
                 </span>
-                <span className="text-slate-300">·</span>
-                <span className="text-slate-600 text-xs">Male, 34 years</span>
+                {invoice.patient_sex && (
+                  <>
+                    <span className="text-slate-300">·</span>
+                    <span className="text-slate-600 text-xs">
+                      {invoice.patient_sex}
+                      {invoice.patient_age ? `, ${invoice.patient_age}` : ""}
+                    </span>
+                  </>
+                )}
               </div>
               <div className="flex items-center gap-1.5 text-xs text-emerald-700 font-medium bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md shrink-0">
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                <span>Verified identity</span>
+                <span>Invoice selected</span>
               </div>
             </div>
           </div>
@@ -341,7 +303,6 @@ export function CollectSampleStep1Screen({
                 const isSelected = selectedItemIds.has(item.id);
                 const itemName =
                   item.name || item.description || "Diagnostic Test";
-                const isEdta = itemName.toLowerCase().includes("cbc");
                 return (
                   <label
                     key={item.id}
@@ -364,13 +325,16 @@ export function CollectSampleStep1Screen({
                             {itemName}
                           </span>
                           <span className="text-[11px] font-mono text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
-                            {isEdta ? "HAEM-001" : "BIO-014"}
+                            {item.panel_id
+                              ? "PANEL"
+                              : item.test_id
+                                ? "TEST"
+                                : "ITEM"}
                           </span>
                         </div>
                         <p className="text-xs text-slate-500 mt-0.5">
-                          {isEdta
-                            ? "Specimen: EDTA Whole Blood (Purple Top) · 3.0 mL"
-                            : "Specimen: Fluoride Plasma / EDTA (Grey/Purple Top) · 2.0 mL"}
+                          Qty {item.quantity} · PKR{" "}
+                          {parseFloat(item.unit_price || "0").toFixed(2)} each
                         </p>
                       </div>
                       <div className="text-right">
@@ -429,7 +393,7 @@ export function CollectSampleStep1Screen({
                 <input
                   id={collectedByInputId}
                   type="text"
-                  value={user?.email || "bilal.ahmed@labflow.pk"}
+                  value={user?.email || ""}
                   readOnly
                   className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-900 cursor-not-allowed"
                 />

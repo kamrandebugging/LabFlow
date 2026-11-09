@@ -6,6 +6,7 @@ from django.urls import path
 from apps.samples.views import (
     SampleCancelView,
     SampleCollectionView,
+    SampleDetailView,
     SampleEventsView,
     SampleLabelView,
     SampleReceiveView,
@@ -39,6 +40,16 @@ urlpatterns = [
         "samples/",
         SampleCollectionView.as_view(),
         name="sample-collection-slash",
+    ),
+    path(
+        "samples/<uuid:sample_id>",
+        SampleDetailView.as_view(),
+        name="sample-detail",
+    ),
+    path(
+        "samples/<uuid:sample_id>/",
+        SampleDetailView.as_view(),
+        name="sample-detail-slash",
     ),
     path(
         "samples/<uuid:sample_id>/label",

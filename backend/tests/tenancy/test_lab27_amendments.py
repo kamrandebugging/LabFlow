@@ -242,7 +242,7 @@ def test_amend_404_out_of_scope(
     assert resp.status_code == 404
 
 
-@pytest.mark.parametrize("role_key", ["owner", "manager", "receptionist"])
+@pytest.mark.parametrize("role_key", ["manager", "receptionist"])
 def test_amend_roles_forbidden(
     tenant_a: Any, lab27_setup: Any, auth_headers: Any, role_key: str
 ) -> None:

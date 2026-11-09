@@ -7,7 +7,9 @@ export function SubscriptionsScreen() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [subscriptions, setSubscriptions] = useState<SubscriptionListItem[]>([]);
+  const [subscriptions, setSubscriptions] = useState<SubscriptionListItem[]>(
+    [],
+  );
   const [summary, setSummary] = useState<SubscriptionListSummary | null>(null);
 
   // Filters
@@ -15,7 +17,9 @@ export function SubscriptionsScreen() {
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [planFilter, setPlanFilter] = useState("ALL");
   const [cycleFilter, setCycleFilter] = useState("ALL");
-  const [quickFilter, setQuickFilter] = useState<"ALL" | "OVERDUE" | "DUE_WEEK">("ALL");
+  const [quickFilter, setQuickFilter] = useState<
+    "ALL" | "OVERDUE" | "DUE_WEEK"
+  >("ALL");
 
   const loadData = async () => {
     try {
@@ -25,7 +29,9 @@ export function SubscriptionsScreen() {
       setSubscriptions(res.subscriptions);
       setSummary(res.summary);
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Failed to load subscriptions.");
+      setError(
+        e instanceof Error ? e.message : "Failed to load subscriptions.",
+      );
     } finally {
       setLoading(false);
     }
@@ -61,22 +67,36 @@ export function SubscriptionsScreen() {
       // Dropdown filters
       if (statusFilter !== "ALL") {
         if (statusFilter === "PAID" && sub.status !== "active") return false;
-        if (statusFilter === "OVERDUE" && sub.status !== "past_due") return false;
+        if (statusFilter === "OVERDUE" && sub.status !== "past_due")
+          return false;
         if (statusFilter === "TRIAL" && sub.status !== "trialing") return false;
         if (statusFilter === "FOUNDING" && !sub.is_founding) return false;
       }
 
-      if (planFilter !== "ALL" && !sub.plan_name.toLowerCase().includes(planFilter.toLowerCase())) {
+      if (
+        planFilter !== "ALL" &&
+        !sub.plan_name.toLowerCase().includes(planFilter.toLowerCase())
+      ) {
         return false;
       }
 
-      if (cycleFilter !== "ALL" && sub.billing_cycle !== cycleFilter.toLowerCase()) {
+      if (
+        cycleFilter !== "ALL" &&
+        sub.billing_cycle !== cycleFilter.toLowerCase()
+      ) {
         return false;
       }
 
       return true;
     });
-  }, [subscriptions, search, quickFilter, statusFilter, planFilter, cycleFilter]);
+  }, [
+    subscriptions,
+    search,
+    quickFilter,
+    statusFilter,
+    planFilter,
+    cycleFilter,
+  ]);
 
   const overdueLabs = useMemo(() => {
     return subscriptions.filter((s) => s.status === "past_due");
@@ -105,11 +125,17 @@ export function SubscriptionsScreen() {
     ]);
     const csvContent =
       "data:text/csv;charset=utf-8," +
-      [headers.join(","), ...rows.map((e) => e.map((val) => `"${val}"`).join(","))].join("\n");
+      [
+        headers.join(","),
+        ...rows.map((e) => e.map((val) => `"${val}"`).join(",")),
+      ].join("\n");
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `labflow-subscriptions-${new Date().toISOString().split("T")[0]}.csv`);
+    link.setAttribute(
+      "download",
+      `labflow-subscriptions-${new Date().toISOString().split("T")[0]}.csv`,
+    );
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -128,7 +154,9 @@ export function SubscriptionsScreen() {
         <div className="flex flex-col gap-space-2xs">
           <div className="flex items-center gap-space-xs font-code-sm text-code-sm text-outline">
             <span>Platform</span>
-            <span className="material-symbols-outlined text-[14px]">chevron_right</span>
+            <span className="material-symbols-outlined text-[14px]">
+              chevron_right
+            </span>
             <span className="text-on-surface font-semibold">Subscriptions</span>
           </div>
           <div className="flex items-center gap-space-md">
@@ -148,7 +176,9 @@ export function SubscriptionsScreen() {
             className="h-8 px-space-md bg-surface-container-low text-on-surface font-label-sm text-label-sm hover:bg-surface-container transition-colors flex items-center gap-space-xs rounded shadow-sm"
             type="button"
           >
-            <span className="material-symbols-outlined text-[16px]">file_download</span>
+            <span className="material-symbols-outlined text-[16px]">
+              file_download
+            </span>
             Export Billing CSV
           </button>
         </div>
@@ -162,7 +192,9 @@ export function SubscriptionsScreen() {
             <span className="font-label-sm text-label-sm uppercase tracking-wider text-outline">
               Monthly Recurring Revenue
             </span>
-            <span className="material-symbols-outlined text-[20px] text-primary">payments</span>
+            <span className="material-symbols-outlined text-[20px] text-primary">
+              payments
+            </span>
           </div>
           <div className="my-space-xs">
             <span className="font-headline-xl text-headline-xl text-inverse-surface tracking-tight tabular-nums font-bold">
@@ -171,9 +203,14 @@ export function SubscriptionsScreen() {
           </div>
           <div className="flex items-center gap-space-xs">
             <span className="inline-flex items-center gap-0.5 bg-surface-container-low text-primary px-space-xs py-space-2xs font-code-sm text-code-sm font-bold rounded">
-              <span className="material-symbols-outlined text-[14px]">trending_up</span>+8.4%
+              <span className="material-symbols-outlined text-[14px]">
+                trending_up
+              </span>
+              +8.4%
             </span>
-            <span className="font-body-xs text-body-xs text-outline">vs last billing cycle</span>
+            <span className="font-body-xs text-body-xs text-outline">
+              vs last billing cycle
+            </span>
           </div>
         </div>
 
@@ -183,7 +220,9 @@ export function SubscriptionsScreen() {
             <span className="font-label-sm text-label-sm uppercase tracking-wider text-outline">
               Overdue / Delinquent
             </span>
-            <span className="material-symbols-outlined text-[20px] text-error">warning</span>
+            <span className="material-symbols-outlined text-[20px] text-error">
+              warning
+            </span>
           </div>
           <div className="my-space-xs flex items-baseline gap-space-sm">
             <span className="font-headline-xl text-headline-xl text-error tracking-tight tabular-nums font-bold">
@@ -193,7 +232,10 @@ export function SubscriptionsScreen() {
               {summary?.overdue_count ?? 0} Labs
             </span>
           </div>
-          <div className="font-body-xs text-body-xs text-outline truncate" title={overdueLabs.map((l) => l.tenant_name).join(", ")}>
+          <div
+            className="font-body-xs text-body-xs text-outline truncate"
+            title={overdueLabs.map((l) => l.tenant_name).join(", ")}
+          >
             {overdueLabs.length > 0
               ? overdueLabs.map((l) => l.tenant_name).join(", ")
               : "All accounts current in good standing"}
@@ -206,7 +248,9 @@ export function SubscriptionsScreen() {
             <span className="font-label-sm text-label-sm uppercase tracking-wider text-outline">
               Lifetime Licenses Sold
             </span>
-            <span className="material-symbols-outlined text-[20px] text-secondary">workspace_premium</span>
+            <span className="material-symbols-outlined text-[20px] text-secondary">
+              workspace_premium
+            </span>
           </div>
           <div className="my-space-xs">
             <span className="font-headline-xl text-headline-xl text-inverse-surface tracking-tight tabular-nums font-bold">
@@ -224,15 +268,23 @@ export function SubscriptionsScreen() {
             <span className="font-label-sm text-label-sm uppercase tracking-wider text-outline">
               Founding Member Quota
             </span>
-            <span className="material-symbols-outlined text-[20px] text-primary">pie_chart</span>
+            <span className="material-symbols-outlined text-[20px] text-primary">
+              pie_chart
+            </span>
           </div>
           <div className="my-space-xs">
             <div className="flex items-baseline justify-between mb-1">
               <span className="font-headline-md text-headline-md text-inverse-surface tabular-nums font-bold">
-                {summary?.founding_slots_used ?? 0} of {summary?.founding_slots_total ?? 10}
+                {summary?.founding_slots_used ?? 0} of{" "}
+                {summary?.founding_slots_total ?? 10}
               </span>
               <span className="font-code-sm text-code-sm text-primary font-bold">
-                {Math.round(((summary?.founding_slots_used ?? 0) / (summary?.founding_slots_total ?? 10)) * 100)}%
+                {Math.round(
+                  ((summary?.founding_slots_used ?? 0) /
+                    (summary?.founding_slots_total ?? 10)) *
+                    100,
+                )}
+                %
               </span>
             </div>
             <div className="w-full bg-surface-container-high h-1.5 rounded-full overflow-hidden">
@@ -241,14 +293,21 @@ export function SubscriptionsScreen() {
                 style={{
                   width: `${Math.min(
                     100,
-                    ((summary?.founding_slots_used ?? 0) / (summary?.founding_slots_total ?? 10)) * 100
+                    ((summary?.founding_slots_used ?? 0) /
+                      (summary?.founding_slots_total ?? 10)) *
+                      100,
                   )}%`,
                 }}
               />
             </div>
           </div>
           <div className="font-body-xs text-body-xs text-outline">
-            {Math.max(0, (summary?.founding_slots_total ?? 10) - (summary?.founding_slots_used ?? 0))} subsidized slots remaining
+            {Math.max(
+              0,
+              (summary?.founding_slots_total ?? 10) -
+                (summary?.founding_slots_used ?? 0),
+            )}{" "}
+            subsidized slots remaining
           </div>
         </div>
       </div>
@@ -366,7 +425,10 @@ export function SubscriptionsScreen() {
               }}
               type="button"
             >
-              <span className="material-symbols-outlined text-[14px]">refresh</span> Reset Filters
+              <span className="material-symbols-outlined text-[14px]">
+                refresh
+              </span>{" "}
+              Reset Filters
             </button>
           </div>
         </div>
@@ -377,11 +439,15 @@ export function SubscriptionsScreen() {
         {loading ? (
           <div className="p-12 text-center text-outline">
             <span className="inline-block w-6 h-6 border-2 border-primary/20 border-t-primary rounded-full animate-spin mb-2" />
-            <p className="font-body-sm text-body-sm">Loading platform subscriptions...</p>
+            <p className="font-body-sm text-body-sm">
+              Loading platform subscriptions...
+            </p>
           </div>
         ) : error ? (
           <div className="p-8 text-center text-error bg-error/5">
-            <span className="material-symbols-outlined text-[32px] mb-1">error</span>
+            <span className="material-symbols-outlined text-[32px] mb-1">
+              error
+            </span>
             <p className="font-title-sm text-title-sm font-bold">{error}</p>
             <button
               onClick={loadData}
@@ -399,7 +465,8 @@ export function SubscriptionsScreen() {
               No subscription records match filters
             </p>
             <p className="font-body-xs text-body-xs mt-1">
-              Adjust your search keywords or reset filter dropdowns to view all labs.
+              Adjust your search keywords or reset filter dropdowns to view all
+              labs.
             </p>
           </div>
         ) : (
@@ -407,14 +474,20 @@ export function SubscriptionsScreen() {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-surface-container-low h-9 font-label-sm text-label-sm text-outline uppercase tracking-wider border-b border-surface-container">
-                  <th className="px-3 py-1 font-semibold">Lab Identity & Location</th>
+                  <th className="px-3 py-1 font-semibold">
+                    Lab Identity & Location
+                  </th>
                   <th className="px-3 py-1 font-semibold">Plan Tier</th>
                   <th className="px-3 py-1 font-semibold">Billing Frequency</th>
-                  <th className="px-3 py-1 font-semibold text-right">Amount (PKR)</th>
+                  <th className="px-3 py-1 font-semibold text-right">
+                    Amount (PKR)
+                  </th>
                   <th className="px-3 py-1 font-semibold">Status</th>
                   <th className="px-3 py-1 font-semibold">Next Due Date</th>
                   <th className="px-3 py-1 font-semibold">Billing Mode</th>
-                  <th className="px-3 py-1 font-semibold text-right">Actions</th>
+                  <th className="px-3 py-1 font-semibold text-right">
+                    Actions
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-surface-container-high font-body-sm text-body-sm text-on-surface">
@@ -446,12 +519,16 @@ export function SubscriptionsScreen() {
                             )}
                           </div>
                           <span className="font-body-xs text-body-xs text-outline">
-                            {sub.city ? `${sub.city}, ${sub.province || "PK"}` : "Pakistan"}
+                            {sub.city
+                              ? `${sub.city}, ${sub.province || "PK"}`
+                              : "Pakistan"}
                           </span>
                         </div>
                       </td>
                       <td className="px-3 py-2 font-medium">
-                        <span className="font-title-sm text-title-sm">{sub.plan_name}</span>
+                        <span className="font-title-sm text-title-sm">
+                          {sub.plan_name}
+                        </span>
                       </td>
                       <td className="px-3 py-2 text-on-surface-variant font-code-sm capitalize">
                         {sub.billing_cycle}
@@ -480,15 +557,26 @@ export function SubscriptionsScreen() {
                       </td>
                       <td className="px-3 py-2 font-code-sm">
                         {sub.next_due ? (
-                          <span className={isOverdue ? "text-error font-bold" : "text-on-surface"}>
-                            {new Date(sub.next_due).toLocaleDateString("en-PK", {
-                              day: "numeric",
-                              month: "short",
-                              year: "numeric",
-                            })}
+                          <span
+                            className={
+                              isOverdue
+                                ? "text-error font-bold"
+                                : "text-on-surface"
+                            }
+                          >
+                            {new Date(sub.next_due).toLocaleDateString(
+                              "en-PK",
+                              {
+                                day: "numeric",
+                                month: "short",
+                                year: "numeric",
+                              },
+                            )}
                           </span>
                         ) : sub.is_lifetime ? (
-                          <span className="text-secondary font-semibold">Perpetual License</span>
+                          <span className="text-secondary font-semibold">
+                            Perpetual License
+                          </span>
                         ) : (
                           <span className="text-outline">N/A</span>
                         )}
@@ -502,19 +590,25 @@ export function SubscriptionsScreen() {
                       <td className="px-3 py-2 text-right">
                         <div className="inline-flex items-center gap-1 justify-end">
                           <button
-                            onClick={() => navigate(`/platform/subscriptions/${sub.id}`)}
+                            onClick={() =>
+                              navigate(`/platform/subscriptions/${sub.id}`)
+                            }
                             className="h-7 px-2.5 bg-primary-container text-on-primary font-label-sm text-label-sm hover:bg-primary transition-colors rounded shadow-xs"
                             type="button"
                           >
                             Mark Paid
                           </button>
                           <button
-                            onClick={() => navigate(`/platform/subscriptions/${sub.id}`)}
+                            onClick={() =>
+                              navigate(`/platform/subscriptions/${sub.id}`)
+                            }
                             className="h-7 px-2 bg-surface-container-high text-on-surface-variant hover:bg-surface-container-highest transition-colors rounded"
                             title="Manage Ledger & Plan"
                             type="button"
                           >
-                            <span className="material-symbols-outlined text-[16px]">tune</span>
+                            <span className="material-symbols-outlined text-[16px]">
+                              tune
+                            </span>
                           </button>
                         </div>
                       </td>
@@ -529,9 +623,12 @@ export function SubscriptionsScreen() {
         {/* Table Footer */}
         <div className="p-space-sm bg-surface-container-low/50 border-t border-surface-container flex items-center justify-between font-body-xs text-body-xs text-outline">
           <span>
-            Showing <strong>{filtered.length}</strong> of <strong>{subscriptions.length}</strong> subscription records
+            Showing <strong>{filtered.length}</strong> of{" "}
+            <strong>{subscriptions.length}</strong> subscription records
           </span>
-          <span>Currency: Pakistani Rupee (PKR) • Public Accounting Schema Only</span>
+          <span>
+            Currency: Pakistani Rupee (PKR) • Public Accounting Schema Only
+          </span>
         </div>
       </div>
     </div>

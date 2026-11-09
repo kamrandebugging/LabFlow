@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { platformService } from "./platformService";
 import { TotpConfirmModal } from "./TotpConfirmModal";
@@ -21,7 +21,9 @@ export function SubscriptionDetailScreen() {
   const [availablePlans, setAvailablePlans] = useState<TenantPlan[]>([]);
 
   // Mark Paid form state
-  const [paymentMethod, setPaymentMethod] = useState("Bank Transfer (Raast / IBFT)");
+  const [paymentMethod, setPaymentMethod] = useState(
+    "Bank Transfer (Raast / IBFT)",
+  );
   const [reference, setReference] = useState("");
   const [amount, setAmount] = useState("");
   const [notes, setNotes] = useState("");
@@ -35,7 +37,7 @@ export function SubscriptionDetailScreen() {
   const [changePlanLoading, setChangePlanLoading] = useState(false);
   const [changePlanError, setChangePlanError] = useState<string | null>(null);
 
-  const loadDetail = async () => {
+  const loadDetail = useCallback(async () => {
     if (!id) return;
     try {
       setLoading(true);
@@ -51,11 +53,11 @@ export function SubscriptionDetailScreen() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
 
   useEffect(() => {
     loadDetail();
-  }, [id]);
+  }, [loadDetail]);
 
   const handleMarkPaid = async (totpCode: string) => {
     if (!id) return;
@@ -79,15 +81,19 @@ export function SubscriptionDetailScreen() {
           amount: amount.trim(),
           notes: notes.trim(),
         },
-        totpCode
+        totpCode,
       );
       setMarkPaidModalOpen(false);
-      setActionSuccess(res.detail || "Payment recorded and subscription refreshed.");
+      setActionSuccess(
+        res.detail || "Payment recorded and subscription refreshed.",
+      );
       setReference("");
       setNotes("");
       loadDetail();
     } catch (e: unknown) {
-      setMarkPaidError(e instanceof Error ? e.message : "Payment recording failed.");
+      setMarkPaidError(
+        e instanceof Error ? e.message : "Payment recording failed.",
+      );
     } finally {
       setMarkPaidLoading(false);
     }
@@ -98,12 +104,18 @@ export function SubscriptionDetailScreen() {
     try {
       setChangePlanLoading(true);
       setChangePlanError(null);
-      const res = await platformService.changeSubscriptionPlan(id, selectedPlanId, totpCode);
+      const res = await platformService.changeSubscriptionPlan(
+        id,
+        selectedPlanId,
+        totpCode,
+      );
       setChangePlanModalOpen(false);
       setActionSuccess(res.detail || "Plan changed successfully.");
       loadDetail();
     } catch (e: unknown) {
-      setChangePlanError(e instanceof Error ? e.message : "Plan change failed.");
+      setChangePlanError(
+        e instanceof Error ? e.message : "Plan change failed.",
+      );
     } finally {
       setChangePlanLoading(false);
     }
@@ -113,7 +125,9 @@ export function SubscriptionDetailScreen() {
     return (
       <div className="p-16 text-center text-outline">
         <span className="inline-block w-8 h-8 border-2 border-primary/20 border-t-primary rounded-full animate-spin mb-3" />
-        <p className="font-body-md text-body-md font-semibold">Loading subscription record...</p>
+        <p className="font-body-md text-body-md font-semibold">
+          Loading subscription record...
+        </p>
       </div>
     );
   }
@@ -121,9 +135,15 @@ export function SubscriptionDetailScreen() {
   if (error || !sub) {
     return (
       <div className="p-12 text-center bg-surface-container-lowest rounded shadow-sm max-w-xl mx-auto mt-8">
-        <span className="material-symbols-outlined text-error text-[40px] mb-2">error</span>
-        <h2 className="font-headline-sm text-headline-sm text-on-surface mb-2">Unable to Load Subscription</h2>
-        <p className="font-body-sm text-body-sm text-outline mb-4">{error || "Record not found."}</p>
+        <span className="material-symbols-outlined text-error text-[40px] mb-2">
+          error
+        </span>
+        <h2 className="font-headline-sm text-headline-sm text-on-surface mb-2">
+          Unable to Load Subscription
+        </h2>
+        <p className="font-body-sm text-body-sm text-outline mb-4">
+          {error || "Record not found."}
+        </p>
         <Link
           to="/platform/subscriptions"
           className="px-4 py-2 bg-primary text-on-primary font-label-sm text-label-sm rounded hover:bg-primary-container"
@@ -142,11 +162,18 @@ export function SubscriptionDetailScreen() {
       <div className="flex flex-col gap-space-sm bg-surface-container-lowest p-space-lg rounded shadow-sm">
         <div className="flex items-center justify-between flex-wrap gap-space-sm">
           <div className="flex items-center gap-space-xs text-outline font-code-sm text-code-sm">
-            <Link to="/platform/subscriptions" className="hover:text-primary transition-colors">
+            <Link
+              to="/platform/subscriptions"
+              className="hover:text-primary transition-colors"
+            >
               Subscriptions
             </Link>
-            <span className="material-symbols-outlined text-[14px]">chevron_right</span>
-            <span className="text-on-surface font-semibold">{sub.tenant_name}</span>
+            <span className="material-symbols-outlined text-[14px]">
+              chevron_right
+            </span>
+            <span className="text-on-surface font-semibold">
+              {sub.tenant_name}
+            </span>
           </div>
 
           <div className="flex items-center gap-space-xs">
@@ -154,14 +181,18 @@ export function SubscriptionDetailScreen() {
               onClick={() => navigate("/platform/subscriptions")}
               className="h-8 px-space-sm bg-surface-container-low hover:bg-surface-container text-on-surface rounded font-label-sm text-label-sm flex items-center gap-1 transition-colors"
             >
-              <span className="material-symbols-outlined text-[16px]">arrow_back</span>
+              <span className="material-symbols-outlined text-[16px]">
+                arrow_back
+              </span>
               Back to Subscriptions
             </button>
             <Link
               to={`/platform/tenants/${sub.tenant_id}`}
               className="h-8 px-space-sm bg-surface-container-high hover:bg-surface-container-highest text-on-surface-variant rounded font-label-sm text-label-sm flex items-center gap-1 transition-colors"
             >
-              <span className="material-symbols-outlined text-[16px]">domain</span>
+              <span className="material-symbols-outlined text-[16px]">
+                domain
+              </span>
               View Lab Detail
             </Link>
           </div>
@@ -202,10 +233,17 @@ export function SubscriptionDetailScreen() {
       {actionSuccess && (
         <div className="p-space-md bg-primary-fixed/30 border border-primary text-primary-container rounded flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-[20px]">check_circle</span>
-            <span className="font-title-sm text-title-sm font-semibold">{actionSuccess}</span>
+            <span className="material-symbols-outlined text-[20px]">
+              check_circle
+            </span>
+            <span className="font-title-sm text-title-sm font-semibold">
+              {actionSuccess}
+            </span>
           </div>
-          <button onClick={() => setActionSuccess(null)} className="text-on-surface-variant hover:text-on-surface">
+          <button
+            onClick={() => setActionSuccess(null)}
+            className="text-on-surface-variant hover:text-on-surface"
+          >
             <span className="material-symbols-outlined text-[18px]">close</span>
           </button>
         </div>
@@ -217,7 +255,9 @@ export function SubscriptionDetailScreen() {
         <div className="lg:col-span-7 flex flex-col gap-space-md bg-surface-container-lowest p-space-lg rounded shadow-sm">
           <div className="flex items-center justify-between pb-space-xs border-b border-surface-container">
             <div className="flex items-center gap-space-xs text-on-surface font-title-md text-title-md font-bold">
-              <span className="material-symbols-outlined text-primary text-[20px]">receipt_long</span>
+              <span className="material-symbols-outlined text-primary text-[20px]">
+                receipt_long
+              </span>
               <span>Billing License Details</span>
             </div>
             <span className="font-code-sm text-code-sm text-outline font-semibold uppercase">
@@ -244,14 +284,20 @@ export function SubscriptionDetailScreen() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-space-md font-body-sm text-body-sm">
             <div className="flex flex-col gap-1 p-space-sm bg-surface-container-low/50 rounded">
-              <span className="text-outline font-label-sm text-label-sm">Billing Cycle</span>
+              <span className="text-outline font-label-sm text-label-sm">
+                Billing Cycle
+              </span>
               <span className="font-title-sm text-title-sm font-semibold text-on-surface capitalize">
                 {sub.billing_cycle}
               </span>
             </div>
             <div className="flex flex-col gap-1 p-space-sm bg-surface-container-low/50 rounded">
-              <span className="text-outline font-label-sm text-label-sm">Next Invoice Due</span>
-              <span className={`font-title-sm text-title-sm font-semibold ${isOverdue ? "text-error" : "text-on-surface"}`}>
+              <span className="text-outline font-label-sm text-label-sm">
+                Next Invoice Due
+              </span>
+              <span
+                className={`font-title-sm text-title-sm font-semibold ${isOverdue ? "text-error" : "text-on-surface"}`}
+              >
                 {sub.next_due
                   ? new Date(sub.next_due).toLocaleDateString("en-PK", {
                       day: "numeric",
@@ -259,17 +305,25 @@ export function SubscriptionDetailScreen() {
                       year: "numeric",
                     })
                   : sub.is_lifetime
-                  ? "Perpetual License (No Renewal)"
-                  : "N/A"}
+                    ? "Perpetual License (No Renewal)"
+                    : "N/A"}
               </span>
             </div>
             <div className="flex flex-col gap-1 p-space-sm bg-surface-container-low/50 rounded">
-              <span className="text-outline font-label-sm text-label-sm">Tenant Identifier</span>
-              <span className="font-code-sm text-code-sm font-bold text-on-surface">{sub.tenant_slug}</span>
+              <span className="text-outline font-label-sm text-label-sm">
+                Tenant Identifier
+              </span>
+              <span className="font-code-sm text-code-sm font-bold text-on-surface">
+                {sub.tenant_slug}
+              </span>
             </div>
             <div className="flex flex-col gap-1 p-space-sm bg-surface-container-low/50 rounded">
-              <span className="text-outline font-label-sm text-label-sm">Clearing Settlement Protocol</span>
-              <span className="font-code-sm text-code-sm text-on-surface">Raast / IBFT / Easypaisa</span>
+              <span className="text-outline font-label-sm text-label-sm">
+                Clearing Settlement Protocol
+              </span>
+              <span className="font-code-sm text-code-sm text-on-surface">
+                Raast / IBFT / Easypaisa
+              </span>
             </div>
           </div>
         </div>
@@ -278,7 +332,9 @@ export function SubscriptionDetailScreen() {
         <div className="lg:col-span-5 bg-surface-container-lowest p-space-lg rounded shadow-sm flex flex-col gap-space-md">
           <div className="flex items-start justify-between pb-space-xs border-b border-surface-container">
             <div className="flex items-center gap-space-xs">
-              <span className="material-symbols-outlined text-primary text-[20px]">add_card</span>
+              <span className="material-symbols-outlined text-primary text-[20px]">
+                add_card
+              </span>
               <h2 className="font-title-md text-title-md text-on-surface font-bold">
                 Record Payment (Mark Paid)
               </h2>
@@ -289,7 +345,9 @@ export function SubscriptionDetailScreen() {
           </div>
 
           <p className="font-body-xs text-body-xs text-outline">
-            Record manual Pakistani bank transfer, Raast IBFT, Easypaisa, or JazzCash clearance. This creates an immutable audit record and advances the next billing date.
+            Record manual Pakistani bank transfer, Raast IBFT, Easypaisa, or
+            JazzCash clearance. This creates an immutable audit record and
+            advances the next billing date.
           </p>
 
           <div className="flex flex-col gap-space-sm">
@@ -302,11 +360,17 @@ export function SubscriptionDetailScreen() {
                 value={paymentMethod}
                 onChange={(e) => setPaymentMethod(e.target.value)}
               >
-                <option value="Bank Transfer (Raast / IBFT)">Bank Transfer (Raast / IBFT)</option>
+                <option value="Bank Transfer (Raast / IBFT)">
+                  Bank Transfer (Raast / IBFT)
+                </option>
                 <option value="Easypaisa">Easypaisa Mobile Account</option>
                 <option value="JazzCash">JazzCash Mobile Account</option>
-                <option value="Direct Cash Deposit">Direct Bank Branch Cash Deposit</option>
-                <option value="Pay Order / Cheque">Pay Order / Bank Cheque</option>
+                <option value="Direct Cash Deposit">
+                  Direct Bank Branch Cash Deposit
+                </option>
+                <option value="Pay Order / Cheque">
+                  Pay Order / Bank Cheque
+                </option>
               </select>
             </div>
 
@@ -366,7 +430,9 @@ export function SubscriptionDetailScreen() {
               }}
               className="w-full mt-2 h-9 bg-primary text-on-primary font-label-sm text-label-sm font-bold rounded hover:bg-primary-container transition-colors shadow-sm flex items-center justify-center gap-1.5"
             >
-              <span className="material-symbols-outlined text-[18px]">verified</span>
+              <span className="material-symbols-outlined text-[18px]">
+                verified
+              </span>
               <span>Record Payment & Clear Overdue</span>
             </button>
           </div>
@@ -377,13 +443,16 @@ export function SubscriptionDetailScreen() {
       <div className="bg-surface-container-lowest p-space-lg rounded shadow-sm flex flex-col gap-space-md">
         <div className="flex items-center justify-between pb-space-xs border-b border-surface-container">
           <div className="flex items-center gap-space-xs">
-            <span className="material-symbols-outlined text-primary text-[20px]">upgrade</span>
+            <span className="material-symbols-outlined text-primary text-[20px]">
+              upgrade
+            </span>
             <h2 className="font-title-md text-title-md text-on-surface font-bold">
               Change Plan Tier & Contract Quota
             </h2>
           </div>
           <span className="font-code-sm text-code-sm text-outline">
-            Current Tier: <strong className="text-primary">{sub.plan_name}</strong>
+            Current Tier:{" "}
+            <strong className="text-primary">{sub.plan_name}</strong>
           </span>
         </div>
 
@@ -445,7 +514,9 @@ export function SubscriptionDetailScreen() {
             }}
             className="px-space-lg h-9 bg-primary text-on-primary font-label-sm text-label-sm font-bold rounded hover:bg-primary-container transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm flex items-center gap-1.5"
           >
-            <span className="material-symbols-outlined text-[18px]">published_with_changes</span>
+            <span className="material-symbols-outlined text-[18px]">
+              published_with_changes
+            </span>
             <span>Apply Tier Change</span>
           </button>
         </div>
@@ -455,7 +526,9 @@ export function SubscriptionDetailScreen() {
       <div className="bg-surface-container-lowest p-space-lg rounded shadow-sm flex flex-col gap-space-md">
         <div className="flex items-center justify-between pb-space-xs border-b border-surface-container">
           <div className="flex items-center gap-space-xs">
-            <span className="material-symbols-outlined text-primary text-[20px]">history</span>
+            <span className="material-symbols-outlined text-primary text-[20px]">
+              history
+            </span>
             <h2 className="font-title-md text-title-md text-on-surface font-bold">
               Payment Ledger & Audit Trail
             </h2>
@@ -487,7 +560,10 @@ export function SubscriptionDetailScreen() {
               </thead>
               <tbody className="divide-y divide-surface-container-high font-body-sm text-body-sm text-on-surface">
                 {payments.map((p) => (
-                  <tr key={p.id} className="h-10 hover:bg-surface-container-low transition-colors">
+                  <tr
+                    key={p.id}
+                    className="h-10 hover:bg-surface-container-low transition-colors"
+                  >
                     <td className="px-3 py-1.5 font-code-sm">{p.paid_date}</td>
                     <td className="px-3 py-1.5 font-medium">{p.method}</td>
                     <td className="px-3 py-1.5 font-code-sm text-on-surface-variant font-bold">
@@ -496,8 +572,12 @@ export function SubscriptionDetailScreen() {
                     <td className="px-3 py-1.5 text-right font-code-sm font-bold tabular-nums">
                       {parseFloat(p.amount).toLocaleString()}
                     </td>
-                    <td className="px-3 py-1.5 font-code-sm text-outline">{p.recorded_by}</td>
-                    <td className="px-3 py-1.5 text-outline text-body-xs">{p.notes || "—"}</td>
+                    <td className="px-3 py-1.5 font-code-sm text-outline">
+                      {p.recorded_by}
+                    </td>
+                    <td className="px-3 py-1.5 text-outline text-body-xs">
+                      {p.notes || "—"}
+                    </td>
                     <td className="px-3 py-1.5 text-center">
                       <span className="px-1.5 py-0.5 bg-primary-fixed text-on-primary-fixed font-code-sm text-[11px] font-bold uppercase rounded">
                         VERIFIED

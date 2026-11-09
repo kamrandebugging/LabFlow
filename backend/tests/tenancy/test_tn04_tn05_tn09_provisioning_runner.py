@@ -157,9 +157,9 @@ class TestProvisioningResumableStateMachine:
             ):
                 provision_tenant_task(slug)
 
-            # Tenant stays in provisioning; later steps were never attempted
+            # Tenant is marked provisioning_failed; later steps were never attempted
             res.tenant.refresh_from_db()
-            assert res.tenant.status == "provisioning"
+            assert res.tenant.status == "provisioning_failed"
             fail_index = PROVISIONING_STEPS.index(failing_step)
             assert executed_first_attempt == list(PROVISIONING_STEPS[: fail_index + 1])
 

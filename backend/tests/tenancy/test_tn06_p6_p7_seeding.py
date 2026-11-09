@@ -112,8 +112,8 @@ class TestStepsP6AndP7SeedingAndA10Exclusion:
                     tp = TestPrice.objects.get(test__code=t_code, branch__isnull=True)
                     assert tp.price == t_price
 
-                # Total tests = 32 components + 5 standalone = 37 tests
-                assert Test.objects.count() == 37
+                # Total tests = 32 components + 118 standalone = 150 tests
+                assert Test.objects.count() == 150
 
                 # Reference ranges: adult-M and adult-F (age_min_days=6570)
                 for test_obj in Test.objects.all():

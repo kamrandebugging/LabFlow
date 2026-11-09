@@ -5,7 +5,8 @@
  * the client. Money is a string with two decimals in PKR.
  */
 
-export type TenantStatus = "provisioning" | "provisioning_failed" | "active" | "suspended" | "deleted";
+export type TenantStatus =
+  "provisioning" | "provisioning_failed" | "active" | "suspended" | "deleted";
 
 export const TENANT_STATUSES: readonly TenantStatus[] = [
   "active",
@@ -223,6 +224,8 @@ export interface ProvisionTenantPayload {
   whatsapp?: string;
   staff_seats?: number | null;
   branch_count?: number;
+  /** Extra branches beyond Main Branch, created during provisioning (P-6). */
+  branches?: Array<{ name: string; address?: string }>;
   enabled_roles?: string[];
 }
 
@@ -303,11 +306,7 @@ export function slugProblem(slug: string): string | null {
 
 export type SubscriptionBillingCycle = "monthly" | "annual" | "lifetime";
 export type SubscriptionStatus =
-  | "active"
-  | "past_due"
-  | "canceled"
-  | "trialing"
-  | "founding";
+  "active" | "past_due" | "canceled" | "trialing" | "founding";
 
 export interface SubscriptionListItem {
   id: string;
@@ -441,11 +440,7 @@ export interface UsersListResponse {
 }
 
 export type DemoRequestStatus =
-  | "new"
-  | "contacted"
-  | "demo_done"
-  | "converted"
-  | "lost";
+  "new" | "contacted" | "demo_done" | "converted" | "lost";
 
 export interface DemoRequestItem {
   id: string;

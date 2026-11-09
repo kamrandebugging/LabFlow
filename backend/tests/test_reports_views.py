@@ -393,6 +393,19 @@ class TestExceptionsEndpoint:
         assert data["results"] == []
         assert data["counts"]["total"] == 0
 
+    def test_receptionist_role_allowed(
+        self, tenant_a: Tenant, api_client: APIClient
+    ) -> None:
+        with tenant_context(tenant_a):
+            staff = StaffUserFactory(role=Role.RECEPTION, branch=None)
+            _authenticate_client(api_client, staff, tenant_a, "receptionist")
+
+        response = api_client.get("/api/v1/exceptions")
+        assert response.status_code == 200
+        data = response.json()
+        assert "results" in data
+        assert "counts" in data
+
     def test_exceptions_derived_from_real_model_data(
         self, tenant_a: Tenant, api_client: APIClient
     ) -> None:

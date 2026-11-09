@@ -159,7 +159,7 @@ class TestCriticalNotificationRecord:
                 recorded_by_id=lab28_setup["manager"].id,
             ).exists()
 
-    @pytest.mark.parametrize("role_key", ["technician", "receptionist", "owner"])
+    @pytest.mark.parametrize("role_key", ["technician", "receptionist"])
     def test_other_roles_forbidden(
         self,
         client: Client,

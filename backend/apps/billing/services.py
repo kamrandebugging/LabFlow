@@ -712,6 +712,7 @@ class InvoiceQueryService:
         try:
             invoice = (
                 Invoice.objects.scoped_to(actor)
+                .select_related("patient", "branch")
                 .prefetch_related("items", "payments")
                 .get(pk=invoice_id)
             )

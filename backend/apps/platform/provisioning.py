@@ -5,7 +5,7 @@ import secrets
 import time
 import uuid
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import timedelta
 from typing import Any, cast
 
@@ -140,6 +140,9 @@ class ProvisionTenantInput:
     staff_seats: int | None = None
     branch_count: int = 1
     enabled_roles: list[str] = None  # type: ignore[assignment]
+    # Extra branches requested at provisioning time; the Main Branch is always
+    # created by P-6, so the tenant starts with exactly 1 + len(branches).
+    branches: list[dict[str, str]] = field(default_factory=list)
     actor_id: uuid.UUID | None = None
     idempotency_key: str | None = None
     ip_address: str | None = None
@@ -164,6 +167,7 @@ class ProvisioningStateSnapshot:
     error: str | None
     owner_email: str
     owner_name: str
+    branches: list[dict[str, str]] = field(default_factory=list)
 
 
 def get_platform_base_domain() -> str:
@@ -243,6 +247,25 @@ def _validate_p1(data: ProvisionTenantInput) -> Plan:
             detail="The selected plan does not exist or is not active.",
             status_code=422,
             errors={"plan_id": ["Plan does not exist or is inactive."]},
+        )
+
+    # Main Branch counts toward the plan's facility limit.
+    requested_total = 1 + len(data.branches or [])
+    if plan.max_branches is not None and requested_total > plan.max_branches:
+        raise ProvisioningError(
+            code="branch_limit_exceeded",
+            title="Plan branch limit exceeded",
+            detail=(
+                f"The {plan.name} plan allows up to {plan.max_branches} "
+                f"branch(es); {requested_total} were requested."
+            ),
+            status_code=422,
+            errors={
+                "branches": [
+                    f"Plan allows at most {plan.max_branches} branch(es) "
+                    f"including the Main Branch."
+                ]
+            },
         )
 
     return plan
@@ -376,7 +399,10 @@ def create_tenant_provisioning(data: ProvisionTenantInput) -> ProvisionTenantRes
                 staff_seats_limit=data.staff_seats,
                 staff_count=1,
                 branch_count=max(
-                    1, data.branch_count if data.branch_count is not None else 1
+                    1,
+                    1 + len(data.branches)
+                    if data.branches
+                    else (data.branch_count if data.branch_count is not None else 1),
                 ),
                 temp_password=temp_pass,
                 temp_password_expires_at=temp_expires,
@@ -414,6 +440,7 @@ def create_tenant_provisioning(data: ProvisionTenantInput) -> ProvisionTenantRes
                 "province": tenant.province,
                 "current_step": "P-2",
                 "completed_steps": ["P-1", "P-2"],
+                "branches": list(data.branches or []),
             }
             if data.idempotency_key:
                 after_payload["idempotency_key"] = data.idempotency_key
@@ -469,12 +496,23 @@ def get_provisioning_state(tenant: Tenant) -> ProvisioningStateSnapshot:
     error: str | None = None
     owner_email = ""
     owner_name = ""
+    branches: list[dict[str, str]] = []
 
     for audit in audits:
         payload = audit.after_jsonb if isinstance(audit.after_jsonb, dict) else {}
         if audit.action == "tenant.created":
             owner_email = str(payload.get("owner_email", owner_email))
             owner_name = str(payload.get("owner_name", owner_name))
+            recorded_branches = payload.get("branches")
+            if isinstance(recorded_branches, list):
+                branches = [
+                    {
+                        "name": str(item.get("name", "")),
+                        "address": str(item.get("address", "")),
+                    }
+                    for item in recorded_branches
+                    if isinstance(item, dict)
+                ]
             current_step = str(payload.get("current_step", "P-2"))
             for step_item in payload.get("completed_steps", ["P-1", "P-2"]):
                 step_str = str(step_item)
@@ -509,6 +547,7 @@ def get_provisioning_state(tenant: Tenant) -> ProvisioningStateSnapshot:
         error=error,
         owner_email=owner_email,
         owner_name=owner_name,
+        branches=branches,
     )
 
 
@@ -724,9 +763,7 @@ def execute_step_p5_revoke_append_only(
         _set_schema_to_public()
 
 
-def execute_step_p6_seed_data(
-    tenant: Tenant, _state: ProvisioningStateSnapshot
-) -> None:
+def execute_step_p6_seed_data(tenant: Tenant, state: ProvisioningStateSnapshot) -> None:
     """
     P-6: Seed default branch, starter catalogue with panel components and reference
     ranges, and EN/UR notification templates via get_or_create (Doc 02 §16).
@@ -735,7 +772,7 @@ def execute_step_p6_seed_data(
     _verify_tenant_schema_identity(tenant)
     _set_schema_to_public()
     try:
-        seed_tenant_p6_data(tenant)
+        seed_tenant_p6_data(tenant, state.branches)
     finally:
         _set_schema_to_public()
 
@@ -905,7 +942,8 @@ def execute_step_p8_create_owner(
     tenant: Tenant, _state: ProvisioningStateSnapshot
 ) -> None:
     """
-    P-8: Create inactive Lab Owner and hashed activation token (Doc 04 §5 P-8).
+    P-8: Create Lab Owner (active, temporary master password) and hashed
+    activation token (Doc 04 §5 P-8).
     """
     _verify_tenant_schema_identity(tenant)
     _set_schema_to_public()
@@ -1131,7 +1169,8 @@ def cleanup_abandoned_provisioning(
     actor_id: uuid.UUID | None = None,
 ) -> Tenant:
     """
-    Clean up a tenant abandoned in `provisioning` state (Doc 04 §4.2, §5.2 — TN-09).
+    Clean up a tenant abandoned in `provisioning` or `provisioning_failed`
+    state (Doc 04 §4.2, §5.2 — TN-09).
     """
     tenant = Tenant.objects.filter(slug=tenant_slug).first()
     if tenant is None:
@@ -1142,7 +1181,7 @@ def cleanup_abandoned_provisioning(
             status_code=404,
         )
 
-    if tenant.status != "provisioning":
+    if tenant.status not in ("provisioning", "provisioning_failed"):
         raise ProvisioningError(
             code="invalid_state_transition",
             title="Invalid state transition",
@@ -1152,9 +1191,14 @@ def cleanup_abandoned_provisioning(
             ),
             status_code=409,
             errors={
-                "status": [f"Tenant is in '{tenant.status}' state, not 'provisioning'."]
+                "status": [
+                    f"Tenant is in '{tenant.status}' state, not 'provisioning' "
+                    "or 'provisioning_failed'."
+                ]
             },
         )
+
+    previous_status = tenant.status
 
     if not SCHEMA_NAME_REGEX.match(tenant.schema_name):
         raise ValueError(f"Unsafe schema_name '{tenant.schema_name}'")
@@ -1178,7 +1222,7 @@ def cleanup_abandoned_provisioning(
             action="tenant.abandoned_cleaned_up",
             entity_type="tenant",
             entity_id=tenant.id,
-            before_jsonb={"status": "provisioning"},
+            before_jsonb={"status": previous_status},
             after_jsonb={
                 "status": "deleted",
                 "schema_dropped": tenant.schema_name,

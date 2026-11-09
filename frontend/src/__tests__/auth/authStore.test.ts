@@ -9,6 +9,7 @@
  */
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import { useAuthStore } from "@/features/auth/authStore";
+import { getSession } from "@/lib/sessionBridge";
 import type {
   AuthService,
   AuthUser,
@@ -279,6 +280,70 @@ describe("LabFlow AuthStore (Doc 07 §5.2)", () => {
       expect(state.accessToken).toBeNull();
       expect(state.user).toBeNull();
       expect(state.isAuthenticated).toBe(false);
+    });
+  });
+
+  describe("Staff Session Bridge & Silent Refresh Binding", () => {
+    it("registers staff session binding that reflects in-memory access token", () => {
+      const binding = getSession("staff");
+      expect(binding).not.toBeNull();
+
+      expect(binding?.getAccessToken()).toBeNull();
+      useAuthStore.getState().setSession("staff_token_xyz", mockUser);
+      expect(binding?.getAccessToken()).toBe("staff_token_xyz");
+    });
+
+    it("binding.refresh() calls /api/v1/auth/refresh and updates access token", async () => {
+      useAuthStore.getState().setSession("old_access_token", mockUser);
+
+      global.fetch = vi.fn().mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          access: "new_rotated_access_token",
+          expires_in: 900,
+        }),
+      });
+
+      const binding = getSession("staff");
+      const refreshedToken = await binding?.refresh();
+
+      expect(refreshedToken).toBe("new_rotated_access_token");
+      expect(useAuthStore.getState().accessToken).toBe(
+        "new_rotated_access_token",
+      );
+      // Original user preserved without inventing fallback
+      expect(useAuthStore.getState().user).toEqual(mockUser);
+      expect(global.fetch).toHaveBeenCalledWith("/api/v1/auth/refresh", {
+        method: "POST",
+        credentials: "include",
+      });
+    });
+
+    it("binding.onExpired() clears session and redirects to /login?reason=session_expired", () => {
+      const origLocation = window.location;
+      Object.defineProperty(window, "location", {
+        value: {
+          pathname: "/patients",
+          search: "",
+          href: "http://localhost/patients",
+        },
+        writable: true,
+        configurable: true,
+      });
+
+      useAuthStore.getState().setSession("active_token", mockUser);
+      const binding = getSession("staff");
+      binding?.onExpired();
+
+      expect(useAuthStore.getState().accessToken).toBeNull();
+      expect(useAuthStore.getState().isAuthenticated).toBe(false);
+      expect(window.location.href).toBe("/login?reason=session_expired");
+
+      Object.defineProperty(window, "location", {
+        value: origLocation,
+        writable: true,
+        configurable: true,
+      });
     });
   });
 });

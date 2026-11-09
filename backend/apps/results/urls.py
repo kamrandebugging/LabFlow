@@ -7,7 +7,9 @@ from apps.results.views import (
     CriticalNotificationView,
     ResultAmendView,
     ResultApproveView,
+    ResultDetailView,
     ResultEntryView,
+    ResultListView,
     ResultWithdrawView,
 )
 
@@ -21,6 +23,18 @@ urlpatterns = [
         "samples/<uuid:sample_id>/results/",
         ResultEntryView.as_view(),
         name="result-entry-slash",
+    ),
+    path("results", ResultListView.as_view(), name="result-list"),
+    path("results/", ResultListView.as_view(), name="result-list-slash"),
+    path(
+        "results/<uuid:result_id>",
+        ResultDetailView.as_view(),
+        name="result-detail",
+    ),
+    path(
+        "results/<uuid:result_id>/",
+        ResultDetailView.as_view(),
+        name="result-detail-slash",
     ),
     path(
         "results/<uuid:result_id>/approve",

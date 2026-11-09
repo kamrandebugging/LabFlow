@@ -7,9 +7,10 @@ KAN-138 / LAB-22).
 
 from typing import Any
 
+from django.utils import timezone
 from rest_framework import serializers
 
-from apps.samples.models import Sample
+from apps.samples.models import Sample, SampleTest
 
 
 def _reject_unknown_fields(
@@ -54,6 +55,149 @@ class SampleSerializer(serializers.Serializer):
     )
 
 
+class SampleListSerializer(serializers.Serializer):
+    """List serializer for GET /api/v1/samples satisfying SampleSummary."""
+
+    id = serializers.UUIDField(read_only=True)
+    accession_id = serializers.CharField(read_only=True)
+    invoice_id = serializers.UUIDField(source="invoice.id", read_only=True)
+    patient_id = serializers.UUIDField(source="invoice.patient.id", read_only=True)
+    patient_name = serializers.CharField(source="invoice.patient.name", read_only=True)
+    patient_mrn = serializers.CharField(source="invoice.patient.mrn", read_only=True)
+    patient_sex = serializers.CharField(
+        source="invoice.patient.sex", allow_null=True, required=False, read_only=True
+    )
+    patient_age_years = serializers.SerializerMethodField()
+    branch_id = serializers.UUIDField(source="branch.id", read_only=True)
+    branch_name = serializers.CharField(source="branch.name", read_only=True)
+    status = serializers.CharField(read_only=True)
+    tests = serializers.SerializerMethodField()
+    collected_at = serializers.DateTimeField(read_only=True)
+    age_display = serializers.SerializerMethodField()
+    rejection_reason_code = serializers.CharField(
+        allow_null=True, required=False, read_only=True
+    )
+    rejection_note = serializers.CharField(
+        allow_null=True, required=False, read_only=True
+    )
+
+    def get_patient_age_years(self, obj: Sample) -> int | None:
+        patient = getattr(getattr(obj, "invoice", None), "patient", None)
+        if not patient or not patient.date_of_birth:
+            return None
+        today = timezone.localdate()
+        dob = patient.date_of_birth
+        return today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
+
+    def get_age_display(self, obj: Sample) -> str | None:
+        patient = getattr(getattr(obj, "invoice", None), "patient", None)
+        if not patient or not patient.date_of_birth:
+            return None
+        collected_on = (
+            timezone.localtime(obj.collected_at).date()
+            if obj.collected_at
+            else timezone.localdate()
+        )
+        days = (collected_on - patient.date_of_birth).days
+        if days < 0:
+            return None
+        if days < 30:
+            return f"{days}d"
+        months = days // 30
+        if months < 24:
+            return f"{months}m"
+        return f"{months // 12}y"
+
+    def get_tests(self, obj: Sample) -> list[str]:
+        return [
+            st.test.name
+            for st in obj.sample_tests.all()
+            if getattr(st, "test", None) and getattr(st.test, "name", None)
+        ]
+
+
+class SampleTestItemSerializer(serializers.ModelSerializer[SampleTest]):
+    test_id = serializers.UUIDField(source="test.id")
+    test_name = serializers.CharField(source="test.name")
+    test_code = serializers.CharField(source="test.code")
+    invoice_item_id = serializers.UUIDField(source="invoice_item.id")
+    category = serializers.CharField(source="test.category", allow_null=True)
+    unit = serializers.SerializerMethodField()
+    reference_range = serializers.SerializerMethodField()
+    panel_codes = serializers.SerializerMethodField()
+
+    class Meta:
+        model = SampleTest
+        fields = [
+            "id",
+            "test_id",
+            "test_name",
+            "test_code",
+            "invoice_item_id",
+            "category",
+            "unit",
+            "reference_range",
+            "panel_codes",
+        ]
+
+    def _resolve_range(self, obj: SampleTest) -> Any:
+        from apps.catalog.services import CatalogService
+
+        sample = obj.sample
+        patient = sample.invoice.patient
+        dob = patient.date_of_birth
+        age_days = (sample.collected_at.date() - dob).days if dob is not None else None
+        return CatalogService.resolve_reference_range(
+            test_id=obj.test_id,
+            patient_sex=patient.sex,
+            patient_age_days=age_days,
+            collection_date=sample.collected_at,
+        )
+
+    def get_unit(self, obj: SampleTest) -> str | None:
+        resolved = self._resolve_range(obj)
+        return resolved.unit if resolved is not None else obj.test.unit
+
+    def get_reference_range(self, obj: SampleTest) -> dict[str, Any] | None:
+        resolved = self._resolve_range(obj)
+        if resolved is None:
+            return None
+        return {
+            "low": str(resolved.low) if resolved.low is not None else None,
+            "high": str(resolved.high) if resolved.high is not None else None,
+            "unit": resolved.unit,
+            "critical_low": (
+                str(resolved.critical_low)
+                if resolved.critical_low is not None
+                else None
+            ),
+            "critical_high": (
+                str(resolved.critical_high)
+                if resolved.critical_high is not None
+                else None
+            ),
+        }
+
+    def get_panel_codes(self, obj: SampleTest) -> list[str]:
+        from apps.catalog.models import Panel
+
+        return sorted(
+            Panel.objects.filter(panel_tests__test_id=obj.test_id).values_list(
+                "code", flat=True
+            )
+        )
+
+
+class SampleDetailSerializer(SampleListSerializer):
+    patient_dob = serializers.DateField(
+        source="invoice.patient.date_of_birth", allow_null=True, required=False
+    )
+    collected_by = serializers.CharField(
+        source="collected_by.email", allow_null=True, required=False
+    )
+    sample_tests = SampleTestItemSerializer(many=True, read_only=True)
+
+
 class SampleLabelSerializer(serializers.Serializer):
     """GET /api/v1/samples/{id}/label — stored-data payload (SM-4)."""
 
@@ -63,6 +207,8 @@ class SampleLabelSerializer(serializers.Serializer):
     date_of_birth = serializers.CharField(allow_null=True)
     collected_at = serializers.CharField()
     collected_by = serializers.EmailField(allow_null=True)
+    branch_name = serializers.CharField()
+    tests = serializers.ListField(child=serializers.CharField())
     barcode = serializers.DictField()
 
 
