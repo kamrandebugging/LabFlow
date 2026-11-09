@@ -14,7 +14,7 @@ matching this cache's ``KEY_PREFIX``/version. Combined with the per-worker
 the worker that issued them.
 """
 
-from typing import Any
+from typing import Any, cast
 
 from django.core.cache.backends.redis import RedisCache
 
@@ -23,7 +23,7 @@ class ScopedRedisCache(RedisCache):
     """``RedisCache`` whose ``clear()`` only removes this cache's own keys."""
 
     def clear(self) -> None:
-        client: Any = self._cache.get_client(None, write=True)  # type: ignore[attr-defined]
+        client: Any = cast(Any, self._cache).get_client(None, write=True)
         pattern = self.make_key("*")
         keys = list(client.scan_iter(match=pattern, count=1000))
         if keys:
