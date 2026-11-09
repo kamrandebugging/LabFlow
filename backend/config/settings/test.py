@@ -119,11 +119,21 @@ os.environ.setdefault("REDIS_URL", REDIS_URL)
 
 CACHES: dict[str, dict[str, Any]] = {  # type: ignore[no-redef]
     "default": {
-        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        # Test-only backend: clear() is prefix-scoped instead of FLUSHDB, so a
+        # worker's autouse cache.clear() cannot wipe another worker's keys.
+        "BACKEND": "config.test_cache.ScopedRedisCache",
         "LOCATION": REDIS_URL,
         "KEY_PREFIX": "labflow_test",
     }
 }
+
+# Isolate the cache per pytest-xdist worker. Many test modules clear the cache
+# in autouse fixtures, and one shared Redis DB means a clear on one worker wipes
+# another worker's in-flight challenge/throttle keys mid-test (observed as
+# flaky 401s in the platform TOTP and login-throttle tests).
+_WORKER_SUFFIX = os.environ.get("PYTEST_XDIST_WORKER", "main")
+for _cache_config in CACHES.values():
+    _cache_config["KEY_PREFIX"] = f"{_cache_config['KEY_PREFIX']}_{_WORKER_SUFFIX}"
 
 # Celery eager mode during tests
 CELERY_TASK_ALWAYS_EAGER = True
