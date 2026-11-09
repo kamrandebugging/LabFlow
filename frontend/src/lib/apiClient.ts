@@ -103,6 +103,17 @@ async function refreshOnce(kind: SessionKind): Promise<string | null> {
   return pending;
 }
 
+/**
+ * Refresh a session through the same single-flight promise used by the 401
+ * retry path, so concurrent callers (boot gate double-mount, parallel 401s)
+ * never present the same rotating refresh token twice.
+ */
+export function refreshSession(
+  kind: SessionKind = "staff",
+): Promise<string | null> {
+  return refreshOnce(kind);
+}
+
 function buildUrl(path: string, query?: RequestOptions["query"]): string {
   const url = path.startsWith("/api/") ? path : `${API_PREFIX}${path}`;
   if (!query) return url;

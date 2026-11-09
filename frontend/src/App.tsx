@@ -9,6 +9,7 @@ import {
   useParams,
 } from "react-router-dom";
 import { useAuthStore } from "./features/auth/authStore";
+import { refreshSession } from "./lib/apiClient";
 import { StaffLoginScreen } from "./features/auth/StaffLoginScreen";
 import { TenantEnrollScreen } from "./features/auth/TenantEnrollScreen";
 import { TwoFactorAuthScreen } from "./features/auth/TwoFactorAuthScreen";
@@ -49,6 +50,7 @@ import {
   TenantSettingsScreen,
   DataExportScreen,
 } from "./features/settings";
+import { settingsService } from "./features/settings/settingsService";
 import {
   PartnersListScreen,
   PartnerDetailScreen,
@@ -200,12 +202,40 @@ function PatientListWrapper(): JSX.Element {
 
 function RegisterPatientWrapper(): JSX.Element {
   const navigate = useNavigate();
+  const [branchId, setBranchId] = useState<string | null>(null);
+  const [branchError, setBranchError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    settingsService
+      .getBranches()
+      .then((branches) => {
+        if (!active) return;
+        const first = branches[0]?.id;
+        if (first) setBranchId(first);
+        else setBranchError("No active branch is available for registration.");
+      })
+      .catch(() => {
+        if (active) setBranchError("Could not load the branch list.");
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
   return (
     <main className="min-h-screen bg-slate-50 py-6">
-      <RegisterPatientScreen
-        onCancel={() => navigate("/patients")}
-        onSuccess={() => navigate("/patients")}
-      />
+      {branchId ? (
+        <RegisterPatientScreen
+          branchId={branchId}
+          onCancel={() => navigate("/patients")}
+          onSuccess={() => navigate("/patients")}
+        />
+      ) : (
+        <div className="max-w-2xl mx-auto p-6 text-sm text-slate-600">
+          {branchError ?? "Loading branch…"}
+        </div>
+      )}
     </main>
   );
 }
@@ -584,19 +614,10 @@ function App(): JSX.Element {
       };
     }
 
-    fetch("/api/v1/auth/refresh", {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: "{}",
-    })
-      .then(async (res) => (res.ok ? await res.json() : null))
-      .then((data) => {
+    refreshSession("staff")
+      .then((token) => {
         if (!active) return;
-        if (data?.access) {
-          useAuthStore.getState().setSession(data.access, data.user ?? null);
-          return;
-        }
+        if (token) return;
         const path = window.location.pathname;
         const isPublicRoute =
           path.startsWith("/login") ||
