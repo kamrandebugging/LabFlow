@@ -6,7 +6,6 @@ from typing import cast
 
 from django.conf import settings
 from django.contrib.auth.hashers import make_password
-from django.core.cache import cache
 from django.db import transaction
 from rest_framework import permissions, status
 from rest_framework.request import Request
@@ -202,10 +201,10 @@ class LoginView(APIView):
                 payload["user_id"], tenant_id=tenant_id
             )
             clean_email = email.strip().lower()
-            cache.set(
-                f"auth:challenge_email:{clean_email}",
+            AuthService.store_challenge_for_email(
+                clean_email,
                 challenge_token,
-                timeout=FIVE_MINUTES_SECONDS,
+                tenant_id=tenant_id,
             )
             response = Response(
                 {
@@ -593,14 +592,16 @@ class TotpVerifyView(APIView):
 
     def post(self, request: Request) -> Response:
         data = request.data if isinstance(request.data, dict) else {}
+        tenant_id = _get_tenant_id(request)
         challenge_token = request.COOKIES.get(CHALLENGE_COOKIE_NAME) or data.get(
             "challenge_token"
         )
         if not challenge_token:
             email_param = data.get("email") or request.query_params.get("email")
             if email_param:
-                challenge_token = cache.get(
-                    f"auth:challenge_email:{str(email_param).strip().lower()}"
+                challenge_token = AuthService.get_challenge_for_email(
+                    str(email_param),
+                    tenant_id=tenant_id,
                 )
 
         if not challenge_token:
@@ -629,7 +630,6 @@ class TotpVerifyView(APIView):
         code = serializer.validated_data["code"]
         ip = _get_client_ip(request)
         user_agent = request.META.get("HTTP_USER_AGENT", "")
-        tenant_id = _get_tenant_id(request)
 
         success, payload, err_code = AuthService.verify_totp_challenge(
             challenge_token=challenge_token,

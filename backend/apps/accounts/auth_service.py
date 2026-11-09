@@ -524,6 +524,35 @@ class AuthService:
         cache.set(cache_key, data, timeout=300)
         return challenge_token
 
+    @staticmethod
+    def _challenge_email_key(email: str, tenant_id: str | None) -> str:
+        """Cache key for the challenge issued to a (tenant, email) pair."""
+        return f"auth:challenge_email:{tenant_id or 'public'}:{email.strip().lower()}"
+
+    @classmethod
+    def store_challenge_for_email(
+        cls,
+        email: str,
+        challenge_token: str,
+        tenant_id: str | None = None,
+    ) -> None:
+        """Remember the latest challenge for a (tenant, email) pair (Doc 08 §4.4)."""
+        cache.set(
+            cls._challenge_email_key(email, tenant_id),
+            challenge_token,
+            timeout=300,
+        )
+
+    @classmethod
+    def get_challenge_for_email(
+        cls,
+        email: str,
+        tenant_id: str | None = None,
+    ) -> str | None:
+        """Look up the challenge issued to a (tenant, email) pair, if any."""
+        value = cache.get(cls._challenge_email_key(email, tenant_id))
+        return value if isinstance(value, str) else None
+
     @classmethod
     def enroll_totp(cls, user: StaffUser) -> tuple[str, str]:
         """Generate or reuse pending secret and otpauth URI (Doc 08 §4.4, §17 A-25).

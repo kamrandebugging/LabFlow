@@ -942,7 +942,8 @@ def execute_step_p8_create_owner(
     tenant: Tenant, _state: ProvisioningStateSnapshot
 ) -> None:
     """
-    P-8: Create inactive Lab Owner and hashed activation token (Doc 04 §5 P-8).
+    P-8: Create Lab Owner (active, temporary master password) and hashed
+    activation token (Doc 04 §5 P-8).
     """
     _verify_tenant_schema_identity(tenant)
     _set_schema_to_public()
@@ -1168,7 +1169,8 @@ def cleanup_abandoned_provisioning(
     actor_id: uuid.UUID | None = None,
 ) -> Tenant:
     """
-    Clean up a tenant abandoned in `provisioning` state (Doc 04 §4.2, §5.2 — TN-09).
+    Clean up a tenant abandoned in `provisioning` or `provisioning_failed`
+    state (Doc 04 §4.2, §5.2 — TN-09).
     """
     tenant = Tenant.objects.filter(slug=tenant_slug).first()
     if tenant is None:
@@ -1179,7 +1181,7 @@ def cleanup_abandoned_provisioning(
             status_code=404,
         )
 
-    if tenant.status != "provisioning":
+    if tenant.status not in ("provisioning", "provisioning_failed"):
         raise ProvisioningError(
             code="invalid_state_transition",
             title="Invalid state transition",
@@ -1189,9 +1191,14 @@ def cleanup_abandoned_provisioning(
             ),
             status_code=409,
             errors={
-                "status": [f"Tenant is in '{tenant.status}' state, not 'provisioning'."]
+                "status": [
+                    f"Tenant is in '{tenant.status}' state, not 'provisioning' "
+                    "or 'provisioning_failed'."
+                ]
             },
         )
+
+    previous_status = tenant.status
 
     if not SCHEMA_NAME_REGEX.match(tenant.schema_name):
         raise ValueError(f"Unsafe schema_name '{tenant.schema_name}'")
@@ -1215,7 +1222,7 @@ def cleanup_abandoned_provisioning(
             action="tenant.abandoned_cleaned_up",
             entity_type="tenant",
             entity_id=tenant.id,
-            before_jsonb={"status": "provisioning"},
+            before_jsonb={"status": previous_status},
             after_jsonb={
                 "status": "deleted",
                 "schema_dropped": tenant.schema_name,
