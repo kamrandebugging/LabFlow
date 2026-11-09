@@ -105,8 +105,8 @@ class AuthService:
             return False, None, "invalid_credentials"
 
         # Check TOTP requirements (Doc 01 §14, Doc 08 §4.1)
-        totp_mandated = (
-            user.role in MANDATORY_TOTP_ROLES and not getattr(settings, "DEBUG", False)
+        totp_mandated = user.role in MANDATORY_TOTP_ROLES and not getattr(
+            settings, "DEBUG", False
         )
 
         if user.totp_enabled:
@@ -156,6 +156,19 @@ class AuthService:
 
         from django.db import connection
 
+        target_schema = getattr(connection, "schema_name", None)
+        if not target_schema or target_schema == "public":
+            if tenant_id:
+                from apps.core.models import Tenant
+
+                t = (
+                    Tenant.objects.filter(slug=tenant_id).first()
+                    or Tenant.objects.filter(schema_name=tenant_id).first()
+                )
+                target_schema = t.schema_name if t else tenant_id
+            else:
+                target_schema = "public"
+
         tenant_slug = (
             tenant_id or getattr(connection, "schema_name", "tenant") or "tenant"
         )
@@ -175,7 +188,7 @@ class AuthService:
             session_id=session_id,
         )
 
-        with schema_context(tenant_slug):
+        with schema_context(target_schema):
             branch_ids = [str(sb.branch_id) for sb in user.staff_branches.all()]
         if user.branch_id and str(user.branch_id) not in branch_ids:
             branch_ids.append(str(user.branch_id))
@@ -494,9 +507,7 @@ class AuthService:
         return Fernet(key)
 
     @classmethod
-    def create_totp_challenge(
-        cls, user_id: str, tenant_id: str | None = None
-    ) -> str:
+    def create_totp_challenge(cls, user_id: str, tenant_id: str | None = None) -> str:
         """Create a 5-minute TOTP challenge in Redis tracking attempts (Doc 08 §4.4)."""
         challenge_token = str(uuid.uuid4())
         cache_key = f"auth:challenge:{challenge_token}"

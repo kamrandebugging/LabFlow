@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Loader2,
@@ -36,6 +36,25 @@ export function StaffLoginScreen({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showResetNotice, setShowResetNotice] = useState(false);
+  const [sessionExpiredNotice, setSessionExpiredNotice] = useState<boolean>(
+    () => {
+      if (typeof window === "undefined") return false;
+      const params = new URLSearchParams(window.location.search);
+      return params.get("reason") === "session_expired";
+    },
+  );
+
+  useEffect(() => {
+    if (sessionExpiredNotice && typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("reason");
+      window.history.replaceState(
+        {},
+        document.title,
+        url.pathname + (url.search ? url.search : ""),
+      );
+    }
+  }, [sessionExpiredNotice]);
 
   const handleSubmit = async (
     e: React.FormEvent<HTMLFormElement>,
@@ -158,6 +177,27 @@ export function StaffLoginScreen({
               )}
             </div>
           </section>
+        )}
+
+        {/* Session Expired Notice */}
+        {sessionExpiredNotice && (
+          <div
+            role="status"
+            className="mb-4 flex items-center justify-between gap-2 py-2.5 px-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-lg text-xs font-medium"
+          >
+            <div className="flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0" />
+              <span>Your session has expired. Please sign in again.</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setSessionExpiredNotice(false)}
+              className="text-amber-700 hover:text-amber-900 font-semibold"
+              aria-label="Dismiss session expired alert"
+            >
+              ✕
+            </button>
+          </div>
         )}
 
         {/* Login Form */}

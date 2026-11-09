@@ -306,8 +306,34 @@ describe("Screen 22: Result Entry (/results/entry/:sampleId)", () => {
       await screen.findByText(/Access Denied · Role Restricted/i),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/Only Technician or Pathologist may enter results/i),
+      screen.getByText(/Only Technician, Pathologist, or Owner may enter results/i),
     ).toBeInTheDocument();
+  });
+
+  it("allows owner superrole to access result entry", async () => {
+    useAuthStore.setState({
+      isAuthenticated: true,
+      user: {
+        id: "usr-owner-01",
+        email: "owner@labflow.pk",
+        name: "Lab Owner",
+        role: "owner",
+        branch_ids: ["br-01"],
+      },
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/results/entry/smp-001"]}>
+        <Routes>
+          <Route
+            path="/results/entry/:sampleId"
+            element={<ResultEntryScreen />}
+          />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText("Muhammad Imran")).toBeInTheDocument();
   });
 });
 
@@ -504,6 +530,32 @@ describe("Screen 23: Approvals Queue (/results/approvals)", () => {
         note: "Specimen clotted. Recollect required.",
       });
     });
+  });
+
+  it("allows owner superrole to access approvals queue", async () => {
+    useAuthStore.setState({
+      isAuthenticated: true,
+      user: {
+        id: "usr-owner-01",
+        email: "owner@labflow.pk",
+        name: "Lab Owner",
+        role: "owner",
+        branch_ids: ["br-01"],
+      },
+    });
+
+    vi.mocked(resultsService.getApprovalsQueue).mockResolvedValueOnce([]);
+
+    render(
+      <MemoryRouter initialEntries={["/results/approvals"]}>
+        <Routes>
+          <Route path="/results/approvals" element={<ApprovalsQueueScreen />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText(/Approvals queue/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Access Denied/i)).not.toBeInTheDocument();
   });
 });
 

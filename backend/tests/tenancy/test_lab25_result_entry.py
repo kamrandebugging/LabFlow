@@ -250,7 +250,7 @@ def test_t26_roles_only_technician_and_pathologist(
     for user_key, expected in [
         ("technician", 201),
         ("pathologist", 201),
-        ("owner", 403),
+        ("owner", 201),
         ("manager", 403),
         ("receptionist", 403),
     ]:

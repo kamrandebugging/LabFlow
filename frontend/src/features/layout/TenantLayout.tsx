@@ -17,7 +17,7 @@ export function TenantLayout(): ReactElement {
 
   const [tenantName, setTenantName] = useState<string>(() => {
     const sub = getSubdomainTenant();
-    return sub?.name || "City Diagnostic Lab";
+    return sub?.name || "LabFlow";
   });
   const [lang, setLang] = useState<"en" | "ur">("en");
   const [badges, setBadges] = useState({

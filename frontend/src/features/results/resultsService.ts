@@ -11,7 +11,7 @@
  * and filters client-side by status without silent seed-data mock fallback in production.
  */
 
-import { useAuthStore } from "../auth/authStore";
+import { apiRequest } from "../../lib/apiClient";
 import { sampleService } from "../samples/sampleService";
 import type { SampleSummary } from "../samples/types";
 import type {
@@ -28,40 +28,6 @@ import type {
   WorklistItem,
 } from "./types";
 
-function getAuthHeaders(
-  extraHeaders: Record<string, string> = {},
-): Record<string, string> {
-  const token = useAuthStore.getState().accessToken;
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-    ...extraHeaders,
-  };
-  if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
-  }
-  return headers;
-}
-
-async function handleResponse<T>(res: Response): Promise<T> {
-  if (!res.ok) {
-    let errorMsg = `Server error (${res.status})`;
-    try {
-      const data = await res.json();
-      if (data?.error?.message) {
-        errorMsg = data.error.message;
-      } else if (data?.message) {
-        errorMsg = data.message;
-      } else if (data?.detail) {
-        errorMsg = data.detail;
-      }
-    } catch {
-      // Non-JSON error
-    }
-    throw new Error(errorMsg);
-  }
-  return res.json() as Promise<T>;
-}
-
 function calculateWaitingDisplay(isoTimestamp?: string): string {
   if (!isoTimestamp) return "0m";
   const diffMs = Date.now() - new Date(isoTimestamp).getTime();
@@ -75,93 +41,92 @@ function calculateWaitingDisplay(isoTimestamp?: string): string {
 export const resultsService = {
   /**
    * Screen 22: Submit batch results for a sample (POST /api/v1/samples/<sample_id>/results).
-   * Roles: Technician, Pathologist.
+   * Roles: Technician, Pathologist, Owner.
    */
   async submitResults(
     sampleId: string,
     results: ResultRowInput[],
   ): Promise<BatchResultEntryResponse> {
-    const res = await fetch(`/api/v1/samples/${sampleId}/results`, {
-      method: "POST",
-      headers: getAuthHeaders(),
-      body: JSON.stringify({ results }),
-    });
-    return handleResponse<BatchResultEntryResponse>(res);
+    return apiRequest<BatchResultEntryResponse>(
+      `/samples/${sampleId}/results`,
+      {
+        method: "POST",
+        body: { results },
+      },
+    );
   },
 
   /**
-   * Screen 23 / 24: Pathologist approval/rejection (POST /api/v1/results/<result_id>/approve).
-   * Roles: Pathologist only.
+   * Screen 23 / 24: Pathologist/Owner approval/rejection (POST /api/v1/results/<result_id>/approve).
+   * Roles: Pathologist, Owner.
    */
   async approveResult(
     resultId: string,
     input: ResultApprovalInput,
   ): Promise<ResultApprovalResponse> {
-    const res = await fetch(`/api/v1/results/${resultId}/approve`, {
-      method: "POST",
-      headers: getAuthHeaders(),
-      body: JSON.stringify({
-        decision: input.decision,
-        note: input.note?.trim() || undefined,
-        range_override: Boolean(input.range_override),
-      }),
-    });
-    return handleResponse<ResultApprovalResponse>(res);
+    return apiRequest<ResultApprovalResponse>(
+      `/results/${resultId}/approve`,
+      {
+        method: "POST",
+        body: {
+          decision: input.decision,
+          note: input.note?.trim() || undefined,
+          range_override: Boolean(input.range_override),
+        },
+      },
+    );
   },
 
   /**
    * Screen 25: Amend an approved result (POST /api/v1/results/<result_id>/amend).
-   * Roles: Technician, Pathologist.
+   * Roles: Technician, Pathologist, Owner.
    */
   async amendResult(
     resultId: string,
     input: ResultAmendInput,
   ): Promise<ResultAmendResponse> {
-    const res = await fetch(`/api/v1/results/${resultId}/amend`, {
+    return apiRequest<ResultAmendResponse>(`/results/${resultId}/amend`, {
       method: "POST",
-      headers: getAuthHeaders(),
-      body: JSON.stringify({
+      body: {
         value: input.value.trim(),
         unit: input.unit?.trim() || undefined,
         reason: input.reason.trim(),
-      }),
+      },
     });
-    return handleResponse<ResultAmendResponse>(res);
   },
 
   /**
    * Screen 24: Author withdrawal of entered result (POST /api/v1/results/<result_id>/withdraw).
-   * Roles: Technician, Pathologist (author only).
+   * Roles: Technician, Pathologist, Owner (author only).
    */
   async withdrawResult(
     resultId: string,
     reason?: string,
   ): Promise<{ id: string; status: "withdrawn" }> {
-    const res = await fetch(`/api/v1/results/${resultId}/withdraw`, {
-      method: "POST",
-      headers: getAuthHeaders(),
-      body: JSON.stringify(reason ? { reason } : {}),
-    });
-    return handleResponse<{ id: string; status: "withdrawn" }>(res);
+    return apiRequest<{ id: string; status: "withdrawn" }>(
+      `/results/${resultId}/withdraw`,
+      {
+        method: "POST",
+        body: reason ? { reason } : {},
+      },
+    );
   },
 
   /**
    * Screen 24: Critical notification audit record (POST /api/v1/results/<result_id>/critical-notifications).
-   * Roles: Manager, Pathologist.
+   * Roles: Manager, Pathologist, Owner.
    */
   async recordCriticalNotification(
     resultId: string,
     input: CriticalNotificationInput,
   ): Promise<CriticalNotificationResponse> {
-    const res = await fetch(
-      `/api/v1/results/${resultId}/critical-notifications`,
+    return apiRequest<CriticalNotificationResponse>(
+      `/results/${resultId}/critical-notifications`,
       {
         method: "POST",
-        headers: getAuthHeaders(),
-        body: JSON.stringify(input),
+        body: input,
       },
     );
-    return handleResponse<CriticalNotificationResponse>(res);
   },
 
   /**
@@ -217,7 +182,7 @@ export const resultsService = {
   },
 
   /**
-   * Screen 23: Pathologist Approvals Queue.
+   * Screen 23: Pathologist / Owner Approvals Queue.
    * Derived from real samples with status in_process / ready.
    * Renders an honest empty state when no items are pending.
    */
@@ -273,7 +238,6 @@ export const resultsService = {
    * corresponding sample; returns null if not found (UI shows honest not-found/error state).
    */
   async getResultDetail(resultId: string): Promise<ResultDetailRecord | null> {
-    // Attempt to query or locate sample
     const sampleId =
       (resultId.includes("-res-") ? resultId.split("-res-")[0] : resultId) ||
       resultId;
@@ -282,7 +246,8 @@ export const resultsService = {
       if (!sample) return null;
 
       const test = sample.sample_tests?.[0];
-      const testName = test?.test_name || sample.tests?.[0] || "Diagnostic Test";
+      const testName =
+        test?.test_name || sample.tests?.[0] || "Diagnostic Test";
 
       return {
         id: resultId,

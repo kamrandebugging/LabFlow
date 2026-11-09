@@ -77,7 +77,7 @@ class ResultEntryView(APIView):
             return Response(
                 _format_error(
                     "forbidden",
-                    "Only Technician or Pathologist may enter results.",
+                    "Only Technician, Pathologist, or Owner may enter results.",
                 ),
                 status=status.HTTP_403_FORBIDDEN,
             )
@@ -127,7 +127,7 @@ class ResultApproveView(APIView):
             return Response(
                 _format_error(
                     "forbidden",
-                    "Only a Pathologist may approve results.",
+                    "Only a Pathologist or Owner may approve results.",
                 ),
                 status=status.HTTP_403_FORBIDDEN,
             )

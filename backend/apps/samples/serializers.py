@@ -10,7 +10,7 @@ from typing import Any
 from django.utils import timezone
 from rest_framework import serializers
 
-from apps.samples.models import Sample
+from apps.samples.models import Sample, SampleTest
 
 
 def _reject_unknown_fields(
@@ -114,6 +114,33 @@ class SampleListSerializer(serializers.Serializer):
             for st in obj.sample_tests.all()  # type: ignore[attr-defined]
             if getattr(st, "test", None) and getattr(st.test, "name", None)
         ]
+
+
+class SampleTestItemSerializer(serializers.ModelSerializer[SampleTest]):
+    test_id = serializers.UUIDField(source="test.id")
+    test_name = serializers.CharField(source="test.name")
+    test_code = serializers.CharField(source="test.code")
+    invoice_item_id = serializers.UUIDField(source="invoice_item.id")
+
+    class Meta:
+        model = SampleTest
+        fields = [
+            "id",
+            "test_id",
+            "test_name",
+            "test_code",
+            "invoice_item_id",
+        ]
+
+
+class SampleDetailSerializer(SampleListSerializer):
+    patient_dob = serializers.DateField(
+        source="invoice.patient.date_of_birth", allow_null=True, required=False
+    )
+    collected_by = serializers.CharField(
+        source="collected_by.email", allow_null=True, required=False
+    )
+    sample_tests = SampleTestItemSerializer(many=True, read_only=True)
 
 
 class SampleLabelSerializer(serializers.Serializer):

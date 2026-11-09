@@ -115,6 +115,8 @@ def test_get_setting_falls_back_to_default_when_no_row(tenant_a: Any) -> None:
         assert get_setting("billing_hold_enabled") is False
         assert get_setting("report_default_language") == "en"
         assert get_setting("report_link_validity_days") == 7
+        TenantSetting.objects.filter(key="brand_display_name").delete()
+        assert get_setting("brand_display_name") == tenant_a.name
 
 
 @pytest.mark.django_db

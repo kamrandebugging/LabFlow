@@ -384,3 +384,24 @@ class TestSampleLabel:
 
         tech_headers = auth_headers(lab21_setup["technician"])
         assert Client().get(url, headers=tech_headers).status_code == 200
+
+    def test_sample_detail_get_happy_path_and_404(
+        self, tenant_a: Any, lab21_setup: dict[str, Any], auth_headers: Any
+    ) -> None:
+        """GET /api/v1/samples/{id} returns detail with sample_tests."""
+        headers = auth_headers(lab21_setup["receptionist"])
+        created = self._collect_one(tenant_a, lab21_setup, headers)
+
+        resp = Client().get(f"{SAMPLES_URL}/{created['id']}", headers=headers)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["id"] == created["id"]
+        assert data["accession_id"] == created["accession_id"]
+        assert "sample_tests" in data
+        assert len(data["sample_tests"]) >= 1
+        assert "test_id" in data["sample_tests"][0]
+        assert "test_name" in data["sample_tests"][0]
+
+        # 404 for nonexistent sample
+        resp_404 = Client().get(f"{SAMPLES_URL}/{uuid.uuid4()}", headers=headers)
+        assert resp_404.status_code == 404

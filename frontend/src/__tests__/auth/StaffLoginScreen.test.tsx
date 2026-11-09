@@ -351,5 +351,32 @@ describe("Screen 01: Staff Login (01-staff-login.html & Doc 07 §5.1)", () => {
       const submitBtn = screen.getByRole("button", { name: /Sign in/i });
       expect(submitBtn).toBeEnabled();
     });
+
+    it("displays session expired banner when reason=session_expired query param is present", () => {
+      const origLocation = window.location;
+      Object.defineProperty(window, "location", {
+        value: new URL("http://localhost/login?reason=session_expired"),
+        writable: true,
+        configurable: true,
+      });
+
+      render(
+        <StaffLoginScreen
+          authService={mockAuthService}
+          onSuccess={mockOnSuccess}
+          onTotpRequired={mockOnTotpRequired}
+        />,
+      );
+
+      expect(
+        screen.getByText(/Your session has expired\. Please sign in again\./i),
+      ).toBeInTheDocument();
+
+      Object.defineProperty(window, "location", {
+        value: origLocation,
+        writable: true,
+        configurable: true,
+      });
+    });
   });
 });

@@ -23,17 +23,18 @@ from apps.results.engine import evaluate_result, parse_result
 from apps.results.models import CriticalNotification, Result, ResultApproval
 from apps.samples.models import Sample, SampleEvent, SampleTest, SampleTransfer
 
-# Doc 03 §6.6: POST /api/v1/samples/{id}/results — roles cell is exactly "T P".
-RESULT_ENTRY_ROLES = {Role.TECHNICIAN, Role.PATHOLOGIST}
-# Doc 03 §6.6: POST /api/v1/results/{id}/approve — roles cell is exactly "P".
-RESULT_APPROVE_ROLES = {Role.PATHOLOGIST}
-# Doc 03 §6.6: POST /api/v1/results/{id}/withdraw — roles cell "T P (author only)".
-RESULT_WITHDRAW_ROLES = {Role.TECHNICIAN, Role.PATHOLOGIST}
-# Doc 03 §6.6: POST /api/v1/results/{id}/amend — roles cell is exactly "T P".
-RESULT_AMEND_ROLES = {Role.TECHNICIAN, Role.PATHOLOGIST}
+# Doc 03 §6.6: POST /api/v1/samples/{id}/results — roles Technician, Pathologist, Owner.
+RESULT_ENTRY_ROLES = {Role.TECHNICIAN, Role.PATHOLOGIST, Role.OWNER}
+# Doc 03 §6.6: POST /api/v1/results/{id}/approve — roles Pathologist, Owner.
+RESULT_APPROVE_ROLES = {Role.PATHOLOGIST, Role.OWNER}
+# Doc 03 §6.6: POST /api/v1/results/{id}/withdraw — roles Technician,
+# Pathologist, Owner (author only).
+RESULT_WITHDRAW_ROLES = {Role.TECHNICIAN, Role.PATHOLOGIST, Role.OWNER}
+# Doc 03 §6.6: POST /api/v1/results/{id}/amend — roles Technician, Pathologist, Owner.
+RESULT_AMEND_ROLES = {Role.TECHNICIAN, Role.PATHOLOGIST, Role.OWNER}
 # Doc 03 §6.6: POST /api/v1/results/{id}/critical-notifications —
-# roles cell is exactly "M P" (Manager + Pathologist only).
-RESULT_NOTIFY_ROLES = {Role.MANAGER, Role.PATHOLOGIST}
+# roles Manager, Pathologist, Owner.
+RESULT_NOTIFY_ROLES = {Role.MANAGER, Role.PATHOLOGIST, Role.OWNER}
 
 
 class ResultError(Exception):
@@ -522,17 +523,22 @@ class ResultService:
 
             # RS-6 self-approval: the entering pathologist may not approve,
             # unless this tenant has exactly one active pathologist account.
+            # The Owner is a superrole acting as signing authority and may approve
+            # all results including results entered by the Owner.
             # The exception is recorded visibly in audit, never silent.
             audit_note: str | None = None
             if result.entered_by_id == actor.id:
-                active_pathologists = StaffUser.objects.filter(
-                    role=Role.PATHOLOGIST, is_active=True
-                ).count()
-                if active_pathologists != 1:
-                    raise SelfApprovalNotPermittedError(
-                        "A pathologist may not approve a result they entered."
-                    )
-                audit_note = "single_pathologist_self_approval"
+                if actor.role == Role.OWNER:
+                    audit_note = "owner_self_approval"
+                else:
+                    active_pathologists = StaffUser.objects.filter(
+                        role=Role.PATHOLOGIST, is_active=True
+                    ).count()
+                    if active_pathologists != 1:
+                        raise SelfApprovalNotPermittedError(
+                            "A pathologist may not approve a result they entered."
+                        )
+                    audit_note = "single_pathologist_self_approval"
 
             # RS-10: NULL flag on a numeric test with an unparseable value
             # requires a note; qualitative NULL-flag results do not.

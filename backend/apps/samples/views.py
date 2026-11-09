@@ -37,6 +37,7 @@ from apps.samples.models import Sample
 from apps.samples.serializers import (
     SampleCancelSerializer,
     SampleCreateSerializer,
+    SampleDetailSerializer,
     SampleLabelSerializer,
     SampleListSerializer,
     SampleRejectSerializer,
@@ -163,6 +164,39 @@ class SampleCollectionView(BranchScopedAPIView):
                 status=exc.status_code,
             )
         return Response(SampleSerializer(sample).data, status=status.HTTP_201_CREATED)
+
+
+class SampleDetailView(APIView):
+    """GET /api/v1/samples/{id} — full sample detail with sample tests."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request: Request, sample_id: uuid.UUID) -> Response:
+        user = cast(StaffUser, request.user)
+        role = getattr(user, "role", None)
+        if (
+            role is not None
+            and role not in SAMPLE_READ_ROLES
+            and str(role).lower() not in SAMPLE_READ_ROLES
+        ):
+            return Response(
+                _format_error("forbidden", "Role not permitted to view samples."),
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        try:
+            sample = (
+                Sample.objects.select_related(
+                    "invoice__patient", "branch", "collected_by"
+                )
+                .prefetch_related("sample_tests__test")
+                .get(pk=sample_id)
+            )
+        except Sample.DoesNotExist:
+            return Response(
+                _format_error("not_found", "Sample not found."),
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        return Response(SampleDetailSerializer(sample).data, status=status.HTTP_200_OK)
 
 
 class SampleLabelView(APIView):

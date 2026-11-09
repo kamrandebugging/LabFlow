@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { registerSession } from "../../lib/sessionBridge";
 import type {
   AuthStoreState,
   AuthUser,
@@ -29,21 +30,14 @@ export const useAuthStore = create<AuthStoreState>((set) => ({
   isLoading: false,
 
   setSession: (access: string, user?: AuthUser | null) => {
-    const resolvedUser: AuthUser = user || {
-      id: "8a86c9bb-73aa-4326-b6a1-1b06a9500771",
-      email: "owner@labflow.app",
-      name: "Lab Administrator",
-      role: "owner",
-      branch_ids: ["b13d89c6-3cd7-4ed2-a5f0-05dd62826610"],
-    };
-    set({
+    set((state) => ({
       accessToken: access,
-      user: resolvedUser,
+      user: user !== undefined ? user : state.user,
       isAuthenticated: true,
       requiresTotp: false,
       pendingEmail: null,
       error: null,
-    });
+    }));
   },
 
   clear: () => {
@@ -167,3 +161,39 @@ export const useAuthStore = create<AuthStoreState>((set) => ({
     }
   },
 }));
+
+// Register the staff session binding for automatic silent refresh on 401
+registerSession("staff", {
+  getAccessToken: () => useAuthStore.getState().accessToken,
+  refresh: async () => {
+    try {
+      const response = await fetch("/api/v1/auth/refresh", {
+        method: "POST",
+        credentials: "include",
+      });
+      if (!response.ok) {
+        return null;
+      }
+      const data = await response.json();
+      if (!data?.access) {
+        return null;
+      }
+      useAuthStore.getState().setSession(data.access);
+      return data.access;
+    } catch {
+      return null;
+    }
+  },
+  onExpired: () => {
+    useAuthStore.getState().clear();
+    if (typeof window !== "undefined") {
+      const pathname = window.location.pathname;
+      if (
+        !pathname.startsWith("/login") ||
+        window.location.search.indexOf("reason=session_expired") === -1
+      ) {
+        window.location.href = "/login?reason=session_expired";
+      }
+    }
+  },
+});

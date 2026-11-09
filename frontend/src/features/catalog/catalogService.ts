@@ -1,8 +1,8 @@
 /**
- * Diagnostic Catalog API Service (Doc 03 §5.2, §6.3, KAN-118).
+ * Diagnostic Catalog API Service (Doc 03 §5.2, §6.3, KAN-118, KAN-119).
  */
 
-import { useAuthStore } from "../auth/authStore";
+import { apiRequest, ApiError } from "../../lib/apiClient";
 import type {
   CatalogPrice,
   DiagnosticPanel,
@@ -17,96 +17,70 @@ import type {
   TestUpdateInput,
 } from "./types";
 
-const API_BASE = "/api/v1";
-
-function getAuthHeaders(
-  extraHeaders: Record<string, string> = {},
-): Record<string, string> {
-  const token = useAuthStore.getState().accessToken;
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-    ...extraHeaders,
-  };
-  if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
-  }
-  return headers;
-}
-
 export const catalogService = {
   // Tests
   async listTests(
     params: { q?: string; category?: string; isActive?: boolean } = {},
   ): Promise<DiagnosticTest[]> {
-    const url = new URL(`${API_BASE}/tests`, window.location.origin);
-    if (params.q) url.searchParams.set("q", params.q);
-    if (params.category) url.searchParams.set("category", params.category);
+    const query: Record<string, string | number | boolean | null | undefined> =
+      {};
+    if (params.q) query.q = params.q;
+    if (params.category) query.category = params.category;
     if (params.isActive !== undefined) {
-      url.searchParams.set("active", String(params.isActive));
-      url.searchParams.set("is_active", String(params.isActive));
+      query.active = String(params.isActive);
+      query.is_active = String(params.isActive);
     }
 
-    const res = await fetch(url.toString(), {
-      method: "GET",
-      headers: getAuthHeaders(),
-      credentials: "include",
-    });
+    try {
+      const data = await apiRequest<
+        DiagnosticTest[] | { results: DiagnosticTest[] }
+      >("/tests", { query });
 
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(
-        err?.error?.message || `Failed to fetch tests (${res.status})`,
-      );
+      if (Array.isArray(data)) return data;
+      if (data && Array.isArray(data.results)) return data.results;
+      return [];
+    } catch (err) {
+      if (err instanceof ApiError) {
+        throw new Error(err.message || `Failed to fetch tests (${err.status})`);
+      }
+      throw err;
     }
-
-    const data = await res.json();
-    if (Array.isArray(data)) return data;
-    if (data && Array.isArray(data.results)) return data.results;
-    return [];
   },
 
   async getTest(id: string): Promise<DiagnosticTest> {
-    const res = await fetch(`${API_BASE}/tests/${id}`, {
-      method: "GET",
-      headers: getAuthHeaders(),
-      credentials: "include",
-    });
-
-    if (!res.ok) {
-      throw new Error(`Test not found (${res.status})`);
+    try {
+      return await apiRequest<DiagnosticTest>(`/tests/${id}`);
+    } catch (err) {
+      if (err instanceof ApiError) {
+        throw new Error(`Test not found (${err.status})`);
+      }
+      throw err;
     }
-
-    return res.json();
   },
 
   async createTest(input: TestCreateInput): Promise<DiagnosticTest> {
-    const res = await fetch(`${API_BASE}/tests`, {
-      method: "POST",
-      headers: getAuthHeaders(),
-      credentials: "include",
-      body: JSON.stringify({
-        code: input.code,
-        name: input.name,
-        category: input.category || null,
-        unit: input.unit || null,
-        is_active: input.is_active ?? true,
-      }),
-    });
-
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      const code = err?.error?.code || err?.code?.[0];
-      const message =
-        err?.code?.[0] ||
-        err?.name?.[0] ||
-        err?.error?.message ||
-        `Failed to create test (${res.status})`;
-      const error = new Error(String(message));
-      (error as Error & { code?: string }).code = code;
-      throw error;
+    let test: DiagnosticTest;
+    try {
+      test = await apiRequest<DiagnosticTest>("/tests", {
+        method: "POST",
+        body: {
+          code: input.code,
+          name: input.name,
+          category: input.category || null,
+          unit: input.unit || null,
+          is_active: input.is_active ?? true,
+        },
+      });
+    } catch (err) {
+      if (err instanceof ApiError) {
+        const error = new Error(
+          err.message || `Failed to create test (${err.status})`,
+        );
+        (error as Error & { code?: string }).code = err.code ?? undefined;
+        throw error;
+      }
+      throw err;
     }
-
-    const test: DiagnosticTest = await res.json();
 
     // If initial price was supplied, set base price
     if (input.initial_price) {
@@ -131,98 +105,114 @@ export const catalogService = {
     id: string,
     input: TestUpdateInput,
   ): Promise<DiagnosticTest> {
-    const res = await fetch(`${API_BASE}/tests/${id}`, {
-      method: "PATCH",
-      headers: getAuthHeaders(),
-      credentials: "include",
-      body: JSON.stringify(input),
-    });
-
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(
-        err?.name?.[0] ||
-          err?.error?.message ||
-          `Failed to update test (${res.status})`,
-      );
+    try {
+      return await apiRequest<DiagnosticTest>(`/tests/${id}`, {
+        method: "PATCH",
+        body: input,
+      });
+    } catch (err) {
+      if (err instanceof ApiError) {
+        const error = new Error(
+          err.message || `Failed to update test (${err.status})`,
+        );
+        (error as Error & { code?: string }).code = err.code ?? undefined;
+        throw error;
+      }
+      throw err;
     }
-
-    return res.json();
   },
 
-  async getTestPrices(testId: string): Promise<CatalogPrice[]> {
-    const res = await fetch(`${API_BASE}/tests/${testId}/prices`, {
-      method: "GET",
-      headers: getAuthHeaders(),
-      credentials: "include",
-    });
-
-    if (!res.ok) {
-      return [];
+  async deleteTest(id: string): Promise<void> {
+    try {
+      await apiRequest<void>(`/tests/${id}`, {
+        method: "DELETE",
+      });
+    } catch (err) {
+      if (err instanceof ApiError) {
+        throw new Error(err.message || `Delete failed (${err.status})`);
+      }
+      throw err;
     }
+  },
 
-    return res.json();
+  // Test Prices
+  async getTestPrices(testId: string): Promise<CatalogPrice[]> {
+    return this.listTestPrices(testId);
+  },
+
+  async listTestPrices(testId: string): Promise<CatalogPrice[]> {
+    try {
+      const data = await apiRequest<
+        CatalogPrice[] | { results: CatalogPrice[] }
+      >(`/tests/${testId}/prices`);
+      if (Array.isArray(data)) return data;
+      if (data && Array.isArray(data.results)) return data.results;
+      return [];
+    } catch (err) {
+      if (err instanceof ApiError) {
+        throw new Error(
+          err.message || `Failed to fetch test prices (${err.status})`,
+        );
+      }
+      throw err;
+    }
   },
 
   async setTestPrice(
     testId: string,
     input: PriceCreateInput,
   ): Promise<CatalogPrice> {
-    const res = await fetch(`${API_BASE}/tests/${testId}/prices`, {
-      method: "POST",
-      headers: getAuthHeaders(),
-      credentials: "include",
-      body: JSON.stringify(input),
-    });
+    return this.createTestPrice(testId, input);
+  },
 
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(
-        err?.amount?.[0] || `Failed to set price (${res.status})`,
-      );
+  async createTestPrice(
+    testId: string,
+    input: PriceCreateInput,
+  ): Promise<CatalogPrice> {
+    try {
+      return await apiRequest<CatalogPrice>(`/tests/${testId}/prices`, {
+        method: "POST",
+        body: input,
+      });
+    } catch (err) {
+      if (err instanceof ApiError) {
+        throw new Error(err.message || `Failed to set price (${err.status})`);
+      }
+      throw err;
     }
-
-    return res.json();
   },
 
   // Reference ranges (KAN-119)
   async listTestRanges(testId: string): Promise<ReferenceRange[]> {
-    const res = await fetch(`${API_BASE}/tests/${testId}/ranges`, {
-      method: "GET",
-      headers: getAuthHeaders(),
-      credentials: "include",
-    });
-
-    if (!res.ok) {
-      throw new Error(`Failed to load reference ranges (${res.status})`);
+    try {
+      return await apiRequest<ReferenceRange[]>(`/tests/${testId}/ranges`);
+    } catch (err) {
+      if (err instanceof ApiError) {
+        throw new Error(`Failed to load reference ranges (${err.status})`);
+      }
+      throw err;
     }
-
-    return res.json();
   },
 
   async createTestRange(
     testId: string,
     input: ReferenceRangeCreateInput,
   ): Promise<ReferenceRange> {
-    const res = await fetch(`${API_BASE}/tests/${testId}/ranges`, {
-      method: "POST",
-      headers: getAuthHeaders(),
-      credentials: "include",
-      body: JSON.stringify(input),
-    });
-
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      const code = err?.error?.code;
-      const message =
-        err?.error?.message ||
-        `Failed to create reference range (${res.status})`;
-      const error = new Error(String(message));
-      (error as Error & { code?: string }).code = code;
-      throw error;
+    try {
+      return await apiRequest<ReferenceRange>(`/tests/${testId}/ranges`, {
+        method: "POST",
+        body: input,
+      });
+    } catch (err) {
+      if (err instanceof ApiError) {
+        const error = new Error(
+          err.message || `Failed to create reference range (${err.status})`,
+        );
+        (error as Error & { code?: string }).code = err.code ?? undefined;
+        throw error;
+      }
+      throw err;
     }
-
-    return res.json();
   },
 
   async updateTestRange(
@@ -230,93 +220,104 @@ export const catalogService = {
     rangeId: string,
     input: ReferenceRangeUpdateInput,
   ): Promise<ReferenceRange> {
-    const res = await fetch(`${API_BASE}/tests/${testId}/ranges/${rangeId}`, {
-      method: "PATCH",
-      headers: getAuthHeaders(),
-      credentials: "include",
-      body: JSON.stringify(input),
-    });
-
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      const code = err?.error?.code;
-      const message =
-        err?.error?.message ||
-        `Failed to update reference range (${res.status})`;
-      const error = new Error(String(message));
-      (error as Error & { code?: string }).code = code;
-      throw error;
+    try {
+      return await apiRequest<ReferenceRange>(
+        `/tests/${testId}/ranges/${rangeId}`,
+        {
+          method: "PATCH",
+          body: input,
+        },
+      );
+    } catch (err) {
+      if (err instanceof ApiError) {
+        const error = new Error(
+          err.message || `Failed to update reference range (${err.status})`,
+        );
+        (error as Error & { code?: string }).code = err.code ?? undefined;
+        throw error;
+      }
+      throw err;
     }
+  },
 
-    return res.json();
+  async deleteTestRange(testId: string, rangeId: string): Promise<void> {
+    try {
+      await apiRequest<void>(`/tests/${testId}/ranges/${rangeId}`, {
+        method: "DELETE",
+      });
+    } catch (err) {
+      if (err instanceof ApiError) {
+        throw new Error(
+          err.message || `Failed to delete reference range (${err.status})`,
+        );
+      }
+      throw err;
+    }
   },
 
   // Panels
-  async listPanels(params: { q?: string } = {}): Promise<DiagnosticPanel[]> {
-    const url = new URL(`${API_BASE}/panels`, window.location.origin);
-    if (params.q) url.searchParams.set("q", params.q);
-
-    const res = await fetch(url.toString(), {
-      method: "GET",
-      headers: getAuthHeaders(),
-      credentials: "include",
-    });
-
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(
-        err?.error?.message || `Failed to fetch panels (${res.status})`,
-      );
+  async listPanels(
+    params: { q?: string; isActive?: boolean } = {},
+  ): Promise<DiagnosticPanel[]> {
+    const query: Record<string, string | number | boolean | null | undefined> =
+      {};
+    if (params.q) query.q = params.q;
+    if (params.isActive !== undefined) {
+      query.active = String(params.isActive);
+      query.is_active = String(params.isActive);
     }
 
-    const data = await res.json();
-    if (Array.isArray(data)) return data;
-    if (data && Array.isArray(data.results)) return data.results;
-    return [];
+    try {
+      const data = await apiRequest<
+        DiagnosticPanel[] | { results: DiagnosticPanel[] }
+      >("/panels", { query });
+
+      if (Array.isArray(data)) return data;
+      if (data && Array.isArray(data.results)) return data.results;
+      return [];
+    } catch (err) {
+      if (err instanceof ApiError) {
+        throw new Error(
+          err.message || `Failed to fetch panels (${err.status})`,
+        );
+      }
+      throw err;
+    }
   },
 
   async getPanel(id: string): Promise<DiagnosticPanel> {
-    const res = await fetch(`${API_BASE}/panels/${id}`, {
-      method: "GET",
-      headers: getAuthHeaders(),
-      credentials: "include",
-    });
-
-    if (!res.ok) {
-      throw new Error(`Panel not found (${res.status})`);
+    try {
+      return await apiRequest<DiagnosticPanel>(`/panels/${id}`);
+    } catch (err) {
+      if (err instanceof ApiError) {
+        throw new Error(`Panel not found (${err.status})`);
+      }
+      throw err;
     }
-
-    return res.json();
   },
 
   async createPanel(input: PanelCreateInput): Promise<DiagnosticPanel> {
-    const res = await fetch(`${API_BASE}/panels`, {
-      method: "POST",
-      headers: getAuthHeaders(),
-      credentials: "include",
-      body: JSON.stringify({
-        code: input.code,
-        name: input.name,
-        test_ids: input.test_ids,
-        is_active: input.is_active ?? true,
-      }),
-    });
-
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      const code = err?.error?.code || err?.test_ids?.[0];
-      const message =
-        err?.test_ids?.[0] ||
-        err?.code?.[0] ||
-        err?.name?.[0] ||
-        err?.error?.message ||
-        `Failed to create panel (${res.status})`;
-      const error = new Error(String(message));
-      (error as Error & { code?: string }).code = code;
-      throw error;
+    let panel: DiagnosticPanel;
+    try {
+      panel = await apiRequest<DiagnosticPanel>("/panels", {
+        method: "POST",
+        body: {
+          code: input.code,
+          name: input.name,
+          test_ids: input.test_ids,
+          is_active: input.is_active ?? true,
+        },
+      });
+    } catch (err) {
+      if (err instanceof ApiError) {
+        const error = new Error(
+          err.message || `Failed to create panel (${err.status})`,
+        );
+        (error as Error & { code?: string }).code = err.code ?? undefined;
+        throw error;
+      }
+      throw err;
     }
-
-    const panel: DiagnosticPanel = await res.json();
 
     if (input.initial_price) {
       try {
@@ -340,55 +341,80 @@ export const catalogService = {
     id: string,
     input: PanelUpdateInput,
   ): Promise<DiagnosticPanel> {
-    const res = await fetch(`${API_BASE}/panels/${id}`, {
-      method: "PATCH",
-      headers: getAuthHeaders(),
-      credentials: "include",
-      body: JSON.stringify(input),
-    });
-
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(
-        err?.test_ids?.[0] || `Failed to update panel (${res.status})`,
-      );
+    try {
+      return await apiRequest<DiagnosticPanel>(`/panels/${id}`, {
+        method: "PATCH",
+        body: input,
+      });
+    } catch (err) {
+      if (err instanceof ApiError) {
+        const error = new Error(
+          err.message || `Failed to update panel (${err.status})`,
+        );
+        (error as Error & { code?: string }).code = err.code ?? undefined;
+        throw error;
+      }
+      throw err;
     }
-
-    return res.json();
   },
 
-  async getPanelPrices(panelId: string): Promise<CatalogPrice[]> {
-    const res = await fetch(`${API_BASE}/panels/${panelId}/prices`, {
-      method: "GET",
-      headers: getAuthHeaders(),
-      credentials: "include",
-    });
-
-    if (!res.ok) {
-      return [];
+  async deletePanel(id: string): Promise<void> {
+    try {
+      await apiRequest<void>(`/panels/${id}`, {
+        method: "DELETE",
+      });
+    } catch (err) {
+      if (err instanceof ApiError) {
+        throw new Error(err.message || `Delete failed (${err.status})`);
+      }
+      throw err;
     }
+  },
 
-    return res.json();
+  // Panel Prices
+  async getPanelPrices(panelId: string): Promise<CatalogPrice[]> {
+    return this.listPanelPrices(panelId);
+  },
+
+  async listPanelPrices(panelId: string): Promise<CatalogPrice[]> {
+    try {
+      const data = await apiRequest<
+        CatalogPrice[] | { results: CatalogPrice[] }
+      >(`/panels/${panelId}/prices`);
+      if (Array.isArray(data)) return data;
+      if (data && Array.isArray(data.results)) return data.results;
+      return [];
+    } catch (err) {
+      if (err instanceof ApiError) {
+        throw new Error(
+          err.message || `Failed to fetch panel prices (${err.status})`,
+        );
+      }
+      throw err;
+    }
   },
 
   async setPanelPrice(
     panelId: string,
     input: PriceCreateInput,
   ): Promise<CatalogPrice> {
-    const res = await fetch(`${API_BASE}/panels/${panelId}/prices`, {
-      method: "POST",
-      headers: getAuthHeaders(),
-      credentials: "include",
-      body: JSON.stringify(input),
-    });
+    return this.createPanelPrice(panelId, input);
+  },
 
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(
-        err?.amount?.[0] || `Failed to set panel price (${res.status})`,
-      );
+  async createPanelPrice(
+    panelId: string,
+    input: PriceCreateInput,
+  ): Promise<CatalogPrice> {
+    try {
+      return await apiRequest<CatalogPrice>(`/panels/${panelId}/prices`, {
+        method: "POST",
+        body: input,
+      });
+    } catch (err) {
+      if (err instanceof ApiError) {
+        throw new Error(err.message || `Failed to set price (${err.status})`);
+      }
+      throw err;
     }
-
-    return res.json();
   },
 };

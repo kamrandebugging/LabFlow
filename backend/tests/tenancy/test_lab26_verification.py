@@ -157,7 +157,7 @@ def test_approve_by_technician_403(
     assert resp.status_code == 403
 
 
-def test_approve_by_owner_403(
+def test_approve_by_owner_200_superrole(
     tenant_a: Any, lab26_setup: Any, auth_headers: Any
 ) -> None:
     with tenant_context(tenant_a):
@@ -167,7 +167,7 @@ def test_approve_by_owner_403(
     resp = _approve(
         auth_headers, owner, lab26_setup["result_a"].id, {"decision": "approved"}
     )
-    assert resp.status_code == 403
+    assert resp.status_code == 200
 
 
 def test_approve_unknown_fields_rejected_422(
@@ -350,6 +350,30 @@ def test_single_pathologist_self_approval_allowed_with_marker(
         assert audit is not None
         assert audit.after_jsonb is not None
         assert audit.after_jsonb.get("audit_note") == "single_pathologist_self_approval"
+
+
+def test_owner_self_approval_allowed_with_marker(
+    tenant_a: Any, auth_headers: Any
+) -> None:
+    # Owner may enter and approve result as superrole signing authority.
+    with tenant_context(tenant_a):
+        branch = BranchFactory(code="OWN", name="Main Laboratory")
+        owner = StaffUserFactory(
+            role=Role.OWNER, branch=branch, email="super_owner@labflow.app"
+        )
+        test = TestFactory(code="GLU_OWN", name="Glucose")
+        sample = SampleFactory(status=Sample.Status.IN_PROCESS, branch=branch)
+        SampleTestFactory(sample=sample, test=test)
+        own = ResultFactory(sample=sample, test=test, entered_by=owner)
+    resp = _approve(auth_headers, owner, own.id, {"decision": "approved"})
+    assert resp.status_code == 200
+    with tenant_context(tenant_a):
+        audit = AuditLog.objects.filter(
+            entity_id=own.id, action="result.approved"
+        ).first()
+        assert audit is not None
+        assert audit.after_jsonb is not None
+        assert audit.after_jsonb.get("audit_note") == "owner_self_approval"
 
 
 def test_inactive_second_pathologist_still_single(

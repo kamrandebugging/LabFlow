@@ -144,8 +144,8 @@ class PlatformAccessControlView(APIView):
                         code="staff_limit_exceeds_plan",
                         title="Quota exceeded",
                         detail=(
-                        f"Staff limit {sl} exceeds plan maximum ({plan.max_staff})."
-                    ),
+                            f"Staff limit {sl} exceeds plan maximum ({plan.max_staff})."
+                        ),
                         status_code=422,
                     )
             except ValueError:
@@ -159,9 +159,9 @@ class PlatformAccessControlView(APIView):
                         code="branch_limit_exceeds_plan",
                         title="Quota exceeded",
                         detail=(
-                        f"Branch limit {bl} exceeds plan maximum "
-                        f"({plan.max_branches})."
-                    ),
+                            f"Branch limit {bl} exceeds plan maximum "
+                            f"({plan.max_branches})."
+                        ),
                         status_code=422,
                     )
             except ValueError:

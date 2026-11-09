@@ -63,14 +63,22 @@ class JWTAuthentication(authentication.BaseAuthentication):
         if sid and is_session_revoked(sid):
             raise exceptions.AuthenticationFailed("Session has been revoked")
 
-        # Validate token tenant against request tenant schema (SE-01 isolation)
-        req_tenant = getattr(getattr(request, "tenant", None), "schema_name", None)
+        # Validate token tenant against request tenant schema or slug (SE-01 isolation)
+        req_tenant_schema = getattr(
+            getattr(request, "tenant", None), "schema_name", None
+        )
+        req_tenant_slug = getattr(getattr(request, "tenant", None), "slug", None)
         token_tenant = payload.get("tenant")
-        if req_tenant and token_tenant and token_tenant != req_tenant:
+        if (
+            req_tenant_schema
+            and token_tenant
+            and token_tenant != req_tenant_schema
+            and token_tenant != req_tenant_slug
+        ):
             raise exceptions.AuthenticationFailed("Token tenant mismatch")
 
         # Resolve user in active tenant schema
-        tenant_to_use = req_tenant or token_tenant
+        tenant_to_use = req_tenant_schema or token_tenant
         if tenant_to_use:
             from django_tenants.utils import schema_context
 

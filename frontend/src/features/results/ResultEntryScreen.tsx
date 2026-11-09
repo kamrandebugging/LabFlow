@@ -88,9 +88,11 @@ export function ResultEntryScreen(): JSX.Element {
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
 
-  // Authorization check (Roles: Technician, Pathologist)
+  // Authorization check (Roles: Technician, Pathologist, Owner)
   const isAuthorized =
-    user?.role === "technician" || user?.role === "pathologist";
+    user?.role === "technician" ||
+    user?.role === "pathologist" ||
+    user?.role === "owner";
 
   const [sample, setSample] = useState<SampleDetail | null>(null);
   const [params, setParams] = useState<TestParamEntry[]>([]);
@@ -110,35 +112,64 @@ export function ResultEntryScreen(): JSX.Element {
         setSample(data);
 
         // Build parameters from tests
-        const testList = data?.tests?.length
-          ? data.tests
-          : ["Hemoglobin (Hb)", "WBC", "Platelets"];
+        let entries: TestParamEntry[] = [];
+        if (data?.sample_tests && data.sample_tests.length > 0) {
+          entries = data.sample_tests.map((st) => {
+            const lower = (st.test_name || st.test_code || "").toLowerCase();
+            let matchedKey = Object.keys(DEFAULT_TEST_PARAMS).find((k) =>
+              lower.includes(k),
+            );
+            if (!matchedKey) matchedKey = "hemoglobin";
+            const ref = DEFAULT_TEST_PARAMS[matchedKey] || {
+              category: "General",
+              method: "Automated",
+              unit: "",
+              refLow: 0,
+              refHigh: 100,
+            };
 
-        const entries: TestParamEntry[] = testList.map((testName, idx) => {
-          const lower = testName.toLowerCase();
-          let matchedKey = Object.keys(DEFAULT_TEST_PARAMS).find((k) =>
-            lower.includes(k),
-          );
-          if (!matchedKey) matchedKey = "hemoglobin";
-          const ref = DEFAULT_TEST_PARAMS[matchedKey] || {
-            category: "General",
-            method: "Automated",
-            unit: "",
-            refLow: 0,
-            refHigh: 100,
-          };
+            return {
+              id: st.test_id,
+              name: st.test_name || st.test_code,
+              category: ref.category,
+              method: ref.method,
+              unit: ref.unit,
+              refLow: ref.refLow,
+              refHigh: ref.refHigh,
+              value: "",
+            };
+          });
+        } else {
+          const testList = data?.tests?.length
+            ? data.tests
+            : ["Hemoglobin (Hb)", "WBC", "Platelets"];
 
-          return {
-            id: `test-param-${idx + 1}`,
-            name: testName,
-            category: ref.category,
-            method: ref.method,
-            unit: ref.unit,
-            refLow: ref.refLow,
-            refHigh: ref.refHigh,
-            value: "",
-          };
-        });
+          entries = testList.map((testName, idx) => {
+            const lower = testName.toLowerCase();
+            let matchedKey = Object.keys(DEFAULT_TEST_PARAMS).find((k) =>
+              lower.includes(k),
+            );
+            if (!matchedKey) matchedKey = "hemoglobin";
+            const ref = DEFAULT_TEST_PARAMS[matchedKey] || {
+              category: "General",
+              method: "Automated",
+              unit: "",
+              refLow: 0,
+              refHigh: 100,
+            };
+
+            return {
+              id: `test-param-${idx + 1}`,
+              name: testName,
+              category: ref.category,
+              method: ref.method,
+              unit: ref.unit,
+              refLow: ref.refLow,
+              refHigh: ref.refHigh,
+              value: "",
+            };
+          });
+        }
 
         setParams(entries);
       } catch (err) {
@@ -219,7 +250,7 @@ export function ResultEntryScreen(): JSX.Element {
             Access Denied · Role Restricted
           </h2>
           <p className="text-sm text-red-800 max-w-md mx-auto">
-            Only Technician or Pathologist may enter results. Your active role
+            Only Technician, Pathologist, or Owner may enter results. Your active role
             does not have authorization for direct laboratory entry.
           </p>
           <div className="pt-2">

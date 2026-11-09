@@ -2,7 +2,7 @@
  * Patient API service for LabFlow per Doc 03 §5.1, §6.2 and Doc 04 §8.5.
  */
 
-import { useAuthStore } from "../auth/authStore";
+import { apiRequest, ApiError } from "../../lib/apiClient";
 import type {
   DuplicateWarningError,
   PatientCreateInput,
@@ -10,22 +10,6 @@ import type {
   PatientSummary,
   PatientUpdateInput,
 } from "./types";
-
-const API_BASE = "/api/v1/patients";
-
-function getAuthHeaders(
-  extraHeaders: Record<string, string> = {},
-): Record<string, string> {
-  const token = useAuthStore.getState().accessToken;
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-    ...extraHeaders,
-  };
-  if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
-  }
-  return headers;
-}
 
 export class DuplicatePatientError extends Error {
   candidates: DuplicateWarningError["candidates"];
@@ -41,75 +25,55 @@ export const patientService = {
   async listPatients(
     params: { q?: string; branchId?: string } = {},
   ): Promise<PatientSummary[]> {
-    const url = new URL(API_BASE, window.location.origin);
-    if (params.q) url.searchParams.set("q", params.q);
-    if (params.branchId) url.searchParams.set("branch_id", params.branchId);
-
-    const res = await fetch(url.toString(), {
-      method: "GET",
-      headers: getAuthHeaders(),
-      credentials: "include",
+    const data = await apiRequest<
+      PatientSummary[] | { results: PatientSummary[] }
+    >("/patients", {
+      query: {
+        q: params.q,
+        branch_id: params.branchId,
+      },
     });
 
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(
-        err?.error?.message || `Failed to fetch patients (${res.status})`,
-      );
-    }
-
-    const data = await res.json();
     if (Array.isArray(data)) return data;
     if (data && Array.isArray(data.results)) return data.results;
     return [];
   },
 
   async getPatient(id: string): Promise<PatientDetail> {
-    const res = await fetch(`${API_BASE}/${id}`, {
-      method: "GET",
-      headers: getAuthHeaders(),
-      credentials: "include",
-    });
-
-    if (!res.ok) {
-      throw new Error(`Patient not found or inaccessible (${res.status})`);
+    try {
+      return await apiRequest<PatientDetail>(`/patients/${id}`);
+    } catch (err) {
+      if (err instanceof ApiError) {
+        throw new Error(`Patient not found or inaccessible (${err.status})`);
+      }
+      throw err;
     }
-
-    return res.json();
   },
 
   async createPatient(input: PatientCreateInput): Promise<PatientSummary> {
-    const res = await fetch(API_BASE, {
-      method: "POST",
-      headers: getAuthHeaders(),
-      credentials: "include",
-      body: JSON.stringify({
-        name: input.name,
-        phone: input.phone,
-        sex: input.sex,
-        date_of_birth: input.date_of_birth || null,
-        branch_id: input.branch_id,
-        confirm_duplicate: input.confirm_duplicate ?? false,
-      }),
-    });
-
-    if (res.status === 409) {
-      const errData = await res.json();
-      if (errData?.error?.code === "possible_duplicate") {
-        throw new DuplicatePatientError(errData.error);
+    try {
+      return await apiRequest<PatientSummary>("/patients", {
+        method: "POST",
+        body: {
+          name: input.name,
+          phone: input.phone,
+          sex: input.sex,
+          date_of_birth: input.date_of_birth || null,
+          branch_id: input.branch_id,
+          confirm_duplicate: input.confirm_duplicate ?? false,
+        },
+      });
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 409) {
+        const errorData = (err.problem?.error || err.problem) as unknown as
+          | DuplicateWarningError
+          | undefined;
+        if (errorData?.code === "possible_duplicate") {
+          throw new DuplicatePatientError(errorData);
+        }
       }
+      throw err;
     }
-
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      const message =
-        err?.error?.message ||
-        Object.values(err)[0] ||
-        `Registration failed (${res.status})`;
-      throw new Error(String(message));
-    }
-
-    return res.json();
   },
 
   async updatePatient(
@@ -117,35 +81,35 @@ export const patientService = {
     input: PatientUpdateInput,
     version?: number,
   ): Promise<PatientDetail> {
-    const extraHeaders: Record<string, string> = {};
+    const headers: Record<string, string> = {};
     if (version !== undefined) {
-      extraHeaders["If-Match"] = `"${version}"`;
+      headers["If-Match"] = `"${version}"`;
     }
 
-    const res = await fetch(`${API_BASE}/${id}`, {
-      method: "PATCH",
-      headers: getAuthHeaders(extraHeaders),
-      credentials: "include",
-      body: JSON.stringify(input),
-    });
-
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err?.error?.message || `Update failed (${res.status})`);
+    try {
+      return await apiRequest<PatientDetail>(`/patients/${id}`, {
+        method: "PATCH",
+        headers,
+        body: input,
+      });
+    } catch (err) {
+      if (err instanceof ApiError) {
+        throw new Error(err.message || `Update failed (${err.status})`);
+      }
+      throw err;
     }
-
-    return res.json();
   },
 
   async deletePatient(id: string): Promise<void> {
-    const res = await fetch(`${API_BASE}/${id}`, {
-      method: "DELETE",
-      headers: getAuthHeaders(),
-      credentials: "include",
-    });
-
-    if (!res.ok) {
-      throw new Error(`Delete failed (${res.status})`);
+    try {
+      await apiRequest<void>(`/patients/${id}`, {
+        method: "DELETE",
+      });
+    } catch (err) {
+      if (err instanceof ApiError) {
+        throw new Error(`Delete failed (${err.status})`);
+      }
+      throw err;
     }
   },
 };

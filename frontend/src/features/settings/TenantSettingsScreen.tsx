@@ -13,9 +13,7 @@ export const TenantSettingsScreen: React.FC = () => {
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   // Form states for the EXACT 6 keys from settings_registry.py
-  const [brandDisplayName, setBrandDisplayName] = useState<string>(
-    "City Diagnostic Lab",
-  );
+  const [brandDisplayName, setBrandDisplayName] = useState<string>("");
   const [brandAccentColour, setBrandAccentColour] = useState<string>("#005C55");
   const [billingHoldEnabled, setBillingHoldEnabled] = useState<boolean>(false);
   const [reportDefaultLanguage, setReportDefaultLanguage] = useState<
@@ -34,7 +32,7 @@ export const TenantSettingsScreen: React.FC = () => {
 
       if (data.brand_display_name) {
         setBrandDisplayName(
-          String(data.brand_display_name.value ?? "City Diagnostic Lab"),
+          String(data.brand_display_name.value ?? ""),
         );
       }
       if (data.brand_accent_colour) {

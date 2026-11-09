@@ -166,12 +166,8 @@ class Migration(migrations.Migration):
             options={
                 "db_table": "subscription_payment",
                 "indexes": [
-                    models.Index(
-                        fields=["tenant"], name="idx_sub_payment_tenant"
-                    ),
-                    models.Index(
-                        fields=["subscription"], name="idx_sub_payment_sub"
-                    ),
+                    models.Index(fields=["tenant"], name="idx_sub_payment_tenant"),
+                    models.Index(fields=["subscription"], name="idx_sub_payment_sub"),
                     models.Index(
                         fields=["paid_date"], name="idx_sub_payment_paid_date"
                     ),
@@ -220,9 +216,7 @@ class Migration(migrations.Migration):
             options={
                 "db_table": "tenant_feature_flag",
                 "indexes": [
-                    models.Index(
-                        fields=["tenant"], name="idx_tenant_feature_flag_t"
-                    )
+                    models.Index(fields=["tenant"], name="idx_tenant_feature_flag_t")
                 ],
                 "constraints": [
                     models.UniqueConstraint(
@@ -247,9 +241,7 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "lab_name",
-                    models.CharField(
-                        help_text="Facility display name", max_length=255
-                    ),
+                    models.CharField(help_text="Facility display name", max_length=255),
                 ),
                 (
                     "contact_person",
@@ -310,9 +302,7 @@ class Migration(migrations.Migration):
             options={
                 "db_table": "demo_request",
                 "indexes": [
-                    models.Index(
-                        fields=["status"], name="idx_demo_req_status"
-                    ),
+                    models.Index(fields=["status"], name="idx_demo_req_status"),
                     models.Index(
                         fields=["requested_at"], name="idx_demo_req_requested_at"
                     ),
@@ -327,9 +317,7 @@ class Migration(migrations.Migration):
             fields=[
                 (
                     "key",
-                    models.CharField(
-                        max_length=100, primary_key=True, serialize=False
-                    ),
+                    models.CharField(max_length=100, primary_key=True, serialize=False),
                 ),
                 ("value", models.JSONField(default=dict)),
                 ("updated_at", models.DateTimeField(auto_now=True)),
