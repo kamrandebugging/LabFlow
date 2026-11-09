@@ -17,7 +17,8 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any, cast
 
-from django.db.models import Sum
+from django.db.models import Sum, TextField
+from django.db.models.functions import Cast
 from django.http import QueryDict
 from django.utils import timezone
 from rest_framework import permissions, status
@@ -331,6 +332,39 @@ def _parse_path_uuid(value: Any) -> uuid.UUID | None:
         return None
 
 
+def _invoice_number(invoice_id: uuid.UUID) -> str:
+    """Human-readable invoice number derived from the stored UUID."""
+    return f"INV-{str(invoice_id)[:8].upper()}"
+
+
+def _resolve_invoice_reference(user: StaffUser, value: Any) -> uuid.UUID | None:
+    """Resolve a UUID or an ``INV-XXXXXXXX`` number to the invoice UUID.
+
+    The invoice model has no separate number column; the UI's number is the
+    first eight characters of the UUID prefixed with ``INV-``. Numbers are
+    resolved through the caller's branch scope, so out-of-scope invoices stay
+    indistinguishable from missing ones.
+    """
+    direct = _parse_path_uuid(value)
+    if direct is not None:
+        return direct
+    raw = str(value or "").strip()
+    if not raw:
+        return None
+    prefix = raw[4:] if raw.upper().startswith("INV-") else raw
+    prefix = prefix.strip().lower()
+    if len(prefix) < 8 or any(ch not in "0123456789abcdef" for ch in prefix):
+        return None
+    match = (
+        Invoice.objects.scoped_to(user)
+        .annotate(id_text=Cast("id", output_field=TextField()))
+        .filter(id_text__istartswith=prefix)
+        .order_by("-created_at")
+        .first()
+    )
+    return match.id if match is not None else None
+
+
 class InvoiceDetailView(APIView):
     """GET /api/v1/invoices/{id} — detail with items, payments, net_paid."""
 
@@ -343,7 +377,7 @@ class InvoiceDetailView(APIView):
                 _format_error("forbidden", "Only staff may view invoices."),
                 status=status.HTTP_403_FORBIDDEN,
             )
-        iid = _parse_path_uuid(invoice_id)
+        iid = _resolve_invoice_reference(user, invoice_id)
         if iid is None:
             return Response(
                 _format_error("not_found", "Invoice not found."),
@@ -357,10 +391,28 @@ class InvoiceDetailView(APIView):
                 status=exc.status_code,
             )
         invoice = detail["invoice"]
+        patient = invoice.patient
+        dob = patient.date_of_birth
+        age_display: str | None = None
+        if dob is not None:
+            today = timezone.localdate()
+            years = (
+                today.year
+                - dob.year
+                - ((today.month, today.day) < (dob.month, dob.day))
+            )
+            age_display = f"{years}y"
         payload: dict[str, Any] = {
             "id": invoice.id,
+            "invoice_number": _invoice_number(invoice.id),
             "patient_id": invoice.patient_id,
+            "patient_name": patient.name,
+            "patient_mrn": patient.mrn,
+            "patient_sex": patient.sex,
+            "patient_age": age_display,
+            "patient_phone": patient.phone,
             "branch_id": invoice.branch_id,
+            "branch_name": invoice.branch.name,
             "referral_partner_id": invoice.referral_partner_id,
             "status": invoice.status,
             "subtotal": invoice.subtotal,

@@ -327,9 +327,7 @@ export function InvoiceDetailScreen({
           </button>
           <span>/</span>
           <span className="font-mono text-slate-900 font-medium">
-            {invoice.id
-              ? `INV-${invoice.id.substring(0, 8).toUpperCase()}`
-              : "Detail"}
+            {invoice.invoice_number || invoice.id}
           </span>
         </div>
         <div className="text-xs font-mono text-slate-500">
@@ -362,22 +360,20 @@ export function InvoiceDetailScreen({
           <div>
             <div className="flex flex-wrap items-center gap-3 mb-2">
               <h1 className="text-2xl font-bold font-mono text-slate-900 tracking-tight">
-                {`INV-${invoice.id.substring(0, 8).toUpperCase()}`}
+                {invoice.invoice_number || invoice.id}
               </h1>
               {getStatusBadge(invoice.status)}
               <span className="text-xs bg-slate-100 text-slate-600 px-2.5 py-0.5 rounded font-medium border border-slate-200">
-                Outpatient Accession
+                Invoice
               </span>
             </div>
             <div className="text-sm text-slate-600 flex flex-wrap items-center gap-x-4 gap-y-1">
               <span className="font-medium text-slate-900">
-                {invoice.patient_name || "Patient Record"}
+                {invoice.patient_name || "—"}
               </span>
               <span className="text-slate-300 hidden sm:inline">|</span>
               <span className="font-mono text-slate-500">
-                {invoice.patient_mrn
-                  ? `MRN: ${invoice.patient_mrn}`
-                  : "MRN: Pending"}
+                {invoice.patient_mrn ? `MRN: ${invoice.patient_mrn}` : "MRN: —"}
               </span>
               {invoice.patient_phone && (
                 <>
@@ -389,7 +385,7 @@ export function InvoiceDetailScreen({
               )}
               <span className="text-slate-300 hidden sm:inline">|</span>
               <span className="text-slate-600 font-medium">
-                {invoice.branch_name || "Branch Counter"}
+                {invoice.branch_name || "—"}
               </span>
               <span className="text-slate-300 hidden sm:inline">|</span>
               <span className="font-mono text-slate-500">

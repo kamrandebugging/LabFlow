@@ -337,7 +337,9 @@ function InvoiceDetailWrapper(): JSX.Element {
       <InvoiceDetailScreen
         invoiceId={id || ""}
         onBack={() => navigate("/invoices")}
-        onProceedToSamples={() => navigate("/samples")}
+        onProceedToSamples={(invoice) =>
+          navigate(`/samples/collect/step1?invoice_id=${invoice.id}`)
+        }
       />
     </main>
   );

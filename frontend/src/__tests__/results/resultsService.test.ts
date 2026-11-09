@@ -280,88 +280,151 @@ describe("resultsService unit tests", () => {
     expect(worklist[1]!.status).toBe("in_process");
   });
 
-  it("derives approvals queue without inventing clinical values", async () => {
-    vi.spyOn(sampleService, "listSamples").mockResolvedValueOnce({
-      total: 2,
-      results: [
-        {
-          id: "smp-01",
-          accession_id: "CDL001",
-          invoice_id: "inv-01",
-          patient_id: "pat-01",
-          patient_name: "Muhammad Imran",
-          patient_mrn: "MRN-001",
-          branch_id: "br-01",
-          branch_name: "Gulberg",
-          status: "in_process",
-          tests: ["Routine Glucose"],
-          collected_at: "2026-10-20T08:00:00Z",
-        },
-        {
-          id: "smp-02",
-          accession_id: "CDL002",
-          invoice_id: "inv-02",
-          patient_id: "pat-02",
-          patient_name: "Fatima Noor",
-          patient_mrn: "MRN-002",
-          branch_id: "br-01",
-          branch_name: "Gulberg",
-          status: "in_process",
-          tests: ["Potassium (K+)"],
-          collected_at: "2026-10-20T09:00:00Z",
-        },
-      ],
+  it("derives approvals queue from real result rows without inventing clinical values", async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        results: [
+          {
+            id: "res-002",
+            sample_id: "smp-02",
+            sample_status: "received",
+            accession_id: "CDL002",
+            patient_id: "pat-02",
+            patient_name: "Fatima Noor",
+            patient_mrn: "MRN-002",
+            branch_id: "br-01",
+            branch_name: "Gulberg",
+            test_id: "test-k",
+            test_name: "Potassium (K+)",
+            test_code: "K",
+            value: "4.1",
+            unit: "mmol/L",
+            flag: null,
+            is_critical: false,
+            status: "entered",
+            matched_range: "3.5 – 5.1 mmol/L",
+            entered_by_name: "tech@labflow.pk",
+            entered_at: "2026-10-20T09:00:00Z",
+          },
+          {
+            id: "res-001",
+            sample_id: "smp-01",
+            sample_status: "received",
+            accession_id: "CDL001",
+            patient_id: "pat-01",
+            patient_name: "Muhammad Imran",
+            patient_mrn: "MRN-001",
+            branch_id: "br-01",
+            branch_name: "Gulberg",
+            test_id: "test-glu",
+            test_name: "Routine Glucose",
+            test_code: "GLU",
+            value: "5.2",
+            unit: "mmol/L",
+            flag: "normal",
+            is_critical: false,
+            status: "entered",
+            matched_range: "3.9 – 5.5 mmol/L",
+            entered_by_name: "tech@labflow.pk",
+            entered_at: "2026-10-20T08:00:00Z",
+          },
+        ],
+      }),
     });
 
     const queue = await resultsService.getApprovalsQueue();
 
+    expect(global.fetch).toHaveBeenCalledWith(
+      "/api/v1/results?status=entered",
+      expect.objectContaining({ method: "GET" }),
+    );
     expect(queue).toHaveLength(2);
+    // Oldest entered first after critical-first sort
+    expect(queue[0]!.result_id).toBe("res-001");
     expect(queue[0]!.test_name).toBe("Routine Glucose");
-    expect(queue[0]!.value).toBe("—");
+    expect(queue[0]!.value).toBe("5.2");
     expect(queue[0]!.is_critical).toBe(false);
     expect(queue[0]!.delta_alert).toBeUndefined();
     expect(queue[0]!.previous_value).toBeUndefined();
+    expect(queue[1]!.result_id).toBe("res-002");
     expect(queue[1]!.test_name).toBe("Potassium (K+)");
-    expect(queue[1]!.value).toBe("—");
-    expect(queue[1]!.is_critical).toBe(false);
-    expect(queue[1]!.delta_alert).toBeUndefined();
-    expect(queue[1]!.previous_value).toBeUndefined();
+    expect(queue[1]!.value).toBe("4.1");
+    expect(queue[1]!.flag).toBeNull();
   });
 
-  it("fetches result detail and generates honest detail record", async () => {
-    vi.spyOn(sampleService, "getSample").mockResolvedValueOnce({
-      id: "smp-01",
-      accession_id: "CDL001",
-      invoice_id: "inv-01",
-      patient_id: "pat-01",
-      patient_name: "Muhammad Imran",
-      patient_mrn: "MRN-001",
-      patient_sex: "M",
-      patient_age_years: 34,
-      branch_id: "br-01",
-      branch_name: "Gulberg",
-      status: "in_process",
-      tests: ["Potassium (K+)"],
-      collected_at: "2026-10-20T08:00:00Z",
-      collected_by: "usr-tech-01",
-      sample_tests: [],
+  it("fetches result detail and maps only real backend fields", async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        id: "res-01",
+        sample_id: "smp-01",
+        sample_status: "received",
+        accession_id: "CDL001",
+        patient_id: "pat-01",
+        patient_name: "Muhammad Imran",
+        patient_mrn: "MRN-001",
+        patient_sex: "M",
+        patient_age_years: 34,
+        branch_id: "br-01",
+        branch_name: "Gulberg",
+        test_id: "test-k",
+        test_name: "Potassium (K+)",
+        test_code: "K",
+        specimen_type: null,
+        value: "5.9",
+        unit: "mmol/L",
+        flag: "high",
+        is_critical: false,
+        status: "approved",
+        matched_range: "3.5 – 5.1 mmol/L",
+        critical_threshold: "> 6.2 mmol/L",
+        entered_by_name: "tech@labflow.pk",
+        entered_at: "2026-10-20T08:30:00Z",
+        approved_by_name: "path@labflow.pk",
+        approved_at: "2026-10-20T09:00:00Z",
+        audit_history: [
+          {
+            action: "entered",
+            value: "5.9",
+            status: "entered",
+            timestamp: "2026-10-20T08:30:00Z",
+            actor_name: "tech@labflow.pk",
+          },
+        ],
+      }),
     });
 
-    const detail = await resultsService.getResultDetail("smp-01-res-1");
+    const detail = await resultsService.getResultDetail("res-01");
 
+    expect(global.fetch).toHaveBeenCalledWith(
+      "/api/v1/results/res-01",
+      expect.objectContaining({ method: "GET" }),
+    );
     expect(detail).not.toBeNull();
+    expect(detail?.id).toBe("res-01");
     expect(detail?.sample_id).toBe("smp-01");
     expect(detail?.test_name).toBe("Potassium (K+)");
-    expect(detail?.is_critical).toBe(false);
-    expect(detail?.value).toBe("—");
+    expect(detail?.value).toBe("5.9");
+    expect(detail?.flag).toBe("high");
+    expect(detail?.approved_by_name).toBe("path@labflow.pk");
+    expect(detail?.audit_history).toHaveLength(1);
   });
 
-  it("returns null when sample is not found in getResultDetail", async () => {
-    vi.spyOn(sampleService, "getSample").mockRejectedValueOnce(
-      new Error("Sample not found"),
-    );
+  it("returns null when the result is not found in getResultDetail", async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 404,
+      json: async () => ({
+        error: { code: "not_found", message: "Result not found." },
+      }),
+    });
 
-    const detail = await resultsService.getResultDetail("unknown-id");
+    const detail = await resultsService.getResultDetail(
+      "00000000-0000-0000-0000-000000000000",
+    );
     expect(detail).toBeNull();
   });
 });

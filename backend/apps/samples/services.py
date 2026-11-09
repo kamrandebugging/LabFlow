@@ -445,9 +445,13 @@ class SampleService:
         Every print AND reprint is audited.
         """
         try:
-            sample = Sample.objects.select_related(
-                "invoice__patient", "collected_by"
-            ).get(pk=sample_id)
+            sample = (
+                Sample.objects.select_related(
+                    "invoice__patient", "collected_by", "branch"
+                )
+                .prefetch_related("sample_tests__test")
+                .get(pk=sample_id)
+            )
         except Sample.DoesNotExist:
             raise SampleNotFoundError("Sample not found.") from None
 
@@ -463,6 +467,12 @@ class SampleService:
             "date_of_birth": dob,
             "collected_at": collected_at,
             "collected_by": collector,
+            "branch_name": sample.branch.name,
+            "tests": [
+                st.test.name
+                for st in sample.sample_tests.all()
+                if getattr(st, "test", None) is not None
+            ],
             "barcode": {
                 "symbology": "code128",
                 "payload": sample.accession_id,

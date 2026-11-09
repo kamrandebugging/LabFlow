@@ -72,6 +72,7 @@ export interface InvoiceSummary {
 
 export interface InvoiceDetail {
   id: string;
+  invoice_number?: string;
   patient_id: string;
   patient_name?: string;
   patient_mrn?: string;

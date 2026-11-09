@@ -17,6 +17,7 @@ vi.mock("../../features/billing/billingService", () => ({
 
 const mockInvoiceDetail: InvoiceDetail = {
   id: "0891a000-0000-0000-0000-000000000000",
+  invoice_number: "INV-0891A000",
   patient_id: "pat-uuid-001",
   patient_name: "Muhammad Imran",
   patient_mrn: "MRN-2026-00417",

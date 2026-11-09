@@ -107,6 +107,7 @@ export interface CriticalNotificationResponse {
 // UI Models for Worklist, Approvals, and Details
 export interface WorklistItem {
   sample_id: string;
+  sample_status?: "collected" | "received" | "in_process" | "ready" | "rejected" | "cancelled";
   accession_id: string;
   patient_id: string;
   patient_name: string;
@@ -133,7 +134,7 @@ export interface ApprovalQueueItem {
   specimen_type?: string;
   value: string;
   unit: string;
-  flag: ResultFlag;
+  flag: ResultFlag | null;
   is_critical: boolean;
   entered_by_name: string;
   entered_at: string;
@@ -159,19 +160,24 @@ export interface ResultDetailRecord {
   analyzer?: string;
   value: string;
   unit: string;
-  flag: ResultFlag;
+  flag: ResultFlag | null;
   is_critical: boolean;
   status: ResultStatus;
   matched_range: string;
   critical_threshold?: string;
   entered_by_name: string;
   entered_at: string;
+  approved_by_name?: string;
+  approved_at?: string;
+  amend_reason?: string;
+  supersedes?: string;
   previous_value?: string;
   previous_date?: string;
   shift_rate?: string;
   delta_note?: string;
   audit_history?: Array<{
     version: string;
+    action?: string;
     value: string;
     unit?: string;
     status: string;

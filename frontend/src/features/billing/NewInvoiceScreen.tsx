@@ -58,6 +58,15 @@ export function NewInvoiceScreen({
   const [availablePanels, setAvailablePanels] = useState<DiagnosticPanel[]>([]);
   const [catalogLoading, setCatalogLoading] = useState(true);
 
+  // Panel-only tests cannot be billed standalone; they are excluded from the
+  // individual-test picker and surfaced as an explanatory note instead.
+  const selectableTests = availableTests.filter(
+    (test) => !test.is_panel_only,
+  );
+  const panelOnlyTests = availableTests.filter(
+    (test) => test.is_panel_only,
+  );
+
   // Line items
   const [items, setItems] = useState<SelectedLineItem[]>([]);
   const [selectedTestToAdd, setSelectedTestToAdd] = useState<string>("");
@@ -149,7 +158,23 @@ export function NewInvoiceScreen({
     const test = availableTests.find((t) => t.id === testId);
     if (!test) return;
 
-    const price = parseFloat(test.price || "0") || 0;
+    if (test.is_panel_only) {
+      const panel = test.panel_codes?.length
+        ? test.panel_codes.join(", ")
+        : "a panel";
+      setErrorMessage(
+        `This test is billed as part of the ${panel} panel. Add the panel instead.`,
+      );
+      return;
+    }
+    if (!test.price) {
+      setErrorMessage(
+        `No price has been configured for ${test.name}. Set a catalog price before billing it.`,
+      );
+      return;
+    }
+
+    const price = parseFloat(test.price);
     const newItem: SelectedLineItem = {
       key: `test-${test.id}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
       testId: test.id,
@@ -160,6 +185,7 @@ export function NewInvoiceScreen({
     };
     setItems((prev) => [...prev, newItem]);
     setSelectedTestToAdd("");
+    setErrorMessage(null);
   };
 
   // Add panel
@@ -168,7 +194,14 @@ export function NewInvoiceScreen({
     const panel = availablePanels.find((p) => p.id === panelId);
     if (!panel) return;
 
-    const price = parseFloat(panel.price || "0") || 0;
+    if (!panel.price) {
+      setErrorMessage(
+        `No price has been configured for ${panel.name}. Set a catalog price before billing it.`,
+      );
+      return;
+    }
+
+    const price = parseFloat(panel.price);
     const newItem: SelectedLineItem = {
       key: `panel-${panel.id}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
       panelId: panel.id,
@@ -483,10 +516,12 @@ export function NewInvoiceScreen({
                       className="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-600 truncate block"
                     >
                       <option value="">— Select Diagnostic Test —</option>
-                      {availableTests.map((t) => (
+                      {selectableTests.map((t) => (
                         <option key={t.id} value={t.id}>
-                          {t.name} ({t.code}) - PKR{" "}
-                          {parseFloat(t.price || "0").toFixed(2)}
+                          {t.name} ({t.code}) -{" "}
+                          {t.price
+                            ? `PKR ${parseFloat(t.price).toFixed(2)}`
+                            : "Price not configured"}
                         </option>
                       ))}
                     </select>
@@ -501,6 +536,22 @@ export function NewInvoiceScreen({
                     <span>Add</span>
                   </button>
                 </div>
+                {panelOnlyTests.length > 0 && (
+                  <p className="text-[11px] text-slate-500 mt-1.5">
+                    Billed through a panel:{" "}
+                    {panelOnlyTests
+                      .map(
+                        (t) =>
+                          `${t.name}${
+                            t.panel_codes?.length
+                              ? ` (${t.panel_codes.join(", ")})`
+                              : ""
+                          }`,
+                      )
+                      .join("; ")}
+                    . Add the panel instead.
+                  </p>
+                )}
               </div>
 
               {/* Add Panel */}
@@ -525,8 +576,10 @@ export function NewInvoiceScreen({
                   <option value="">— Select Panel Package —</option>
                   {availablePanels.map((p) => (
                     <option key={p.id} value={p.id}>
-                      {p.name} ({p.code}) - PKR{" "}
-                      {parseFloat(p.price || "0").toFixed(2)}
+                      {p.name} ({p.code}) -{" "}
+                      {p.price
+                        ? `PKR ${parseFloat(p.price).toFixed(2)}`
+                        : "Price not configured"}
                     </option>
                   ))}
                 </select>

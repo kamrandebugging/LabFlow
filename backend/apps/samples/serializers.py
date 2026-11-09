@@ -121,6 +121,10 @@ class SampleTestItemSerializer(serializers.ModelSerializer[SampleTest]):
     test_name = serializers.CharField(source="test.name")
     test_code = serializers.CharField(source="test.code")
     invoice_item_id = serializers.UUIDField(source="invoice_item.id")
+    category = serializers.CharField(source="test.category", allow_null=True)
+    unit = serializers.SerializerMethodField()
+    reference_range = serializers.SerializerMethodField()
+    panel_codes = serializers.SerializerMethodField()
 
     class Meta:
         model = SampleTest
@@ -130,7 +134,60 @@ class SampleTestItemSerializer(serializers.ModelSerializer[SampleTest]):
             "test_name",
             "test_code",
             "invoice_item_id",
+            "category",
+            "unit",
+            "reference_range",
+            "panel_codes",
         ]
+
+    def _resolve_range(self, obj: SampleTest) -> Any:
+        from apps.catalog.services import CatalogService
+
+        sample = obj.sample
+        patient = sample.invoice.patient
+        dob = patient.date_of_birth
+        age_days = (
+            (sample.collected_at.date() - dob).days if dob is not None else None
+        )
+        return CatalogService.resolve_reference_range(
+            test_id=obj.test_id,
+            patient_sex=patient.sex,
+            patient_age_days=age_days,
+            collection_date=sample.collected_at,
+        )
+
+    def get_unit(self, obj: SampleTest) -> str | None:
+        resolved = self._resolve_range(obj)
+        return resolved.unit if resolved is not None else obj.test.unit
+
+    def get_reference_range(self, obj: SampleTest) -> dict[str, Any] | None:
+        resolved = self._resolve_range(obj)
+        if resolved is None:
+            return None
+        return {
+            "low": str(resolved.low) if resolved.low is not None else None,
+            "high": str(resolved.high) if resolved.high is not None else None,
+            "unit": resolved.unit,
+            "critical_low": (
+                str(resolved.critical_low)
+                if resolved.critical_low is not None
+                else None
+            ),
+            "critical_high": (
+                str(resolved.critical_high)
+                if resolved.critical_high is not None
+                else None
+            ),
+        }
+
+    def get_panel_codes(self, obj: SampleTest) -> list[str]:
+        from apps.catalog.models import Panel
+
+        return sorted(
+            Panel.objects.filter(panel_tests__test_id=obj.test_id).values_list(
+                "code", flat=True
+            )
+        )
 
 
 class SampleDetailSerializer(SampleListSerializer):
@@ -152,6 +209,8 @@ class SampleLabelSerializer(serializers.Serializer):
     date_of_birth = serializers.CharField(allow_null=True)
     collected_at = serializers.CharField()
     collected_by = serializers.EmailField(allow_null=True)
+    branch_name = serializers.CharField()
+    tests = serializers.ListField(child=serializers.CharField())
     barcode = serializers.DictField()
 
 

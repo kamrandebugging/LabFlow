@@ -12,10 +12,34 @@ import uuid
 from decimal import Decimal, InvalidOperation
 from typing import Any, cast
 
+from django.db.models import Q
+from django.utils import timezone
 from rest_framework import serializers
 
 from apps.branches.models import Branch
 from apps.catalog.models import Panel, ReferenceRange, Test, TestPrice
+
+
+def _effective_tenant_price(
+    *, test_id: uuid.UUID | None = None, panel_id: uuid.UUID | None = None
+) -> Decimal | None:
+    """Current tenant-wide effective price for a test or panel (read view)."""
+    now = timezone.now()
+    queryset = TestPrice.objects.filter(
+        branch_id__isnull=True, effective_from__lte=now
+    )
+    if test_id is not None:
+        queryset = queryset.filter(test_id=test_id)
+    elif panel_id is not None:
+        queryset = queryset.filter(panel_id=panel_id)
+    else:
+        return None
+    row = (
+        queryset.filter(Q(effective_to__isnull=True) | Q(effective_to__gt=now))
+        .order_by("-effective_from")
+        .first()
+    )
+    return row.price if row is not None else None
 
 
 class MoneyField(serializers.Field):
@@ -61,6 +85,10 @@ class MoneyField(serializers.Field):
 
 
 class TestSerializer(serializers.ModelSerializer[Test]):
+    price = serializers.SerializerMethodField()
+    panel_codes = serializers.SerializerMethodField()
+    is_panel_only = serializers.SerializerMethodField()
+
     class Meta:
         model = Test
         fields = [
@@ -70,10 +98,30 @@ class TestSerializer(serializers.ModelSerializer[Test]):
             "category",
             "unit",
             "is_active",
+            "price",
+            "panel_codes",
+            "is_panel_only",
             "created_at",
             "updated_at",
         ]
         read_only_fields = ["id", "created_at", "updated_at"]
+
+    def get_price(self, obj: Test) -> str | None:
+        """Effective standalone price, or null when only a panel is priced."""
+        price = _effective_tenant_price(test_id=obj.id)
+        return f"{price:.2f}" if price is not None else None
+
+    def get_panel_codes(self, obj: Test) -> list[str]:
+        return sorted(
+            Panel.objects.filter(
+                panel_tests__test_id=obj.id, is_active=True
+            ).values_list("code", flat=True)
+        )
+
+    def get_is_panel_only(self, obj: Test) -> bool:
+        if _effective_tenant_price(test_id=obj.id) is not None:
+            return False
+        return Panel.objects.filter(panel_tests__test_id=obj.id).exists()
 
 
 class TestCreateSerializer(serializers.Serializer):
@@ -130,6 +178,7 @@ class PanelTestComponentSerializer(serializers.ModelSerializer[Test]):
 class PanelSerializer(serializers.ModelSerializer[Panel]):
     test_ids = serializers.SerializerMethodField()
     tests = serializers.SerializerMethodField()
+    price = serializers.SerializerMethodField()
 
     class Meta:
         model = Panel
@@ -140,10 +189,15 @@ class PanelSerializer(serializers.ModelSerializer[Panel]):
             "is_active",
             "test_ids",
             "tests",
+            "price",
             "created_at",
             "updated_at",
         ]
         read_only_fields = ["id", "created_at", "updated_at"]
+
+    def get_price(self, obj: Panel) -> str | None:
+        price = _effective_tenant_price(panel_id=obj.id)
+        return f"{price:.2f}" if price is not None else None
 
     def get_test_ids(self, obj: Panel) -> list[str]:
         return [str(pt.test_id) for pt in obj.panel_tests.all()]

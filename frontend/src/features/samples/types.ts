@@ -25,12 +25,24 @@ export interface BranchRef {
   name: string;
 }
 
+export interface SampleReferenceRange {
+  low: string | null;
+  high: string | null;
+  unit: string | null;
+  critical_low?: string | null;
+  critical_high?: string | null;
+}
+
 export interface SampleTestItem {
   id: string;
   test_id: string;
   test_name: string;
   test_code: string;
   invoice_item_id: string;
+  category?: string | null;
+  unit?: string | null;
+  reference_range?: SampleReferenceRange | null;
+  panel_codes?: string[];
   specimen_type?: string;
   tube_type?: string;
   tube_color?: string;

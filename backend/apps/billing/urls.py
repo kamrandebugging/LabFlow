@@ -28,12 +28,12 @@ urlpatterns = [
         name="invoice-cancel-slash",
     ),
     path(
-        "invoices/<uuid:invoice_id>",
+        "invoices/<str:invoice_id>",
         InvoiceDetailView.as_view(),
         name="invoice-detail",
     ),
     path(
-        "invoices/<uuid:invoice_id>/",
+        "invoices/<str:invoice_id>/",
         InvoiceDetailView.as_view(),
         name="invoice-detail-slash",
     ),

@@ -93,8 +93,12 @@ export const billingService = {
   ): Promise<InvoiceDetail> {
     const key = idempotencyKey || generateIdempotencyKey();
     const userBranch = useAuthStore.getState().user?.branch_ids?.[0];
-    const branchId =
-      input.branch_id || userBranch || "96f2a138-334e-490c-9dd3-805dd45022f0";
+    const branchId = input.branch_id || userBranch;
+    if (!branchId) {
+      throw new Error(
+        "No branch is available for this invoice. Select a patient assigned to one of your branches.",
+      );
+    }
 
     const cleanItems = input.items.map((it) => {
       if (it.panel_id) {

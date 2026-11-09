@@ -502,9 +502,36 @@ class CatalogService:
         if tenant_price is not None:
             return tenant_price.price
 
+        # Human-readable, UUID-free message for the billing UI.
+        if test_id is not None:
+            test = Test.objects.filter(pk=test_id).first()
+            test_name = test.name if test is not None else "This test"
+            panel = (
+                Panel.objects.filter(
+                    panel_tests__test_id=test_id, is_active=True
+                )
+                .order_by("code")
+                .first()
+            )
+            if panel is not None:
+                raise TestNotPricedError(
+                    f"This test is billed as part of the {panel.name} panel. "
+                    "Add the panel instead."
+                )
+            raise TestNotPricedError(
+                f"No price has been configured for {test_name}. "
+                "Set a catalog price before billing it."
+            )
+        if panel_id is not None:
+            panel = Panel.objects.filter(pk=panel_id).first()
+            panel_name = panel.name if panel is not None else "This panel"
+            raise TestNotPricedError(
+                f"No price has been configured for {panel_name}. "
+                "Set a catalog price before billing it."
+            )
         raise TestNotPricedError(
-            f"No effective price configured for entity "
-            f"(test={test_id}, panel={panel_id}, branch={branch_id}) on {ref_dt}."
+            "No price has been configured for this item. "
+            "Set a catalog price before billing it."
         )
 
     @staticmethod

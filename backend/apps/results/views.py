@@ -28,6 +28,7 @@ from rest_framework.views import APIView
 
 from apps.accounts.models import StaffUser
 from apps.branches.scope_views import IsInBranchScope
+from apps.results.models import Result
 from apps.results.serializers import (
     CriticalNotificationSerializer,
     ResultAmendSerializer,
@@ -39,6 +40,7 @@ from apps.results.services import (
     RESULT_APPROVE_ROLES,
     RESULT_ENTRY_ROLES,
     RESULT_NOTIFY_ROLES,
+    RESULT_READ_ROLES,
     RESULT_WITHDRAW_ROLES,
     ResultAlreadyEnteredError,
     ResultBatchValidationError,
@@ -70,6 +72,25 @@ class ResultEntryView(APIView):
 
     permission_classes = [permissions.IsAuthenticated, IsInBranchScope]
     scope_branch_source = None
+
+    def get(self, request: Request, sample_id: Any) -> Response:
+        """List real result rows recorded for this sample (approvals queue)."""
+        user = cast(StaffUser, request.user)
+        if user.role not in RESULT_READ_ROLES:
+            return Response(
+                _format_error("forbidden", "Role not permitted to view results."),
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        try:
+            rows = ResultService.list_results_for_sample(
+                sample_id=sample_id, actor=user
+            )
+        except ResultError as exc:
+            return Response(
+                _format_error(exc.error_code, str(exc) or exc.error_code),
+                status=exc.status_code,
+            )
+        return Response({"results": rows}, status=status.HTTP_200_OK)
 
     def post(self, request: Request, sample_id: Any) -> Response:
         user = cast(StaffUser, request.user)
@@ -114,6 +135,57 @@ class ResultEntryView(APIView):
                 status=exc.status_code,
             )
         return Response(payload, status=status.HTTP_201_CREATED)
+
+
+class ResultListView(APIView):
+    """GET /api/v1/results?status=entered — approvals queue (real Result rows)."""
+
+    permission_classes = [permissions.IsAuthenticated, IsInBranchScope]
+    scope_branch_source = None
+
+    def get(self, request: Request) -> Response:
+        user = cast(StaffUser, request.user)
+        if user.role not in RESULT_READ_ROLES:
+            return Response(
+                _format_error("forbidden", "Role not permitted to view results."),
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        status_filter = request.query_params.get("status")
+        if status_filter is not None:
+            allowed = {choice for choice, _ in Result.Status.choices}
+            candidate = status_filter.strip().lower()
+            if candidate and candidate not in allowed:
+                return Response(
+                    _format_error(
+                        "validation_error",
+                        f"Unknown result status: {status_filter}.",
+                    ),
+                    status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                )
+        rows = ResultService.list_results(actor=user, status=status_filter)
+        return Response({"results": rows}, status=status.HTTP_200_OK)
+
+
+class ResultDetailView(APIView):
+    """GET /api/v1/results/{id} — one real result with audit history."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request: Request, result_id: Any) -> Response:
+        user = cast(StaffUser, request.user)
+        if user.role not in RESULT_READ_ROLES:
+            return Response(
+                _format_error("forbidden", "Role not permitted to view results."),
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        try:
+            payload = ResultService.get_result(result_id=result_id, actor=user)
+        except ResultError as exc:
+            return Response(
+                _format_error(exc.error_code, str(exc) or exc.error_code),
+                status=exc.status_code,
+            )
+        return Response(payload, status=status.HTTP_200_OK)
 
 
 class ResultApproveView(APIView):

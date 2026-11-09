@@ -200,8 +200,15 @@ export function ResultDetailScreen(): JSX.Element {
               </span>
               <span className="text-slate-300">·</span>
               <span className="text-slate-600">
-                {detail?.patient_sex === "M" ? "Male" : "Female"},{" "}
-                {detail?.patient_age_years || 34}y
+                {detail?.patient_sex === "M"
+                  ? "Male"
+                  : detail?.patient_sex === "F"
+                    ? "Female"
+                    : "—"}
+                ,{" "}
+                {detail?.patient_age_years !== undefined
+                  ? `${detail.patient_age_years}y`
+                  : "—"}
               </span>
             </div>
           </div>
@@ -265,7 +272,7 @@ export function ResultDetailScreen(): JSX.Element {
                 </h2>
               </div>
               <span className="font-mono text-xs text-slate-600 bg-slate-100 px-2.5 py-0.5 rounded">
-                {detail?.method || "Ion-Selective Electrode (ISE)"}
+                {detail?.test_code || "—"}
               </span>
             </div>
 
@@ -280,9 +287,21 @@ export function ResultDetailScreen(): JSX.Element {
                     {detail?.unit}
                   </span>
                 </div>
-                <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-800 mt-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-red-600" />
-                  <span>high (critical)</span>
+                <div
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold mt-2 ${
+                    detail?.is_critical
+                      ? "bg-red-100 text-red-800"
+                      : "bg-slate-100 text-slate-700"
+                  }`}
+                >
+                  <span
+                    className={`w-1.5 h-1.5 rounded-full ${
+                      detail?.is_critical ? "bg-red-600" : "bg-slate-400"
+                    }`}
+                  />
+                  <span>
+                    {detail?.is_critical ? "critical" : detail?.flag || "no flag"}
+                  </span>
                 </div>
               </div>
 
@@ -291,10 +310,11 @@ export function ResultDetailScreen(): JSX.Element {
                   Reference Interval
                 </span>
                 <span className="font-mono text-sm font-semibold text-slate-900 block mt-0.5">
-                  Matched: {detail?.matched_range || "3.5 – 5.1 mmol/L"}
+                  Matched: {detail?.matched_range || "Not configured"}
                 </span>
                 <span className="text-xs text-red-700 font-semibold block mt-0.5">
-                  Critical Panic Threshold: &gt; 6.2 mmol/L
+                  Critical Panic Threshold:{" "}
+                  {detail?.critical_threshold || "Not configured"}
                 </span>
               </div>
             </div>
@@ -306,23 +326,32 @@ export function ResultDetailScreen(): JSX.Element {
                   Specimen
                 </span>
                 <span className="font-semibold text-slate-800 mt-0.5 block">
-                  {detail?.specimen_type || "Serum (Gold top)"}
+                  {detail?.specimen_type || "—"}
                 </span>
               </div>
               <div>
                 <span className="text-slate-400 font-medium text-[10px] uppercase block">
-                  Analyzer
+                  Test Code
                 </span>
                 <span className="font-semibold text-slate-800 mt-0.5 block">
-                  {detail?.analyzer || "Roche Cobas c501"}
+                  {detail?.test_code || "—"}
                 </span>
               </div>
               <div>
                 <span className="text-slate-400 font-medium text-[10px] uppercase block">
-                  Run Timestamp
+                  Entered At
                 </span>
                 <span className="font-mono text-slate-800 mt-0.5 block">
-                  20 Oct 2026, 09:38 PKT
+                  {detail?.entered_at
+                    ? new Date(detail.entered_at).toLocaleString([], {
+                        day: "2-digit",
+                        month: "short",
+                        year: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        hour12: false,
+                      })
+                    : "—"}
                 </span>
               </div>
               <div>
@@ -330,7 +359,7 @@ export function ResultDetailScreen(): JSX.Element {
                   Entered By
                 </span>
                 <span className="font-semibold text-slate-800 mt-0.5 block">
-                  {detail?.entered_by_name || "Usman Tariq"}
+                  {detail?.entered_by_name || "—"}
                 </span>
               </div>
             </div>
@@ -345,30 +374,43 @@ export function ResultDetailScreen(): JSX.Element {
                   Delta Check
                 </h2>
               </div>
-              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200">
-                <AlertTriangle className="w-3 h-3" />
-                <span>
-                  {detail?.delta_note || "Δ +2.6 — exceeds delta limit"}
+              {detail?.previous_value ? (
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                  <AlertTriangle className="w-3 h-3" />
+                  <span>{detail.delta_note || "Prior result available"}</span>
                 </span>
-              </span>
+              ) : (
+                <span className="text-xs text-slate-500">—</span>
+              )}
             </div>
 
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50 p-4 rounded-lg border border-slate-100">
-              <div>
-                <span className="font-semibold text-slate-900 text-sm block">
-                  Previous approved: {detail?.previous_value || "4.2 mmol/L"}
-                </span>
-                <span className="text-xs text-slate-500">
-                  Validated on {detail?.previous_date || "14 Sep 2026"}
-                </span>
+            {detail?.previous_value ? (
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50 p-4 rounded-lg border border-slate-100">
+                <div>
+                  <span className="font-semibold text-slate-900 text-sm block">
+                    Previous approved: {detail.previous_value}
+                  </span>
+                  {detail.previous_date && (
+                    <span className="text-xs text-slate-500">
+                      Validated on {detail.previous_date}
+                    </span>
+                  )}
+                </div>
+                {detail.shift_rate && (
+                  <div className="font-mono text-xs">
+                    <span className="text-slate-500">Shift Rate: </span>
+                    <span className="font-bold text-amber-700">
+                      {detail.shift_rate}
+                    </span>
+                  </div>
+                )}
               </div>
-              <div className="font-mono text-xs">
-                <span className="text-slate-500">Shift Rate: </span>
-                <span className="font-bold text-amber-700">
-                  {detail?.shift_rate || "+61.9% in 36 days"}
-                </span>
-              </div>
-            </div>
+            ) : (
+              <p className="text-xs text-slate-500 bg-slate-50 p-4 rounded-lg border border-slate-100">
+                No prior approved result is available for a longitudinal delta
+                comparison.
+              </p>
+            )}
           </div>
         </div>
 
@@ -384,26 +426,42 @@ export function ResultDetailScreen(): JSX.Element {
                 </h2>
               </div>
               <span className="text-xs font-mono font-semibold text-teal-800 bg-teal-50 px-2 py-0.5 rounded">
-                Read-back: Yes
+                Read-back:{" "}
+                {detail?.critical_notification
+                  ? detail.critical_notification.read_back
+                    ? "Yes"
+                    : "No"
+                  : "—"}
               </span>
             </div>
 
-            <div className="bg-slate-50 p-4 rounded-lg border border-slate-100 space-y-1">
-              <div className="text-xs text-slate-400 font-semibold uppercase tracking-wider">
-                Immediate Verbal Dispatch
+            {detail?.critical_notification ? (
+              <div className="bg-slate-50 p-4 rounded-lg border border-slate-100 space-y-1">
+                <div className="text-xs text-slate-400 font-semibold uppercase tracking-wider">
+                  Immediate Verbal Dispatch
+                </div>
+                <p className="text-sm font-semibold text-slate-900">
+                  Notified: {detail.critical_notification.notified_name}
+                </p>
+                <p className="text-xs text-slate-500">
+                  Notified at{" "}
+                  {new Date(
+                    detail.critical_notification.notified_at,
+                  ).toLocaleString([], {
+                    day: "2-digit",
+                    month: "short",
+                    year: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    hour12: false,
+                  })}
+                </p>
               </div>
-              <p className="text-sm font-semibold text-slate-900">
-                Notified:{" "}
-                {detail?.critical_notification?.notified_name ||
-                  "Dr. Tariq Niazi"}
+            ) : (
+              <p className="text-xs text-slate-500 bg-slate-50 p-4 rounded-lg border border-slate-100">
+                No critical notification has been recorded for this result.
               </p>
-              <p className="text-xs text-slate-500">
-                Recipient:{" "}
-                {detail?.critical_notification?.recipient_role ||
-                  "Ward Medical Officer"}{" "}
-                · Verified
-              </p>
-            </div>
+            )}
 
             <div className="text-xs text-slate-500 flex items-center gap-1.5 pt-1">
               <ShieldCheck className="w-4 h-4 text-teal-700 shrink-0" />

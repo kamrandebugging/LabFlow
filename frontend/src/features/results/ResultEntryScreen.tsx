@@ -30,58 +30,31 @@ interface TestParamEntry {
   id: string;
   name: string;
   category: string;
-  method: string;
   unit: string;
-  refLow: number;
-  refHigh: number;
+  refLow: number | null;
+  refHigh: number | null;
+  rangeDisplay: string;
   value: string;
 }
 
-const DEFAULT_TEST_PARAMS: Record<
-  string,
-  Omit<TestParamEntry, "id" | "value">
-> = {
-  hemoglobin: {
-    name: "Hemoglobin (Hb)",
-    category: "Complete Blood Count",
-    method: "Photometric",
-    unit: "g/dL",
-    refLow: 13.0,
-    refHigh: 17.0,
-  },
-  wbc: {
-    name: "WBC (Total Leukocyte Count)",
-    category: "Complete Blood Count",
-    method: "Flow Cytometry",
-    unit: "×10⁹/L",
-    refLow: 4.0,
-    refHigh: 11.0,
-  },
-  platelets: {
-    name: "Platelets (Thrombocytes)",
-    category: "Complete Blood Count",
-    method: "Impedance",
-    unit: "×10⁹/L",
-    refLow: 150,
-    refHigh: 410,
-  },
-  hba1c: {
-    name: "Glycated Hemoglobin (HbA1c)",
-    category: "Glycemic Monitor",
-    method: "HPLC Method",
-    unit: "%",
-    refLow: 4.0,
-    refHigh: 5.6,
-  },
-  potassium: {
-    name: "Potassium (K+)",
-    category: "Electrolytes",
-    method: "ISE Method",
-    unit: "mmol/L",
-    refLow: 3.5,
-    refHigh: 5.1,
-  },
-};
+function parseBound(raw: string | null | undefined): number | null {
+  if (raw === null || raw === undefined || raw === "") return null;
+  const num = Number(raw);
+  return Number.isFinite(num) ? num : null;
+}
+
+function formatRangeDisplay(
+  low: number | null,
+  high: number | null,
+  unit: string,
+): string {
+  if (low !== null && high !== null) {
+    return `${low} – ${high} ${unit}`.trim();
+  }
+  if (low !== null) return `>= ${low} ${unit}`.trim();
+  if (high !== null) return `<= ${high} ${unit}`.trim();
+  return "No reference range configured";
+}
 
 export function ResultEntryScreen(): JSX.Element {
   const { sampleId } = useParams<{ sampleId: string }>();
@@ -111,65 +84,24 @@ export function ResultEntryScreen(): JSX.Element {
         const data = await sampleService.getSample(sampleId!);
         setSample(data);
 
-        // Build parameters from tests
-        let entries: TestParamEntry[] = [];
-        if (data?.sample_tests && data.sample_tests.length > 0) {
-          entries = data.sample_tests.map((st) => {
-            const lower = (st.test_name || st.test_code || "").toLowerCase();
-            let matchedKey = Object.keys(DEFAULT_TEST_PARAMS).find((k) =>
-              lower.includes(k),
-            );
-            if (!matchedKey) matchedKey = "hemoglobin";
-            const ref = DEFAULT_TEST_PARAMS[matchedKey] || {
-              category: "General",
-              method: "Automated",
-              unit: "",
-              refLow: 0,
-              refHigh: 100,
-            };
-
+        // Build parameters strictly from the sample's real ordered tests.
+        const entries: TestParamEntry[] = (data?.sample_tests ?? []).map(
+          (st) => {
+            const unit = st.unit ?? st.reference_range?.unit ?? "";
+            const refLow = parseBound(st.reference_range?.low);
+            const refHigh = parseBound(st.reference_range?.high);
             return {
               id: st.test_id,
               name: st.test_name || st.test_code,
-              category: ref.category,
-              method: ref.method,
-              unit: ref.unit,
-              refLow: ref.refLow,
-              refHigh: ref.refHigh,
+              category: st.category || "",
+              unit,
+              refLow,
+              refHigh,
+              rangeDisplay: formatRangeDisplay(refLow, refHigh, unit),
               value: "",
             };
-          });
-        } else {
-          const testList = data?.tests?.length
-            ? data.tests
-            : ["Hemoglobin (Hb)", "WBC", "Platelets"];
-
-          entries = testList.map((testName, idx) => {
-            const lower = testName.toLowerCase();
-            let matchedKey = Object.keys(DEFAULT_TEST_PARAMS).find((k) =>
-              lower.includes(k),
-            );
-            if (!matchedKey) matchedKey = "hemoglobin";
-            const ref = DEFAULT_TEST_PARAMS[matchedKey] || {
-              category: "General",
-              method: "Automated",
-              unit: "",
-              refLow: 0,
-              refHigh: 100,
-            };
-
-            return {
-              id: `test-param-${idx + 1}`,
-              name: testName,
-              category: ref.category,
-              method: ref.method,
-              unit: ref.unit,
-              refLow: ref.refLow,
-              refHigh: ref.refHigh,
-              value: "",
-            };
-          });
-        }
+          },
+        );
 
         setParams(entries);
       } catch (err) {
@@ -198,8 +130,9 @@ export function ResultEntryScreen(): JSX.Element {
     if (!p.value.trim()) return null;
     const num = parseFloat(p.value);
     if (isNaN(num)) return null;
-    if (num < p.refLow) return "low";
-    if (num > p.refHigh) return "high";
+    if (p.refLow !== null && num < p.refLow) return "low";
+    if (p.refHigh !== null && num > p.refHigh) return "high";
+    if (p.refLow === null && p.refHigh === null) return null;
     return "normal";
   };
 
@@ -293,23 +226,30 @@ export function ResultEntryScreen(): JSX.Element {
             </Link>
             <span className="text-slate-400">/</span>
             <span className="font-mono text-slate-900 font-semibold bg-slate-100 px-2 py-0.5 rounded">
-              {sample?.accession_id || "CDL20261020000041"}
+              {sample?.accession_id || "—"}
             </span>
           </nav>
 
           <div className="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-full border border-slate-200 shadow-xs text-xs">
             <User className="w-4 h-4 text-teal-700" />
             <span className="font-semibold text-slate-900">
-              {sample?.patient_name || "Muhammad Imran"}
+              {sample?.patient_name || "—"}
             </span>
             <span className="text-slate-300">·</span>
             <span className="text-slate-600">
-              {sample?.patient_sex === "M" ? "Male" : "Female"},{" "}
-              {sample?.patient_age_years || 34}y
+              {sample?.patient_sex === "M"
+                ? "Male"
+                : sample?.patient_sex === "F"
+                  ? "Female"
+                  : "—"}
+              ,{" "}
+              {sample?.patient_age_years !== undefined
+                ? `${sample.patient_age_years}y`
+                : "—"}
             </span>
             <span className="text-slate-300">·</span>
             <span className="font-mono text-slate-500">
-              {sample?.patient_mrn || "MRN-2026-00417"}
+              {sample?.patient_mrn || "—"}
             </span>
           </div>
         </div>
@@ -328,7 +268,7 @@ export function ResultEntryScreen(): JSX.Element {
             <span>
               Bench Station:{" "}
               <strong className="text-slate-900">
-                Bench A (Hematology/Bio)
+                {sample?.bench_code || "Not assigned"}
               </strong>
             </span>
           </div>
@@ -342,10 +282,10 @@ export function ResultEntryScreen(): JSX.Element {
             </div>
             <div>
               <div className="text-slate-400 font-semibold uppercase tracking-wider text-[10px]">
-                Specimens Collected
+                Ordered Tests
               </div>
               <div className="font-medium text-slate-900">
-                EDTA Whole Blood &amp; Fluoride Plasma
+                {sample?.tests?.length ? sample.tests.join(", ") : "—"}
               </div>
             </div>
           </div>
@@ -360,12 +300,15 @@ export function ResultEntryScreen(): JSX.Element {
               </div>
               <div className="font-mono text-slate-900">
                 {sample?.collected_at
-                  ? new Date(sample.collected_at).toLocaleDateString([], {
+                  ? new Date(sample.collected_at).toLocaleString([], {
                       day: "2-digit",
                       month: "short",
                       year: "numeric",
-                    }) + ", 09:15 PKT"
-                  : "20 Oct 2026, 09:15 PKT"}
+                      hour: "2-digit",
+                      minute: "2-digit",
+                      hour12: false,
+                    })
+                  : "—"}
               </div>
             </div>
           </div>
@@ -379,7 +322,7 @@ export function ResultEntryScreen(): JSX.Element {
                 Technician on Duty
               </div>
               <div className="font-medium text-slate-900">
-                {user?.name || "Usman Tariq"} ({user?.role})
+                {user?.name || user?.email || "—"} ({user?.role})
               </div>
             </div>
           </div>
@@ -447,6 +390,17 @@ export function ResultEntryScreen(): JSX.Element {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-sm text-slate-900">
+                {params.length === 0 && (
+                  <tr>
+                    <td
+                      colSpan={4}
+                      className="py-10 px-6 text-center text-sm text-slate-500"
+                    >
+                      No ordered tests were found for this sample. Collect or
+                      verify the sample before entering results.
+                    </td>
+                  </tr>
+                )}
                 {params.map((p) => {
                   const flag = calculateFlag(p);
                   return (
@@ -459,7 +413,7 @@ export function ResultEntryScreen(): JSX.Element {
                           {p.name}
                         </div>
                         <div className="text-xs text-slate-500 mt-0.5">
-                          {p.category} · {p.method}
+                          {p.category || "Uncategorized"}
                         </div>
                       </td>
                       <td className="py-4 px-4 align-middle">
@@ -471,7 +425,11 @@ export function ResultEntryScreen(): JSX.Element {
                             onChange={(e) =>
                               handleValueChange(p.id, e.target.value)
                             }
-                            placeholder={`e.g. ${((p.refLow + p.refHigh) / 2).toFixed(1)}`}
+                            placeholder={
+                              p.refLow !== null && p.refHigh !== null
+                                ? `e.g. ${((p.refLow + p.refHigh) / 2).toFixed(1)}`
+                                : "Enter value"
+                            }
                             className={`w-36 h-9 px-3 rounded-lg border font-mono text-sm focus:outline-none focus:ring-2 transition-all ${
                               flag === "high"
                                 ? "border-red-400 bg-red-50/30 text-red-950 focus:ring-red-500"
@@ -505,7 +463,7 @@ export function ResultEntryScreen(): JSX.Element {
                         <div className="flex items-center gap-1.5 text-xs text-slate-500">
                           <span>Range:</span>
                           <span className="font-mono font-medium text-slate-800">
-                            {p.refLow.toFixed(1)} – {p.refHigh.toFixed(1)}
+                            {p.rangeDisplay}
                           </span>
                         </div>
                       </td>
@@ -518,7 +476,7 @@ export function ResultEntryScreen(): JSX.Element {
 
           {/* Subfooter */}
           <div className="px-6 py-2.5 bg-slate-50/50 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500">
-            <span>Direct LIS protocol entry · Terminal ID: CDL-GLB-T04</span>
+            <span>Direct LIS protocol entry</span>
             <span className="font-mono">PROTOCOL: ISO-15189</span>
           </div>
         </div>

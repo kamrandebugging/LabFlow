@@ -30,7 +30,7 @@ export function CollectSampleStep1Screen({
   const user = useAuthStore((s) => s.user);
 
   const [invoiceQuery, setInvoiceQuery] = useState(
-    preselectedInvoiceId || "INV-0891A000",
+    preselectedInvoiceId || "",
   );
   const [invoice, setInvoice] = useState<InvoiceDetail | null>(null);
   const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(
@@ -125,33 +125,21 @@ export function CollectSampleStep1Screen({
 
     const draft: SampleCollectionDraft = {
       invoice_id: invoice.id,
+      invoice_number: invoice.invoice_number,
       patient_id: invoice.patient_id,
       patient_name: invoice.patient_name || "—",
       patient_mrn: invoice.patient_mrn || "—",
       patient_sex: invoice.patient_sex || "",
       patient_age: invoice.patient_age || "",
       branch_id: invoice.branch_id,
-      branch_name: invoice.branch_name || "Main Branch",
+      branch_name: invoice.branch_name || "",
       selected_item_ids: Array.from(selectedItemIds),
       test_labels: selectedItems.map(
         (i) => i.name || i.description || "Diagnostic Test",
       ),
-      tubes_required: [
-        {
-          type: "K2-EDTA",
-          color: "Purple Top",
-          specimen: "EDTA Whole Blood",
-          count: 1,
-        },
-        {
-          type: "Fluoride Plasma",
-          color: "Grey Top",
-          specimen: "Fluoride Blood",
-          count: 1,
-        },
-      ],
+      tubes_required: [],
       collected_at: collectedAt,
-      collected_by: user?.email || "bilal.ahmed@labflow.pk",
+      collected_by: user?.email || "",
       notes: notes.trim() || undefined,
     };
 
@@ -185,9 +173,9 @@ export function CollectSampleStep1Screen({
             Collect sample
           </h1>
           <div className="flex items-center gap-2 text-xs font-mono text-slate-500 bg-white border border-slate-200 px-2.5 py-1 rounded-md shadow-xs">
-            <span className="text-slate-400">BENCH:</span>
+            <span className="text-slate-400">BRANCH:</span>
             <span className="font-semibold text-slate-700">
-              SPECIMEN-INTAKE-GLB
+              {invoice?.branch_name || "—"}
             </span>
           </div>
         </div>
@@ -253,11 +241,11 @@ export function CollectSampleStep1Screen({
               <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
                 <span className="font-mono font-medium text-slate-900">
-                  {invoice.id.substring(0, 13)}
+                  {invoice.invoice_number || invoice.id}
                 </span>
                 <span className="text-slate-300">—</span>
                 <span className="font-medium text-slate-800">
-                  {invoice.patient_name || "Patient Record"}
+                  {invoice.patient_name || "—"}
                 </span>
                 <span className="text-slate-400 ml-1">
                   · Status: {invoice.status.toUpperCase()} (PKR{" "}
@@ -295,7 +283,7 @@ export function CollectSampleStep1Screen({
               </div>
               <div className="flex items-center gap-1.5 text-xs text-emerald-700 font-medium bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md shrink-0">
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                <span>Verified identity</span>
+                <span>Invoice selected</span>
               </div>
             </div>
           </div>
@@ -318,7 +306,6 @@ export function CollectSampleStep1Screen({
                 const isSelected = selectedItemIds.has(item.id);
                 const itemName =
                   item.name || item.description || "Diagnostic Test";
-                const isEdta = itemName.toLowerCase().includes("cbc");
                 return (
                   <label
                     key={item.id}
@@ -341,13 +328,16 @@ export function CollectSampleStep1Screen({
                             {itemName}
                           </span>
                           <span className="text-[11px] font-mono text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
-                            {isEdta ? "HAEM-001" : "BIO-014"}
+                            {item.panel_id
+                              ? "PANEL"
+                              : item.test_id
+                                ? "TEST"
+                                : "ITEM"}
                           </span>
                         </div>
                         <p className="text-xs text-slate-500 mt-0.5">
-                          {isEdta
-                            ? "Specimen: EDTA Whole Blood (Purple Top) · 3.0 mL"
-                            : "Specimen: Fluoride Plasma / EDTA (Grey/Purple Top) · 2.0 mL"}
+                          Qty {item.quantity} · PKR{" "}
+                          {parseFloat(item.unit_price || "0").toFixed(2)} each
                         </p>
                       </div>
                       <div className="text-right">
@@ -406,7 +396,7 @@ export function CollectSampleStep1Screen({
                 <input
                   id={collectedByInputId}
                   type="text"
-                  value={user?.email || "bilal.ahmed@labflow.pk"}
+                  value={user?.email || ""}
                   readOnly
                   className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-900 cursor-not-allowed"
                 />
