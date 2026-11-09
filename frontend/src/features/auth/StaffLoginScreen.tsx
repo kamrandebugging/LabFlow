@@ -79,7 +79,10 @@ export function StaffLoginScreen({
       }
 
       if (result.session) {
-        if (result.totpEnrollmentRequired || result.session.totp_enrollment_required) {
+        if (
+          result.totpEnrollmentRequired ||
+          result.session.totp_enrollment_required
+        ) {
           onTotpEnrollmentRequired?.(result.session);
           return;
         }

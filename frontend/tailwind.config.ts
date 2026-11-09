@@ -146,18 +146,66 @@ const config: Config = {
         body: ["'Inter'", "sans-serif"],
       },
       fontSize: {
-        "headline-xl": ["2rem", { lineHeight: "2.5rem", letterSpacing: "-0.025em", fontWeight: "800" }],
-        "headline-lg": ["1.5rem", { lineHeight: "2rem", letterSpacing: "-0.02em", fontWeight: "800" }],
-        "headline-md": ["1.25rem", { lineHeight: "1.75rem", letterSpacing: "-0.015em", fontWeight: "800" }],
-        "headline-sm": ["1.125rem", { lineHeight: "1.5rem", letterSpacing: "-0.01em", fontWeight: "700" }],
-        "title-md": ["1rem", { lineHeight: "1.5rem", letterSpacing: "-0.01em", fontWeight: "600" }],
-        "title-sm": ["0.875rem", { lineHeight: "1.25rem", letterSpacing: "0em", fontWeight: "600" }],
-        "body-md": ["0.875rem", { lineHeight: "1.375rem", letterSpacing: "0em", fontWeight: "400" }],
-        "body-sm": ["0.8125rem", { lineHeight: "1.25rem", letterSpacing: "0em", fontWeight: "400" }],
-        "body-xs": ["0.75rem", { lineHeight: "1rem", letterSpacing: "0em", fontWeight: "400" }],
-        "label-md": ["0.8125rem", { lineHeight: "1.125rem", letterSpacing: "0.01em", fontWeight: "500" }],
-        "label-sm": ["0.75rem", { lineHeight: "1rem", letterSpacing: "0.02em", fontWeight: "600" }],
-        "code-sm": ["0.75rem", { lineHeight: "1rem", letterSpacing: "0.03em", fontWeight: "500" }],
+        "headline-xl": [
+          "2rem",
+          {
+            lineHeight: "2.5rem",
+            letterSpacing: "-0.025em",
+            fontWeight: "800",
+          },
+        ],
+        "headline-lg": [
+          "1.5rem",
+          { lineHeight: "2rem", letterSpacing: "-0.02em", fontWeight: "800" },
+        ],
+        "headline-md": [
+          "1.25rem",
+          {
+            lineHeight: "1.75rem",
+            letterSpacing: "-0.015em",
+            fontWeight: "800",
+          },
+        ],
+        "headline-sm": [
+          "1.125rem",
+          { lineHeight: "1.5rem", letterSpacing: "-0.01em", fontWeight: "700" },
+        ],
+        "title-md": [
+          "1rem",
+          { lineHeight: "1.5rem", letterSpacing: "-0.01em", fontWeight: "600" },
+        ],
+        "title-sm": [
+          "0.875rem",
+          { lineHeight: "1.25rem", letterSpacing: "0em", fontWeight: "600" },
+        ],
+        "body-md": [
+          "0.875rem",
+          { lineHeight: "1.375rem", letterSpacing: "0em", fontWeight: "400" },
+        ],
+        "body-sm": [
+          "0.8125rem",
+          { lineHeight: "1.25rem", letterSpacing: "0em", fontWeight: "400" },
+        ],
+        "body-xs": [
+          "0.75rem",
+          { lineHeight: "1rem", letterSpacing: "0em", fontWeight: "400" },
+        ],
+        "label-md": [
+          "0.8125rem",
+          {
+            lineHeight: "1.125rem",
+            letterSpacing: "0.01em",
+            fontWeight: "500",
+          },
+        ],
+        "label-sm": [
+          "0.75rem",
+          { lineHeight: "1rem", letterSpacing: "0.02em", fontWeight: "600" },
+        ],
+        "code-sm": [
+          "0.75rem",
+          { lineHeight: "1rem", letterSpacing: "0.03em", fontWeight: "500" },
+        ],
       },
     },
   },

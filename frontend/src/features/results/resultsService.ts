@@ -217,17 +217,14 @@ export const resultsService = {
     resultId: string,
     input: ResultApprovalInput,
   ): Promise<ResultApprovalResponse> {
-    return apiRequest<ResultApprovalResponse>(
-      `/results/${resultId}/approve`,
-      {
-        method: "POST",
-        body: {
-          decision: input.decision,
-          note: input.note?.trim() || undefined,
-          range_override: Boolean(input.range_override),
-        },
+    return apiRequest<ResultApprovalResponse>(`/results/${resultId}/approve`, {
+      method: "POST",
+      body: {
+        decision: input.decision,
+        note: input.note?.trim() || undefined,
+        range_override: Boolean(input.range_override),
       },
-    );
+    });
   },
 
   /**

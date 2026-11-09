@@ -327,9 +327,7 @@ def _audit_history(result: Result) -> list[dict[str, Any]]:
         )
     )
     actor_ids = {log.actor_id for log in logs if log.actor_id is not None}
-    emails = dict(
-        StaffUser.objects.filter(id__in=actor_ids).values_list("id", "email")
-    )
+    emails = dict(StaffUser.objects.filter(id__in=actor_ids).values_list("id", "email"))
     history: list[dict[str, Any]] = []
     for log in logs:
         after = log.after_jsonb or {}
@@ -339,7 +337,7 @@ def _audit_history(result: Result) -> list[dict[str, Any]]:
                 "value": after.get("value"),
                 "status": after.get("decision") or after.get("status"),
                 "timestamp": log.at.isoformat(),
-                "actor_name": emails.get(log.actor_id),
+                "actor_name": emails.get(log.actor_id) if log.actor_id else None,
                 "note": after.get("note"),
                 "reason": after.get("reason"),
             }
@@ -461,20 +459,18 @@ class ResultService:
         return [_serialize_result(row) for row in rows]
 
     @staticmethod
-    def get_result(
-        *, result_id: uuid.UUID, actor: StaffUser
-    ) -> dict[str, Any]:
+    def get_result(*, result_id: uuid.UUID, actor: StaffUser) -> dict[str, Any]:
         """One real result row with approvals, notifications and audit trail."""
         try:
-            result = Result.objects.select_related(
+            results = Result.objects.select_related(
                 "sample__invoice__patient",
                 "sample__branch",
                 "test",
                 "entered_by",
             )
             if actor.branch_id:
-                result = result.filter(sample__branch_id=actor.branch_id)
-            result = result.get(pk=result_id)
+                results = results.filter(sample__branch_id=actor.branch_id)
+            result = results.get(pk=result_id)
         except Result.DoesNotExist:
             raise ResultNotFoundError("Result not found.") from None
         return _serialize_result(result, include_detail=True)

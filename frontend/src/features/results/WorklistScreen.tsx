@@ -173,7 +173,8 @@ export function WorklistScreen(): JSX.Element {
               <option value="all">All</option>
               <option value="ready">Ready for entry</option>
               <option value="in_process">In process</option>
-              <option value="rejected">Sample rejected</option>            </select>
+              <option value="rejected">Sample rejected</option>{" "}
+            </select>
             <ChevronDown className="w-4 h-4 text-slate-400 pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2" />
           </div>
         </div>

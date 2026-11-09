@@ -111,9 +111,9 @@ describe("apiClient Silent Refresh Integration", () => {
       return { ok: false, status: 404 };
     });
 
-    await expect(
-      apiRequest("/patients", { session: "staff" }),
-    ).rejects.toThrow(ApiError);
+    await expect(apiRequest("/patients", { session: "staff" })).rejects.toThrow(
+      ApiError,
+    );
 
     expect(useAuthStore.getState().accessToken).toBeNull();
     expect(useAuthStore.getState().isAuthenticated).toBe(false);

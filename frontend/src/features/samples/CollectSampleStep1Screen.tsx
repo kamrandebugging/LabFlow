@@ -29,9 +29,7 @@ export function CollectSampleStep1Screen({
 }: CollectSampleStep1ScreenProps): JSX.Element {
   const user = useAuthStore((s) => s.user);
 
-  const [invoiceQuery, setInvoiceQuery] = useState(
-    preselectedInvoiceId || "",
-  );
+  const [invoiceQuery, setInvoiceQuery] = useState(preselectedInvoiceId || "");
   const [invoice, setInvoice] = useState<InvoiceDetail | null>(null);
   const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(
     new Set(),
@@ -64,7 +62,6 @@ export function CollectSampleStep1Screen({
   }, []);
 
   // Fetch invoice helper
-  const userBranchId = user?.branch_ids?.[0];
   const handleSearchInvoice = useCallback(
     async (idOrNumber: string) => {
       const q = idOrNumber.trim();
@@ -88,7 +85,7 @@ export function CollectSampleStep1Screen({
         setIsLoading(false);
       }
     },
-    [billingServiceInstance, userBranchId],
+    [billingServiceInstance],
   );
 
   useEffect(() => {

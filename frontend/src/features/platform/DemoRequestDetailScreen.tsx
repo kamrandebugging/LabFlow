@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { platformService } from "./platformService";
 import type { DemoRequestItem, DemoRequestStatus } from "./types";
@@ -13,10 +13,11 @@ export function DemoRequestDetailScreen() {
   const [saving, setSaving] = useState(false);
 
   const [lead, setLead] = useState<DemoRequestItem | null>(null);
-  const [selectedStatus, setSelectedStatus] = useState<DemoRequestStatus>("new");
+  const [selectedStatus, setSelectedStatus] =
+    useState<DemoRequestStatus>("new");
   const [notes, setNotes] = useState("");
 
-  const loadLead = async () => {
+  const loadLead = useCallback(async () => {
     if (!id) return;
     try {
       setLoading(true);
@@ -30,11 +31,11 @@ export function DemoRequestDetailScreen() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
 
   useEffect(() => {
     loadLead();
-  }, [id]);
+  }, [loadLead]);
 
   const handleUpdate = async () => {
     if (!id) return;
@@ -70,7 +71,9 @@ export function DemoRequestDetailScreen() {
     return (
       <div className="p-16 text-center text-outline">
         <span className="inline-block w-8 h-8 border-2 border-primary/20 border-t-primary rounded-full animate-spin mb-3" />
-        <p className="font-body-md text-body-md font-semibold">Loading lead dossier...</p>
+        <p className="font-body-md text-body-md font-semibold">
+          Loading lead dossier...
+        </p>
       </div>
     );
   }
@@ -78,9 +81,15 @@ export function DemoRequestDetailScreen() {
   if (error || !lead) {
     return (
       <div className="p-12 text-center bg-surface-container-lowest rounded shadow-sm max-w-xl mx-auto mt-8">
-        <span className="material-symbols-outlined text-error text-[40px] mb-2">error</span>
-        <h2 className="font-headline-sm text-headline-sm text-on-surface mb-2">Lead Not Found</h2>
-        <p className="font-body-sm text-body-sm text-outline mb-4">{error || "Record could not be retrieved."}</p>
+        <span className="material-symbols-outlined text-error text-[40px] mb-2">
+          error
+        </span>
+        <h2 className="font-headline-sm text-headline-sm text-on-surface mb-2">
+          Lead Not Found
+        </h2>
+        <p className="font-body-sm text-body-sm text-outline mb-4">
+          {error || "Record could not be retrieved."}
+        </p>
         <Link
           to="/platform/demo-requests"
           className="px-4 py-2 bg-primary text-on-primary font-label-sm text-label-sm rounded hover:bg-primary-container"
@@ -98,11 +107,18 @@ export function DemoRequestDetailScreen() {
       {/* Top Utility Nav */}
       <div className="flex flex-wrap items-center justify-between gap-space-sm pb-space-xs">
         <nav className="flex items-center gap-space-xs font-label-sm text-label-sm text-outline">
-          <Link to="/platform/demo-requests" className="hover:text-primary transition-colors flex items-center gap-1">
-            <span className="material-symbols-outlined text-[16px]">contact_page</span>
+          <Link
+            to="/platform/demo-requests"
+            className="hover:text-primary transition-colors flex items-center gap-1"
+          >
+            <span className="material-symbols-outlined text-[16px]">
+              contact_page
+            </span>
             <span>Demo Requests</span>
           </Link>
-          <span className="material-symbols-outlined text-[14px]">chevron_right</span>
+          <span className="material-symbols-outlined text-[14px]">
+            chevron_right
+          </span>
           <span className="text-on-surface font-semibold">{lead.lab_name}</span>
         </nav>
 
@@ -112,7 +128,9 @@ export function DemoRequestDetailScreen() {
             onClick={() => navigate("/platform/demo-requests")}
             className="h-8 px-space-sm bg-surface-container-low hover:bg-surface-container text-on-surface rounded font-label-sm text-label-sm flex items-center gap-1 transition-colors"
           >
-            <span className="material-symbols-outlined text-[16px]">arrow_back</span>
+            <span className="material-symbols-outlined text-[16px]">
+              arrow_back
+            </span>
             Back to Inbox
           </button>
           {lead.status !== "converted" && (
@@ -121,7 +139,9 @@ export function DemoRequestDetailScreen() {
               onClick={handleConvertToLab}
               className="h-8 px-space-md bg-primary hover:bg-primary-container text-on-primary rounded font-label-sm text-label-sm font-bold flex items-center gap-1.5 transition-colors shadow-sm"
             >
-              <span className="material-symbols-outlined text-[16px]">domain_add</span>
+              <span className="material-symbols-outlined text-[16px]">
+                domain_add
+              </span>
               <span>Convert to Active Lab</span>
             </button>
           )}
@@ -153,9 +173,12 @@ export function DemoRequestDetailScreen() {
 
         {lead.converted_tenant && (
           <div className="p-space-sm bg-primary-fixed/30 border border-primary text-primary-container rounded flex items-center gap-2">
-            <span className="material-symbols-outlined text-[20px]">check_circle</span>
+            <span className="material-symbols-outlined text-[20px]">
+              check_circle
+            </span>
             <span className="font-body-sm text-body-sm font-bold">
-              Converted to Tenant: {lead.converted_tenant.name} ({lead.converted_tenant.slug})
+              Converted to Tenant: {lead.converted_tenant.name} (
+              {lead.converted_tenant.slug})
             </span>
           </div>
         )}
@@ -164,10 +187,15 @@ export function DemoRequestDetailScreen() {
       {success && (
         <div className="p-space-md bg-primary-fixed/30 border border-primary text-primary-container rounded flex items-center justify-between font-title-sm text-title-sm font-semibold">
           <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-[20px]">check_circle</span>
+            <span className="material-symbols-outlined text-[20px]">
+              check_circle
+            </span>
             <span>{success}</span>
           </div>
-          <button onClick={() => setSuccess(null)} className="text-on-surface-variant hover:text-on-surface">
+          <button
+            onClick={() => setSuccess(null)}
+            className="text-on-surface-variant hover:text-on-surface"
+          >
             <span className="material-symbols-outlined text-[18px]">close</span>
           </button>
         </div>
@@ -181,7 +209,9 @@ export function DemoRequestDetailScreen() {
           <div className="bg-surface-container-lowest p-space-lg rounded shadow-sm flex flex-col gap-space-md">
             <div className="flex items-center justify-between pb-space-xs border-b border-surface-container">
               <div className="flex items-center gap-space-xs">
-                <span className="material-symbols-outlined text-primary text-[20px]">person</span>
+                <span className="material-symbols-outlined text-primary text-[20px]">
+                  person
+                </span>
                 <h2 className="font-title-md text-title-md text-on-surface font-bold">
                   Inbound Inquirer Dossier
                 </h2>
@@ -192,20 +222,26 @@ export function DemoRequestDetailScreen() {
                 rel="noopener noreferrer"
                 className="h-8 px-3 bg-primary-container text-on-primary font-label-sm text-label-sm font-bold rounded flex items-center gap-1.5 hover:bg-primary transition-colors shadow-xs"
               >
-                <span className="material-symbols-outlined text-[16px]">chat</span>
+                <span className="material-symbols-outlined text-[16px]">
+                  chat
+                </span>
                 <span>Message on WhatsApp</span>
               </a>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-space-md font-body-sm text-body-sm">
               <div className="p-space-sm bg-surface-container-low rounded flex flex-col gap-1">
-                <span className="text-outline font-label-sm text-label-sm">Doctor / Director</span>
+                <span className="text-outline font-label-sm text-label-sm">
+                  Doctor / Director
+                </span>
                 <span className="font-title-sm text-title-sm font-bold text-on-surface">
                   {lead.contact_person}
                 </span>
               </div>
               <div className="p-space-sm bg-surface-container-low rounded flex flex-col gap-1">
-                <span className="text-outline font-label-sm text-label-sm">WhatsApp Mobile</span>
+                <span className="text-outline font-label-sm text-label-sm">
+                  WhatsApp Mobile
+                </span>
                 <span className="font-code-sm text-code-sm font-bold text-on-surface">
                   {lead.whatsapp}
                 </span>
@@ -217,7 +253,8 @@ export function DemoRequestDetailScreen() {
                 Original Inbound Requirements & Notes
               </span>
               <div className="p-space-md bg-surface-container-low rounded font-body-sm text-body-sm text-on-surface whitespace-pre-wrap leading-relaxed border border-outline-variant/30">
-                {lead.message || "No custom message provided during initial form submission."}
+                {lead.message ||
+                  "No custom message provided during initial form submission."}
               </div>
             </div>
           </div>
@@ -226,12 +263,16 @@ export function DemoRequestDetailScreen() {
           <div className="bg-surface-container-lowest p-space-lg rounded shadow-sm flex flex-col gap-space-md">
             <div className="flex items-center justify-between pb-space-xs border-b border-surface-container">
               <div className="flex items-center gap-space-xs">
-                <span className="material-symbols-outlined text-primary text-[20px]">edit_note</span>
+                <span className="material-symbols-outlined text-primary text-[20px]">
+                  edit_note
+                </span>
                 <h2 className="font-title-md text-title-md text-on-surface font-bold">
                   Internal Sales & Qualification Notes
                 </h2>
               </div>
-              <span className="font-code-sm text-code-sm text-outline">Internal use only</span>
+              <span className="font-code-sm text-code-sm text-outline">
+                Internal use only
+              </span>
             </div>
 
             <textarea
@@ -264,7 +305,9 @@ export function DemoRequestDetailScreen() {
           <div className="bg-surface-container-lowest p-space-lg rounded shadow-sm flex flex-col gap-space-md">
             <div className="flex items-center justify-between pb-space-xs border-b border-surface-container">
               <div className="flex items-center gap-space-xs">
-                <span className="material-symbols-outlined text-primary text-[20px]">sync</span>
+                <span className="material-symbols-outlined text-primary text-[20px]">
+                  sync
+                </span>
                 <h2 className="font-title-md text-title-md text-on-surface font-bold">
                   Pipeline Stage
                 </h2>
@@ -277,7 +320,9 @@ export function DemoRequestDetailScreen() {
               </label>
               <select
                 value={selectedStatus}
-                onChange={(e) => setSelectedStatus(e.target.value as DemoRequestStatus)}
+                onChange={(e) =>
+                  setSelectedStatus(e.target.value as DemoRequestStatus)
+                }
                 className="w-full h-9 bg-surface-container-low px-3 font-title-sm text-title-sm text-on-surface rounded border border-outline-variant/60 focus:outline-none focus:border-primary cursor-pointer"
               >
                 <option value="new">NEW (Pending Outreach)</option>
@@ -301,13 +346,16 @@ export function DemoRequestDetailScreen() {
           {/* Conversion Action Card */}
           <div className="bg-surface-container-lowest p-space-lg rounded shadow-sm flex flex-col gap-space-md border-2 border-primary/20">
             <div className="flex items-center gap-space-xs text-primary">
-              <span className="material-symbols-outlined text-[24px]">rocket_launch</span>
+              <span className="material-symbols-outlined text-[24px]">
+                rocket_launch
+              </span>
               <h2 className="font-title-md text-title-md font-bold text-on-surface">
                 Convert to Operational Tenant
               </h2>
             </div>
             <p className="font-body-xs text-body-xs text-outline leading-relaxed">
-              Instantly prefill the LabFlow Provisioning Engine with this lead's facility name, owner contact, and mobile WhatsApp credentials.
+              Instantly prefill the LabFlow Provisioning Engine with this lead's
+              facility name, owner contact, and mobile WhatsApp credentials.
             </p>
 
             <button
@@ -315,7 +363,9 @@ export function DemoRequestDetailScreen() {
               onClick={handleConvertToLab}
               className="w-full h-10 bg-primary text-on-primary font-label-sm text-label-sm font-bold rounded hover:bg-primary-container transition-colors shadow-sm flex items-center justify-center gap-1.5"
             >
-              <span className="material-symbols-outlined text-[18px]">domain_add</span>
+              <span className="material-symbols-outlined text-[18px]">
+                domain_add
+              </span>
               <span>Launch Provisioning Flow</span>
             </button>
           </div>

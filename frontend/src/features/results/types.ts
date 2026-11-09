@@ -107,7 +107,13 @@ export interface CriticalNotificationResponse {
 // UI Models for Worklist, Approvals, and Details
 export interface WorklistItem {
   sample_id: string;
-  sample_status?: "collected" | "received" | "in_process" | "ready" | "rejected" | "cancelled";
+  sample_status?:
+    | "collected"
+    | "received"
+    | "in_process"
+    | "ready"
+    | "rejected"
+    | "cancelled";
   accession_id: string;
   patient_id: string;
   patient_name: string;

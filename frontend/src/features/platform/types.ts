@@ -5,7 +5,8 @@
  * the client. Money is a string with two decimals in PKR.
  */
 
-export type TenantStatus = "provisioning" | "provisioning_failed" | "active" | "suspended" | "deleted";
+export type TenantStatus =
+  "provisioning" | "provisioning_failed" | "active" | "suspended" | "deleted";
 
 export const TENANT_STATUSES: readonly TenantStatus[] = [
   "active",
@@ -305,11 +306,7 @@ export function slugProblem(slug: string): string | null {
 
 export type SubscriptionBillingCycle = "monthly" | "annual" | "lifetime";
 export type SubscriptionStatus =
-  | "active"
-  | "past_due"
-  | "canceled"
-  | "trialing"
-  | "founding";
+  "active" | "past_due" | "canceled" | "trialing" | "founding";
 
 export interface SubscriptionListItem {
   id: string;
@@ -443,11 +440,7 @@ export interface UsersListResponse {
 }
 
 export type DemoRequestStatus =
-  | "new"
-  | "contacted"
-  | "demo_done"
-  | "converted"
-  | "lost";
+  "new" | "contacted" | "demo_done" | "converted" | "lost";
 
 export interface DemoRequestItem {
   id: string;

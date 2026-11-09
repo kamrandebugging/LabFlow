@@ -302,7 +302,10 @@ export function AmendResultScreen(): JSX.Element {
               </div>
               <div className="text-[11px] text-slate-500 pt-0.5 flex items-center gap-1">
                 <Info className="w-3.5 h-3.5 text-slate-400" />
-                <span>Biological reference range: {detail?.matched_range || "Not configured"}</span>
+                <span>
+                  Biological reference range:{" "}
+                  {detail?.matched_range || "Not configured"}
+                </span>
               </div>
             </div>
 
@@ -402,7 +405,10 @@ export function AmendResultScreen(): JSX.Element {
         {detail?.audit_history && detail.audit_history.length > 0 ? (
           <div className="space-y-4 relative pl-6 border-l-2 border-slate-200 ml-3">
             {detail.audit_history.map((entry) => (
-              <div className="relative" key={`${entry.version}-${entry.timestamp}`}>
+              <div
+                className="relative"
+                key={`${entry.version}-${entry.timestamp}`}
+              >
                 <div className="absolute -left-[31px] top-1 w-5 h-5 rounded-full bg-teal-700 text-white flex items-center justify-center text-[10px] ring-4 ring-white">
                   <Check className="w-3 h-3" />
                 </div>

@@ -60,12 +60,8 @@ export function NewInvoiceScreen({
 
   // Panel-only tests cannot be billed standalone; they are excluded from the
   // individual-test picker and surfaced as an explanatory note instead.
-  const selectableTests = availableTests.filter(
-    (test) => !test.is_panel_only,
-  );
-  const panelOnlyTests = availableTests.filter(
-    (test) => test.is_panel_only,
-  );
+  const selectableTests = availableTests.filter((test) => !test.is_panel_only);
+  const panelOnlyTests = availableTests.filter((test) => test.is_panel_only);
 
   // Line items
   const [items, setItems] = useState<SelectedLineItem[]>([]);

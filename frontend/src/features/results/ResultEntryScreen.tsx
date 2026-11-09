@@ -183,8 +183,8 @@ export function ResultEntryScreen(): JSX.Element {
             Access Denied · Role Restricted
           </h2>
           <p className="text-sm text-red-800 max-w-md mx-auto">
-            Only Technician, Pathologist, or Owner may enter results. Your active role
-            does not have authorization for direct laboratory entry.
+            Only Technician, Pathologist, or Owner may enter results. Your
+            active role does not have authorization for direct laboratory entry.
           </p>
           <div className="pt-2">
             <Link

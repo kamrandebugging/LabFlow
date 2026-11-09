@@ -74,10 +74,10 @@ def test_full_owner_e2e_journey_fresh_tenant() -> None:
                 assert owner.role == Role.OWNER
                 session = AuthService.create_session(user=owner, tenant_id=slug)
                 access_token = session["access"]
-                auth_hdr = {"HTTP_AUTHORIZATION": f"Bearer {access_token}"}
+                auth_hdr = {"Authorization": f"Bearer {access_token}"}
 
             # Verify context loads real data
-            ctx_res = client.get("/api/v1/auth/tenant", **auth_hdr)
+            ctx_res = client.get("/api/v1/auth/tenant", headers=auth_hdr)
             assert ctx_res.status_code == 200
             assert ctx_res.json()["tenant"]["name"] == "Apex Diagnostics"
 
@@ -100,19 +100,19 @@ def test_full_owner_e2e_journey_fresh_tenant() -> None:
                 "/api/v1/patients",
                 data=patient_payload,
                 content_type="application/json",
-                **auth_hdr,
+                headers=auth_hdr,
             )
             assert pat_res.status_code == 201
             patient_id = pat_res.json()["id"]
 
             # Verify patient appears in list
-            list_pat_res = client.get("/api/v1/patients", **auth_hdr)
+            list_pat_res = client.get("/api/v1/patients", headers=auth_hdr)
             assert list_pat_res.status_code == 200
             patients = list_pat_res.json()
             assert any(p["id"] == patient_id for p in patients)
 
             # Step 3: Create an invoice (pick test from catalog)
-            cat_res = client.get("/api/v1/tests?is_active=true", **auth_hdr)
+            cat_res = client.get("/api/v1/tests?is_active=true", headers=auth_hdr)
             assert cat_res.status_code == 200
             cat_tests = cat_res.json()
             # Find HBA1C or another test
@@ -138,13 +138,13 @@ def test_full_owner_e2e_journey_fresh_tenant() -> None:
                 data=inv_payload,
                 content_type="application/json",
                 HTTP_IDEMPOTENCY_KEY=str(uuid.uuid4()),
-                **auth_hdr,
+                headers=auth_hdr,
             )
             assert inv_res.status_code == 201, inv_res.content
             invoice_id = inv_res.json()["id"]
 
             # Verify daily total is real from invoices list
-            list_inv_res = client.get("/api/v1/invoices", **auth_hdr)
+            list_inv_res = client.get("/api/v1/invoices", headers=auth_hdr)
             assert list_inv_res.status_code == 200
             daily_total = list_inv_res.json().get("daily_total")
             assert Decimal(daily_total) >= Decimal(str(test_price))
@@ -160,7 +160,7 @@ def test_full_owner_e2e_journey_fresh_tenant() -> None:
                 data=pay_payload,
                 content_type="application/json",
                 HTTP_IDEMPOTENCY_KEY=str(uuid.uuid4()),
-                **auth_hdr,
+                headers=auth_hdr,
             )
             assert pay_res.status_code == 201
 
@@ -172,7 +172,7 @@ def test_full_owner_e2e_journey_fresh_tenant() -> None:
                 "/api/v1/samples",
                 data=sample_payload,
                 content_type="application/json",
-                **auth_hdr,
+                headers=auth_hdr,
             )
             assert smp_res.status_code == 201
             sample_id = smp_res.json()["id"]
@@ -182,14 +182,14 @@ def test_full_owner_e2e_journey_fresh_tenant() -> None:
                 f"/api/v1/samples/{sample_id}/receive",
                 data={},
                 content_type="application/json",
-                **auth_hdr,
+                headers=auth_hdr,
             )
             assert rec_res.status_code == 200
             sample_data = rec_res.json()
             assert sample_data["status"] == "received"
 
             # Verify sample detail returns sample_tests
-            detail_res = client.get(f"/api/v1/samples/{sample_id}", **auth_hdr)
+            detail_res = client.get(f"/api/v1/samples/{sample_id}", headers=auth_hdr)
             assert detail_res.status_code == 200
             s_tests = detail_res.json().get("sample_tests", [])
             assert len(s_tests) > 0
@@ -208,7 +208,7 @@ def test_full_owner_e2e_journey_fresh_tenant() -> None:
                 f"/api/v1/samples/{sample_id}/results",
                 data=result_payload,
                 content_type="application/json",
-                **auth_hdr,
+                headers=auth_hdr,
             )
             assert entry_res.status_code in (200, 201)
             results_resp = entry_res.json()
@@ -222,7 +222,7 @@ def test_full_owner_e2e_journey_fresh_tenant() -> None:
                 f"/api/v1/results/{result_id}/approve",
                 data=approve_payload,
                 content_type="application/json",
-                **auth_hdr,
+                headers=auth_hdr,
             )
             assert app_res.status_code == 200
             app_data = app_res.json()
@@ -236,10 +236,12 @@ def test_full_owner_e2e_journey_fresh_tenant() -> None:
                 ).first()
                 assert audit is not None
                 assert audit.actor_id == owner.id
-                assert audit.after_jsonb.get("audit_note") == "owner_self_approval"
+                assert (audit.after_jsonb or {}).get(
+                    "audit_note"
+                ) == "owner_self_approval"
 
             # Step 7: Tenant settings brand name & 150 tests catalog
-            settings_res = client.get("/api/v1/settings", **auth_hdr)
+            settings_res = client.get("/api/v1/settings", headers=auth_hdr)
             assert settings_res.status_code == 200
             brand_name = settings_res.json()["settings"]["brand_display_name"]["value"]
             assert brand_name == "Apex Diagnostics"
@@ -256,8 +258,8 @@ def test_full_owner_e2e_journey_fresh_tenant() -> None:
             assert new_access is not None
 
             # Verify new access token works with zero errors
-            new_auth_hdr = {"HTTP_AUTHORIZATION": f"Bearer {new_access}"}
-            verify_res = client.get("/api/v1/patients", **new_auth_hdr)
+            new_auth_hdr = {"Authorization": f"Bearer {new_access}"}
+            verify_res = client.get("/api/v1/patients", headers=new_auth_hdr)
             assert verify_res.status_code == 200
     finally:
         connection.set_schema_to_public()

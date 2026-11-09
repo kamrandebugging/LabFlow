@@ -66,8 +66,7 @@ export const patientService = {
     } catch (err) {
       if (err instanceof ApiError && err.status === 409) {
         const errorData = (err.problem?.error || err.problem) as unknown as
-          | DuplicateWarningError
-          | undefined;
+          DuplicateWarningError | undefined;
         if (errorData?.code === "possible_duplicate") {
           throw new DuplicatePatientError(errorData);
         }

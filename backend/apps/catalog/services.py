@@ -507,9 +507,7 @@ class CatalogService:
             test = Test.objects.filter(pk=test_id).first()
             test_name = test.name if test is not None else "This test"
             panel = (
-                Panel.objects.filter(
-                    panel_tests__test_id=test_id, is_active=True
-                )
+                Panel.objects.filter(panel_tests__test_id=test_id, is_active=True)
                 .order_by("code")
                 .first()
             )

@@ -57,7 +57,9 @@ export const defaultAuthService: AuthService = {
 
     return {
       totpRequired: false,
-      ...(data.totp_enrollment_required ? { totpEnrollmentRequired: true } : {}),
+      ...(data.totp_enrollment_required
+        ? { totpEnrollmentRequired: true }
+        : {}),
       session,
     };
   },

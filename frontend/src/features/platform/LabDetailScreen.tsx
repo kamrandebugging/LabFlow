@@ -13,7 +13,11 @@ export function LabDetailScreen(): JSX.Element {
   const [copiedPass, setCopiedPass] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
-  const { data: tenant, isLoading, error } = useQuery<TenantDetail>({
+  const {
+    data: tenant,
+    isLoading,
+    error,
+  } = useQuery<TenantDetail>({
     queryKey: ["platform", "tenant", id],
     queryFn: () => platformService.getTenant(id!),
     enabled: !!id,
@@ -26,8 +30,10 @@ export function LabDetailScreen(): JSX.Element {
       setSuspendModalOpen(false);
       setSuspendReason("");
     },
-    onError: (err: any) => {
-      setActionError(err.message || "Failed to suspend lab. TOTP may be required.");
+    onError: (err) => {
+      setActionError(
+        err.message || "Failed to suspend lab. TOTP may be required.",
+      );
     },
   });
 
@@ -36,7 +42,7 @@ export function LabDetailScreen(): JSX.Element {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["platform", "tenant", id] });
     },
-    onError: (err: any) => {
+    onError: (err) => {
       setActionError(err.message || "Failed to reactivate lab.");
     },
   });
@@ -46,7 +52,7 @@ export function LabDetailScreen(): JSX.Element {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["platform", "tenant", id] });
     },
-    onError: (err: any) => {
+    onError: (err) => {
       setActionError(err.message || "Failed to retry provisioning.");
     },
   });
@@ -58,7 +64,9 @@ export function LabDetailScreen(): JSX.Element {
           <span className="material-symbols-outlined text-[32px] animate-spin text-primary">
             progress_activity
           </span>
-          <span className="font-label-md text-label-md">Loading Laboratory Profile...</span>
+          <span className="font-label-md text-label-md">
+            Loading Laboratory Profile...
+          </span>
         </div>
       </div>
     );
@@ -81,7 +89,9 @@ export function LabDetailScreen(): JSX.Element {
     );
   }
 
-  const primaryDomain = tenant.domains.find((d) => d.is_primary)?.domain || `${tenant.slug}.labflow.app`;
+  const primaryDomain =
+    tenant.domains.find((d) => d.is_primary)?.domain ||
+    `${tenant.slug}.labflow.app`;
   const storageMb = tenant.schema_size_bytes
     ? (tenant.schema_size_bytes / (1024 * 1024)).toFixed(1)
     : "14.2";
@@ -103,7 +113,9 @@ export function LabDetailScreen(): JSX.Element {
             to="/platform/tenants"
             className="hover:text-primary transition-colors flex items-center gap-1"
           >
-            <span className="material-symbols-outlined text-[16px]">biotech</span>
+            <span className="material-symbols-outlined text-[16px]">
+              biotech
+            </span>
             <span>Labs</span>
           </Link>
           <span className="text-outline-variant font-code-sm">/</span>
@@ -111,14 +123,19 @@ export function LabDetailScreen(): JSX.Element {
         </div>
         <div className="flex items-center gap-space-xs font-code-sm text-code-sm text-outline">
           <span>TENANT ID:</span>
-          <span className="font-bold text-on-surface">#{tenant.id.slice(0, 8)}</span>
+          <span className="font-bold text-on-surface">
+            #{tenant.id.slice(0, 8)}
+          </span>
         </div>
       </div>
 
       {actionError && (
         <div className="p-space-sm bg-error-container/20 border border-error/30 rounded text-error text-sm flex items-center justify-between">
           <span>{actionError}</span>
-          <button onClick={() => setActionError(null)} className="text-xs font-bold underline">
+          <button
+            onClick={() => setActionError(null)}
+            className="text-xs font-bold underline"
+          >
             Dismiss
           </button>
         </div>
@@ -128,7 +145,9 @@ export function LabDetailScreen(): JSX.Element {
       <div className="bg-surface-container-lowest p-space-lg rounded-lg shadow-sm border border-outline-variant/30 flex flex-col md:flex-row md:items-center justify-between gap-space-md">
         <div className="flex items-start gap-space-md">
           <div className="w-12 h-12 rounded-lg bg-primary-container/15 flex items-center justify-center text-primary flex-shrink-0">
-            <span className="material-symbols-outlined text-[28px]">domain</span>
+            <span className="material-symbols-outlined text-[28px]">
+              domain
+            </span>
           </div>
           <div>
             <div className="flex items-center gap-space-sm flex-wrap">
@@ -143,8 +162,8 @@ export function LabDetailScreen(): JSX.Element {
                   tenant.status === "active"
                     ? "bg-surface-container text-primary"
                     : tenant.status === "suspended"
-                    ? "bg-error-container/40 text-error"
-                    : "bg-secondary-fixed/50 text-on-secondary-fixed-variant"
+                      ? "bg-error-container/40 text-error"
+                      : "bg-secondary-fixed/50 text-on-secondary-fixed-variant"
                 }`}
               >
                 <span
@@ -152,8 +171,8 @@ export function LabDetailScreen(): JSX.Element {
                     tenant.status === "active"
                       ? "bg-primary animate-pulse"
                       : tenant.status === "suspended"
-                      ? "bg-error"
-                      : "bg-secondary"
+                        ? "bg-error"
+                        : "bg-secondary"
                   }`}
                 ></span>
                 {tenant.status}
@@ -161,7 +180,10 @@ export function LabDetailScreen(): JSX.Element {
             </div>
             <div className="flex items-center gap-space-md mt-space-2xs font-code-sm text-code-sm text-outline flex-wrap">
               <span>
-                schema: <strong className="text-on-surface font-normal">{tenant.schema_name}</strong>
+                schema:{" "}
+                <strong className="text-on-surface font-normal">
+                  {tenant.schema_name}
+                </strong>
               </span>
               <span>•</span>
               <a
@@ -171,10 +193,14 @@ export function LabDetailScreen(): JSX.Element {
                 className="text-primary hover:underline flex items-center gap-0.5"
               >
                 <span>https://{primaryDomain}</span>
-                <span className="material-symbols-outlined text-[14px]">open_in_new</span>
+                <span className="material-symbols-outlined text-[14px]">
+                  open_in_new
+                </span>
               </a>
               <span>•</span>
-              <span>Provisioned {new Date(tenant.created_at).toLocaleDateString()}</span>
+              <span>
+                Provisioned {new Date(tenant.created_at).toLocaleDateString()}
+              </span>
             </div>
           </div>
         </div>
@@ -186,7 +212,9 @@ export function LabDetailScreen(): JSX.Element {
               onClick={() => setSuspendModalOpen(true)}
               className="px-space-md py-space-xs bg-error-container/20 hover:bg-error-container/40 text-error border border-error/30 rounded font-label-sm text-label-sm flex items-center gap-1 transition-colors"
             >
-              <span className="material-symbols-outlined text-[16px]">pause_circle</span>
+              <span className="material-symbols-outlined text-[16px]">
+                pause_circle
+              </span>
               <span>Suspend Node</span>
             </button>
           ) : tenant.status === "suspended" ? (
@@ -195,7 +223,9 @@ export function LabDetailScreen(): JSX.Element {
               disabled={reactivateMutation.isPending}
               className="px-space-md py-space-xs bg-primary hover:bg-primary-container text-on-primary rounded font-label-sm text-label-sm flex items-center gap-1 transition-colors shadow-sm"
             >
-              <span className="material-symbols-outlined text-[16px]">play_circle</span>
+              <span className="material-symbols-outlined text-[16px]">
+                play_circle
+              </span>
               <span>Reactivate Node</span>
             </button>
           ) : null}
@@ -207,7 +237,9 @@ export function LabDetailScreen(): JSX.Element {
             className="px-space-md py-space-xs bg-surface-container-low hover:bg-surface-container text-on-surface border border-outline-variant/60 rounded font-label-sm text-label-sm flex items-center gap-1 transition-colors"
           >
             <span>Launch Console</span>
-            <span className="material-symbols-outlined text-[16px]">launch</span>
+            <span className="material-symbols-outlined text-[16px]">
+              launch
+            </span>
           </a>
         </div>
       </div>
@@ -260,9 +292,13 @@ export function LabDetailScreen(): JSX.Element {
           </span>
           <div className="my-space-xs font-headline-md text-headline-md text-on-surface flex items-baseline gap-space-xs">
             <span>{storageMb}</span>
-            <span className="font-body-xs text-body-xs text-outline font-normal">MB</span>
+            <span className="font-body-xs text-body-xs text-outline font-normal">
+              MB
+            </span>
           </div>
-          <span className="font-body-xs text-body-xs text-outline">PostgreSQL Isolated Schema</span>
+          <span className="font-body-xs text-body-xs text-outline">
+            PostgreSQL Isolated Schema
+          </span>
         </div>
 
         {/* Migration State */}
@@ -272,9 +308,13 @@ export function LabDetailScreen(): JSX.Element {
           </span>
           <div className="my-space-xs font-headline-md text-headline-md text-on-surface flex items-baseline gap-space-xs">
             <span>{tenant.migration_state?.applied_migrations ?? 35}</span>
-            <span className="font-body-xs text-body-xs text-primary font-bold">In Sync</span>
+            <span className="font-body-xs text-body-xs text-primary font-bold">
+              In Sync
+            </span>
           </div>
-          <span className="font-body-xs text-body-xs text-outline">0 pending migrations</span>
+          <span className="font-body-xs text-body-xs text-outline">
+            0 pending migrations
+          </span>
         </div>
 
         {/* Provisioning Engine */}
@@ -284,23 +324,35 @@ export function LabDetailScreen(): JSX.Element {
           </span>
           <div className="my-space-xs font-headline-md text-headline-md text-primary flex items-baseline gap-space-xs">
             <span>P-9</span>
-            <span className="font-body-xs text-body-xs text-on-surface font-semibold">Active</span>
+            <span className="font-body-xs text-body-xs text-on-surface font-semibold">
+              Active
+            </span>
           </div>
-          <span className="font-body-xs text-body-xs text-outline">Full Tenant Isolation</span>
+          <span className="font-body-xs text-body-xs text-outline">
+            Full Tenant Isolation
+          </span>
         </div>
       </div>
 
       {/* Provisioning Failure Alert */}
-      {(tenant.status === "provisioning_failed" || tenant.provisioning?.error) && (
+      {(tenant.status === "provisioning_failed" ||
+        tenant.provisioning?.error) && (
         <div className="bg-error-container/20 border border-error/40 p-space-md rounded-lg flex items-start justify-between gap-space-md">
           <div className="flex items-start gap-space-sm">
-            <span className="material-symbols-outlined text-error text-[24px]">error</span>
+            <span className="material-symbols-outlined text-error text-[24px]">
+              error
+            </span>
             <div>
               <div className="font-title-sm text-title-sm text-error font-bold">
-                Provisioning Failed (Step: {tenant.provisioning?.failed_step || tenant.provisioning?.current_step || "Unknown"})
+                Provisioning Failed (Step:{" "}
+                {tenant.provisioning?.failed_step ||
+                  tenant.provisioning?.current_step ||
+                  "Unknown"}
+                )
               </div>
               <div className="font-body-sm text-body-sm text-on-surface mt-1">
-                {tenant.provisioning?.error || "An unexpected error occurred during database isolation or schema migration."}
+                {tenant.provisioning?.error ||
+                  "An unexpected error occurred during database isolation or schema migration."}
               </div>
             </div>
           </div>
@@ -309,7 +361,9 @@ export function LabDetailScreen(): JSX.Element {
             disabled={retryProvisioningMutation.isPending}
             className="px-space-md py-space-xs bg-error hover:bg-error/90 text-on-error rounded font-label-sm text-label-sm shrink-0 flex items-center gap-1 transition-colors"
           >
-            <span className="material-symbols-outlined text-[16px]">refresh</span>
+            <span className="material-symbols-outlined text-[16px]">
+              refresh
+            </span>
             <span>Retry Provisioning</span>
           </button>
         </div>
@@ -319,7 +373,9 @@ export function LabDetailScreen(): JSX.Element {
       {tenant.temp_password && (
         <div className="bg-surface-container-low p-space-md rounded-lg border border-primary/20 flex flex-col sm:flex-row items-center justify-between gap-space-md">
           <div className="flex items-center gap-space-md">
-            <span className="material-symbols-outlined text-primary text-[24px]">key</span>
+            <span className="material-symbols-outlined text-primary text-[24px]">
+              key
+            </span>
             <div>
               <div className="font-label-sm text-label-sm uppercase tracking-wider text-outline">
                 Master Temporary Credential (24h Expiry)
@@ -351,10 +407,16 @@ export function LabDetailScreen(): JSX.Element {
           <div className="bg-surface-container-lowest p-space-lg rounded-lg shadow-sm border border-outline-variant/30">
             <div className="flex items-center justify-between border-b border-outline-variant/30 pb-space-sm mb-space-md">
               <div className="flex items-center gap-space-xs">
-                <span className="material-symbols-outlined text-primary text-[20px]">badge</span>
-                <h2 className="font-title-md text-title-md text-on-surface">Lab Owner & Contact</h2>
+                <span className="material-symbols-outlined text-primary text-[20px]">
+                  badge
+                </span>
+                <h2 className="font-title-md text-title-md text-on-surface">
+                  Lab Owner & Contact
+                </h2>
               </div>
-              <span className="font-code-sm text-code-sm text-outline">PRIMARY OPERATOR</span>
+              <span className="font-code-sm text-code-sm text-outline">
+                PRIMARY OPERATOR
+              </span>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-space-md font-body-sm text-body-sm">
@@ -372,7 +434,9 @@ export function LabDetailScreen(): JSX.Element {
                   Email Address
                 </span>
                 <span className="font-code-sm text-on-surface">
-                  {tenant.owner?.email || tenant.owner_email || "director@lab.pk"}
+                  {tenant.owner?.email ||
+                    tenant.owner_email ||
+                    "director@lab.pk"}
                 </span>
               </div>
 
@@ -381,8 +445,14 @@ export function LabDetailScreen(): JSX.Element {
                   Phone / WhatsApp
                 </span>
                 <div className="flex items-center gap-1 text-on-surface">
-                  <span className="material-symbols-outlined text-[16px] text-primary">chat</span>
-                  <span>{tenant.owner?.phone || tenant.owner_phone || "+92 300 4421890"}</span>
+                  <span className="material-symbols-outlined text-[16px] text-primary">
+                    chat
+                  </span>
+                  <span>
+                    {tenant.owner?.phone ||
+                      tenant.owner_phone ||
+                      "+92 300 4421890"}
+                  </span>
                 </div>
               </div>
 
@@ -401,12 +471,16 @@ export function LabDetailScreen(): JSX.Element {
           <div className="bg-surface-container-lowest p-space-lg rounded-lg shadow-sm border border-outline-variant/30">
             <div className="flex items-center justify-between border-b border-outline-variant/30 pb-space-sm mb-space-md">
               <div className="flex items-center gap-space-xs">
-                <span className="material-symbols-outlined text-primary text-[20px]">history</span>
+                <span className="material-symbols-outlined text-primary text-[20px]">
+                  history
+                </span>
                 <h2 className="font-title-md text-title-md text-on-surface">
                   Provisioning & Audit Timeline
                 </h2>
               </div>
-              <span className="font-code-sm text-code-sm text-outline">IMMUTABLE LOG</span>
+              <span className="font-code-sm text-code-sm text-outline">
+                IMMUTABLE LOG
+              </span>
             </div>
 
             <div className="relative pl-6 space-y-6 before:absolute before:left-2 before:top-2 before:bottom-2 before:w-0.5 before:bg-outline-variant/40">
@@ -431,8 +505,11 @@ export function LabDetailScreen(): JSX.Element {
                 </div>
               ))}
 
-              {(!tenant.audit_timeline || tenant.audit_timeline.length === 0) && (
-                <div className="text-outline text-sm py-4">No audit records logged for this lab.</div>
+              {(!tenant.audit_timeline ||
+                tenant.audit_timeline.length === 0) && (
+                <div className="text-outline text-sm py-4">
+                  No audit records logged for this lab.
+                </div>
               )}
             </div>
           </div>
@@ -470,26 +547,40 @@ export function LabDetailScreen(): JSX.Element {
                   <span className="font-headline-sm text-headline-sm text-primary font-bold block">
                     PKR {tenant.plan?.price ?? "—"}
                   </span>
-                  <span className="font-code-sm text-xs text-outline">/ month</span>
+                  <span className="font-code-sm text-xs text-outline">
+                    / month
+                  </span>
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-space-sm text-sm">
                 <div>
-                  <span className="text-outline block text-xs">Billing Interval</span>
-                  <span className="font-semibold text-on-surface">Monthly Recurring</span>
+                  <span className="text-outline block text-xs">
+                    Billing Interval
+                  </span>
+                  <span className="font-semibold text-on-surface">
+                    Monthly Recurring
+                  </span>
                 </div>
                 <div>
                   <span className="text-outline block text-xs">Next Cycle</span>
-                  <span className="font-semibold text-on-surface">1st of Next Month</span>
+                  <span className="font-semibold text-on-surface">
+                    1st of Next Month
+                  </span>
                 </div>
                 <div>
-                  <span className="text-outline block text-xs">Payment Method</span>
-                  <span className="font-semibold text-on-surface">Direct Bank / Invoice</span>
+                  <span className="text-outline block text-xs">
+                    Payment Method
+                  </span>
+                  <span className="font-semibold text-on-surface">
+                    Direct Bank / Invoice
+                  </span>
                 </div>
                 <div>
                   <span className="text-outline block text-xs">Status</span>
-                  <span className="text-primary font-bold">In Good Standing</span>
+                  <span className="text-primary font-bold">
+                    In Good Standing
+                  </span>
                 </div>
               </div>
             </div>
@@ -499,43 +590,65 @@ export function LabDetailScreen(): JSX.Element {
           <div className="bg-surface-container-lowest p-space-lg rounded-lg shadow-sm border border-outline-variant/30">
             <div className="flex items-center justify-between border-b border-outline-variant/30 pb-space-sm mb-space-md">
               <div className="flex items-center gap-space-xs">
-                <span className="material-symbols-outlined text-primary text-[20px]">tune</span>
-                <h2 className="font-title-md text-title-md text-on-surface">Operations & Quotas</h2>
+                <span className="material-symbols-outlined text-primary text-[20px]">
+                  tune
+                </span>
+                <h2 className="font-title-md text-title-md text-on-surface">
+                  Operations & Quotas
+                </h2>
               </div>
-              <span className="font-code-sm text-code-sm text-outline">SLA PARAMETERS</span>
+              <span className="font-code-sm text-code-sm text-outline">
+                SLA PARAMETERS
+              </span>
             </div>
 
             <div className="flex flex-col gap-space-sm font-body-sm text-body-sm">
               <div className="flex items-center justify-between p-space-sm bg-surface-container-low/40 rounded">
                 <div className="flex items-center gap-space-xs">
-                  <span className="material-symbols-outlined text-primary text-[18px]">sms</span>
+                  <span className="material-symbols-outlined text-primary text-[18px]">
+                    sms
+                  </span>
                   <span>Patient SMS Gateway</span>
                 </div>
-                <span className="font-code-sm font-bold text-on-surface">1,000 Included</span>
+                <span className="font-code-sm font-bold text-on-surface">
+                  1,000 Included
+                </span>
               </div>
 
               <div className="flex items-center justify-between p-space-sm bg-surface-container-low/40 rounded">
                 <div className="flex items-center gap-space-xs">
-                  <span className="material-symbols-outlined text-primary text-[18px]">database</span>
+                  <span className="material-symbols-outlined text-primary text-[18px]">
+                    database
+                  </span>
                   <span>Dedicated Storage Limit</span>
                 </div>
-                <span className="font-code-sm font-bold text-on-surface">10 GB Quota</span>
+                <span className="font-code-sm font-bold text-on-surface">
+                  10 GB Quota
+                </span>
               </div>
 
               <div className="flex items-center justify-between p-space-sm bg-surface-container-low/40 rounded">
                 <div className="flex items-center gap-space-xs">
-                  <span className="material-symbols-outlined text-primary text-[18px]">security</span>
+                  <span className="material-symbols-outlined text-primary text-[18px]">
+                    security
+                  </span>
                   <span>Encryption Standard</span>
                 </div>
-                <span className="font-code-sm font-bold text-on-surface">AES-256 / Argon2id</span>
+                <span className="font-code-sm font-bold text-on-surface">
+                  AES-256 / Argon2id
+                </span>
               </div>
 
               <div className="flex items-center justify-between p-space-sm bg-surface-container-low/40 rounded">
                 <div className="flex items-center gap-space-xs">
-                  <span className="material-symbols-outlined text-primary text-[18px]">speed</span>
+                  <span className="material-symbols-outlined text-primary text-[18px]">
+                    speed
+                  </span>
                   <span>API Rate Threshold</span>
                 </div>
-                <span className="font-code-sm font-bold text-on-surface">1,000 req / min</span>
+                <span className="font-code-sm font-bold text-on-surface">
+                  1,000 req / min
+                </span>
               </div>
             </div>
           </div>
@@ -547,11 +660,15 @@ export function LabDetailScreen(): JSX.Element {
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-surface-container-lowest max-w-md w-full p-space-lg rounded-lg shadow-lg border border-outline-variant/40 flex flex-col gap-space-md">
             <div className="flex items-center gap-space-xs text-error font-title-md text-title-md">
-              <span className="material-symbols-outlined text-[24px]">warning</span>
+              <span className="material-symbols-outlined text-[24px]">
+                warning
+              </span>
               <span>Suspend Laboratory Node</span>
             </div>
             <p className="font-body-sm text-body-sm text-outline">
-              Suspending <strong>{tenant.name}</strong> will place this laboratory in read-only access mode. Staff will not be able to generate reports or accession new samples.
+              Suspending <strong>{tenant.name}</strong> will place this
+              laboratory in read-only access mode. Staff will not be able to
+              generate reports or accession new samples.
             </p>
             <div className="flex flex-col gap-1">
               <label className="font-label-sm text-label-sm text-on-surface">
@@ -577,7 +694,9 @@ export function LabDetailScreen(): JSX.Element {
                 disabled={!suspendReason.trim() || suspendMutation.isPending}
                 className="px-space-md py-space-xs bg-error hover:bg-error/90 text-on-error rounded text-sm font-semibold disabled:opacity-50"
               >
-                {suspendMutation.isPending ? "Suspending..." : "Confirm Suspension"}
+                {suspendMutation.isPending
+                  ? "Suspending..."
+                  : "Confirm Suspension"}
               </button>
             </div>
           </div>

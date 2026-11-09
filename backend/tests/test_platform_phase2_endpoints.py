@@ -13,7 +13,7 @@ Covers:
 import contextlib
 import uuid
 from decimal import Decimal
-from typing import Any
+from typing import Any, cast
 
 import pytest
 from django.core.cache import cache
@@ -47,8 +47,12 @@ def _clear_cache() -> Any:
         cache.clear()
 
 
+def _platform_user(**kwargs: Any) -> PlatformUser:
+    return cast(PlatformUser, PlatformUserFactory(**kwargs))
+
+
 def _auth_client(user: PlatformUser | None = None) -> APIClient:
-    u = user or PlatformUserFactory(totp_enabled=True)
+    u = user or _platform_user(totp_enabled=True)
     token, _jti, _exp = platform_mint_access_token(u.id, "super_admin")
     client = APIClient()
     client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
@@ -97,7 +101,7 @@ def test_mark_paid_requires_totp_creates_payment_and_audits() -> None:
     sub = SubscriptionFactory(tenant=t, plan=plan, status=Subscription.Status.PAST_DUE)
 
     # 1. User without TOTP gets 403 totp_required
-    no_totp_user = PlatformUserFactory(totp_enabled=False)
+    no_totp_user = _platform_user(totp_enabled=False)
     client_no_totp = _auth_client(no_totp_user)
     resp = client_no_totp.post(
         f"/api/v1/platform/subscriptions/{sub.id}/mark-paid",
@@ -113,7 +117,7 @@ def test_mark_paid_requires_totp_creates_payment_and_audits() -> None:
     assert resp.json()["code"] == "totp_required"
 
     # 2. User with TOTP marks paid successfully
-    user = PlatformUserFactory(totp_enabled=True)
+    user = _platform_user(totp_enabled=True)
     client = _auth_client(user)
     resp = client.post(
         f"/api/v1/platform/subscriptions/{sub.id}/mark-paid",

@@ -111,7 +111,7 @@ class SampleListSerializer(serializers.Serializer):
     def get_tests(self, obj: Sample) -> list[str]:
         return [
             st.test.name
-            for st in obj.sample_tests.all()  # type: ignore[attr-defined]
+            for st in obj.sample_tests.all()
             if getattr(st, "test", None) and getattr(st.test, "name", None)
         ]
 
@@ -146,9 +146,7 @@ class SampleTestItemSerializer(serializers.ModelSerializer[SampleTest]):
         sample = obj.sample
         patient = sample.invoice.patient
         dob = patient.date_of_birth
-        age_days = (
-            (sample.collected_at.date() - dob).days if dob is not None else None
-        )
+        age_days = (sample.collected_at.date() - dob).days if dob is not None else None
         return CatalogService.resolve_reference_range(
             test_id=obj.test_id,
             patient_sex=patient.sex,

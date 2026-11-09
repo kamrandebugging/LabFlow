@@ -298,14 +298,19 @@ describe("LabFlow AuthStore (Doc 07 §5.2)", () => {
 
       global.fetch = vi.fn().mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ access: "new_rotated_access_token", expires_in: 900 }),
+        json: async () => ({
+          access: "new_rotated_access_token",
+          expires_in: 900,
+        }),
       });
 
       const binding = getSession("staff");
       const refreshedToken = await binding?.refresh();
 
       expect(refreshedToken).toBe("new_rotated_access_token");
-      expect(useAuthStore.getState().accessToken).toBe("new_rotated_access_token");
+      expect(useAuthStore.getState().accessToken).toBe(
+        "new_rotated_access_token",
+      );
       // Original user preserved without inventing fallback
       expect(useAuthStore.getState().user).toEqual(mockUser);
       expect(global.fetch).toHaveBeenCalledWith("/api/v1/auth/refresh", {

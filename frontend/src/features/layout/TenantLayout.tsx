@@ -1,6 +1,12 @@
 import type { ReactElement } from "react";
 import { useEffect, useMemo, useState } from "react";
-import { Link, Navigate, Outlet, useLocation, useNavigate } from "react-router-dom";
+import {
+  Link,
+  Navigate,
+  Outlet,
+  useLocation,
+  useNavigate,
+} from "react-router-dom";
 
 import { useAuthStore } from "../auth/authStore";
 import { fetchTenantContext, getSubdomainTenant } from "../auth/tenantContext";
@@ -208,46 +214,31 @@ export function TenantLayout(): ReactElement {
             Lab Operations
           </div>
           <nav className="flex flex-col gap-0.5">
-            <Link
-              to="/"
-              className={linkClass("/")}
-            >
+            <Link to="/" className={linkClass("/")}>
               <span className="material-symbols-outlined text-[18px]">
                 home
               </span>
               <span>Home</span>
             </Link>
-            <Link
-              to="/patients"
-              className={linkClass("/patients")}
-            >
+            <Link to="/patients" className={linkClass("/patients")}>
               <span className="material-symbols-outlined text-[18px]">
                 personal_injury
               </span>
               <span>Patients</span>
             </Link>
-            <Link
-              to="/invoices"
-              className={linkClass("/invoices")}
-            >
+            <Link to="/invoices" className={linkClass("/invoices")}>
               <span className="material-symbols-outlined text-[18px]">
                 receipt_long
               </span>
               <span>Invoices &amp; Payments</span>
             </Link>
-            <Link
-              to="/samples"
-              className={linkClass("/samples")}
-            >
+            <Link to="/samples" className={linkClass("/samples")}>
               <span className="material-symbols-outlined text-[18px]">
                 colorize
               </span>
               <span>Samples</span>
             </Link>
-            <Link
-              to="/worklist"
-              className={linkClass("/worklist")}
-            >
+            <Link to="/worklist" className={linkClass("/worklist")}>
               <span className="material-symbols-outlined text-[18px]">
                 assignment
               </span>
@@ -280,19 +271,13 @@ export function TenantLayout(): ReactElement {
                 {badges.pendingApprovals}
               </span>
             </Link>
-            <Link
-              to="/exceptions"
-              className={linkClass("/exceptions")}
-            >
+            <Link to="/exceptions" className={linkClass("/exceptions")}>
               <span className="material-symbols-outlined text-[18px]">
                 notification_important
               </span>
               <span>Critical Notifications</span>
             </Link>
-            <Link
-              to="/reports"
-              className={linkClass("/reports")}
-            >
+            <Link to="/reports" className={linkClass("/reports")}>
               <span className="material-symbols-outlined text-[18px]">
                 lab_profile
               </span>
@@ -324,10 +309,7 @@ export function TenantLayout(): ReactElement {
             Management
           </div>
           <nav className="flex flex-col gap-0.5">
-            <Link
-              to="/partners"
-              className={linkClass("/partners")}
-            >
+            <Link to="/partners" className={linkClass("/partners")}>
               <span className="material-symbols-outlined text-[18px]">
                 handshake
               </span>
@@ -351,19 +333,13 @@ export function TenantLayout(): ReactElement {
                 {badges.draftSettlements}
               </span>
             </Link>
-            <Link
-              to="/catalog"
-              className={linkClass("/catalog")}
-            >
+            <Link to="/catalog" className={linkClass("/catalog")}>
               <span className="material-symbols-outlined text-[18px]">
                 medical_services
               </span>
               <span>Catalog</span>
             </Link>
-            <Link
-              to="/settings"
-              className={linkClass("/settings")}
-            >
+            <Link to="/settings" className={linkClass("/settings")}>
               <span className="material-symbols-outlined text-[18px]">
                 settings
               </span>

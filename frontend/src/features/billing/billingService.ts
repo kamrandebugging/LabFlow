@@ -46,13 +46,16 @@ export const billingService = {
     }
 
     try {
-      const data = await apiRequest<{
-        results?: InvoiceDetail[];
-        items?: InvoiceDetail[];
-        next_cursor?: string | null;
-        total_count?: number;
-        daily_total?: string;
-      } | InvoiceDetail[]>("/invoices", { query });
+      const data = await apiRequest<
+        | {
+            results?: InvoiceDetail[];
+            items?: InvoiceDetail[];
+            next_cursor?: string | null;
+            total_count?: number;
+            daily_total?: string;
+          }
+        | InvoiceDetail[]
+      >("/invoices", { query });
 
       if (Array.isArray(data)) {
         return {
@@ -70,7 +73,9 @@ export const billingService = {
       };
     } catch (err) {
       if (err instanceof ApiError) {
-        throw new Error(err.message || `Failed to fetch invoices (${err.status})`);
+        throw new Error(
+          err.message || `Failed to fetch invoices (${err.status})`,
+        );
       }
       throw err;
     }
@@ -81,7 +86,9 @@ export const billingService = {
       return await apiRequest<InvoiceDetail>(`/invoices/${id}`);
     } catch (err) {
       if (err instanceof ApiError) {
-        throw new Error(err.message || `Failed to fetch invoice ${id} (${err.status})`);
+        throw new Error(
+          err.message || `Failed to fetch invoice ${id} (${err.status})`,
+        );
       }
       throw err;
     }
@@ -139,16 +146,19 @@ export const billingService = {
   ): Promise<PaymentRecord> {
     const key = idempotencyKey || generateIdempotencyKey();
     try {
-      return await apiRequest<PaymentRecord>(`/invoices/${invoiceId}/payments`, {
-        method: "POST",
-        headers: { "Idempotency-Key": key },
-        body: {
-          kind: input.kind,
-          method: input.method,
-          amount: input.amount,
-          reference: input.reference || null,
+      return await apiRequest<PaymentRecord>(
+        `/invoices/${invoiceId}/payments`,
+        {
+          method: "POST",
+          headers: { "Idempotency-Key": key },
+          body: {
+            kind: input.kind,
+            method: input.method,
+            amount: input.amount,
+            reference: input.reference || null,
+          },
         },
-      });
+      );
     } catch (err) {
       if (err instanceof ApiError) {
         const error = new Error(

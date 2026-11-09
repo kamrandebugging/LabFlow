@@ -25,9 +25,7 @@ def _effective_tenant_price(
 ) -> Decimal | None:
     """Current tenant-wide effective price for a test or panel (read view)."""
     now = timezone.now()
-    queryset = TestPrice.objects.filter(
-        branch_id__isnull=True, effective_from__lte=now
-    )
+    queryset = TestPrice.objects.filter(branch_id__isnull=True, effective_from__lte=now)
     if test_id is not None:
         queryset = queryset.filter(test_id=test_id)
     elif panel_id is not None:

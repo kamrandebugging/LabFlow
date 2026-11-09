@@ -300,7 +300,9 @@ export function ResultDetailScreen(): JSX.Element {
                     }`}
                   />
                   <span>
-                    {detail?.is_critical ? "critical" : detail?.flag || "no flag"}
+                    {detail?.is_critical
+                      ? "critical"
+                      : detail?.flag || "no flag"}
                   </span>
                 </div>
               </div>

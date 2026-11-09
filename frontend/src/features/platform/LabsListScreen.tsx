@@ -43,7 +43,12 @@ export function LabsListScreen(): JSX.Element {
   labs.forEach((lab) => {
     const prov = (lab.province || "").toLowerCase();
     const city = (lab.city || "").toLowerCase();
-    if (prov.includes("punjab") || city.includes("lahore") || city.includes("rawalpindi") || city.includes("faisalabad")) {
+    if (
+      prov.includes("punjab") ||
+      city.includes("lahore") ||
+      city.includes("rawalpindi") ||
+      city.includes("faisalabad")
+    ) {
       regionCounts.Punjab++;
     } else if (prov.includes("sindh") || city.includes("karachi")) {
       regionCounts.Sindh++;
@@ -64,14 +69,17 @@ export function LabsListScreen(): JSX.Element {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-space-sm bg-surface-container-lowest p-space-md rounded-lg shadow-sm border border-outline-variant/30">
         <div className="flex items-center gap-space-md">
           <div className="w-10 h-10 rounded-lg bg-primary-container/10 flex items-center justify-center text-primary">
-            <span className="material-symbols-outlined text-[24px]">biotech</span>
+            <span className="material-symbols-outlined text-[24px]">
+              biotech
+            </span>
           </div>
           <div>
             <h1 className="font-headline-md text-headline-md text-on-surface tracking-tight">
               Diagnostic Labs Directory
             </h1>
             <p className="font-body-xs text-body-xs text-outline">
-              Synchronized multi-tenant infrastructure & federated diagnostic nodes
+              Synchronized multi-tenant infrastructure & federated diagnostic
+              nodes
             </p>
           </div>
         </div>
@@ -80,7 +88,9 @@ export function LabsListScreen(): JSX.Element {
             to="/platform/tenants/new"
             className="bg-primary hover:bg-primary-container text-on-primary px-space-md py-space-xs rounded font-label-sm text-label-sm flex items-center gap-space-xs transition-colors shadow-sm"
           >
-            <span className="material-symbols-outlined text-[16px]">add_circle</span>
+            <span className="material-symbols-outlined text-[16px]">
+              add_circle
+            </span>
             <span>Provision New Lab</span>
           </Link>
         </div>
@@ -105,7 +115,10 @@ export function LabsListScreen(): JSX.Element {
             Active Fleet
           </span>
           <div className="my-space-xs font-headline-md text-headline-md text-on-surface flex items-baseline gap-space-xs">
-            <span>{metrics?.active_labs ?? labs.filter((l) => l.status === "active").length}</span>
+            <span>
+              {metrics?.active_labs ??
+                labs.filter((l) => l.status === "active").length}
+            </span>
             <span className="font-body-xs text-body-xs text-outline font-normal">
               Nodes Live
             </span>
@@ -121,9 +134,15 @@ export function LabsListScreen(): JSX.Element {
             Enterprise Tier
           </span>
           <div className="my-space-xs font-headline-md text-headline-md text-on-surface">
-            {labs.filter((l) => (l.plan_name || "").toLowerCase().includes("scale")).length}
+            {
+              labs.filter((l) =>
+                (l.plan_name || "").toLowerCase().includes("scale"),
+              ).length
+            }
           </div>
-          <span className="font-body-xs text-body-xs text-outline">Scale & Lifetime</span>
+          <span className="font-body-xs text-body-xs text-outline">
+            Scale & Lifetime
+          </span>
         </div>
 
         <div className="bg-surface-container-lowest p-space-md rounded-lg shadow-sm border border-outline-variant/30 flex flex-col justify-between">
@@ -131,7 +150,9 @@ export function LabsListScreen(): JSX.Element {
             Fleet MRR (PKR)
           </span>
           <div className="my-space-xs font-headline-md text-headline-md text-on-surface">
-            {metrics?.mrr_pkr ? Number(metrics.mrr_pkr).toLocaleString() : "41,997"}
+            {metrics?.mrr_pkr
+              ? Number(metrics.mrr_pkr).toLocaleString()
+              : "41,997"}
           </div>
           <span className="font-body-xs text-body-xs text-secondary font-medium">
             Active MRR Aggregate
@@ -158,7 +179,9 @@ export function LabsListScreen(): JSX.Element {
           <select
             className="h-8 px-space-sm bg-surface-container-low text-on-surface border border-outline-variant/60 rounded font-body-sm text-body-sm focus:outline-none focus:border-primary"
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as TenantStatus | "")}
+            onChange={(e) =>
+              setStatusFilter(e.target.value as TenantStatus | "")
+            }
           >
             <option value="">All States</option>
             <option value="active">Active</option>
@@ -183,7 +206,9 @@ export function LabsListScreen(): JSX.Element {
             className="h-8 w-8 flex items-center justify-center bg-surface-container-low hover:bg-surface-container rounded text-outline hover:text-on-surface transition-colors"
             title="Refresh Directory"
           >
-            <span className="material-symbols-outlined text-[18px]">refresh</span>
+            <span className="material-symbols-outlined text-[18px]">
+              refresh
+            </span>
           </button>
         </div>
       </div>
@@ -194,14 +219,28 @@ export function LabsListScreen(): JSX.Element {
           <table className="w-full text-left border-collapse" id="labsTable">
             <thead>
               <tr className="bg-surface-container-low text-on-surface-variant h-9 select-none font-label-sm text-label-sm uppercase tracking-wider">
-                <th className="py-space-xs px-space-md min-w-[240px]">Lab Entity & Schema</th>
-                <th className="py-space-xs px-space-md min-w-[170px]">Location</th>
-                <th className="py-space-xs px-space-md min-w-[150px]">Plan Tier</th>
+                <th className="py-space-xs px-space-md min-w-[240px]">
+                  Lab Entity & Schema
+                </th>
+                <th className="py-space-xs px-space-md min-w-[170px]">
+                  Location
+                </th>
+                <th className="py-space-xs px-space-md min-w-[150px]">
+                  Plan Tier
+                </th>
                 <th className="py-space-xs px-space-md min-w-[130px]">State</th>
-                <th className="py-space-xs px-space-md min-w-[100px] text-right">Nodes</th>
-                <th className="py-space-xs px-space-md min-w-[90px] text-right">Staff</th>
-                <th className="py-space-xs px-space-md min-w-[130px] text-right">MRR (PKR)</th>
-                <th className="py-space-xs px-space-md min-w-[110px]">Onboarded</th>
+                <th className="py-space-xs px-space-md min-w-[100px] text-right">
+                  Nodes
+                </th>
+                <th className="py-space-xs px-space-md min-w-[90px] text-right">
+                  Staff
+                </th>
+                <th className="py-space-xs px-space-md min-w-[130px] text-right">
+                  MRR (PKR)
+                </th>
+                <th className="py-space-xs px-space-md min-w-[110px]">
+                  Onboarded
+                </th>
                 <th className="py-space-xs px-space-md min-w-[120px] text-right pr-space-lg">
                   Actions
                 </th>
@@ -210,7 +249,10 @@ export function LabsListScreen(): JSX.Element {
             <tbody className="divide-y divide-outline-variant/20 font-body-sm text-body-sm">
               {isLoading ? (
                 <tr>
-                  <td colSpan={9} className="text-center py-space-xl text-outline">
+                  <td
+                    colSpan={9}
+                    className="text-center py-space-xl text-outline"
+                  >
                     <span className="material-symbols-outlined text-[28px] animate-spin text-primary block mb-2 mx-auto">
                       progress_activity
                     </span>
@@ -219,19 +261,27 @@ export function LabsListScreen(): JSX.Element {
                 </tr>
               ) : error ? (
                 <tr>
-                  <td colSpan={9} className="text-center py-space-lg text-error">
+                  <td
+                    colSpan={9}
+                    className="text-center py-space-lg text-error"
+                  >
                     Failed to fetch tenant records. Please retry.
                   </td>
                 </tr>
               ) : labs.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="text-center py-space-lg text-outline">
+                  <td
+                    colSpan={9}
+                    className="text-center py-space-lg text-outline"
+                  >
                     No laboratories match the selected filter.
                   </td>
                 </tr>
               ) : (
                 labs.map((lab) => {
-                  const cityCode = (lab.city || "LHE").slice(0, 3).toUpperCase();
+                  const cityCode = (lab.city || "LHE")
+                    .slice(0, 3)
+                    .toUpperCase();
                   const isSuspended = lab.status === "suspended";
                   const isProvisioning = lab.status === "provisioning";
 
@@ -259,7 +309,8 @@ export function LabsListScreen(): JSX.Element {
                             <span>
                               schema:{" "}
                               <strong className="text-on-surface-variant font-normal">
-                                {lab.schema_name || `tenant_${lab.slug.replace(/-/g, "_")}`}
+                                {lab.schema_name ||
+                                  `tenant_${lab.slug.replace(/-/g, "_")}`}
                               </strong>
                             </span>
                             <span>•</span>
@@ -297,10 +348,10 @@ export function LabsListScreen(): JSX.Element {
                             lab.status === "active"
                               ? "bg-surface-container text-primary font-semibold"
                               : isSuspended
-                              ? "bg-error-container/30 text-error font-semibold"
-                              : isProvisioning
-                              ? "bg-secondary-fixed/50 text-on-secondary-fixed-variant font-semibold"
-                              : "bg-surface-container-high text-outline"
+                                ? "bg-error-container/30 text-error font-semibold"
+                                : isProvisioning
+                                  ? "bg-secondary-fixed/50 text-on-secondary-fixed-variant font-semibold"
+                                  : "bg-surface-container-high text-outline"
                           }`}
                         >
                           <span
@@ -308,8 +359,8 @@ export function LabsListScreen(): JSX.Element {
                               lab.status === "active"
                                 ? "bg-primary animate-pulse"
                                 : isSuspended
-                                ? "bg-error"
-                                : "bg-secondary"
+                                  ? "bg-error"
+                                  : "bg-secondary"
                             }`}
                           ></span>
                           {lab.status}
@@ -318,7 +369,8 @@ export function LabsListScreen(): JSX.Element {
 
                       <td className="px-space-md py-space-xs text-right">
                         <span className="font-label-md text-label-md px-space-xs py-space-2xs rounded bg-surface-container-low text-on-surface-variant tabular-nums">
-                          {lab.branch_count ?? 1} branch{(lab.branch_count ?? 1) > 1 ? "es" : ""}
+                          {lab.branch_count ?? 1} branch
+                          {(lab.branch_count ?? 1) > 1 ? "es" : ""}
                         </span>
                       </td>
 
@@ -365,26 +417,32 @@ export function LabsListScreen(): JSX.Element {
         <div className="bg-surface-container-lowest p-space-md rounded-lg shadow-sm border border-outline-variant/30 flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between">
-              <h2 className="font-title-md text-title-md text-on-surface">Regional Distribution</h2>
+              <h2 className="font-title-md text-title-md text-on-surface">
+                Regional Distribution
+              </h2>
               <span className="bg-surface-container px-space-xs py-space-2xs rounded font-code-sm text-code-sm text-outline">
                 PAKISTAN
               </span>
             </div>
             <p className="font-body-xs text-body-xs text-outline mt-space-2xs">
-              Federated specimen collection footprint across key healthcare clusters.
+              Federated specimen collection footprint across key healthcare
+              clusters.
             </p>
             <div className="mt-space-md flex flex-col gap-space-sm">
               <div>
                 <div className="flex justify-between font-label-sm text-label-sm mb-space-2xs">
                   <span className="text-on-surface">Punjab Province</span>
                   <span className="font-code-sm text-code-sm font-bold text-primary">
-                    {Math.round((regionCounts.Punjab / totalRegional) * 100)}% ({regionCounts.Punjab} Nodes)
+                    {Math.round((regionCounts.Punjab / totalRegional) * 100)}% (
+                    {regionCounts.Punjab} Nodes)
                   </span>
                 </div>
                 <div className="w-full bg-surface-container h-1.5 rounded-full overflow-hidden">
                   <div
                     className="bg-primary h-full rounded-full"
-                    style={{ width: `${(regionCounts.Punjab / totalRegional) * 100}%` }}
+                    style={{
+                      width: `${(regionCounts.Punjab / totalRegional) * 100}%`,
+                    }}
                   ></div>
                 </div>
               </div>
@@ -393,43 +451,56 @@ export function LabsListScreen(): JSX.Element {
                 <div className="flex justify-between font-label-sm text-label-sm mb-space-2xs">
                   <span className="text-on-surface">Sindh Province</span>
                   <span className="font-code-sm text-code-sm font-bold text-secondary">
-                    {Math.round((regionCounts.Sindh / totalRegional) * 100)}% ({regionCounts.Sindh} Nodes)
+                    {Math.round((regionCounts.Sindh / totalRegional) * 100)}% (
+                    {regionCounts.Sindh} Nodes)
                   </span>
                 </div>
                 <div className="w-full bg-surface-container h-1.5 rounded-full overflow-hidden">
                   <div
                     className="bg-secondary h-full rounded-full"
-                    style={{ width: `${(regionCounts.Sindh / totalRegional) * 100}%` }}
+                    style={{
+                      width: `${(regionCounts.Sindh / totalRegional) * 100}%`,
+                    }}
                   ></div>
                 </div>
               </div>
 
               <div>
                 <div className="flex justify-between font-label-sm text-label-sm mb-space-2xs">
-                  <span className="text-on-surface">Islamabad Capital Territory (ICT)</span>
+                  <span className="text-on-surface">
+                    Islamabad Capital Territory (ICT)
+                  </span>
                   <span className="font-code-sm text-code-sm font-bold text-tertiary">
-                    {Math.round((regionCounts.ICT / totalRegional) * 100)}% ({regionCounts.ICT} Nodes)
+                    {Math.round((regionCounts.ICT / totalRegional) * 100)}% (
+                    {regionCounts.ICT} Nodes)
                   </span>
                 </div>
                 <div className="w-full bg-surface-container h-1.5 rounded-full overflow-hidden">
                   <div
                     className="bg-tertiary h-full rounded-full"
-                    style={{ width: `${(regionCounts.ICT / totalRegional) * 100}%` }}
+                    style={{
+                      width: `${(regionCounts.ICT / totalRegional) * 100}%`,
+                    }}
                   ></div>
                 </div>
               </div>
 
               <div>
                 <div className="flex justify-between font-label-sm text-label-sm mb-space-2xs">
-                  <span className="text-on-surface">Khyber Pakhtunkhwa (KP)</span>
+                  <span className="text-on-surface">
+                    Khyber Pakhtunkhwa (KP)
+                  </span>
                   <span className="font-code-sm text-code-sm font-bold text-outline">
-                    {Math.round((regionCounts.KPK / totalRegional) * 100)}% ({regionCounts.KPK} Nodes)
+                    {Math.round((regionCounts.KPK / totalRegional) * 100)}% (
+                    {regionCounts.KPK} Nodes)
                   </span>
                 </div>
                 <div className="w-full bg-surface-container h-1.5 rounded-full overflow-hidden">
                   <div
                     className="bg-outline h-full rounded-full"
-                    style={{ width: `${(regionCounts.KPK / totalRegional) * 100}%` }}
+                    style={{
+                      width: `${(regionCounts.KPK / totalRegional) * 100}%`,
+                    }}
                   ></div>
                 </div>
               </div>
@@ -441,31 +512,45 @@ export function LabsListScreen(): JSX.Element {
         <div className="bg-surface-container-lowest p-space-md rounded-lg shadow-sm border border-outline-variant/30 flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between">
-              <h2 className="font-title-md text-title-md text-on-surface">Audit & Governance</h2>
-              <span className="font-code-sm text-code-sm text-outline">P-1 — P-9 ENGINE</span>
+              <h2 className="font-title-md text-title-md text-on-surface">
+                Audit & Governance
+              </h2>
+              <span className="font-code-sm text-code-sm text-outline">
+                P-1 — P-9 ENGINE
+              </span>
             </div>
             <p className="font-body-xs text-body-xs text-outline mt-space-2xs">
-              Recent infrastructure lifecycle actions and operator modifications.
+              Recent infrastructure lifecycle actions and operator
+              modifications.
             </p>
 
             <div className="mt-space-md flex flex-col divide-y divide-outline-variant/20 font-body-sm text-body-sm">
               {(metrics?.recent_audits || []).slice(0, 4).map((audit) => (
-                <div key={audit.id} className="py-space-xs flex items-center justify-between">
+                <div
+                  key={audit.id}
+                  className="py-space-xs flex items-center justify-between"
+                >
                   <div className="flex items-center gap-space-xs">
                     <span className="w-2 h-2 rounded-full bg-primary"></span>
                     <span className="font-semibold text-on-surface font-code-sm text-code-sm">
                       {audit.action}
                     </span>
                     <span className="text-outline text-xs">
-                      {audit.entity_type} {audit.entity_id ? `(#${audit.entity_id.slice(0, 6)})` : ""}
+                      {audit.entity_type}{" "}
+                      {audit.entity_id
+                        ? `(#${audit.entity_id.slice(0, 6)})`
+                        : ""}
                     </span>
                   </div>
                   <span className="font-code-sm text-code-sm text-outline">
-                    {audit.at ? new Date(audit.at).toLocaleTimeString() : "--:--"}
+                    {audit.at
+                      ? new Date(audit.at).toLocaleTimeString()
+                      : "--:--"}
                   </span>
                 </div>
               ))}
-              {(!metrics?.recent_audits || metrics.recent_audits.length === 0) && (
+              {(!metrics?.recent_audits ||
+                metrics.recent_audits.length === 0) && (
                 <div className="py-space-md text-center text-outline">
                   No governance logs recorded in current cycle
                 </div>
@@ -478,7 +563,9 @@ export function LabsListScreen(): JSX.Element {
               className="text-primary hover:text-primary-container font-label-sm text-label-sm flex items-center gap-1"
             >
               <span>View System Stream</span>
-              <span className="material-symbols-outlined text-[16px]">chevron_right</span>
+              <span className="material-symbols-outlined text-[16px]">
+                chevron_right
+              </span>
             </Link>
           </div>
         </div>

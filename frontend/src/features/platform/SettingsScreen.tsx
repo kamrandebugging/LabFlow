@@ -35,7 +35,9 @@ export function SettingsScreen() {
   });
 
   // TOTP save modals
-  const [totpSection, setTotpSection] = useState<"commercial" | "founding" | "toggles" | null>(null);
+  const [totpSection, setTotpSection] = useState<
+    "commercial" | "founding" | "toggles" | null
+  >(null);
   const [saving, setSaving] = useState(false);
   const [totpError, setTotpError] = useState<string | null>(null);
 
@@ -48,7 +50,9 @@ export function SettingsScreen() {
       setFounding(res.founding_offer);
       setToggles(res.platform_toggles);
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Failed to load platform settings.");
+      setError(
+        e instanceof Error ? e.message : "Failed to load platform settings.",
+      );
     } finally {
       setLoading(false);
     }
@@ -65,7 +69,8 @@ export function SettingsScreen() {
       setTotpError(null);
 
       let payload: Partial<PlatformSettingsResponse> = {};
-      if (totpSection === "commercial") payload = { commercial_tiers: commercial };
+      if (totpSection === "commercial")
+        payload = { commercial_tiers: commercial };
       if (totpSection === "founding") payload = { founding_offer: founding };
       if (totpSection === "toggles") payload = { platform_toggles: toggles };
 
@@ -89,16 +94,24 @@ export function SettingsScreen() {
         <div className="flex flex-col gap-space-2xs">
           <div className="flex items-center gap-space-xs font-label-sm text-label-sm text-outline">
             <span>Platform</span>
-            <span className="material-symbols-outlined text-[14px]">chevron_right</span>
+            <span className="material-symbols-outlined text-[14px]">
+              chevron_right
+            </span>
             <span>Global Settings</span>
-            <span className="material-symbols-outlined text-[14px]">chevron_right</span>
-            <span className="text-primary font-semibold">Commercial & Orchestration</span>
+            <span className="material-symbols-outlined text-[14px]">
+              chevron_right
+            </span>
+            <span className="text-primary font-semibold">
+              Commercial & Orchestration
+            </span>
           </div>
           <h1 className="font-headline-xl text-headline-xl text-on-surface tracking-tight font-extrabold">
             Platform Commercial & System Settings
           </h1>
           <p className="font-body-sm text-body-sm text-on-surface-variant max-w-3xl">
-            Configure commercial subscription pricing in Pakistani Rupees (PKR), oversee regional founding partner promotions, and control infrastructure availability gates.
+            Configure commercial subscription pricing in Pakistani Rupees (PKR),
+            oversee regional founding partner promotions, and control
+            infrastructure availability gates.
           </p>
         </div>
 
@@ -106,7 +119,9 @@ export function SettingsScreen() {
         <div className="flex items-center gap-space-sm bg-surface-container-lowest px-space-md py-space-xs rounded shadow-sm self-start md:self-auto border border-outline-variant/30">
           <span className="w-2 h-2 rounded-full bg-primary-container animate-pulse" />
           <div className="flex flex-col font-code-sm text-xs">
-            <span className="text-on-surface font-bold">PUBLIC SCHEMA SYNCED</span>
+            <span className="text-on-surface font-bold">
+              PUBLIC SCHEMA SYNCED
+            </span>
             <span className="text-outline">Plan records auto-updated</span>
           </div>
         </div>
@@ -115,10 +130,15 @@ export function SettingsScreen() {
       {success && (
         <div className="p-space-md bg-primary-fixed/30 border border-primary text-primary-container rounded flex items-center justify-between font-title-sm text-title-sm font-semibold">
           <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-[20px]">check_circle</span>
+            <span className="material-symbols-outlined text-[20px]">
+              check_circle
+            </span>
             <span>{success}</span>
           </div>
-          <button onClick={() => setSuccess(null)} className="text-on-surface-variant hover:text-on-surface">
+          <button
+            onClick={() => setSuccess(null)}
+            className="text-on-surface-variant hover:text-on-surface"
+          >
             <span className="material-symbols-outlined text-[18px]">close</span>
           </button>
         </div>
@@ -134,7 +154,9 @@ export function SettingsScreen() {
       {loading ? (
         <div className="p-16 text-center text-outline">
           <span className="inline-block w-8 h-8 border-2 border-primary/20 border-t-primary rounded-full animate-spin mb-3" />
-          <p className="font-body-md text-body-md font-semibold">Loading platform settings...</p>
+          <p className="font-body-md text-body-md font-semibold">
+            Loading platform settings...
+          </p>
         </div>
       ) : (
         <div className="flex flex-col gap-space-xl">
@@ -142,13 +164,17 @@ export function SettingsScreen() {
           <div className="bg-surface-container-lowest p-space-lg rounded shadow-sm flex flex-col gap-space-md">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-space-sm pb-space-xs border-b border-surface-container">
               <div className="flex items-center gap-space-xs">
-                <span className="material-symbols-outlined text-primary text-[22px]">payments</span>
+                <span className="material-symbols-outlined text-primary text-[22px]">
+                  payments
+                </span>
                 <div>
                   <h2 className="font-title-md text-title-md text-on-surface font-bold">
                     Commercial Subscription Tiers (PKR)
                   </h2>
                   <p className="font-body-xs text-body-xs text-outline">
-                    Base rates charged to Pakistani laboratory facilities. Editing prices here directly syncs public Plan rows and provision calculators.
+                    Base rates charged to Pakistani laboratory facilities.
+                    Editing prices here directly syncs public Plan rows and
+                    provision calculators.
                   </p>
                 </div>
               </div>
@@ -160,7 +186,9 @@ export function SettingsScreen() {
                 }}
                 className="h-8 px-space-md bg-primary text-on-primary font-label-sm text-label-sm font-bold rounded hover:bg-primary-container transition-colors shadow-sm flex items-center gap-1 self-start sm:self-auto"
               >
-                <span className="material-symbols-outlined text-[16px]">save</span>
+                <span className="material-symbols-outlined text-[16px]">
+                  save
+                </span>
                 <span>Save Commercial Pricing</span>
               </button>
             </div>
@@ -169,7 +197,9 @@ export function SettingsScreen() {
               <div className="p-space-md bg-surface-container-low rounded flex flex-col gap-1.5 border border-outline-variant/30">
                 <label className="font-label-sm text-label-sm text-on-surface font-semibold flex items-center justify-between">
                   <span>Starter Tier (Monthly)</span>
-                  <span className="font-code-sm text-xs text-outline">1 Branch • 5 Staff</span>
+                  <span className="font-code-sm text-xs text-outline">
+                    1 Branch • 5 Staff
+                  </span>
                 </label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 font-code-sm text-xs text-outline font-bold">
@@ -180,7 +210,10 @@ export function SettingsScreen() {
                     step="1"
                     value={commercial.starter_price_pkr}
                     onChange={(e) =>
-                      setCommercial({ ...commercial, starter_price_pkr: e.target.value })
+                      setCommercial({
+                        ...commercial,
+                        starter_price_pkr: e.target.value,
+                      })
                     }
                     className="w-full h-9 bg-surface-container-lowest pl-12 pr-3 font-code-sm text-sm font-bold text-on-surface rounded border border-outline-variant/50 focus:outline-none focus:border-primary"
                   />
@@ -190,7 +223,9 @@ export function SettingsScreen() {
               <div className="p-space-md bg-surface-container-low rounded flex flex-col gap-1.5 border border-outline-variant/30">
                 <label className="font-label-sm text-label-sm text-on-surface font-semibold flex items-center justify-between">
                   <span>Growth Tier (Monthly)</span>
-                  <span className="font-code-sm text-xs text-outline">3 Branches • Unlimited</span>
+                  <span className="font-code-sm text-xs text-outline">
+                    3 Branches • Unlimited
+                  </span>
                 </label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 font-code-sm text-xs text-outline font-bold">
@@ -201,7 +236,10 @@ export function SettingsScreen() {
                     step="1"
                     value={commercial.growth_price_pkr}
                     onChange={(e) =>
-                      setCommercial({ ...commercial, growth_price_pkr: e.target.value })
+                      setCommercial({
+                        ...commercial,
+                        growth_price_pkr: e.target.value,
+                      })
                     }
                     className="w-full h-9 bg-surface-container-lowest pl-12 pr-3 font-code-sm text-sm font-bold text-on-surface rounded border border-outline-variant/50 focus:outline-none focus:border-primary"
                   />
@@ -211,7 +249,9 @@ export function SettingsScreen() {
               <div className="p-space-md bg-surface-container-low rounded flex flex-col gap-1.5 border border-outline-variant/30">
                 <label className="font-label-sm text-label-sm text-on-surface font-semibold flex items-center justify-between">
                   <span>Scale Tier (Monthly)</span>
-                  <span className="font-code-sm text-xs text-outline">Unlimited Branches & Staff</span>
+                  <span className="font-code-sm text-xs text-outline">
+                    Unlimited Branches & Staff
+                  </span>
                 </label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 font-code-sm text-xs text-outline font-bold">
@@ -222,7 +262,10 @@ export function SettingsScreen() {
                     step="1"
                     value={commercial.scale_price_pkr}
                     onChange={(e) =>
-                      setCommercial({ ...commercial, scale_price_pkr: e.target.value })
+                      setCommercial({
+                        ...commercial,
+                        scale_price_pkr: e.target.value,
+                      })
                     }
                     className="w-full h-9 bg-surface-container-lowest pl-12 pr-3 font-code-sm text-sm font-bold text-on-surface rounded border border-outline-variant/50 focus:outline-none focus:border-primary"
                   />
@@ -232,7 +275,9 @@ export function SettingsScreen() {
               <div className="p-space-md bg-surface-container-low rounded flex flex-col gap-1.5 border border-outline-variant/30">
                 <label className="font-label-sm text-label-sm text-on-surface font-semibold flex items-center justify-between">
                   <span>Lifetime Perpetual (Single Branch)</span>
-                  <span className="font-code-sm text-xs text-secondary font-bold">One-Time</span>
+                  <span className="font-code-sm text-xs text-secondary font-bold">
+                    One-Time
+                  </span>
                 </label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 font-code-sm text-xs text-outline font-bold">
@@ -243,7 +288,10 @@ export function SettingsScreen() {
                     step="1"
                     value={commercial.lifetime_single_pkr}
                     onChange={(e) =>
-                      setCommercial({ ...commercial, lifetime_single_pkr: e.target.value })
+                      setCommercial({
+                        ...commercial,
+                        lifetime_single_pkr: e.target.value,
+                      })
                     }
                     className="w-full h-9 bg-surface-container-lowest pl-12 pr-3 font-code-sm text-sm font-bold text-on-surface rounded border border-outline-variant/50 focus:outline-none focus:border-primary"
                   />
@@ -253,7 +301,9 @@ export function SettingsScreen() {
               <div className="p-space-md bg-surface-container-low rounded flex flex-col gap-1.5 border border-outline-variant/30">
                 <label className="font-label-sm text-label-sm text-on-surface font-semibold flex items-center justify-between">
                   <span>Lifetime Perpetual (Multi-Branch)</span>
-                  <span className="font-code-sm text-xs text-secondary font-bold">One-Time</span>
+                  <span className="font-code-sm text-xs text-secondary font-bold">
+                    One-Time
+                  </span>
                 </label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 font-code-sm text-xs text-outline font-bold">
@@ -264,7 +314,10 @@ export function SettingsScreen() {
                     step="1"
                     value={commercial.lifetime_multi_pkr}
                     onChange={(e) =>
-                      setCommercial({ ...commercial, lifetime_multi_pkr: e.target.value })
+                      setCommercial({
+                        ...commercial,
+                        lifetime_multi_pkr: e.target.value,
+                      })
                     }
                     className="w-full h-9 bg-surface-container-lowest pl-12 pr-3 font-code-sm text-sm font-bold text-on-surface rounded border border-outline-variant/50 focus:outline-none focus:border-primary"
                   />
@@ -274,7 +327,9 @@ export function SettingsScreen() {
               <div className="p-space-md bg-surface-container-low rounded flex flex-col gap-1.5 border border-outline-variant/30">
                 <label className="font-label-sm text-label-sm text-on-surface font-semibold flex items-center justify-between">
                   <span>Annual Maintenance Surcharge</span>
-                  <span className="font-code-sm text-xs text-outline">Post-warranty updates</span>
+                  <span className="font-code-sm text-xs text-outline">
+                    Post-warranty updates
+                  </span>
                 </label>
                 <div className="relative">
                   <input
@@ -286,7 +341,8 @@ export function SettingsScreen() {
                     onChange={(e) =>
                       setCommercial({
                         ...commercial,
-                        annual_maintenance_pct: parseInt(e.target.value, 10) || 0,
+                        annual_maintenance_pct:
+                          parseInt(e.target.value, 10) || 0,
                       })
                     }
                     className="w-full h-9 bg-surface-container-lowest px-3 font-code-sm text-sm font-bold text-on-surface rounded border border-outline-variant/50 focus:outline-none focus:border-primary"
@@ -303,13 +359,16 @@ export function SettingsScreen() {
           <div className="bg-surface-container-lowest p-space-lg rounded shadow-sm flex flex-col gap-space-md">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-space-sm pb-space-xs border-b border-surface-container">
               <div className="flex items-center gap-space-xs">
-                <span className="material-symbols-outlined text-secondary text-[22px]">workspace_premium</span>
+                <span className="material-symbols-outlined text-secondary text-[22px]">
+                  workspace_premium
+                </span>
                 <div>
                   <h2 className="font-title-md text-title-md text-on-surface font-bold">
                     Founding Partner Promotion Campaign
                   </h2>
                   <p className="font-body-xs text-body-xs text-outline">
-                    Subsidized launch slots for initial 10 pioneer diagnostic laboratories across Pakistan.
+                    Subsidized launch slots for initial 10 pioneer diagnostic
+                    laboratories across Pakistan.
                   </p>
                 </div>
               </div>
@@ -321,7 +380,9 @@ export function SettingsScreen() {
                 }}
                 className="h-8 px-space-md bg-primary text-on-primary font-label-sm text-label-sm font-bold rounded hover:bg-primary-container transition-colors shadow-sm flex items-center gap-1 self-start sm:self-auto"
               >
-                <span className="material-symbols-outlined text-[16px]">save</span>
+                <span className="material-symbols-outlined text-[16px]">
+                  save
+                </span>
                 <span>Save Campaign</span>
               </button>
             </div>
@@ -333,12 +394,15 @@ export function SettingsScreen() {
                     Founding Member Offer State
                   </span>
                   <span className="font-body-xs text-body-xs text-outline">
-                    When active, new qualified labs receive lifetime founder rate locks.
+                    When active, new qualified labs receive lifetime founder
+                    rate locks.
                   </span>
                 </div>
                 <button
                   type="button"
-                  onClick={() => setFounding({ ...founding, active: !founding.active })}
+                  onClick={() =>
+                    setFounding({ ...founding, active: !founding.active })
+                  }
                   className={`w-11 h-6 rounded-full relative transition-colors cursor-pointer ${
                     founding.active ? "bg-primary" : "bg-surface-container-high"
                   }`}
@@ -357,7 +421,8 @@ export function SettingsScreen() {
                     Pioneer Slots Quota
                   </span>
                   <span className="font-code-sm text-xs font-bold text-primary">
-                    {founding.slots_used} of {founding.slots_total} slots claimed
+                    {founding.slots_used} of {founding.slots_total} slots
+                    claimed
                   </span>
                 </div>
                 <div className="w-full bg-surface-container-high h-2 rounded-full overflow-hidden my-1">
@@ -369,7 +434,8 @@ export function SettingsScreen() {
                   />
                 </div>
                 <span className="font-body-xs text-body-xs text-outline">
-                  {Math.max(0, founding.slots_total - founding.slots_used)} subsidized onboarding allocations remaining.
+                  {Math.max(0, founding.slots_total - founding.slots_used)}{" "}
+                  subsidized onboarding allocations remaining.
                 </span>
               </div>
             </div>
@@ -379,13 +445,16 @@ export function SettingsScreen() {
           <div className="bg-surface-container-lowest p-space-lg rounded shadow-sm flex flex-col gap-space-md">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-space-sm pb-space-xs border-b border-surface-container">
               <div className="flex items-center gap-space-xs">
-                <span className="material-symbols-outlined text-primary text-[22px]">toggle_on</span>
+                <span className="material-symbols-outlined text-primary text-[22px]">
+                  toggle_on
+                </span>
                 <div>
                   <h2 className="font-title-md text-title-md text-on-surface font-bold">
                     Platform Availability & Maintenance Gates
                   </h2>
                   <p className="font-body-xs text-body-xs text-outline">
-                    Master kill switches for multi-tenant gateway traffic and new lab registration.
+                    Master kill switches for multi-tenant gateway traffic and
+                    new lab registration.
                   </p>
                 </div>
               </div>
@@ -397,7 +466,9 @@ export function SettingsScreen() {
                 }}
                 className="h-8 px-space-md bg-primary text-on-primary font-label-sm text-label-sm font-bold rounded hover:bg-primary-container transition-colors shadow-sm flex items-center gap-1 self-start sm:self-auto"
               >
-                <span className="material-symbols-outlined text-[16px]">save</span>
+                <span className="material-symbols-outlined text-[16px]">
+                  save
+                </span>
                 <span>Save Operational Gates</span>
               </button>
             </div>
@@ -409,16 +480,22 @@ export function SettingsScreen() {
                     Allow New Tenant Provisioning
                   </span>
                   <span className="font-body-xs text-body-xs text-outline">
-                    When disabled, the `/platform/tenants/new` flow is locked for non-super users.
+                    When disabled, the `/platform/tenants/new` flow is locked
+                    for non-super users.
                   </span>
                 </div>
                 <button
                   type="button"
                   onClick={() =>
-                    setToggles({ ...toggles, allow_new_signups: !toggles.allow_new_signups })
+                    setToggles({
+                      ...toggles,
+                      allow_new_signups: !toggles.allow_new_signups,
+                    })
                   }
                   className={`w-11 h-6 rounded-full relative transition-colors cursor-pointer ${
-                    toggles.allow_new_signups ? "bg-primary" : "bg-surface-container-high"
+                    toggles.allow_new_signups
+                      ? "bg-primary"
+                      : "bg-surface-container-high"
                   }`}
                 >
                   <span
@@ -435,16 +512,22 @@ export function SettingsScreen() {
                     Platform Maintenance Mode
                   </span>
                   <span className="font-body-xs text-body-xs text-error font-semibold">
-                    Warning: Places all tenant nodes into temporary read-only state.
+                    Warning: Places all tenant nodes into temporary read-only
+                    state.
                   </span>
                 </div>
                 <button
                   type="button"
                   onClick={() =>
-                    setToggles({ ...toggles, maintenance_mode: !toggles.maintenance_mode })
+                    setToggles({
+                      ...toggles,
+                      maintenance_mode: !toggles.maintenance_mode,
+                    })
                   }
                   className={`w-11 h-6 rounded-full relative transition-colors cursor-pointer ${
-                    toggles.maintenance_mode ? "bg-error" : "bg-surface-container-high"
+                    toggles.maintenance_mode
+                      ? "bg-error"
+                      : "bg-surface-container-high"
                   }`}
                 >
                   <span

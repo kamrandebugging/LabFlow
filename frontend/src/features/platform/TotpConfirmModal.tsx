@@ -87,7 +87,9 @@ export function TotpConfirmModal({
 
           {(localError || error) && (
             <div className="p-2.5 bg-error/10 border border-error/20 rounded flex items-center gap-2 text-error font-body-xs text-body-xs">
-              <span className="material-symbols-outlined text-[18px]">error</span>
+              <span className="material-symbols-outlined text-[18px]">
+                error
+              </span>
               <span>{localError || error}</span>
             </div>
           )}

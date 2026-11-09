@@ -31,9 +31,7 @@ export const TenantSettingsScreen: React.FC = () => {
       const data = await settingsService.getSettings();
 
       if (data.brand_display_name) {
-        setBrandDisplayName(
-          String(data.brand_display_name.value ?? ""),
-        );
+        setBrandDisplayName(String(data.brand_display_name.value ?? ""));
       }
       if (data.brand_accent_colour) {
         setBrandAccentColour(

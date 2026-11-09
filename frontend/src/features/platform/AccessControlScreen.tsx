@@ -109,7 +109,9 @@ export function AccessControlScreen() {
       })
       .catch((e: unknown) => {
         if (!isMounted) return;
-        setError(e instanceof Error ? e.message : "Failed to load tenant list.");
+        setError(
+          e instanceof Error ? e.message : "Failed to load tenant list.",
+        );
       });
     return () => {
       isMounted = false;
@@ -131,12 +133,18 @@ export function AccessControlScreen() {
         setAccess(data);
         setEnabledRoles(data.enabled_roles || ["owner"]);
         setBranchLimit(data.branch_limit || 1);
-        setStaffLimit(data.staff_limit !== null ? String(data.staff_limit) : "");
+        setStaffLimit(
+          data.staff_limit !== null ? String(data.staff_limit) : "",
+        );
         setFeatureFlags(data.feature_flags || {});
       })
       .catch((e: unknown) => {
         if (!isMounted) return;
-        setError(e instanceof Error ? e.message : "Failed to load access configuration.");
+        setError(
+          e instanceof Error
+            ? e.message
+            : "Failed to load access configuration.",
+        );
       })
       .finally(() => {
         if (isMounted) setLoading(false);
@@ -172,17 +180,20 @@ export function AccessControlScreen() {
         selectedTenantId,
         {
           branch_limit: branchLimit,
-          staff_limit: staffLimit.trim() === "" ? null : parseInt(staffLimit, 10),
+          staff_limit:
+            staffLimit.trim() === "" ? null : parseInt(staffLimit, 10),
           enabled_roles: enabledRoles,
           feature_flags: featureFlags,
         },
-        totpCode
+        totpCode,
       );
       setAccess(res);
       setTotpModalOpen(false);
       setSuccess("Access policies & feature scopes saved successfully.");
     } catch (e: unknown) {
-      setTotpError(e instanceof Error ? e.message : "Failed to update access control.");
+      setTotpError(
+        e instanceof Error ? e.message : "Failed to update access control.",
+      );
     } finally {
       setSaving(false);
     }
@@ -195,14 +206,19 @@ export function AccessControlScreen() {
         <div className="flex flex-col gap-space-2xs">
           <div className="flex items-center gap-space-xs text-on-surface-variant font-code-sm text-code-sm">
             <span>Platform Governance</span>
-            <span className="material-symbols-outlined text-[14px]">chevron_right</span>
-            <span className="text-on-surface font-semibold">Tenant Access & Feature Scopes</span>
+            <span className="material-symbols-outlined text-[14px]">
+              chevron_right
+            </span>
+            <span className="text-on-surface font-semibold">
+              Tenant Access & Feature Scopes
+            </span>
           </div>
           <h1 className="font-headline-lg text-headline-lg text-on-surface tracking-tight font-extrabold">
             Tenant Access Control & Permissions
           </h1>
           <p className="font-body-sm text-body-sm text-on-surface-variant max-w-3xl">
-            Configure role visibility, operational staff quotas, and enterprise feature flags enforced in tenant applications.
+            Configure role visibility, operational staff quotas, and enterprise
+            feature flags enforced in tenant applications.
           </p>
         </div>
 
@@ -213,13 +229,17 @@ export function AccessControlScreen() {
               if (!access) return;
               setEnabledRoles(access.enabled_roles);
               setBranchLimit(access.branch_limit);
-              setStaffLimit(access.staff_limit !== null ? String(access.staff_limit) : "");
+              setStaffLimit(
+                access.staff_limit !== null ? String(access.staff_limit) : "",
+              );
               setFeatureFlags(access.feature_flags);
               setSuccess(null);
             }}
             className="h-8 px-space-md bg-surface-container-low hover:bg-surface-container text-on-surface font-label-sm text-label-sm rounded transition-colors flex items-center gap-space-xs shadow-sm"
           >
-            <span className="material-symbols-outlined text-[16px]">restart_alt</span>
+            <span className="material-symbols-outlined text-[16px]">
+              restart_alt
+            </span>
             Reset Changes
           </button>
           <button
@@ -230,7 +250,9 @@ export function AccessControlScreen() {
             }}
             className="h-8 px-space-lg bg-primary-container hover:bg-primary text-on-primary font-label-sm text-label-sm rounded transition-colors flex items-center gap-space-xs shadow-sm font-bold"
           >
-            <span className="material-symbols-outlined text-[16px]">verified_user</span>
+            <span className="material-symbols-outlined text-[16px]">
+              verified_user
+            </span>
             Save Access Policy
           </button>
         </div>
@@ -240,7 +262,9 @@ export function AccessControlScreen() {
       <div className="bg-surface-container-lowest p-space-md rounded shadow-sm flex flex-col xl:flex-row xl:items-center justify-between gap-space-md">
         <div className="flex flex-col sm:flex-row sm:items-center gap-space-md">
           <div className="flex items-center gap-space-xs text-on-surface-variant font-label-sm text-label-sm font-semibold">
-            <span className="material-symbols-outlined text-primary text-[18px]">domain</span>
+            <span className="material-symbols-outlined text-primary text-[18px]">
+              domain
+            </span>
             <span className="uppercase tracking-wider">Tenant Selection</span>
           </div>
           <div className="relative min-w-[320px] max-w-md">
@@ -279,10 +303,15 @@ export function AccessControlScreen() {
       {success && (
         <div className="p-space-md bg-primary-fixed/30 border border-primary text-primary-container rounded flex items-center justify-between font-title-sm text-title-sm font-semibold">
           <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-[20px]">check_circle</span>
+            <span className="material-symbols-outlined text-[20px]">
+              check_circle
+            </span>
             <span>{success}</span>
           </div>
-          <button onClick={() => setSuccess(null)} className="text-on-surface-variant hover:text-on-surface">
+          <button
+            onClick={() => setSuccess(null)}
+            className="text-on-surface-variant hover:text-on-surface"
+          >
             <span className="material-symbols-outlined text-[18px]">close</span>
           </button>
         </div>
@@ -298,7 +327,9 @@ export function AccessControlScreen() {
       {loading ? (
         <div className="p-16 text-center text-outline">
           <span className="inline-block w-8 h-8 border-2 border-primary/20 border-t-primary rounded-full animate-spin mb-3" />
-          <p className="font-body-md text-body-md font-semibold">Loading access permissions...</p>
+          <p className="font-body-md text-body-md font-semibold">
+            Loading access permissions...
+          </p>
         </div>
       ) : access ? (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-space-lg items-start">
@@ -306,7 +337,9 @@ export function AccessControlScreen() {
           <div className="lg:col-span-7 bg-surface-container-lowest p-space-lg rounded shadow-sm flex flex-col gap-space-md">
             <div className="flex items-center justify-between pb-space-xs border-b border-surface-container">
               <div className="flex items-center gap-space-xs">
-                <span className="material-symbols-outlined text-primary text-[20px]">badge</span>
+                <span className="material-symbols-outlined text-primary text-[20px]">
+                  badge
+                </span>
                 <h2 className="font-title-md text-title-md text-on-surface font-bold">
                   Role Entitlement Matrix
                 </h2>
@@ -322,7 +355,10 @@ export function AccessControlScreen() {
                 const isOwner = role.key === "owner";
 
                 return (
-                  <div key={role.key} className="py-space-md flex items-start justify-between gap-space-md">
+                  <div
+                    key={role.key}
+                    className="py-space-md flex items-start justify-between gap-space-md"
+                  >
                     <div className="flex flex-col">
                       <div className="flex items-center gap-space-xs">
                         <span className="font-title-sm text-title-sm text-on-surface font-bold">
@@ -330,7 +366,9 @@ export function AccessControlScreen() {
                         </span>
                         {isOwner ? (
                           <span className="bg-primary text-on-primary font-code-sm text-[10px] px-1.5 py-0.5 rounded font-extrabold uppercase tracking-wider flex items-center gap-1">
-                            <span className="material-symbols-outlined text-[12px]">lock</span>
+                            <span className="material-symbols-outlined text-[12px]">
+                              lock
+                            </span>
                             IMMUTABLE SYSTEM ROLE
                           </span>
                         ) : isEnabled ? (
@@ -374,12 +412,16 @@ export function AccessControlScreen() {
             <div className="bg-surface-container-lowest p-space-lg rounded shadow-sm flex flex-col gap-space-md">
               <div className="flex items-center justify-between pb-space-xs border-b border-surface-container">
                 <div className="flex items-center gap-space-xs">
-                  <span className="material-symbols-outlined text-primary text-[20px]">tune</span>
+                  <span className="material-symbols-outlined text-primary text-[20px]">
+                    tune
+                  </span>
                   <h2 className="font-title-md text-title-md text-on-surface font-bold">
                     Operational Quotas
                   </h2>
                 </div>
-                <span className="font-code-sm text-code-sm text-outline">Enforced at API Gateway</span>
+                <span className="font-code-sm text-code-sm text-outline">
+                  Enforced at API Gateway
+                </span>
               </div>
 
               <div className="flex flex-col gap-space-sm">
@@ -387,7 +429,9 @@ export function AccessControlScreen() {
                   <label className="font-label-sm text-label-sm text-on-surface font-semibold flex items-center justify-between">
                     <span>Staff Seats Limit</span>
                     <span className="font-body-xs text-body-xs text-outline">
-                      {access.max_staff ? `Plan max: ${access.max_staff}` : "Unlimited on plan"}
+                      {access.max_staff
+                        ? `Plan max: ${access.max_staff}`
+                        : "Unlimited on plan"}
                     </span>
                   </label>
                   <input
@@ -400,7 +444,8 @@ export function AccessControlScreen() {
                     className="w-full h-9 bg-surface-container-low px-3 font-code-sm text-code-sm text-on-surface rounded border border-outline-variant/60 focus:outline-none focus:border-primary"
                   />
                   <span className="font-body-xs text-body-xs text-outline">
-                    Total simultaneous active login accounts permitted across all non-owner roles.
+                    Total simultaneous active login accounts permitted across
+                    all non-owner roles.
                   </span>
                 </div>
 
@@ -408,7 +453,9 @@ export function AccessControlScreen() {
                   <label className="font-label-sm text-label-sm text-on-surface font-semibold flex items-center justify-between">
                     <span>Branch Physical Locations Limit</span>
                     <span className="font-body-xs text-body-xs text-outline">
-                      {access.max_branches ? `Plan max: ${access.max_branches}` : "Unlimited on plan"}
+                      {access.max_branches
+                        ? `Plan max: ${access.max_branches}`
+                        : "Unlimited on plan"}
                     </span>
                   </label>
                   <input
@@ -416,11 +463,14 @@ export function AccessControlScreen() {
                     min="1"
                     max={access.max_branches ?? 999}
                     value={branchLimit}
-                    onChange={(e) => setBranchLimit(parseInt(e.target.value, 10) || 1)}
+                    onChange={(e) =>
+                      setBranchLimit(parseInt(e.target.value, 10) || 1)
+                    }
                     className="w-full h-9 bg-surface-container-low px-3 font-code-sm text-code-sm text-on-surface rounded border border-outline-variant/60 focus:outline-none focus:border-primary"
                   />
                   <span className="font-body-xs text-body-xs text-outline">
-                    Number of collection centers / diagnostic processing hubs this tenant may create.
+                    Number of collection centers / diagnostic processing hubs
+                    this tenant may create.
                   </span>
                 </div>
               </div>
@@ -430,12 +480,16 @@ export function AccessControlScreen() {
             <div className="bg-surface-container-lowest p-space-lg rounded shadow-sm flex flex-col gap-space-md">
               <div className="flex items-center justify-between pb-space-xs border-b border-surface-container">
                 <div className="flex items-center gap-space-xs">
-                  <span className="material-symbols-outlined text-primary text-[20px]">toggle_on</span>
+                  <span className="material-symbols-outlined text-primary text-[20px]">
+                    toggle_on
+                  </span>
                   <h2 className="font-title-md text-title-md text-on-surface font-bold">
                     Enterprise Feature Flags
                   </h2>
                 </div>
-                <span className="font-code-sm text-code-sm text-outline">Dynamic Scopes</span>
+                <span className="font-code-sm text-code-sm text-outline">
+                  Dynamic Scopes
+                </span>
               </div>
 
               <div className="divide-y divide-surface-container-high">
@@ -443,10 +497,15 @@ export function AccessControlScreen() {
                   const isEnabled = Boolean(featureFlags[f.key]);
 
                   return (
-                    <div key={f.key} className="py-space-sm flex items-start justify-between gap-space-md">
+                    <div
+                      key={f.key}
+                      className="py-space-sm flex items-start justify-between gap-space-md"
+                    >
                       <div className="flex items-start gap-space-sm">
                         <div className="w-8 h-8 rounded bg-surface-container flex items-center justify-center text-primary shrink-0 mt-0.5">
-                          <span className="material-symbols-outlined text-[18px]">{f.icon}</span>
+                          <span className="material-symbols-outlined text-[18px]">
+                            {f.icon}
+                          </span>
                         </div>
                         <div className="flex flex-col">
                           <div className="flex items-center gap-space-xs">

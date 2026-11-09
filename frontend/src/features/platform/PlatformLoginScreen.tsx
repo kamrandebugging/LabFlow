@@ -31,7 +31,11 @@ export function PlatformLoginScreen(): ReactElement {
     >
       <div className="w-full max-w-sm rounded-xl bg-surface-container-lowest p-8 shadow-xl border border-outline-variant/40">
         <div className="mb-6 flex items-center gap-3">
-          <img src="/logo.svg" alt="LabFlow" className="h-8 w-8 rounded object-contain" />
+          <img
+            src="/logo.svg"
+            alt="LabFlow"
+            className="h-8 w-8 rounded object-contain"
+          />
           <div>
             <p
               className="text-lg font-bold leading-tight text-on-surface"

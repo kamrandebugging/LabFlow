@@ -6,7 +6,11 @@ import {
   AlertCircle,
   ArrowLeft,
 } from "lucide-react";
-import type { AuthService, LoginSuccessSession, TotpVerifyPayload } from "./types";
+import type {
+  AuthService,
+  LoginSuccessSession,
+  TotpVerifyPayload,
+} from "./types";
 import { defaultAuthService } from "./authService";
 import { GENERIC_AUTH_ERROR } from "./authStore";
 

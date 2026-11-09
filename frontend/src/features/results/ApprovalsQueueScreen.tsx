@@ -146,8 +146,8 @@ export function ApprovalsQueueScreen(): JSX.Element {
             Access Denied · Role Restricted
           </h2>
           <p className="text-sm text-red-800 max-w-md mx-auto">
-            Only a registered Pathologist or Owner may access the clinical verification
-            and approvals queue (Doc 03 §6.6).
+            Only a registered Pathologist or Owner may access the clinical
+            verification and approvals queue (Doc 03 §6.6).
           </p>
           <div className="pt-2">
             <Link

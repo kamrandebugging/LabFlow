@@ -18,11 +18,13 @@ export interface ProblemDetails {
   status?: number;
   detail?: string;
   code?: string;
-  error?: {
-    code?: string;
-    message?: string;
-    [key: string]: unknown;
-  } | string;
+  error?:
+    | {
+        code?: string;
+        message?: string;
+        [key: string]: unknown;
+      }
+    | string;
   errors?: Record<string, string[] | string>;
   required?: string;
   [key: string]: unknown;
@@ -49,10 +51,14 @@ export class ApiError extends Error {
       errStr ||
       problem?.detail ||
       problem?.title ||
-      (problem?.code && typeof problem.code === "string" ? problem.code : null) ||
+      (problem?.code && typeof problem.code === "string"
+        ? problem.code
+        : null) ||
       (problem && typeof problem === "object"
         ? (Object.values(problem).find(
-            (v) => typeof v === "string" || (Array.isArray(v) && typeof v[0] === "string"),
+            (v) =>
+              typeof v === "string" ||
+              (Array.isArray(v) && typeof v[0] === "string"),
           ) as string | string[] | undefined)
         : null) ||
       fallback;
@@ -61,11 +67,7 @@ export class ApiError extends Error {
     this.name = "ApiError";
     this.status = status;
     this.problem = problem;
-    this.code =
-      errObj?.code ||
-      problem?.code ||
-      errStr ||
-      null;
+    this.code = errObj?.code || problem?.code || errStr || null;
   }
 }
 

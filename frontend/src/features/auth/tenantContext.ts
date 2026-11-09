@@ -30,7 +30,8 @@ export function resolveNodeId(city?: string, slug?: string): string {
   }
   const cleanSlug = (slug || "").toLowerCase();
   if (cleanSlug.includes("isb")) return "PK-ISB-01";
-  if (cleanSlug.includes("lhr") || cleanSlug.includes("lhe")) return "PK-LHE-01";
+  if (cleanSlug.includes("lhr") || cleanSlug.includes("lhe"))
+    return "PK-LHE-01";
   if (cleanSlug.includes("khi")) return "PK-KHI-01";
   if (cleanSlug.length >= 3) {
     return `PK-${cleanSlug.slice(0, 3).toUpperCase()}-01`;

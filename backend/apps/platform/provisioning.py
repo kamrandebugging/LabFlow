@@ -763,9 +763,7 @@ def execute_step_p5_revoke_append_only(
         _set_schema_to_public()
 
 
-def execute_step_p6_seed_data(
-    tenant: Tenant, state: ProvisioningStateSnapshot
-) -> None:
+def execute_step_p6_seed_data(tenant: Tenant, state: ProvisioningStateSnapshot) -> None:
     """
     P-6: Seed default branch, starter catalogue with panel components and reference
     ranges, and EN/UR notification templates via get_or_create (Doc 02 §16).

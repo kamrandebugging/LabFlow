@@ -101,8 +101,7 @@ export function SampleLabelScreen({
   }
 
   const d = labelData;
-  const testsSummary =
-    d.tests && d.tests.length > 0 ? d.tests.join(", ") : "—";
+  const testsSummary = d.tests && d.tests.length > 0 ? d.tests.join(", ") : "—";
 
   return (
     <main className="w-full min-h-screen bg-slate-50 flex flex-col justify-between p-6 sm:p-8">

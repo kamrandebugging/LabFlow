@@ -114,13 +114,14 @@ class SampleCollectionView(BranchScopedAPIView):
                     status=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 )
 
+        limit_param = request.query_params.get("limit")
         try:
             samples, total = SampleService.list_samples(
                 actor=user,
                 status=request.query_params.get("status"),
                 branch_id=branch_id_param,
                 q=request.query_params.get("q"),
-                limit=request.query_params.get("limit"),
+                limit=int(limit_param) if limit_param else None,
             )
         except ValueError:
             return Response(

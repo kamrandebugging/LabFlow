@@ -711,12 +711,18 @@ function App(): JSX.Element {
 
           {/* Results Management Suite (Screens 21–25) */}
           <Route path="/worklist" element={<WorklistWrapper />} />
-          <Route path="/results" element={<Navigate to="/worklist" replace />} />
+          <Route
+            path="/results"
+            element={<Navigate to="/worklist" replace />}
+          />
           <Route
             path="/results/entry/:sampleId"
             element={<ResultEntryWrapper />}
           />
-          <Route path="/results/approvals" element={<ApprovalsQueueWrapper />} />
+          <Route
+            path="/results/approvals"
+            element={<ApprovalsQueueWrapper />}
+          />
           <Route path="/results/:id/amend" element={<AmendResultWrapper />} />
           <Route path="/results/:id" element={<ResultDetailWrapper />} />
 
@@ -740,7 +746,10 @@ function App(): JSX.Element {
 
           {/* Settlements Suite (Screens 41–42) */}
           <Route path="/settlements" element={<SettlementsWrapper />} />
-          <Route path="/settlements/:id" element={<SettlementDetailWrapper />} />
+          <Route
+            path="/settlements/:id"
+            element={<SettlementDetailWrapper />}
+          />
         </Route>
 
         {/* Platform Master Dashboard — Phase 1 (Command & Tenants) */}

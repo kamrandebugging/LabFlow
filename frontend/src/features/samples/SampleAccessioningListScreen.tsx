@@ -128,11 +128,14 @@ export function SampleAccessioningListScreen({
 
   useEffect(() => {
     let active = true;
-    void settingsService.getBranches().then((list) => {
-      if (active && Array.isArray(list)) {
-        setBranches(list);
-      }
-    }).catch(() => {});
+    void settingsService
+      .getBranches()
+      .then((list) => {
+        if (active && Array.isArray(list)) {
+          setBranches(list);
+        }
+      })
+      .catch(() => {});
     return () => {
       active = false;
     };

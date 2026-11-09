@@ -7,6 +7,7 @@ Tenancy: Tenant-scoped, authenticated staff only, respects branch scope.
 
 import uuid
 from datetime import UTC, datetime
+from typing import Any, cast
 
 import jwt
 import pytest
@@ -24,6 +25,10 @@ from tests.factories.branches import BranchFactory
 from tests.factories.catalog import TestFactory
 from tests.factories.patients import PatientFactory
 from tests.factories.samples import SampleFactory, SampleTestFactory
+
+
+def _staff_user(**kwargs: Any) -> StaffUser:
+    return cast(StaffUser, StaffUserFactory(**kwargs))
 
 
 @pytest.fixture
@@ -74,7 +79,7 @@ class TestSamplesListEndpoint:
     ) -> None:
         """An empty tenant returns {results: [], total: 0}."""
         with tenant_context(tenant_a):
-            staff = StaffUserFactory(role=Role.OWNER, branch=None)
+            staff = _staff_user(role=Role.OWNER, branch=None)
             _authenticate_client(api_client, staff, tenant_a, Role.OWNER)
 
         response = api_client.get("/api/v1/samples")
@@ -89,7 +94,7 @@ class TestSamplesListEndpoint:
         """Each row satisfies the frontend SampleSummary interface."""
         with tenant_context(tenant_a):
             branch = BranchFactory(name="Main Branch", code="MB1")
-            staff = StaffUserFactory(role=Role.OWNER, branch=branch)
+            staff = _staff_user(role=Role.OWNER, branch=branch)
             _authenticate_client(api_client, staff, tenant_a, Role.OWNER)
 
             patient = PatientFactory(
@@ -134,7 +139,7 @@ class TestSamplesListEndpoint:
         """Filtering by ?status= returns only matching samples."""
         with tenant_context(tenant_a):
             branch = BranchFactory(name="Branch A")
-            staff = StaffUserFactory(role=Role.OWNER, branch=branch)
+            staff = _staff_user(role=Role.OWNER, branch=branch)
             _authenticate_client(api_client, staff, tenant_a, Role.OWNER)
 
             patient = PatientFactory(branch=branch)
@@ -165,7 +170,7 @@ class TestSamplesListEndpoint:
         with tenant_context(tenant_a):
             b1 = BranchFactory(name="Branch 1")
             b2 = BranchFactory(name="Branch 2")
-            staff = StaffUserFactory(role=Role.OWNER, branch=None)
+            staff = _staff_user(role=Role.OWNER, branch=None)
             _authenticate_client(api_client, staff, tenant_a, Role.OWNER)
 
             p1 = PatientFactory(branch=b1)
@@ -188,7 +193,7 @@ class TestSamplesListEndpoint:
         """Search query ?q= searches accession_id, patient name, and MRN."""
         with tenant_context(tenant_a):
             b = BranchFactory()
-            staff = StaffUserFactory(role=Role.OWNER, branch=b)
+            staff = _staff_user(role=Role.OWNER, branch=b)
             _authenticate_client(api_client, staff, tenant_a, Role.OWNER)
 
             p1 = PatientFactory(branch=b, name="Tariq Mahmood", mrn="MRN-TARIQ")
@@ -223,7 +228,7 @@ class TestSamplesListEndpoint:
         """Samples from tenant_b never appear in tenant_a's list."""
         with tenant_context(tenant_a):
             b_a = BranchFactory(name="Tenant A Branch")
-            staff_a = StaffUserFactory(role=Role.OWNER, branch=b_a)
+            staff_a = _staff_user(role=Role.OWNER, branch=b_a)
             _authenticate_client(api_client, staff_a, tenant_a, Role.OWNER)
 
             p_a = PatientFactory(branch=b_a, name="Patient A")
@@ -249,7 +254,7 @@ class TestSamplesListEndpoint:
         """Staff with an unauthorized role is denied with 403."""
         with tenant_context(tenant_a):
             b_a = BranchFactory(name="Branch A")
-            staff = StaffUserFactory(role="unauthorized_role", branch=b_a)
+            staff = _staff_user(role="unauthorized_role", branch=b_a)
             _authenticate_client(api_client, staff, tenant_a, "unauthorized_role")
 
         response = api_client.get("/api/v1/samples")
@@ -259,7 +264,7 @@ class TestSamplesListEndpoint:
         """Query with limit parameter constrains results while preserving total."""
         with tenant_context(tenant_a):
             b_a = BranchFactory(name="Branch A")
-            staff = StaffUserFactory(role=Role.OWNER, branch=b_a)
+            staff = _staff_user(role=Role.OWNER, branch=b_a)
             _authenticate_client(api_client, staff, tenant_a, Role.OWNER)
 
             p_a = PatientFactory(branch=b_a, name="Patient A")

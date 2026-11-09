@@ -352,7 +352,9 @@ describe("Screen 22: Result Entry (/results/entry/:sampleId)", () => {
       await screen.findByText(/Access Denied · Role Restricted/i),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/Only Technician, Pathologist, or Owner may enter results/i),
+      screen.getByText(
+        /Only Technician, Pathologist, or Owner may enter results/i,
+      ),
     ).toBeInTheDocument();
   });
 

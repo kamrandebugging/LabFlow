@@ -34,10 +34,13 @@ export const sampleService = {
     }
 
     try {
-      const data = await apiRequest<{
-        results?: SampleDetail[];
-        total?: number;
-      } | SampleDetail[]>("/samples", { query });
+      const data = await apiRequest<
+        | {
+            results?: SampleDetail[];
+            total?: number;
+          }
+        | SampleDetail[]
+      >("/samples", { query });
 
       if (Array.isArray(data)) {
         return { results: data, total: data.length };
@@ -51,7 +54,9 @@ export const sampleService = {
       return { results: [], total: 0 };
     } catch (err) {
       if (err instanceof ApiError) {
-        throw new Error(err.message || `Failed to fetch samples (${err.status})`);
+        throw new Error(
+          err.message || `Failed to fetch samples (${err.status})`,
+        );
       }
       throw err;
     }

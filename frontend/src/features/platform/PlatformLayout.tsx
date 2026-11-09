@@ -12,16 +12,50 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { name: "Overview", path: "/platform/overview", icon: "dashboard" },
   { name: "Labs", path: "/platform/tenants", icon: "biotech" },
-  { name: "Subscriptions", path: "/platform/subscriptions", icon: "payments", phase2: true },
-  { name: "Access", path: "/platform/access", icon: "admin_panel_settings", phase2: true },
+  {
+    name: "Subscriptions",
+    path: "/platform/subscriptions",
+    icon: "payments",
+    phase2: true,
+  },
+  {
+    name: "Access",
+    path: "/platform/access",
+    icon: "admin_panel_settings",
+    phase2: true,
+  },
   { name: "Users", path: "/platform/users", icon: "group", phase2: true },
-  { name: "Demo Requests", path: "/platform/demo-requests", icon: "contact_page", phase2: true },
-  { name: "Health", path: "/platform/health", icon: "monitor_heart", phase2: true },
-  { name: "Audit Log", path: "/platform/audit", icon: "receipt_long", phase2: true },
-  { name: "Settings", path: "/platform/settings", icon: "settings", phase2: true },
+  {
+    name: "Demo Requests",
+    path: "/platform/demo-requests",
+    icon: "contact_page",
+    phase2: true,
+  },
+  {
+    name: "Health",
+    path: "/platform/health",
+    icon: "monitor_heart",
+    phase2: true,
+  },
+  {
+    name: "Audit Log",
+    path: "/platform/audit",
+    icon: "receipt_long",
+    phase2: true,
+  },
+  {
+    name: "Settings",
+    path: "/platform/settings",
+    icon: "settings",
+    phase2: true,
+  },
 ];
 
-export function PlatformLayout({ children }: { children: React.ReactNode }): JSX.Element {
+export function PlatformLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}): JSX.Element {
   const location = useLocation();
   const navigate = useNavigate();
   const platformUser = usePlatformAuthStore((state) => state.platformUser);
@@ -46,7 +80,10 @@ export function PlatformLayout({ children }: { children: React.ReactNode }): JSX
         <div className="flex flex-col">
           {/* Brand Header */}
           <div className="h-14 px-space-md flex items-center justify-between border-b border-white/10 bg-inverse-surface">
-            <Link to="/platform/overview" className="flex items-center gap-space-sm">
+            <Link
+              to="/platform/overview"
+              className="flex items-center gap-space-sm"
+            >
               <img
                 src="/logo.svg"
                 alt="LabFlow Platform Logo"
@@ -83,7 +120,9 @@ export function PlatformLayout({ children }: { children: React.ReactNode }): JSX
                     <span className="material-symbols-outlined text-[18px]">
                       {item.icon}
                     </span>
-                    <span className="font-label-md text-label-md">{item.name}</span>
+                    <span className="font-label-md text-label-md">
+                      {item.name}
+                    </span>
                   </div>
                   {item.phase2 && (
                     <span className="text-[10px] font-code-sm uppercase px-1 py-0.5 rounded bg-white/10 text-outline-variant">
@@ -123,7 +162,9 @@ export function PlatformLayout({ children }: { children: React.ReactNode }): JSX
                 onKeyDown={handleSearchKeyDown}
               />
               <div className="absolute right-space-xs top-1/2 -translate-y-1/2 flex items-center gap-space-2xs px-space-xs py-space-2xs bg-surface-container-lowest border border-outline-variant/60 rounded">
-                <span className="font-code-sm text-code-sm text-outline">Ctrl+K</span>
+                <span className="font-code-sm text-code-sm text-outline">
+                  Ctrl+K
+                </span>
               </div>
             </div>
           </div>
@@ -155,7 +196,9 @@ export function PlatformLayout({ children }: { children: React.ReactNode }): JSX
                 title="Sign Out"
                 className="w-8 h-8 rounded-full bg-primary text-on-primary flex items-center justify-center hover:bg-primary-container transition-colors shadow-sm"
               >
-                <span className="material-symbols-outlined text-[18px]">logout</span>
+                <span className="material-symbols-outlined text-[18px]">
+                  logout
+                </span>
               </button>
             </div>
           </div>
