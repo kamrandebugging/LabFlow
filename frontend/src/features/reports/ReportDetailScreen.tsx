@@ -51,7 +51,6 @@ export function ReportDetailScreen(): JSX.Element | null {
   const [showDeliveryModal, setShowDeliveryModal] = useState(false);
   const [deliveryChannel, setDeliveryChannel] =
     useState<DeliveryChannel>("whatsapp");
-  const [deliveryContact, setDeliveryContact] = useState("");
   const [isDelivering, setIsDelivering] = useState(false);
   const [deliveryError, setDeliveryError] = useState<string | null>(null);
 
@@ -171,25 +170,26 @@ export function ReportDetailScreen(): JSX.Element | null {
     e.preventDefault();
     if (!id || !report) return;
 
+    // Delivery is addressed to a stored PatientContact row. Without one the
+    // backend rejects the request (ContactNotFoundError), so resolve it here
+    // and fail loudly instead of sending a patient id as a contact id.
+    const contact = report.patient.contacts?.find(
+      (c) => c.kind === deliveryChannel,
+    );
+    if (!contact) {
+      setDeliveryError(
+        `No ${deliveryChannel === "whatsapp" ? "WhatsApp" : "email"} contact is recorded for this patient. Add one on the patient record before delivering.`,
+      );
+      return;
+    }
+
     try {
       setIsDelivering(true);
       setDeliveryError(null);
-      const matchingPatientContact = report.patient.contacts?.find(
-        (c) => c.kind === deliveryChannel,
-      );
-      const matchingDeliveryContact = report.deliveries.find(
-        (d) => d.channel === deliveryChannel,
-      );
-      const contactId =
-        matchingPatientContact?.id ||
-        matchingDeliveryContact?.contact_id ||
-        report.deliveries[0]?.contact_id ||
-        report.patient.id ||
-        "00000000-0000-0000-0000-000000000000";
 
       const res = await reportsService.deliverReport(id, {
         channel: deliveryChannel,
-        contact_id: contactId,
+        contact_id: contact.id,
       });
 
       if (res.link) {
@@ -242,6 +242,10 @@ export function ReportDetailScreen(): JSX.Element | null {
   if (!report) return null;
 
   const hasActiveToken = report.access_tokens.some((t) => t.is_active);
+  const deliveryContactRecord =
+    report.patient.contacts?.find((c) => c.kind === deliveryChannel) ?? null;
+  const hasEmailContact =
+    report.patient.contacts?.some((c) => c.kind === "email") ?? false;
 
   return (
     <div className="flex flex-col w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 gap-6">
@@ -318,7 +322,7 @@ export function ReportDetailScreen(): JSX.Element | null {
           {canDeliver && (
             <button
               onClick={() => {
-                setDeliveryContact(report.patient.phone || "");
+                setDeliveryError(null);
                 setShowDeliveryModal(true);
               }}
               className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold bg-teal-600 text-white hover:bg-teal-700 transition-colors shadow-xs"
@@ -366,6 +370,47 @@ export function ReportDetailScreen(): JSX.Element | null {
         </div>
       )}
 
+      {report.generation_status === "failed" && (
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 p-4 text-sm text-rose-800 bg-rose-50 border border-rose-200 rounded-xl">
+          <AlertCircle className="w-5 h-5 shrink-0" />
+          <div className="flex-1">
+            <span className="font-semibold">PDF generation failed.</span>{" "}
+            <span className="text-rose-700">
+              {report.generation_error ||
+                "The renderer could not produce this report version."}
+            </span>
+          </div>
+          {canRegenerate && (
+            <button
+              onClick={handleRegenerate}
+              disabled={isRegenerating}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-rose-600 text-white hover:bg-rose-700 transition-colors disabled:opacity-50"
+            >
+              <RefreshCw
+                className={`w-3.5 h-3.5 ${isRegenerating ? "animate-spin" : ""}`}
+              />
+              <span>Regenerate PDF</span>
+            </button>
+          )}
+        </div>
+      )}
+
+      {report.generation_status === "running" && (
+        <div className="flex items-center gap-2 p-4 text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded-xl">
+          <RefreshCw className="w-5 h-5 shrink-0 animate-spin text-teal-600" />
+          <span className="flex-1">
+            Rendering the report PDF. This page will update when the version is
+            finalised.
+          </span>
+          <button
+            onClick={fetchDetail}
+            className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-white border border-slate-200 hover:bg-slate-50 transition-colors"
+          >
+            Refresh
+          </button>
+        </div>
+      )}
+
       {/* Main Grid: Left PDF Paper Specimen, Right Sidebar */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Left: Rendered Specimen Preview Canvas */}
@@ -379,10 +424,10 @@ export function ReportDetailScreen(): JSX.Element | null {
                 </div>
                 <div>
                   <h2 className="text-lg font-bold uppercase tracking-tight text-slate-900 leading-tight">
-                    City Diagnostic Lab
+                    {report.branding?.display_name || "Diagnostic Laboratory"}
                   </h2>
                   <p className="text-xs text-slate-500">
-                    Central Pathology & Molecular Diagnostics
+                    {report.sample.branch?.name || "Clinical Laboratory Report"}
                   </p>
                 </div>
               </div>
@@ -391,7 +436,7 @@ export function ReportDetailScreen(): JSX.Element | null {
                   Confidential Medical Record
                 </span>
                 <p className="text-[11px] font-mono text-slate-400 mt-1">
-                  Accredited #PK-LAB-8910
+                  {report.sample.accession_id}
                 </p>
               </div>
             </div>
@@ -407,9 +452,9 @@ export function ReportDetailScreen(): JSX.Element | null {
                 </span>
                 <span className="text-slate-500 font-mono">
                   {report.patient.gender || "U"} ·{" "}
-                  {report.patient.age_years
+                  {report.patient.age_years != null
                     ? `${report.patient.age_years}Y`
-                    : "N/A"}
+                    : "Age not recorded"}
                 </span>
               </div>
               <div>
@@ -446,7 +491,9 @@ export function ReportDetailScreen(): JSX.Element | null {
                   })}
                 </span>
                 <span className="text-slate-500">
-                  Version {report.current_version}
+                  {report.current_version > 0
+                    ? `Version ${report.current_version}`
+                    : "PDF not generated yet"}
                 </span>
               </div>
             </div>
@@ -529,7 +576,7 @@ export function ReportDetailScreen(): JSX.Element | null {
             {/* Specimen Footer */}
             <div className="pt-4 border-t border-slate-200 flex flex-col sm:flex-row justify-between items-center text-xs text-slate-400 gap-2">
               <span>Electronic report verified.</span>
-              <span className="font-mono">End of Report · PK-CDL-REF</span>
+              <span className="font-mono">End of Report</span>
             </div>
           </div>
         </div>
@@ -683,7 +730,9 @@ export function ReportDetailScreen(): JSX.Element | null {
             <div className="flex justify-between items-center py-0.5">
               <span>Report Versions</span>
               <span className="font-mono text-slate-900 font-medium">
-                {report.versions.length} generated
+                {report.versions.length > 0
+                  ? `${report.versions.length} generated`
+                  : "Not generated yet"}
               </span>
             </div>
             <div className="flex justify-between items-center py-0.5">
@@ -745,7 +794,7 @@ export function ReportDetailScreen(): JSX.Element | null {
                     type="button"
                     onClick={() => {
                       setDeliveryChannel("whatsapp");
-                      setDeliveryContact(report.patient.phone || "");
+                      setDeliveryError(null);
                     }}
                     className={`flex items-center justify-center gap-2 p-3 rounded-lg border text-xs font-semibold transition-all ${
                       deliveryChannel === "whatsapp"
@@ -757,11 +806,17 @@ export function ReportDetailScreen(): JSX.Element | null {
                   </button>
                   <button
                     type="button"
+                    disabled={!hasEmailContact}
+                    title={
+                      hasEmailContact
+                        ? undefined
+                        : "No email contact is stored for this patient"
+                    }
                     onClick={() => {
                       setDeliveryChannel("email");
-                      setDeliveryContact(report.patient.email || "");
+                      setDeliveryError(null);
                     }}
-                    className={`flex items-center justify-center gap-2 p-3 rounded-lg border text-xs font-semibold transition-all ${
+                    className={`flex items-center justify-center gap-2 p-3 rounded-lg border text-xs font-semibold transition-all disabled:opacity-40 disabled:cursor-not-allowed ${
                       deliveryChannel === "email"
                         ? "border-teal-600 bg-teal-50 text-teal-800"
                         : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
@@ -779,19 +834,29 @@ export function ReportDetailScreen(): JSX.Element | null {
                 >
                   Recipient Contact
                 </label>
-                <input
-                  id="detail-delivery-contact-input"
-                  type="text"
-                  required
-                  value={deliveryContact}
-                  onChange={(e) => setDeliveryContact(e.target.value)}
-                  placeholder={
-                    deliveryChannel === "whatsapp"
-                      ? "+92 300 1234567"
-                      : "patient@example.com"
-                  }
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-900 focus:outline-none focus:bg-white focus:ring-2 focus:ring-teal-600"
-                />
+                {deliveryContactRecord ? (
+                  <>
+                    <input
+                      id="detail-delivery-contact-input"
+                      type="text"
+                      readOnly
+                      value={deliveryContactRecord.value}
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-900 font-mono"
+                    />
+                    <p className="mt-1 text-[11px] text-slate-400">
+                      Stored {deliveryChannel} contact on this patient record.
+                    </p>
+                  </>
+                ) : (
+                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-900">
+                    No stored {deliveryChannel} contact for this patient. Update
+                    the patient record with a{" "}
+                    {deliveryChannel === "whatsapp"
+                      ? "WhatsApp number"
+                      : "email address"}{" "}
+                    before delivering this report.
+                  </div>
+                )}
               </div>
 
               <div className="pt-2 flex items-center justify-end gap-3">
@@ -804,8 +869,8 @@ export function ReportDetailScreen(): JSX.Element | null {
                 </button>
                 <button
                   type="submit"
-                  disabled={isDelivering}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-lg bg-teal-600 text-white hover:bg-teal-700 transition-colors disabled:opacity-50"
+                  disabled={isDelivering || !deliveryContactRecord}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-lg bg-teal-600 text-white hover:bg-teal-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isDelivering ? (
                     <>

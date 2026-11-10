@@ -155,11 +155,50 @@ describe("Screen 26: Reports List (/reports)", () => {
       next_cursor: null,
     });
 
+    vi.mocked(reportsService.getReport).mockResolvedValueOnce({
+      id: "rep-001",
+      status: "final",
+      generation_status: "completed",
+      generation_error: null,
+      current_version: 1,
+      published_at: "2026-10-20T10:00:00Z",
+      created_at: "2026-10-20T09:00:00Z",
+      updated_at: "2026-10-20T10:00:00Z",
+      sample: {
+        id: "smp-001",
+        accession_id: "CDL20261020000041",
+        status: "completed",
+        collected_at: "2026-10-20T08:30:00Z",
+        branch: { id: "br-01", name: "Main Lab" },
+      },
+      patient: {
+        id: "pat-01",
+        full_name: "Muhammad Imran",
+        mrn: "MRN-001",
+        age_years: 34,
+        gender: "M",
+        phone: "+92 300 1234567",
+        email: null,
+        contacts: [
+          {
+            id: "contact-wa-01",
+            kind: "whatsapp",
+            value: "03001234567",
+            is_primary: true,
+          },
+        ],
+      },
+      results: [],
+      versions: [],
+      deliveries: [],
+      access_tokens: [],
+    });
+
     vi.mocked(reportsService.deliverReport).mockResolvedValueOnce({
       id: "del-01",
       report_id: "rep-001",
       channel: "whatsapp",
-      contact_id: "pat-01",
+      contact_id: "contact-wa-01",
       status: "sent",
       created_at: "2026-10-20T11:00:00Z",
     });
@@ -178,13 +217,16 @@ describe("Screen 26: Reports List (/reports)", () => {
     await user.click(deliverBtn);
 
     expect(screen.getByText("Deliver Clinical Report")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByDisplayValue("03001234567")).toBeInTheDocument();
+    });
     const sendBtn = screen.getByRole("button", { name: /send report/i });
     await user.click(sendBtn);
 
     await waitFor(() => {
       expect(reportsService.deliverReport).toHaveBeenCalledWith("rep-001", {
         channel: "whatsapp",
-        contact_id: "pat-01",
+        contact_id: "contact-wa-01",
       });
     });
   });
@@ -328,6 +370,34 @@ describe("Screen 27: Report Detail (/reports/:id)", () => {
         screen.getByText("/report-access/sample-new-token-123"),
       ).toBeInTheDocument();
     });
+  });
+
+  it("blocks delivery and explains why when no contact is stored", async () => {
+    const user = userEvent.setup();
+    vi.mocked(reportsService.getReport).mockResolvedValueOnce({
+      ...mockReportDetail,
+      patient: { ...mockReportDetail.patient, contacts: [] },
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/reports/rep-001"]}>
+        <Routes>
+          <Route path="/reports/:id" element={<ReportDetailScreen />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Patient Access Link")).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole("button", { name: /^deliver$/i }));
+
+    expect(
+      screen.getByText(/No stored whatsapp contact for this patient/i),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^send$/i })).toBeDisabled();
+    expect(reportsService.deliverReport).not.toHaveBeenCalled();
   });
 });
 

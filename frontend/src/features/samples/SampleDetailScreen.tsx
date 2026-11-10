@@ -317,7 +317,15 @@ export function SampleDetailScreen({
           </nav>
           <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-100 font-medium text-slate-600">
             <Clock className="w-3.5 h-3.5 text-slate-400" />
-            <span>20 Oct 2026 · times are PKT</span>
+            <span>
+              {new Date(s.collected_at).toLocaleDateString("en-GB", {
+                day: "2-digit",
+                month: "short",
+                year: "numeric",
+                timeZone: "Asia/Karachi",
+              })}{" "}
+              · times are PKT
+            </span>
           </div>
         </div>
 

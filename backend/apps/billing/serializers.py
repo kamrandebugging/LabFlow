@@ -168,8 +168,15 @@ class PaymentSerializer(serializers.Serializer):
     method = serializers.CharField()
     amount = MoneyField()
     reference = serializers.CharField(allow_null=True)
-    received_by = serializers.UUIDField(source="received_by_id", allow_null=True)
+    received_by = serializers.SerializerMethodField()
     created_at = serializers.DateTimeField()
+
+    def get_received_by(self, obj: Any) -> str | None:
+        """Operator display name; the raw staff UUID is unreadable in the UI."""
+        staff = getattr(obj, "received_by", None)
+        if staff is None:
+            return None
+        return getattr(staff, "name", None) or getattr(staff, "email", None)
 
 
 class InvoiceCancelSerializer(serializers.Serializer):

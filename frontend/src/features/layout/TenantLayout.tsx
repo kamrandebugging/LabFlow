@@ -13,7 +13,7 @@ import { MustChangePasswordModal } from "../auth/MustChangePasswordModal";
 import { fetchTenantContext, getSubdomainTenant } from "../auth/tenantContext";
 import { partnersService } from "../partners/partnersService";
 import { reportsService } from "../reports/reportsService";
-import { sampleService } from "../samples/sampleService";
+import { resultsService } from "../results/resultsService";
 
 export function TenantLayout(): ReactElement {
   const navigate = useNavigate();
@@ -22,10 +22,10 @@ export function TenantLayout(): ReactElement {
   const accessToken = useAuthStore((state) => state.accessToken);
   const logout = useAuthStore((state) => state.logout);
 
-  const [tenantName, setTenantName] = useState<string>(() => {
-    const sub = getSubdomainTenant();
-    return sub?.name || "LabFlow";
-  });
+  // Start blank: the slug-derived name ("Apexlab") is a guess, not the lab's
+  // real brand. Render the resolved tenant name only.
+  const [tenantName, setTenantName] = useState<string | null>(null);
+  const [tenantCity, setTenantCity] = useState<string>("");
   const [lang, setLang] = useState<"en" | "ur">("en");
   const [badges, setBadges] = useState({
     pendingApprovals: 0,
@@ -60,25 +60,25 @@ export function TenantLayout(): ReactElement {
     let active = true;
 
     void fetchTenantContext().then((info) => {
-      if (active && info?.name) {
-        setTenantName(info.name);
-      }
+      if (!active) return;
+      setTenantName(info?.name || getSubdomainTenant()?.name || "LabFlow");
+      setTenantCity(info?.city || "");
     });
 
     const loadBadges = async () => {
       if (!accessToken) return;
       try {
-        const [sampleRes, stRes, exRes] = await Promise.allSettled([
-          sampleService.listSamples(),
+        const [approvalsRes, stRes, exRes] = await Promise.allSettled([
+          resultsService.getApprovalsQueue(),
           partnersService.getSettlements({ status: "draft" }),
           reportsService.getExceptions(),
         ]);
 
+        // The badge is the approvals queue itself — counting "ready" samples
+        // left a stale number after every result had been approved.
         let pendingApprovals = 0;
-        if (sampleRes.status === "fulfilled" && sampleRes.value?.results) {
-          pendingApprovals = sampleRes.value.results.filter(
-            (s) => s.status === "ready",
-          ).length;
+        if (approvalsRes.status === "fulfilled") {
+          pendingApprovals = approvalsRes.value.length;
         }
 
         let draftSettlements = 0;
@@ -119,6 +119,14 @@ export function TenantLayout(): ReactElement {
     if (to === "/") {
       return location.pathname === "/";
     }
+    // Tenant settings lives at /settings/tenant; keep its two sibling routes
+    // (branches, account) from lighting it up as well.
+    if (to === "/settings") {
+      return (
+        location.pathname === "/settings" ||
+        location.pathname === "/settings/tenant"
+      );
+    }
     return location.pathname === to || location.pathname.startsWith(`${to}/`);
   };
 
@@ -146,13 +154,18 @@ export function TenantLayout(): ReactElement {
           <div>
             <div className="flex items-center gap-1.5">
               <span className="text-base text-slate-900 font-semibold tracking-tight">
-                {tenantName}
+                {tenantName ?? "\u00a0"}
               </span>
               <span className="px-1.5 py-0.5 rounded text-[10px] uppercase font-semibold tracking-wider bg-[#86f2e4]/60 text-[#006f66]">
                 LabFlow
               </span>
             </div>
-            <p className="text-xs text-slate-400">All branches • Main Branch</p>
+            <p className="text-xs text-slate-400">
+              {user?.role === "owner" || user?.role === "pathologist"
+                ? "All branches"
+                : "Branch workspace"}
+              {tenantCity ? ` • ${tenantCity}` : ""}
+            </p>
           </div>
         </div>
 
@@ -354,6 +367,15 @@ export function TenantLayout(): ReactElement {
                 settings
               </span>
               <span>Settings</span>
+            </Link>
+            <Link
+              to="/settings/branches"
+              className={linkClass("/settings/branches")}
+            >
+              <span className="material-symbols-outlined text-[18px]">
+                domain
+              </span>
+              <span>Branches</span>
             </Link>
           </nav>
         </div>

@@ -263,7 +263,7 @@ export const PatientListScreen: React.FC<PatientListScreenProps> = ({
                             Cross-Branch
                           </span>
                         ) : (
-                          patient.branch_name || "Main Branch"
+                          patient.branch_name || "—"
                         )}
                       </td>
                       <td className="py-3.5 px-4 align-middle text-sm text-slate-500">

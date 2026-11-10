@@ -117,6 +117,8 @@ class PatientListCreateView(BranchScopedAPIView):
                 branch_id=data["branch_id"],
                 date_of_birth=data.get("date_of_birth"),
                 confirm_duplicate=data.get("confirm_duplicate", False),
+                whatsapp_number=data.get("whatsapp_number"),
+                consent_reports=data.get("consent_reports", False),
                 ip=ip,
                 user_agent=user_agent,
             )

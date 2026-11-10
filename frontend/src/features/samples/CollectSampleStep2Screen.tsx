@@ -182,7 +182,8 @@ export function CollectSampleStep2Screen({
               <span className="font-semibold text-slate-900">
                 Invoice{" "}
                 <span className="font-mono text-xs font-medium">
-                  {draft.invoice_id.substring(0, 13)}
+                  {draft.invoice_number ||
+                    draft.invoice_id.substring(0, 8).toUpperCase()}
                 </span>
               </span>
               <span className="text-slate-300 mx-1">·</span>

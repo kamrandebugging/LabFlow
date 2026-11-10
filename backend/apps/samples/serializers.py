@@ -196,6 +196,30 @@ class SampleDetailSerializer(SampleListSerializer):
         source="collected_by.email", allow_null=True, required=False
     )
     sample_tests = SampleTestItemSerializer(many=True, read_only=True)
+    events = serializers.SerializerMethodField()
+
+    def get_events(self, obj: Sample) -> list[dict[str, Any]]:
+        """Append-only custody timeline, oldest first (Doc 02 §5.5, §6).
+
+        The detail screen renders this as the audit trail; without it the
+        timeline is permanently empty even though sample_event rows exist.
+        """
+        rows = obj.events.select_related("actor", "branch").order_by("created_at")
+        return [
+            {
+                "id": str(e.id),
+                "event": e.event,
+                "actor": e.actor.email if e.actor_id and e.actor else None,
+                "branch": (
+                    {"id": str(e.branch_id), "name": e.branch.name}
+                    if e.branch_id and e.branch
+                    else None
+                ),
+                "timestamp": e.created_at.isoformat(),
+                "payload": {"note": e.note} if e.note else {},
+            }
+            for e in rows
+        ]
 
 
 class SampleLabelSerializer(serializers.Serializer):
