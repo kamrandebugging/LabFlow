@@ -92,6 +92,12 @@ export function LabDetailScreen(): JSX.Element {
   const primaryDomain =
     tenant.domains.find((d) => d.is_primary)?.domain ||
     `${tenant.slug}.labflow.app`;
+  // Serve the console on the same scheme as the platform console: https in
+  // production, plain http for local *.localhost testing.
+  const tenantOrigin =
+    typeof window !== "undefined"
+      ? `${window.location.protocol}//${primaryDomain}`
+      : `https://${primaryDomain}`;
   const storageMb = tenant.schema_size_bytes
     ? (tenant.schema_size_bytes / (1024 * 1024)).toFixed(1)
     : "14.2";
@@ -187,12 +193,12 @@ export function LabDetailScreen(): JSX.Element {
               </span>
               <span>•</span>
               <a
-                href={`https://${primaryDomain}`}
+                href={tenantOrigin}
                 target="_blank"
                 rel="noreferrer"
                 className="text-primary hover:underline flex items-center gap-0.5"
               >
-                <span>https://{primaryDomain}</span>
+                <span>{tenantOrigin}</span>
                 <span className="material-symbols-outlined text-[14px]">
                   open_in_new
                 </span>
@@ -231,7 +237,7 @@ export function LabDetailScreen(): JSX.Element {
           ) : null}
 
           <a
-            href={`https://${primaryDomain}`}
+            href={tenantOrigin}
             target="_blank"
             rel="noreferrer"
             className="px-space-md py-space-xs bg-surface-container-low hover:bg-surface-container text-on-surface border border-outline-variant/60 rounded font-label-sm text-label-sm flex items-center gap-1 transition-colors"

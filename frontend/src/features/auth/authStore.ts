@@ -186,14 +186,26 @@ registerSession("staff", {
   },
   onExpired: () => {
     useAuthStore.getState().clear();
-    if (typeof window !== "undefined") {
-      const pathname = window.location.pathname;
-      if (
-        !pathname.startsWith("/login") ||
-        window.location.search.indexOf("reason=session_expired") === -1
-      ) {
+    if (typeof window === "undefined") return;
+    const { pathname, search } = window.location;
+
+    // Public and apex routes must not be hijacked by a missing *tenant*
+    // session. Opening /platform/login on the apex host (or a report-access
+    // link) legitimately has no staff refresh cookie; redirecting here would
+    // bounce the operator to the tenant staff login.
+    if (pathname.startsWith("/login")) {
+      if (!search.includes("reason=session_expired")) {
         window.location.href = "/login?reason=session_expired";
       }
+      return;
     }
+    if (
+      pathname.startsWith("/platform") ||
+      pathname.startsWith("/report-access") ||
+      pathname.startsWith("/link-expired")
+    ) {
+      return;
+    }
+    window.location.href = "/login?reason=session_expired";
   },
 });

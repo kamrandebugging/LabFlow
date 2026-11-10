@@ -9,6 +9,7 @@ import {
 } from "react-router-dom";
 
 import { useAuthStore } from "../auth/authStore";
+import { MustChangePasswordModal } from "../auth/MustChangePasswordModal";
 import { fetchTenantContext, getSubdomainTenant } from "../auth/tenantContext";
 import { partnersService } from "../partners/partnersService";
 import { reportsService } from "../reports/reportsService";
@@ -339,6 +340,15 @@ export function TenantLayout(): ReactElement {
               </span>
               <span>Catalog</span>
             </Link>
+            <Link
+              to="/settings/account"
+              className={linkClass("/settings/account")}
+            >
+              <span className="material-symbols-outlined text-[18px]">
+                shield
+              </span>
+              <span>Account &amp; Security</span>
+            </Link>
             <Link to="/settings" className={linkClass("/settings")}>
               <span className="material-symbols-outlined text-[18px]">
                 settings
@@ -355,6 +365,9 @@ export function TenantLayout(): ReactElement {
           <Outlet />
         </main>
       </div>
+
+      {/* One-time temporary-password warning (shown until dismissed or changed) */}
+      <MustChangePasswordModal />
     </div>
   );
 }

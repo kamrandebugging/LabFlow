@@ -7,10 +7,13 @@ Rules:
 - Fixed windows expiring at window end
 """
 
+import logging
 import time
 from typing import Final
 
 from django.core.cache import cache
+
+logger = logging.getLogger(__name__)
 
 LOGIN_WINDOW_SECONDS: Final[int] = 15 * 60  # 15 minutes (900s)
 MAX_LOGIN_ATTEMPTS_PER_EMAIL: Final[int] = 5
@@ -86,6 +89,25 @@ def check_and_record_login_throttle(
         raise ThrottleServiceUnavailable(
             f"Auth throttle failed closed on Redis error: {exc}"
         ) from exc
+
+
+def reset_login_throttle(tenant_id: str, email: str, ip: str) -> None:
+    """Clear the failed-login counters after a correct password.
+
+    Counters are incremented before authentication (fail-closed and race-safe),
+    so a successful sign-in must clear them; otherwise five legitimate logins
+    inside the 15-minute window would lock the account out.
+    """
+    clean_email = email.strip().lower()
+    clean_ip = ip.strip() if ip else "unknown_ip"
+    email_key = f"auth:throttle:login:email:{tenant_id}:{clean_email}"
+    ip_key = f"auth:throttle:login:ip:{tenant_id}:{clean_ip}"
+    for key in (email_key, f"{email_key}:start", ip_key, f"{ip_key}:start"):
+        try:
+            cache.delete(key)
+        except Exception:
+            # Throttling must never block an otherwise valid login.
+            logger.warning("Failed to reset login throttle key %s", key)
 
 
 PASSWORD_RESET_WINDOW_SECONDS: Final[int] = 60 * 60  # 1 hour (3600s)

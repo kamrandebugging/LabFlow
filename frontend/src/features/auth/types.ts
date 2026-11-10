@@ -15,6 +15,10 @@ export interface AuthUser {
   email?: string;
   role: UserRole;
   branch_ids: string[];
+  /** True while the account is still on the provisioning-issued temp password. */
+  must_change_password?: boolean;
+  /** True when two-factor authentication is enrolled for the account. */
+  totp_enabled?: boolean;
 }
 
 export interface LoginCredentials {

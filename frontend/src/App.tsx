@@ -48,6 +48,7 @@ import {
 import {
   BranchesScreen,
   TenantSettingsScreen,
+  AccountSecurityScreen,
   DataExportScreen,
 } from "./features/settings";
 import { settingsService } from "./features/settings/settingsService";
@@ -521,6 +522,14 @@ function TenantSettingsWrapper(): JSX.Element {
   );
 }
 
+function AccountSecurityWrapper(): JSX.Element {
+  return (
+    <main className="min-h-screen bg-slate-50 py-6">
+      <AccountSecurityScreen />
+    </main>
+  );
+}
+
 function DataExportWrapper(): JSX.Element {
   return (
     <main className="min-h-screen bg-slate-50 py-6">
@@ -609,6 +618,10 @@ function App(): JSX.Element {
       if (active) setBootstrapped(true);
     };
 
+    // The apex platform console has its own refresh cookie and session family;
+    // restoring the staff session there only produces a spurious 401.
+    const isPlatformRoute = window.location.pathname.startsWith("/platform");
+
     if (useAuthStore.getState().accessToken) {
       finish();
       return () => {
@@ -616,7 +629,7 @@ function App(): JSX.Element {
       };
     }
 
-    refreshSession("staff")
+    refreshSession(isPlatformRoute ? "platform" : "staff")
       .then((token) => {
         if (!active) return;
         if (token) return;
@@ -734,6 +747,10 @@ function App(): JSX.Element {
           {/* Settings & Referral Partners Suite (Screens 33–37) */}
           <Route path="/settings/branches" element={<BranchesWrapper />} />
           <Route path="/settings/tenant" element={<TenantSettingsWrapper />} />
+          <Route
+            path="/settings/account"
+            element={<AccountSecurityWrapper />}
+          />
           <Route path="/settings/exports" element={<DataExportWrapper />} />
           <Route path="/partners" element={<PartnersListWrapper />} />
           <Route path="/partners/ledger" element={<LedgerWrapper />} />

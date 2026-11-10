@@ -71,6 +71,24 @@ export const patientService = {
           throw new DuplicatePatientError(errorData);
         }
       }
+      if (err instanceof ApiError && err.status === 422) {
+        // Surface the server's per-field details instead of the generic
+        // "Invalid patient payload." message.
+        const problem = err.problem as
+          { error?: { details?: Record<string, unknown> } } | null | undefined;
+        const details = problem?.error?.details;
+        if (details && typeof details === "object") {
+          const parts = Object.entries(details).map(([field, value]) => {
+            const msg = Array.isArray(value)
+              ? value.map(String).join(" ")
+              : String(value);
+            return `${field.replace(/_/g, " ")}: ${msg}`;
+          });
+          if (parts.length) {
+            throw new Error(`Registration rejected — ${parts.join("; ")}`);
+          }
+        }
+      }
       throw err;
     }
   },

@@ -891,12 +891,21 @@ def create_tenant_owner_activation(
                 branch=None,
                 password_hash=initial_password_hash,
                 is_active=bool(getattr(tenant, "temp_password", None)),
+                password_is_temporary=bool(getattr(tenant, "temp_password", None)),
                 totp_enabled=False,
             )
         elif not owner.is_active and getattr(tenant, "temp_password", None):
             owner.is_active = True
             owner.password_hash = make_password(tenant.temp_password)
-            owner.save(update_fields=["is_active", "password_hash", "updated_at"])
+            owner.password_is_temporary = True
+            owner.save(
+                update_fields=[
+                    "is_active",
+                    "password_hash",
+                    "password_is_temporary",
+                    "updated_at",
+                ]
+            )
 
         if owner.is_active:
             latest_token = (

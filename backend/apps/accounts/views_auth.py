@@ -19,12 +19,14 @@ from apps.accounts.serializers_auth import (
     LoginRequestSerializer,
     PasswordChangeRequestSerializer,
     SessionItemSerializer,
+    TotpDisableSerializer,
     TotpEnrollConfirmSerializer,
     TotpVerifySerializer,
 )
 from apps.accounts.throttling import (
     check_and_record_login_throttle,
     check_and_record_password_reset_throttle,
+    reset_login_throttle,
 )
 from apps.accounts.token_service import InvalidResetTokenError, TokenService
 from apps.notifications.models import Notification
@@ -194,6 +196,10 @@ class LoginView(APIView):
                 },
                 status=status.HTTP_401_UNAUTHORIZED,
             )
+
+        # Password verified: clear the failed-attempt window so legitimate
+        # repeat sign-ins cannot trip the 15-minute lock.
+        reset_login_throttle(tenant_id=tenant_id, email=email, ip=ip)
 
         # 3. TOTP Challenge required?
         if payload.get("totp_required"):
@@ -581,6 +587,56 @@ class TotpEnrollConfirmView(APIView):
 
         return Response(
             {"backup_codes": backup_codes},
+            status=status.HTTP_200_OK,
+        )
+
+
+class TotpDisableView(APIView):
+    """POST /api/v1/auth/totp/disable — self-service two-factor disable.
+
+    Requires the current password so a stolen session alone cannot strip TOTP.
+    """
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request: Request) -> Response:
+        serializer = TotpDisableSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(
+                {
+                    "error": {
+                        "code": "validation_error",
+                        "message": "Invalid password data",
+                    }
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        user = cast(StaffUser, request.user)
+        current_password = serializer.validated_data["current_password"]
+        ip = _get_client_ip(request)
+        user_agent = request.META.get("HTTP_USER_AGENT", "")
+
+        success, err = AuthService.disable_totp(
+            user=user,
+            current_password=current_password,
+            ip=ip,
+            user_agent=user_agent,
+        )
+
+        if not success:
+            return Response(
+                {
+                    "error": {
+                        "code": "invalid_credentials",
+                        "message": "Current password is not correct",
+                    }
+                },
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+
+        return Response(
+            {"status": "ok", "message": "Two-factor authentication disabled"},
             status=status.HTTP_200_OK,
         )
 
