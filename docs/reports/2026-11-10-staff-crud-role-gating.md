@@ -3,7 +3,8 @@
 **Implementation report and evidence**
 **Date:** 2026-11-10
 **Branch:** `labs/staff-crud-role-gating` (off `main` @ `502f73d`)
-**Status:** branch only — no PR, no merge, no push to `main`.
+**Merged:** PR #62 → `main` @ `58a3328` (squash merge)
+**CI:** all checks green on the PR and on `main`.
 
 ---
 
@@ -131,7 +132,9 @@ Environment: PostgreSQL 16 on `127.0.0.1:5440` (`labflow_test`), Redis `127.0.0.
 | `tests/tenancy/test_staff_crud_role_gating.py` | **27 passed** |
 | `tsc --noEmit` | clean |
 | ESLint targeted | clean |
-| Vitest `access.test.ts` + `StaffScreen.test.tsx` | **10 passed** |
+| Vitest `access.test.ts` + `StaffScreen.test.tsx` | **11 passed** |
+| GitHub Actions `Unit & Integration Tests` (full suite) | **1385 passed, 2 skipped** |
+| GitHub Actions Lint / Type Checks / Build / Secrets / Dependency Scan | **all green** |
 
 Security cases explicitly proven by the 18 backend tests:
 
