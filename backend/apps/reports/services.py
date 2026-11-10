@@ -47,6 +47,7 @@ from django.utils import timezone
 
 from apps.accounts.models import AuditLog, Role, StaffUser, TenantSetting
 from apps.billing.models import Invoice
+from apps.branches.scoping import effective_branch_ids
 from apps.patients.models import PatientConsent, PatientContact
 from apps.reports.models import (
     Report,
@@ -202,9 +203,21 @@ class ReportService:
     """Orchestration for the async report PDF pipeline."""
 
     @staticmethod
-    def _get_report(report_id: uuid.UUID) -> Report:
+    def _get_report(report_id: uuid.UUID, actor: StaffUser | None = None) -> Report:
+        """Fetch a tenant-scoped report; with ``actor``, also branch-scoped.
+
+        S5 (BOLA): staff actions pass the actor so a report from another
+        branch is a plain 404. The public portal reads by access token and
+        deliberately passes no actor.
+        """
+        queryset = Report.objects.all()
+        if actor is not None and not actor.is_tenant_wide:
+            allowed = effective_branch_ids(actor)
+            if not allowed:
+                raise ReportNotFoundError("Report not found.")
+            queryset = queryset.filter(sample__branch_id__in=allowed)
         try:
-            return Report.objects.get(pk=report_id)
+            return queryset.get(pk=report_id)
         except (Report.DoesNotExist, ValueError, TypeError) as exc:
             raise ReportNotFoundError("Report not found.") from exc
 
@@ -273,7 +286,7 @@ class ReportService:
         generated_by trigger in audit.
         """
         with transaction.atomic():
-            report = ReportService._get_report(report_id)
+            report = ReportService._get_report(report_id, actor)
             if report.status == Report.Status.VOID:
                 raise ReportVoidError("Report is void and cannot be regenerated.")
             locked = ReportService._claim_generation(report)
@@ -409,7 +422,7 @@ class ReportAccessService:
         Event: none (delivery/access events cover use).
         """
         with transaction.atomic():
-            report = ReportService._get_report(report_id)
+            report = ReportService._get_report(report_id, actor)
             if report.status == Report.Status.VOID:
                 raise ReportVoidError("Report is void; its patient links are revoked.")
             if (
@@ -569,7 +582,7 @@ class ReportAccessService:
         Audit: report.token_revoked. Event flag: report.token_revoked.
         """
         with transaction.atomic():
-            report = ReportService._get_report(report_id)
+            report = ReportService._get_report(report_id, actor)
             live = ReportAccessToken.objects.filter(
                 report=report, revoked_at__isnull=True
             )
@@ -676,7 +689,7 @@ class ReportDeliveryService:
         # so a top-level samples import would risk a cycle.
         from apps.samples.models import Sample
 
-        report = ReportService._get_report(report_id)
+        report = ReportService._get_report(report_id, actor)
         if report.status == Report.Status.VOID:
             raise ReportVoidError("Report is void; nothing may be delivered.")
         if (

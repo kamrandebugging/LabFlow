@@ -383,6 +383,16 @@ export interface MarkPaidPayload {
   paid_date?: string;
 }
 
+export interface PlatformRoleRow {
+  role: "owner" | "manager" | "reception" | "technician" | "pathologist";
+  label: string;
+  enabled: boolean;
+  immutable: boolean;
+  active_staff_count: number;
+  updated_by: string | null;
+  updated_at: string | null;
+}
+
 export interface AccessControlData {
   tenant_id: string;
   tenant_name: string;
@@ -393,6 +403,7 @@ export interface AccessControlData {
   branch_limit: number;
   staff_limit: number | null;
   enabled_roles: string[];
+  roles: PlatformRoleRow[];
   feature_flags: Record<string, boolean>;
 }
 

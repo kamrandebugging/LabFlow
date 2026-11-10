@@ -207,15 +207,20 @@ def build_report_context(
     )
     seen: set[str] = set()
     signatories: list[Signatory] = []
+    from apps.accounts.role_config import role_label
+
     for ap in approvals:
         key = str(ap.pathologist_id)
         if key in seen:
             continue
         seen.add(key)
+        approver = ap.pathologist
         signatories.append(
             Signatory(
-                name=ap.pathologist.email,
-                role="Pathologist",
+                # D-I: name the person, not the login handle. Email remains
+                # the fallback for legacy accounts created before D-B.
+                name=(approver.display_name or "").strip() or approver.email,
+                role=role_label(approver.role),
                 approved_at=_fmt_dt(ap.created_at),
             )
         )
@@ -277,7 +282,11 @@ def build_report_context(
                 .order_by("-created_at")
                 .first()
             )
-            approver = latest_ap.pathologist.email if latest_ap is not None else ""
+            approver_name = ""
+            if latest_ap is not None:
+                approver_name = (
+                    latest_ap.pathologist.display_name or ""
+                ).strip() or latest_ap.pathologist.email
             amended_lines.append(
                 AmendedTestLine(
                     test_name=r.test.name,
@@ -286,7 +295,7 @@ def build_report_context(
                     corrected_value=r.value,
                     corrected_unit=r.unit or "",
                     amendment_date=_fmt_dt(r.created_at),
-                    approving_pathologist=approver,
+                    approving_pathologist=approver_name,
                 )
             )
         # Mark changed rows with daggers.

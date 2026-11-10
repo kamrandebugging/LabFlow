@@ -186,7 +186,7 @@ describe("SettlementDetailScreen (Screen 42)", () => {
       user: {
         id: "u-rec",
         email: "rec@labflow.pk",
-        role: "receptionist",
+        role: "reception",
         name: "Reception Staff",
         branch_ids: ["b-1"],
       },

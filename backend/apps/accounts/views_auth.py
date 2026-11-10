@@ -12,7 +12,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.accounts.auth_service import AuthService
+from apps.accounts.auth_service import MANDATORY_TOTP_ROLES, AuthService
 from apps.accounts.models import AuditLog, LoginEvent, PasswordResetToken, StaffUser
 from apps.accounts.password_policy import validate_password_policy
 from apps.accounts.serializers_auth import (
@@ -635,8 +635,27 @@ class TotpDisableView(APIView):
                 status=status.HTTP_401_UNAUTHORIZED,
             )
 
+        # FR-8/S6: a mandatory-TOTP role cannot keep a full session after
+        # disabling 2FA. Kill every session so the next login forces
+        # re-enrolment before any business endpoint is reachable.
+        from apps.accounts.auth_service import MANDATORY_TOTP_ROLES
+
+        re_enrol_required = user.role in MANDATORY_TOTP_ROLES
+        if re_enrol_required:
+            AuthService.revoke_all_sessions(
+                staff_user_id=user.id,
+                tenant_id=_get_tenant_id(request),
+                reason="totp_disabled",
+                ip=ip,
+                user_agent=user_agent,
+            )
+
         return Response(
-            {"status": "ok", "message": "Two-factor authentication disabled"},
+            {
+                "status": "ok",
+                "message": "Two-factor authentication disabled",
+                "re_enrol_required": re_enrol_required,
+            },
             status=status.HTTP_200_OK,
         )
 
@@ -775,10 +794,20 @@ class StaffTotpResetView(APIView):
                 {
                     "error": {
                         "code": "forbidden",
-                        "message": "Only Lab Owner can reset staff TOTP",
+                        "message": "Only the Lab Owner may reset another "
+                        "staff member's TOTP; the Owner account is excluded.",
                     }
                 },
                 status=status.HTTP_403_FORBIDDEN,
+            )
+
+        if target_user.role in MANDATORY_TOTP_ROLES:
+            AuthService.revoke_all_sessions(
+                staff_user_id=target_user.id,
+                tenant_id=_get_tenant_id(request),
+                reason="totp_reset",
+                ip=ip,
+                user_agent=user_agent,
             )
 
         return Response(

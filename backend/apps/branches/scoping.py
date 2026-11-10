@@ -25,6 +25,7 @@ branch scope — it is deliberately NOT routed through ``scoped_to``.
 
 from __future__ import annotations
 
+import uuid
 from typing import TYPE_CHECKING, TypeVar
 
 from django.core.exceptions import ImproperlyConfigured
@@ -34,6 +35,19 @@ if TYPE_CHECKING:
     from apps.accounts.models import StaffUser
 
 _M = TypeVar("_M", bound=models.Model)
+
+
+def effective_branch_ids(user: StaffUser) -> set[uuid.UUID]:
+    """All branches a branch-scoped caller may act in.
+
+    ``staff_branch`` rows are the documented scope source (SB-3); the home
+    ``staff_user.branch`` is accepted as a v1 fallback so accounts created by
+    Staff CRUD (one home branch + one assignment) behave identically.
+    """
+    ids = set(user.assigned_branch_ids())
+    if user.branch_id:
+        ids.add(user.branch_id)
+    return ids
 
 
 class BranchScopedQuerySet(models.QuerySet[_M, _M]):

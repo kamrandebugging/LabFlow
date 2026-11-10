@@ -11,7 +11,14 @@ from drf_spectacular.views import (
     SpectacularSwaggerView,
 )
 
-from apps.accounts.views_staff import StaffBranchesView
+from apps.accounts.views_staff import (
+    StaffBranchesView,
+    StaffCollectionView,
+    StaffDeactivateView,
+    StaffDetailView,
+    StaffReactivateView,
+    StaffResetPasswordView,
+)
 from apps.platform.tls import tls_check_view
 
 urlpatterns = [
@@ -48,6 +55,53 @@ urlpatterns = [
     # Referral Partners: registry + revenue-share rules (Doc 05 §5, KAN-164 / LAB-39)
     path("api/v1/", include("apps.partners.urls")),
     path("api/v1/partners/", include("apps.partners.urls")),
+    # Staff CRUD (D4, FR-2; Owner-only, tenant schema is the boundary)
+    path("api/v1/staff", StaffCollectionView.as_view(), name="staff-collection"),
+    path(
+        "api/v1/staff/",
+        StaffCollectionView.as_view(),
+        name="staff-collection-slash",
+    ),
+    path(
+        "api/v1/staff/<uuid:staff_id>",
+        StaffDetailView.as_view(),
+        name="staff-detail",
+    ),
+    path(
+        "api/v1/staff/<uuid:staff_id>/",
+        StaffDetailView.as_view(),
+        name="staff-detail-slash",
+    ),
+    path(
+        "api/v1/staff/<uuid:staff_id>/deactivate",
+        StaffDeactivateView.as_view(),
+        name="staff-deactivate",
+    ),
+    path(
+        "api/v1/staff/<uuid:staff_id>/deactivate/",
+        StaffDeactivateView.as_view(),
+        name="staff-deactivate-slash",
+    ),
+    path(
+        "api/v1/staff/<uuid:staff_id>/reactivate",
+        StaffReactivateView.as_view(),
+        name="staff-reactivate",
+    ),
+    path(
+        "api/v1/staff/<uuid:staff_id>/reactivate/",
+        StaffReactivateView.as_view(),
+        name="staff-reactivate-slash",
+    ),
+    path(
+        "api/v1/staff/<uuid:staff_id>/reset-password",
+        StaffResetPasswordView.as_view(),
+        name="staff-reset-password",
+    ),
+    path(
+        "api/v1/staff/<uuid:staff_id>/reset-password/",
+        StaffResetPasswordView.as_view(),
+        name="staff-reset-password-slash",
+    ),
     # Staff branch assignments (Doc 04 §8.4, §15, KAN-159 / LAB-34)
     path(
         "api/v1/staff/<uuid:staff_id>/branches",

@@ -119,16 +119,24 @@ class AuthService:
             )
             return True, {"totp_required": True, "user_id": str(user.id)}, None
 
-        # If TOTP is mandated for this role but not yet enabled, issue a limited session
-        # flagged totp_enrollment_required instead of blocking with an unanswerable
-        # challenge.
+        # A login-issued session is limited while the account is still on a
+        # temporary password or a mandatory-TOTP role has not enrolled yet
+        # (S6). The token carries an ``onboarding`` claim; the normal
+        # authenticated surface rejects it until the flow is finished.
+        onboarding: str | None = None
+        if user.password_is_temporary:
+            onboarding = "password_change"
+        elif totp_mandated and not user.totp_enabled:
+            onboarding = "totp_enroll"
+
         session_data = cls.create_session(
             user,
             ip=ip,
             user_agent=user_agent,
             tenant_id=tenant_id,
+            onboarding=onboarding,
         )
-        if totp_mandated and not user.totp_enabled:
+        if totp_mandated and not user.totp_enabled and not user.password_is_temporary:
             session_data["totp_enrollment_required"] = True
 
         LoginEvent.objects.create(
@@ -147,6 +155,7 @@ class AuthService:
         ip: str | None = None,
         user_agent: str | None = None,
         tenant_id: str | None = None,
+        onboarding: str | None = None,
     ) -> dict[str, Any]:
         """Create a new session, mint JWTs, and register in Redis."""
         session_id = uuid.uuid4()
@@ -178,6 +187,7 @@ class AuthService:
             tenant_slug=tenant_slug,
             role=user.role,
             session_id=session_id,
+            onboarding=onboarding,
         )
 
         refresh_token, refresh_jti, _ = mint_refresh_token(
@@ -202,6 +212,7 @@ class AuthService:
             ip=ip or "",
             user_agent=user_agent or "",
             family_expires_at=family_expires_at,
+            onboarding=onboarding,
         )
 
         return {
@@ -212,10 +223,12 @@ class AuthService:
             "user": {
                 "id": str(user.id),
                 "email": user.email,
+                "display_name": user.display_name or "",
                 "role": user.role,
                 "branch_ids": branch_ids,
                 "totp_enabled": bool(user.totp_enabled),
                 "must_change_password": bool(user.password_is_temporary),
+                "onboarding": onboarding,
             },
         }
 
@@ -295,13 +308,25 @@ class AuthService:
         remaining_ttl = max(1, family_exp - now_int)
         mark_jti_used(presented_jti, ttl_seconds=remaining_ttl)
 
-        # Mint new tokens in same family
+        # Mint new tokens in same family. A session that was created limited
+        # (temporary password / mandatory TOTP) stays limited until the flow
+        # is actually completed; a test/API-created full session stays full.
+        # Derive from current DB state, not from the stored claim: a role
+        # change or TOTP reset must not be bypassable by refreshing an old
+        # session that predates the restriction.
+        onboarding: str | None = None
+        if user.password_is_temporary:
+            onboarding = "password_change"
+        elif user.role in MANDATORY_TOTP_ROLES and not user.totp_enabled:
+            onboarding = "totp_enroll"
+
         session_id = matching_session["id"]
         new_access_token, _, _ = mint_access_token(
             staff_user_id=user.id,
             tenant_slug=tenant_slug,
             role=user.role,
             session_id=session_id,
+            onboarding=onboarding,
         )
         new_refresh_token, new_refresh_jti, _ = mint_refresh_token(
             staff_user_id=user.id,
@@ -329,9 +354,11 @@ class AuthService:
                 "user": {
                     "id": str(user.id),
                     "email": user.email,
+                    "display_name": user.display_name or "",
                     "role": user.role,
                     "totp_enabled": bool(user.totp_enabled),
                     "must_change_password": bool(user.password_is_temporary),
+                    "onboarding": onboarding,
                 },
             },
             None,
@@ -437,6 +464,7 @@ class AuthService:
         reason: str = "user_revoke",
         ip: str | None = None,
         user_agent: str | None = None,
+        actor_id: uuid.UUID | None = None,
     ) -> None:
         """Reusable revoke-all method (theft detection, password change)."""
         if not except_session_id:
@@ -448,7 +476,7 @@ class AuthService:
         try:
             with schema_context(tenant_id), transaction.atomic():
                 AuditLog.objects.create(
-                    actor_id=staff_user_id,
+                    actor_id=actor_id or staff_user_id,
                     action="auth.sessions_revoked",
                     entity_type="staff_user",
                     entity_id=staff_user_id,
@@ -742,13 +770,16 @@ class AuthService:
                 cache.set(cache_key, challenge, timeout=300)
                 return False, None, "invalid_credentials"
 
-            # Verification succeeded
+            # Verification succeeded. A temporary-password account still gets
+            # a password-change-limited session even when TOTP is enrolled.
             cache.delete(cache_key)
+            onboarding = "password_change" if user.password_is_temporary else None
             session_data = cls.create_session(
                 user,
                 ip=ip,
                 user_agent=user_agent,
                 tenant_id=schema,
+                onboarding=onboarding,
             )
             LoginEvent.objects.create(
                 staff_user=user,
@@ -769,6 +800,10 @@ class AuthService:
     ) -> tuple[bool, str | None]:
         """Owner resets staff TOTP (Doc 08 §4.4, LAB-52)."""
         if actor.role != Role.OWNER:
+            return False, "forbidden"
+        # S14: the Owner account is never edited through staff management, and
+        # an Owner cannot strip their own 2FA from a stolen session alone.
+        if target_user.role == Role.OWNER or target_user.id == actor.id:
             return False, "forbidden"
 
         with transaction.atomic():

@@ -60,6 +60,7 @@ from django.db.models import Q
 from apps.accounts.models import AuditLog, Role, StaffUser, TenantSetting
 from apps.billing.models import Invoice, InvoiceItem
 from apps.branches.models import Branch
+from apps.branches.scoping import effective_branch_ids
 from apps.catalog.models import Panel, Test
 from apps.results.models import Result
 from apps.samples.models import (
@@ -235,16 +236,29 @@ def _expand_item_tests(item: InvoiceItem) -> list[Test]:
 
 
 def _get_sample(sample_id: uuid.UUID) -> Sample:
-    """Fetch a tenant-scoped sample or 404 (never 403)."""
+    """Fetch a tenant-scoped sample or 404.
+
+    Branch scope is enforced by each operation with its documented error code
+    (``sample_not_here`` 409 for lifecycle actions, 404 for read-only detail).
+    """
     try:
         return Sample.objects.select_related("invoice", "branch").get(pk=sample_id)
-    except Sample.DoesNotExist:
+    except (Sample.DoesNotExist, ValueError, TypeError):
         raise SampleNotFoundError("Sample not found.") from None
 
 
 def _caller_branch(actor: StaffUser) -> Any:
-    """The branch holding the caller — None for a branchless Owner."""
-    return actor.branch if actor.branch_id else None
+    """The branch holding the caller; fail closed for scoped accounts.
+
+    Tenant-wide roles (Owner/Pathologist) legitimately have no home branch and
+    return None. A branch-scoped account with no branch assignment is denied
+    rather than silently treated as tenant-wide.
+    """
+    if actor.is_tenant_wide:
+        return None
+    if not actor.branch_id:
+        raise SampleNotFoundError("Sample not found.")
+    return actor.branch
 
 
 def _write_event_and_audit(
@@ -454,6 +468,12 @@ class SampleService:
             )
         except Sample.DoesNotExist:
             raise SampleNotFoundError("Sample not found.") from None
+
+        # S5 (BOLA): label payload is branch data; foreign samples are 404.
+        if not actor.is_tenant_wide and sample.branch_id not in (
+            effective_branch_ids(actor)
+        ):
+            raise SampleNotFoundError("Sample not found.")
 
         patient = sample.invoice.patient
         dob = patient.date_of_birth.isoformat() if patient.date_of_birth else None
@@ -1098,6 +1118,11 @@ class TransferService:
         transfer branches). No audit row — read-only.
         """
         sample = _get_sample(sample_id)
+        # S5 (BOLA): event history belongs to the holding branch.
+        if not actor.is_tenant_wide and sample.branch_id not in (
+            effective_branch_ids(actor)
+        ):
+            raise SampleNotFoundError("Sample not found.")
         events = list(
             SampleEvent.objects.filter(sample=sample)
             .select_related("actor", "branch")

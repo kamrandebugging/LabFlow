@@ -33,6 +33,7 @@ from rest_framework.views import APIView
 
 from apps.accounts.models import Role, StaffUser
 from apps.branches.scope_views import BranchScopedAPIView, IsInBranchScope
+from apps.branches.scoping import effective_branch_ids
 from apps.samples.models import Sample
 from apps.samples.serializers import (
     SampleCancelSerializer,
@@ -184,16 +185,21 @@ class SampleDetailView(APIView):
                 _format_error("forbidden", "Role not permitted to view samples."),
                 status=status.HTTP_403_FORBIDDEN,
             )
+        queryset = Sample.objects.select_related(
+            "invoice__patient", "branch", "collected_by"
+        ).prefetch_related("sample_tests__test", "events__actor", "events__branch")
+        # S5 (BOLA): an out-of-branch sample is not found, not a 403 that
+        # confirms an accession exists elsewhere.
+        if not user.is_tenant_wide:
+            branch_ids = effective_branch_ids(user)
+            if not branch_ids:
+                return Response(
+                    _format_error("not_found", "Sample not found."),
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+            queryset = queryset.filter(branch_id__in=branch_ids)
         try:
-            sample = (
-                Sample.objects.select_related(
-                    "invoice__patient", "branch", "collected_by"
-                )
-                .prefetch_related(
-                    "sample_tests__test", "events__actor", "events__branch"
-                )
-                .get(pk=sample_id)
-            )
+            sample = queryset.get(pk=sample_id)
         except Sample.DoesNotExist:
             return Response(
                 _format_error("not_found", "Sample not found."),
