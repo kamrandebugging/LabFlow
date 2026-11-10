@@ -20,7 +20,7 @@ from django.utils import timezone
 
 from apps.accounts.models import AuditLog, Role, StaffBranch, StaffUser
 from apps.branches.models import Branch
-from apps.patients.models import Patient
+from apps.patients.models import Patient, PatientConsent, PatientContact
 from apps.reports.models import Report
 
 
@@ -124,10 +124,20 @@ class PatientService:
         branch_id: uuid.UUID,
         date_of_birth: date | None = None,
         confirm_duplicate: bool = False,
+        whatsapp_number: str | None = None,
+        consent_reports: bool = False,
         ip: str | None = None,
         user_agent: str | None = None,
     ) -> Patient:
-        """Register a patient, enforce PT-3, generate MRN, and log audit row."""
+        """Register a patient, enforce PT-3, generate MRN, and log audit row.
+
+        Digital delivery (PT-2): when the patient consents to report delivery,
+        the WhatsApp destination and the consent grant are persisted here, in
+        the same transaction as the patient row. Without both rows every later
+        ``reports.deliver`` call fails its consent/contact checks, so the
+        registration form's "Digital Delivery & Consent" section would be a
+        no-op.
+        """
         is_tenant_wide, assigned_branches = cls.get_caller_branch_scope(actor)
         if not is_tenant_wide and branch_id not in assigned_branches:
             raise BranchScopeDeniedError("Branch is outside caller scope.")
@@ -162,6 +172,27 @@ class PatientService:
                 branch=branch,
             )
 
+            # Digital delivery destination. Only persisted when the operator
+            # supplied a WhatsApp number or recorded delivery consent; the
+            # registered phone is a valid WhatsApp destination when the
+            # dedicated field is left blank.
+            contact: PatientContact | None = None
+            consent: PatientConsent | None = None
+            if consent_reports or whatsapp_number:
+                contact = PatientContact.objects.create(
+                    patient=patient,
+                    kind=PatientContact.Kind.WHATSAPP,
+                    value=whatsapp_number or phone,
+                    is_primary=True,
+                )
+            if consent_reports:
+                consent = PatientConsent.objects.create(
+                    patient=patient,
+                    channel=PatientConsent.Channel.WHATSAPP,
+                    granted_at=timezone.now(),
+                    granted_by=actor,
+                )
+
             # Audit log row
             AuditLog.objects.create(
                 actor_id=actor.id,
@@ -177,6 +208,9 @@ class PatientService:
                     "branch_id": str(patient.branch_id),
                     "duplicate_confirmed": confirm_duplicate,
                     "confirmed_duplicate_mrns": confirmed_candidate_mrns,
+                    "whatsapp_contact_id": str(contact.id) if contact else None,
+                    "report_delivery_consent": consent is not None,
+                    "consent_channel": consent.channel if consent else None,
                 },
                 ip=ip or "",
                 user_agent=user_agent or "",
@@ -218,6 +252,7 @@ class PatientService:
             clean_q = q.strip()[:120]
             annotated_qs = (
                 Patient.objects.filter(**filters)
+                .select_related("branch")
                 .annotate(similarity=TrigramSimilarity("name", clean_q))
                 .filter(models_q_filter(clean_q))
                 .order_by("-similarity", "-created_at")
@@ -251,7 +286,7 @@ class PatientService:
         # scope: the manager-level scoped_to() keeps the BranchScopedQuerySet
         # type through chaining (django-stubs resolves chained .filter() to
         # the plain QuerySet).
-        qs = Patient.objects.scoped_to(actor).filter(**filters)
+        qs = Patient.objects.scoped_to(actor).select_related("branch").filter(**filters)
 
         listed_patients: list[Patient] = [p for p in qs.order_by("-created_at")[:100]]
         for p in listed_patients:

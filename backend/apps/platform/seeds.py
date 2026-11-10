@@ -1933,7 +1933,7 @@ def seed_tenant_p6_data(
                 "address": "",
                 "phone": "",
                 "is_collection_centre": False,
-                "result_entry_enabled": False,
+                "result_entry_enabled": True,
             },
         )
 
@@ -1950,7 +1950,7 @@ def seed_tenant_p6_data(
                     "address": str(branch_data.get("address", "")).strip(),
                     "phone": "",
                     "is_collection_centre": False,
-                    "result_entry_enabled": False,
+                    "result_entry_enabled": True,
                 },
             )
 

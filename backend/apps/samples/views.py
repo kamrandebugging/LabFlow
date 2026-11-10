@@ -189,7 +189,9 @@ class SampleDetailView(APIView):
                 Sample.objects.select_related(
                     "invoice__patient", "branch", "collected_by"
                 )
-                .prefetch_related("sample_tests__test")
+                .prefetch_related(
+                    "sample_tests__test", "events__actor", "events__branch"
+                )
                 .get(pk=sample_id)
             )
         except Sample.DoesNotExist:

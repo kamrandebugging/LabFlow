@@ -20,6 +20,7 @@ from django.db.models import Prefetch, Q
 from django.utils import timezone as dj_timezone
 
 from apps.accounts.models import Role, StaffUser
+from apps.platform.settings_accessor import get_setting
 from apps.reports.models import (
     Report,
     ReportAccessToken,
@@ -45,6 +46,15 @@ REPORT_READ_ROLES = {
 
 LIST_DEFAULT_LIMIT = 50
 LIST_MAX_LIMIT = 200
+
+
+def _age_years(dob: Any, collected_at: Any) -> int | None:
+    """Whole years between date of birth and specimen collection."""
+    if not dob:
+        return None
+    reference = collected_at.date() if collected_at else dj_timezone.now().date()
+    years = (reference - dob).days // 365
+    return years if years >= 0 else None
 
 
 class ReportQueryError(Exception):
@@ -325,6 +335,10 @@ class ReportQueryService:
             else None,
             "generation_status": report.generation_status,
             "generation_error": report.generation_error,
+            "branding": {
+                "display_name": get_setting("brand_display_name"),
+                "accent_colour": get_setting("brand_accent_colour"),
+            },
             "created_at": report.created_at.isoformat(),
             "updated_at": report.updated_at.isoformat(),
             "sample": {
@@ -351,9 +365,14 @@ class ReportQueryService:
                 "date_of_birth": patient.date_of_birth.isoformat()
                 if patient.date_of_birth
                 else None,
+                "age_years": _age_years(patient.date_of_birth, sample.collected_at),
                 "sex": patient.sex,
                 "gender": patient.sex,
                 "phone": patient.phone,
+                "email": next(
+                    (c.value for c in patient.contacts.all() if c.kind == "email"),
+                    None,
+                ),
                 "contacts": [
                     {
                         "id": str(c.id),

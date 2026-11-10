@@ -205,6 +205,7 @@ function RegisterPatientWrapper(): JSX.Element {
   const navigate = useNavigate();
   const [branchId, setBranchId] = useState<string | null>(null);
   const [branchError, setBranchError] = useState<string | null>(null);
+  const user = useAuthStore((state) => state.user);
 
   useEffect(() => {
     let active = true;
@@ -212,8 +213,14 @@ function RegisterPatientWrapper(): JSX.Element {
       .getBranches()
       .then((branches) => {
         if (!active) return;
-        const first = branches[0]?.id;
-        if (first) setBranchId(first);
+        // Register into the caller's own branch when they are branch-scoped;
+        // otherwise the main testing branch. The API orders by branch code,
+        // so branches[0] is "B02" and is NOT the main branch.
+        const preferred =
+          branches.find((b) => user?.branch_ids?.includes(b.id)) ??
+          branches.find((b) => b.code === "HQ1") ??
+          branches[0];
+        if (preferred) setBranchId(preferred.id);
         else setBranchError("No active branch is available for registration.");
       })
       .catch(() => {
@@ -222,7 +229,7 @@ function RegisterPatientWrapper(): JSX.Element {
     return () => {
       active = false;
     };
-  }, []);
+  }, [user?.branch_ids]);
 
   return (
     <main className="min-h-screen bg-slate-50 py-6">

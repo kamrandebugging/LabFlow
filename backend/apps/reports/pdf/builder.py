@@ -179,11 +179,11 @@ def build_report_context(
     patient = invoice.patient
     branch = sample.branch
 
-    # Tenant (lab) name — resolved from the current schema's tenant.
-    from django.db import connection
+    # Tenant (lab) branding — the operator-configured display name falls back
+    # to the tenant name, so a renamed lab never prints a stale identity.
+    from apps.platform.settings_accessor import get_setting
 
-    tenant = connection.tenant  # type: ignore[attr-defined]
-    lab_name = getattr(tenant, "name", "Diagnostic Lab")
+    lab_name = get_setting("brand_display_name")
 
     received_event = (
         SampleEvent.objects.filter(sample=sample, event="RECEIVED")

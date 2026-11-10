@@ -129,6 +129,10 @@ export interface ReportDetail {
   generation_status: ReportGenerationStatus;
   generation_error: string | null;
   current_version: number;
+  branding?: {
+    display_name: string;
+    accent_colour: string;
+  };
   published_at: string | null;
   finalised_at?: string | null;
   created_at: string;

@@ -66,7 +66,21 @@ class PatientCreateSerializer(PatientValidationMixin, serializers.Serializer):
     sex = serializers.ChoiceField(choices=Patient.Sex.choices, required=True)
     date_of_birth = serializers.DateField(required=False, allow_null=True)
     branch_id = serializers.UUIDField(required=True)
+    whatsapp_number = serializers.CharField(
+        required=False, allow_blank=True, allow_null=True, default=None
+    )
+    consent_reports = serializers.BooleanField(required=False, default=False)
     confirm_duplicate = serializers.BooleanField(required=False, default=False)
+
+    def validate_whatsapp_number(self, value: str | None) -> str | None:
+        if not value:
+            return None
+        normalized = normalize_phone(value)
+        if not (10 <= len(normalized) <= 15 and normalized.isdigit()):
+            raise serializers.ValidationError(
+                "WhatsApp number must be between 10 and 15 digits."
+            )
+        return normalized
 
 
 class PatientUpdateSerializer(PatientValidationMixin, serializers.Serializer):
@@ -115,9 +129,17 @@ class PatientSummarySerializer(serializers.Serializer):
     date_of_birth = serializers.SerializerMethodField()
     year_of_birth = serializers.SerializerMethodField()
     branch_id = serializers.UUIDField(read_only=True)
+    branch_name = serializers.SerializerMethodField()
     created_at = serializers.SerializerMethodField()
     updated_at = serializers.SerializerMethodField()
     is_cross_branch = serializers.SerializerMethodField()
+
+    def get_branch_name(self, obj: Patient) -> str | None:
+        """Registering branch name; hidden for BS-4 cross-branch projections."""
+        if getattr(obj, "_is_cross_branch", False):
+            return None
+        branch = getattr(obj, "branch", None)
+        return branch.name if branch is not None else None
 
     def get_is_cross_branch(self, obj: Patient) -> bool:
         return getattr(obj, "_is_cross_branch", False)

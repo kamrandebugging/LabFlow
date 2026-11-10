@@ -19,7 +19,12 @@ import {
 } from "lucide-react";
 import { useAuthStore } from "../auth/authStore";
 import { reportsService } from "./reportsService";
-import type { DeliveryChannel, ReportStatus, ReportSummaryItem } from "./types";
+import type {
+  DeliveryChannel,
+  ReportPatientContact,
+  ReportStatus,
+  ReportSummaryItem,
+} from "./types";
 
 export function ReportsListScreen(): JSX.Element {
   const searchInputId = useId();
@@ -48,7 +53,9 @@ export function ReportsListScreen(): JSX.Element {
     useState<ReportSummaryItem | null>(null);
   const [deliveryChannel, setDeliveryChannel] =
     useState<DeliveryChannel>("whatsapp");
-  const [deliveryContact, setDeliveryContact] = useState("");
+  const [deliveryContacts, setDeliveryContacts] = useState<
+    ReportPatientContact[] | null
+  >(null);
   const [isDelivering, setIsDelivering] = useState(false);
   const [deliveryError, setDeliveryError] = useState<string | null>(null);
 
@@ -128,26 +135,35 @@ export function ReportsListScreen(): JSX.Element {
   const openDeliveryModal = (report: ReportSummaryItem) => {
     setDeliveringReport(report);
     setDeliveryChannel("whatsapp");
-    setDeliveryContact(report.sample.patient.phone || "");
+    setDeliveryContacts(null);
     setDeliveryError(null);
+    // The list payload has no contacts; delivery is addressed to a stored
+    // PatientContact row, so fetch the detail to resolve a real contact id.
+    void reportsService
+      .getReport(report.id)
+      .then((detail) => setDeliveryContacts(detail.patient.contacts ?? []))
+      .catch(() => setDeliveryContacts([]));
   };
 
   const handleDeliverSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!deliveringReport) return;
 
+    const contact = deliveryContacts?.find((c) => c.kind === deliveryChannel);
+    if (!contact) {
+      setDeliveryError(
+        `No ${deliveryChannel === "whatsapp" ? "WhatsApp" : "email"} contact is stored for this patient.`,
+      );
+      return;
+    }
+
     try {
       setIsDelivering(true);
       setDeliveryError(null);
 
-      // In a real flow, contact_id is resolved or created
-      const contactId =
-        deliveringReport.sample.patient.id ||
-        "00000000-0000-0000-0000-000000000000";
-
       await reportsService.deliverReport(deliveringReport.id, {
         channel: deliveryChannel,
-        contact_id: contactId,
+        contact_id: contact.id,
       });
 
       setSuccessMessage(
@@ -164,6 +180,11 @@ export function ReportsListScreen(): JSX.Element {
       setIsDelivering(false);
     }
   };
+
+  const activeContact =
+    deliveryContacts?.find((c) => c.kind === deliveryChannel) ?? null;
+  const emailContactAvailable =
+    deliveryContacts?.some((c) => c.kind === "email") ?? false;
 
   const getStatusBadge = (status: ReportStatus) => {
     switch (status) {
@@ -558,9 +579,7 @@ export function ReportsListScreen(): JSX.Element {
                     type="button"
                     onClick={() => {
                       setDeliveryChannel("whatsapp");
-                      setDeliveryContact(
-                        deliveringReport.sample.patient.phone || "",
-                      );
+                      setDeliveryError(null);
                     }}
                     className={`flex items-center justify-center gap-2 p-3 rounded-lg border text-xs font-semibold transition-all ${
                       deliveryChannel === "whatsapp"
@@ -572,13 +591,17 @@ export function ReportsListScreen(): JSX.Element {
                   </button>
                   <button
                     type="button"
+                    disabled={!emailContactAvailable}
+                    title={
+                      emailContactAvailable
+                        ? undefined
+                        : "No email contact is stored for this patient"
+                    }
                     onClick={() => {
                       setDeliveryChannel("email");
-                      setDeliveryContact(
-                        deliveringReport.sample.patient.email || "",
-                      );
+                      setDeliveryError(null);
                     }}
-                    className={`flex items-center justify-center gap-2 p-3 rounded-lg border text-xs font-semibold transition-all ${
+                    className={`flex items-center justify-center gap-2 p-3 rounded-lg border text-xs font-semibold transition-all disabled:opacity-40 disabled:cursor-not-allowed ${
                       deliveryChannel === "email"
                         ? "border-teal-600 bg-teal-50 text-teal-800"
                         : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
@@ -596,19 +619,26 @@ export function ReportsListScreen(): JSX.Element {
                 >
                   Destination Contact
                 </label>
-                <input
-                  id="destination-contact-input"
-                  type="text"
-                  required
-                  value={deliveryContact}
-                  onChange={(e) => setDeliveryContact(e.target.value)}
-                  placeholder={
-                    deliveryChannel === "whatsapp"
-                      ? "+92 300 1234567"
-                      : "patient@example.com"
-                  }
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-900 focus:outline-none focus:bg-white focus:ring-2 focus:ring-teal-600"
-                />
+                {activeContact ? (
+                  <>
+                    <input
+                      id="destination-contact-input"
+                      type="text"
+                      readOnly
+                      value={activeContact.value}
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-900 font-mono"
+                    />
+                    <p className="mt-1 text-[11px] text-slate-400">
+                      Stored {deliveryChannel} contact for this patient.
+                    </p>
+                  </>
+                ) : (
+                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-900">
+                    {deliveryContacts === null
+                      ? "Loading the patient's stored contacts…"
+                      : `No stored ${deliveryChannel} contact for this patient. Update the patient record before delivering.`}
+                  </div>
+                )}
               </div>
 
               <div className="pt-2 flex items-center justify-end gap-3">
@@ -621,8 +651,8 @@ export function ReportsListScreen(): JSX.Element {
                 </button>
                 <button
                   type="submit"
-                  disabled={isDelivering}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-lg bg-teal-600 text-white hover:bg-teal-700 transition-colors disabled:opacity-50"
+                  disabled={isDelivering || !activeContact}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-lg bg-teal-600 text-white hover:bg-teal-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isDelivering ? (
                     <>
