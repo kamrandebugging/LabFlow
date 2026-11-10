@@ -203,6 +203,12 @@ services:
       - -A
       - config
       - worker
+      # reports.deliver is declared on the "notifications" queue and
+      # tenants.export_tenant on "maintenance". Without -Q the worker only
+      # consumes the default "celery" queue, so report delivery and data
+      # export would silently sit in Redis forever.
+      - -Q
+      - celery,notifications,maintenance
       - --loglevel=info
       - --concurrency=4
 
