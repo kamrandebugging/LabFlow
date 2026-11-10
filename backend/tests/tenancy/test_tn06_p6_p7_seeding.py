@@ -77,7 +77,9 @@ class TestStepsP6AndP7SeedingAndA10Exclusion:
                 assert Branch.objects.count() == 1
                 hq = Branch.objects.get(code="HQ1")
                 assert hq.is_collection_centre is False
-                assert hq.result_entry_enabled is False
+                # The main branch is a full testing facility, so result entry
+                # must be enabled (it was seeded False while entry worked).
+                assert hq.result_entry_enabled is True
 
                 # 2. Starter Panels (CBC, LFT, RFT, LIPID) + prices (Doc 02 §16)
                 expected_panels = {
