@@ -214,6 +214,8 @@ class AuthService:
                 "email": user.email,
                 "role": user.role,
                 "branch_ids": branch_ids,
+                "totp_enabled": bool(user.totp_enabled),
+                "must_change_password": bool(user.password_is_temporary),
             },
         }
 
@@ -328,6 +330,8 @@ class AuthService:
                     "id": str(user.id),
                     "email": user.email,
                     "role": user.role,
+                    "totp_enabled": bool(user.totp_enabled),
+                    "must_change_password": bool(user.password_is_temporary),
                 },
             },
             None,
@@ -477,7 +481,14 @@ class AuthService:
 
         with transaction.atomic():
             staff_user.password_hash = make_password(new_password)
-            staff_user.save(update_fields=["password_hash", "updated_at"])
+            staff_user.password_is_temporary = False
+            staff_user.save(
+                update_fields=[
+                    "password_hash",
+                    "password_is_temporary",
+                    "updated_at",
+                ]
+            )
 
             AuditLog.objects.create(
                 actor_id=staff_user.id,
@@ -489,6 +500,11 @@ class AuthService:
                 user_agent=user_agent,
             )
 
+        # Clear the provisioning-issued temporary master credential on the
+        # platform registry row (public schema) so it disappears from the
+        # master dashboard and can no longer be reused.
+        cls._clear_tenant_temp_password(tenant_id)
+
         # Revoke all other sessions (current session stays active)
         cls.revoke_all_sessions(
             staff_user_id=staff_user.id,
@@ -499,6 +515,31 @@ class AuthService:
             user_agent=user_agent,
         )
         return True, None
+
+    @staticmethod
+    def _clear_tenant_temp_password(tenant_id: str) -> None:
+        """Clear the temporary master credential on the platform Tenant row.
+
+        Runs in the public schema (the ``Tenant`` registry lives there, not in
+        the tenant schema). Best-effort: a failure here must never roll back a
+        successful password change, so it only logs.
+        """
+        if not tenant_id or tenant_id == "tenant":
+            return
+        try:
+            from apps.core.models import Tenant
+
+            with schema_context("public"):
+                Tenant.objects.filter(schema_name=tenant_id).update(
+                    temp_password="",
+                    temp_password_expires_at=None,
+                )
+        except Exception as exc:  # pragma: no cover - defensive
+            logger.warning(
+                "Failed to clear tenant temp_password for '%s': %s",
+                tenant_id,
+                exc,
+            )
 
     # --------------------------------------------------------------------------
     # LAB-12: MFA TOTP Enrolment, Verification & Reset (Doc 08 §4.4)
@@ -749,6 +790,46 @@ class AuthService:
                 entity_type="staff_user",
                 entity_id=target_user.id,
                 after_jsonb={"totp_enabled": False, "reset_by": str(actor.id)},
+                ip=ip,
+                user_agent=user_agent,
+            )
+        return True, None
+
+    @classmethod
+    def disable_totp(
+        cls,
+        user: StaffUser,
+        current_password: str,
+        ip: str | None = None,
+        user_agent: str | None = None,
+    ) -> tuple[bool, str | None]:
+        """Self-service TOTP disable for the authenticated user.
+
+        Requires the current password so a stolen session alone cannot strip
+        two-factor protection. Returns (success, error_code).
+        """
+        if not check_password(current_password, user.password_hash):
+            return False, "invalid_credentials"
+
+        with transaction.atomic():
+            user.totp_secret_encrypted = None
+            user.totp_backup_codes_hash = None
+            user.totp_enabled = False
+            user.save(
+                update_fields=[
+                    "totp_secret_encrypted",
+                    "totp_backup_codes_hash",
+                    "totp_enabled",
+                    "updated_at",
+                ]
+            )
+
+            AuditLog.objects.create(
+                actor_id=user.id,
+                action="auth.totp_disabled",
+                entity_type="staff_user",
+                entity_id=user.id,
+                after_jsonb={"totp_enabled": False},
                 ip=ip,
                 user_agent=user_agent,
             )

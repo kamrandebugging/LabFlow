@@ -9,6 +9,7 @@
 
 import { create } from "zustand";
 
+import { refreshSession } from "../../lib/apiClient";
 import { registerSession } from "../../lib/sessionBridge";
 import {
   platformAuthService,
@@ -111,14 +112,13 @@ export const usePlatformAuthStore = create<PlatformAuthState>((set, get) => ({
   },
 
   restore: async () => {
-    try {
-      const session = await platformAuthService.refresh();
-      if (!session?.access || !session.user) return false;
-      get().applySession(session);
-      return true;
-    } catch {
-      return false;
-    }
+    if (get().isAuthenticated && get().accessToken) return true;
+    // Use the shared single-flight refresh: concurrent restores (React
+    // StrictMode double-effects, parallel 401 retries) must never present the
+    // same rotating refresh token twice, which the server treats as reuse and
+    // would revoke the operator's session.
+    const token = await refreshSession("platform");
+    return Boolean(token && get().isAuthenticated);
   },
 
   logout: async () => {

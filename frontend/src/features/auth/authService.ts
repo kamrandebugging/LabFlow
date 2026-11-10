@@ -33,6 +33,13 @@ export const defaultAuthService: AuthService = {
     });
 
     if (!response.ok) {
+      if (response.status === 429) {
+        const retryAfter = response.headers.get("Retry-After") ?? "";
+        throw new Error(`RATE_LIMITED:${retryAfter}`);
+      }
+      if (response.status === 503) {
+        throw new Error("SERVICE_UNAVAILABLE");
+      }
       throw new Error("401 invalid_credentials");
     }
 

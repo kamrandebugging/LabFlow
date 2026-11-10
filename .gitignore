@@ -82,3 +82,6 @@ docs/jira_backup/
 
 # Runtime media (report PDFs land here in dev/test via MEDIA_ROOT)
 backend/mediafiles/
+
+# Local-only dev server config (host-preserving proxy for *.localhost)
+frontend/vite.config.local.ts
