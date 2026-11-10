@@ -72,6 +72,19 @@ def test_full_owner_e2e_journey_fresh_tenant() -> None:
             with tenant_context(tenant):
                 owner = StaffUser.objects.get(email="owner@apexdiag.pk")
                 assert owner.role == Role.OWNER
+                # This journey starts after onboarding: a real Owner completes
+                # the temp-password change and mandatory TOTP enrolment before
+                # using the lab. Mirror that state so a refresh cannot
+                # downgrade the session to onboarding-only.
+                owner.totp_enabled = True
+                owner.password_is_temporary = False
+                owner.save(
+                    update_fields=[
+                        "totp_enabled",
+                        "password_is_temporary",
+                        "updated_at",
+                    ]
+                )
                 session = AuthService.create_session(user=owner, tenant_id=slug)
                 access_token = session["access"]
                 auth_hdr = {"Authorization": f"Bearer {access_token}"}
