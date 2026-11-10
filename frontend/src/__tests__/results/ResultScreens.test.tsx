@@ -332,7 +332,7 @@ describe("Screen 22: Result Entry (/results/entry/:sampleId)", () => {
         id: "usr-rec-01",
         email: "rec@labflow.pk",
         name: "Bilal Ahmed",
-        role: "receptionist",
+        role: "reception",
         branch_ids: ["br-01"],
       },
     });

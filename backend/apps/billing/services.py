@@ -53,6 +53,7 @@ from django.db.models import Q, Sum
 from apps.accounts.models import AuditLog, Role, StaffUser
 from apps.billing.models import Invoice, InvoiceItem, Payment
 from apps.branches.models import Branch
+from apps.branches.scoping import effective_branch_ids
 from apps.catalog.models import Panel, Test
 from apps.catalog.services import CatalogService
 from apps.partners.models import ReferralPartner
@@ -215,6 +216,19 @@ class BillingService:
             branch = Branch.objects.get(pk=branch_id)
         except Branch.DoesNotExist:
             raise BillingNotFoundError("Branch not found.") from None
+
+        # S5 (BOLA): a branch-scoped caller may only invoice a patient and a
+        # branch that both belong to their own scope. Unknown/foreign objects
+        # answer 404, never a distinguishing 403.
+        if not actor.is_tenant_wide:
+            allowed = effective_branch_ids(actor)
+            if (
+                not allowed
+                or patient.branch_id not in allowed
+                or branch.id not in allowed
+            ):
+                raise BillingNotFoundError("Patient not found.")
+
         partner = None
         if referral_partner_id is not None:
             try:

@@ -34,7 +34,7 @@ def problem_response(
     title: str,
     detail: str,
     status_code: int,
-    errors: dict[str, list[str]] | None = None,
+    errors: dict[str, list[Any]] | None = None,
 ) -> Response:
     slug_type = code.replace("_", "-")
     payload: dict[str, Any] = {

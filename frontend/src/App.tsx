@@ -63,6 +63,9 @@ import {
 } from "./features/partners";
 import { ScreenCatalogViewer } from "./features/screens/ScreenCatalogViewer";
 import { OwnerDashboardScreen } from "./features/dashboard/OwnerDashboardScreen";
+import { RoleHomeScreen } from "./features/dashboard/RoleHomeScreen";
+import { StaffScreen } from "./features/staff";
+import { roleHome } from "./features/auth/access";
 import { TenantLayout } from "./features/layout/TenantLayout";
 import {
   AccessControlScreen,
@@ -102,13 +105,14 @@ import {
   type TenantContextInfo,
 } from "./features/auth/tenantContext";
 
-function OwnerDashboardWrapper(): JSX.Element {
+function HomeScreen(): JSX.Element {
   const user = useAuthStore((state) => state.user);
-  const accessToken = useAuthStore((state) => state.accessToken);
-  if (!accessToken || user?.role !== "owner") {
-    return <Navigate to="/login" replace />;
+  // The Owner keeps the full operational dashboard. Every staff role lands on
+  // its own workspace instead of the Owner screen (FR-12).
+  if (user?.role === "owner" || !user) {
+    return <OwnerDashboardScreen />;
   }
-  return <OwnerDashboardScreen />;
+  return <RoleHomeScreen />;
 }
 
 function StaffLoginWrapper(): JSX.Element {
@@ -144,8 +148,7 @@ function StaffLoginWrapper(): JSX.Element {
       }}
       onSuccess={(session) => {
         useAuthStore.getState().setSession(session.access, session.user);
-        const target = session.user?.role === "owner" ? "/" : "/invoices";
-        navigate(target);
+        navigate(roleHome(session.user?.role));
       }}
     />
   );
@@ -182,8 +185,7 @@ function TwoFactorAuthWrapper(): JSX.Element {
       onBack={() => navigate("/login")}
       onSuccess={(session) => {
         useAuthStore.getState().setSession(session.access, session.user);
-        const target = session.user?.role === "owner" ? "/" : "/invoices";
-        navigate(target);
+        navigate(roleHome(session.user?.role));
       }}
     />
   );
@@ -683,7 +685,7 @@ function App(): JSX.Element {
 
         {/* Authenticated Tenant Shell */}
         <Route element={<TenantLayout />}>
-          <Route path="/" element={<OwnerDashboardWrapper />} />
+          <Route path="/" element={<HomeScreen />} />
           <Route
             path="/approvals"
             element={<Navigate to="/results/approvals" replace />}
@@ -759,6 +761,7 @@ function App(): JSX.Element {
             element={<AccountSecurityWrapper />}
           />
           <Route path="/settings/exports" element={<DataExportWrapper />} />
+          <Route path="/settings/staff" element={<StaffScreen />} />
           <Route path="/partners" element={<PartnersListWrapper />} />
           <Route path="/partners/ledger" element={<LedgerWrapper />} />
           <Route path="/partners/:id/rules" element={<RulesWrapper />} />

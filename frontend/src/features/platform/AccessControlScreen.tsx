@@ -24,7 +24,7 @@ const ROLES: RoleDef[] = [
     desc: "Branch staff oversight, shift scheduling, inventory thresholds, and cash drawer management.",
   },
   {
-    key: "receptionist",
+    key: "reception",
     name: "Receptionist / Billing Desk",
     desc: "Patient registration, token queue processing, sample intake, and thermal receipt printing.",
   },
@@ -95,6 +95,10 @@ export function AccessControlScreen() {
   // TOTP modal
   const [totpModalOpen, setTotpModalOpen] = useState(false);
   const [totpError, setTotpError] = useState<string | null>(null);
+  const [roleBlock, setRoleBlock] = useState<{
+    role: string;
+    count: number;
+  } | null>(null);
 
   // Load tenant list
   useEffect(() => {
@@ -158,9 +162,17 @@ export function AccessControlScreen() {
   const toggleRole = (key: string) => {
     if (key === "owner") return; // IMMUTABLE
     if (enabledRoles.includes(key)) {
+      // D-D: never disable a role while staff holding it are active. The lab
+      // must deactivate those accounts first; the API enforces the same rule.
+      const serverRow = access?.roles.find((row) => row.role === key);
+      if (serverRow && serverRow.active_staff_count > 0) {
+        setRoleBlock({ role: key, count: serverRow.active_staff_count });
+        return;
+      }
       setEnabledRoles(enabledRoles.filter((r) => r !== key));
     } else {
       setEnabledRoles([...enabledRoles, key]);
+      setRoleBlock(null);
     }
   };
 
@@ -233,6 +245,7 @@ export function AccessControlScreen() {
                 access.staff_limit !== null ? String(access.staff_limit) : "",
               );
               setFeatureFlags(access.feature_flags);
+              setRoleBlock(null);
               setSuccess(null);
             }}
             className="h-8 px-space-md bg-surface-container-low hover:bg-surface-container text-on-surface font-label-sm text-label-sm rounded transition-colors flex items-center gap-space-xs shadow-sm"
@@ -353,53 +366,75 @@ export function AccessControlScreen() {
               {ROLES.map((role) => {
                 const isEnabled = enabledRoles.includes(role.key);
                 const isOwner = role.key === "owner";
+                const serverRow = access.roles?.find(
+                  (row) => row.role === role.key,
+                );
+                const activeCount = serverRow?.active_staff_count ?? 0;
 
                 return (
                   <div
                     key={role.key}
-                    className="py-space-md flex items-start justify-between gap-space-md"
+                    className="py-space-md flex flex-col gap-space-sm"
                   >
-                    <div className="flex flex-col">
-                      <div className="flex items-center gap-space-xs">
-                        <span className="font-title-sm text-title-sm text-on-surface font-bold">
-                          {role.name}
-                        </span>
-                        {isOwner ? (
-                          <span className="bg-primary text-on-primary font-code-sm text-[10px] px-1.5 py-0.5 rounded font-extrabold uppercase tracking-wider flex items-center gap-1">
-                            <span className="material-symbols-outlined text-[12px]">
-                              lock
+                    <div className="flex items-start justify-between gap-space-md">
+                      <div className="flex flex-col">
+                        <div className="flex items-center gap-space-xs">
+                          <span className="font-title-sm text-title-sm text-on-surface font-bold">
+                            {role.name}
+                          </span>
+                          {isOwner ? (
+                            <span className="bg-primary text-on-primary font-code-sm text-[10px] px-1.5 py-0.5 rounded font-extrabold uppercase tracking-wider flex items-center gap-1">
+                              <span className="material-symbols-outlined text-[12px]">
+                                lock
+                              </span>
+                              IMMUTABLE SYSTEM ROLE
                             </span>
-                            IMMUTABLE SYSTEM ROLE
-                          </span>
-                        ) : isEnabled ? (
-                          <span className="bg-primary-fixed text-on-primary-fixed font-code-sm text-[10px] px-1.5 py-0.5 rounded font-bold uppercase">
-                            ENABLED
-                          </span>
-                        ) : (
-                          <span className="bg-surface-container-high text-outline font-code-sm text-[10px] px-1.5 py-0.5 rounded font-bold uppercase">
-                            DISABLED
-                          </span>
+                          ) : isEnabled ? (
+                            <span className="bg-primary-fixed text-on-primary-fixed font-code-sm text-[10px] px-1.5 py-0.5 rounded font-bold uppercase">
+                              ENABLED
+                            </span>
+                          ) : (
+                            <span className="bg-surface-container-high text-outline font-code-sm text-[10px] px-1.5 py-0.5 rounded font-bold uppercase">
+                              DISABLED
+                            </span>
+                          )}
+                        </div>
+                        <p className="font-body-xs text-body-xs text-on-surface-variant mt-1 leading-relaxed">
+                          {role.desc}
+                        </p>
+                        {!isOwner && (
+                          <p className="font-code-sm text-code-sm text-outline mt-1">
+                            {activeCount} active staff
+                            {activeCount > 0 && isEnabled
+                              ? " — deactivate them before disabling this role"
+                              : ""}
+                          </p>
                         )}
                       </div>
-                      <p className="font-body-xs text-body-xs text-on-surface-variant mt-1 leading-relaxed">
-                        {role.desc}
-                      </p>
+
+                      <button
+                        type="button"
+                        disabled={isOwner}
+                        onClick={() => toggleRole(role.key)}
+                        className={`w-11 h-6 rounded-full relative transition-colors shrink-0 mt-1 cursor-pointer disabled:cursor-not-allowed ${
+                          isEnabled ? "bg-primary" : "bg-surface-container-high"
+                        }`}
+                      >
+                        <span
+                          className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all shadow-xs ${
+                            isEnabled ? "right-1" : "left-1"
+                          }`}
+                        />
+                      </button>
                     </div>
 
-                    <button
-                      type="button"
-                      disabled={isOwner}
-                      onClick={() => toggleRole(role.key)}
-                      className={`w-11 h-6 rounded-full relative transition-colors shrink-0 mt-1 cursor-pointer disabled:cursor-not-allowed ${
-                        isEnabled ? "bg-primary" : "bg-surface-container-high"
-                      }`}
-                    >
-                      <span
-                        className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all shadow-xs ${
-                          isEnabled ? "right-1" : "left-1"
-                        }`}
-                      />
-                    </button>
+                    {roleBlock?.role === role.key && (
+                      <div className="rounded border border-error/30 bg-error/10 px-space-sm py-2 font-body-sm text-body-sm text-error">
+                        {roleBlock.count} active staff still hold this role.
+                        Deactivate those accounts in the lab&apos;s Settings →
+                        Staff screen before disabling it. Nothing was changed.
+                      </div>
+                    )}
                   </div>
                 );
               })}

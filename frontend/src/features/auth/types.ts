@@ -7,18 +7,21 @@
  */
 
 export type UserRole =
-  "owner" | "manager" | "pathologist" | "technician" | "receptionist" | "admin";
+  "owner" | "manager" | "pathologist" | "technician" | "reception";
 
 export interface AuthUser {
   id: string;
-  name: string;
+  name?: string;
   email?: string;
   role: UserRole;
   branch_ids: string[];
+  display_name?: string;
   /** True while the account is still on the provisioning-issued temp password. */
   must_change_password?: boolean;
   /** True when two-factor authentication is enrolled for the account. */
   totp_enabled?: boolean;
+  /** Limited-session marker returned by the backend (S6/S7). */
+  onboarding?: "password_change" | "totp_enroll" | null;
 }
 
 export interface LoginCredentials {

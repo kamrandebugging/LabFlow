@@ -16,6 +16,7 @@ from django.db import IntegrityError, transaction
 from django.utils import timezone
 
 from apps.accounts.models import AuditLog, Role, StaffUser
+from apps.branches.scoping import effective_branch_ids
 from apps.catalog.models import ReferenceRange
 from apps.catalog.services import CatalogService, _to_range_row
 from apps.reports.models import Report
@@ -201,18 +202,26 @@ class NotificationInFutureError(ResultError):
 
 
 def _get_sample(sample_id: uuid.UUID) -> Sample:
-    """Fetch a tenant-scoped sample with patient + branch, or 404 (never 403)."""
+    """Fetch a tenant-scoped sample with patient + branch, or 404.
+
+    Branch rules stay operation-specific: result entry returns the documented
+    ``sample_not_here`` 409, read-only detail filters by the caller branch.
+    """
     try:
         return Sample.objects.select_related("invoice__patient", "branch").get(
             pk=sample_id
         )
-    except Sample.DoesNotExist:
+    except (Sample.DoesNotExist, ValueError, TypeError):
         raise ResultNotFoundError("Sample not found.") from None
 
 
 def _caller_branch(actor: StaffUser) -> Any:
-    """The branch holding the caller — None for a branchless actor."""
-    return actor.branch if actor.branch_id else None
+    """The branch holding the caller; fail closed for scoped accounts."""
+    if actor.is_tenant_wide:
+        return None
+    if not actor.branch_id:
+        raise ResultNotFoundError("Sample not found.")
+    return actor.branch
 
 
 def _age_in_days(dob: date | None, as_of: date) -> int | None:
@@ -445,7 +454,13 @@ class ResultService:
         *, sample_id: uuid.UUID, actor: StaffUser
     ) -> list[dict[str, Any]]:
         """All real result rows recorded for one sample (read-only)."""
-        _get_sample(sample_id)
+        sample = _get_sample(sample_id)
+        # S5 (BOLA): cross-branch result reads are indistinguishable from a
+        # missing sample.
+        if not actor.is_tenant_wide and sample.branch_id not in (
+            effective_branch_ids(actor)
+        ):
+            raise ResultNotFoundError("Sample not found.")
         rows = (
             Result.objects.select_related(
                 "sample__invoice__patient",

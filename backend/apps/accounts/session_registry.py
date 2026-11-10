@@ -78,6 +78,7 @@ def register_session(
     ip: str,
     user_agent: str,
     family_expires_at: int,
+    onboarding: str | None = None,
 ) -> dict[str, Any]:
     """Register a new active session under the user's registry."""
     key = _sessions_key(tenant_id, user_id)
@@ -92,6 +93,7 @@ def register_session(
         "created_at": now_iso,
         "last_active": now_iso,
         "family_expires_at": family_expires_at,
+        "onboarding": onboarding or "",
     }
 
     try:

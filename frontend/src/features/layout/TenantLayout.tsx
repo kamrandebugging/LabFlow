@@ -9,7 +9,14 @@ import {
 } from "react-router-dom";
 
 import { useAuthStore } from "../auth/authStore";
-import { MustChangePasswordModal } from "../auth/MustChangePasswordModal";
+import { ForcedPasswordChangeScreen } from "../auth/ForcedPasswordChangeScreen";
+import {
+  canAccessPath,
+  navForRole,
+  needsTotpEnrolment,
+  ROLE_LABELS,
+  roleHome,
+} from "../auth/access";
 import { fetchTenantContext, getSubdomainTenant } from "../auth/tenantContext";
 import { partnersService } from "../partners/partnersService";
 import { reportsService } from "../reports/reportsService";
@@ -33,28 +40,25 @@ export function TenantLayout(): ReactElement {
     exceptions: 0,
   });
 
-  const userInitials = useMemo(() => {
-    if (user?.name) {
-      const parts = user.name.trim().split(/\s+/);
-      if (parts.length >= 2 && parts[0] && parts[1]) {
-        return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
-      }
-      return user.name.slice(0, 2).toUpperCase();
-    }
-    if (user?.email) {
-      return user.email.slice(0, 2).toUpperCase();
-    }
-    return "AR";
+  const displayName = useMemo(() => {
+    return user?.display_name || user?.name || user?.email || "Staff";
   }, [user]);
 
-  const displayName = useMemo(() => {
-    return user?.name || user?.email || "Ali Raza";
-  }, [user]);
+  const userInitials = useMemo(() => {
+    const source = displayName.trim();
+    const parts = source.split(/\s+/);
+    if (parts.length >= 2 && parts[0] && parts[1]) {
+      return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+    }
+    return source.slice(0, 2).toUpperCase();
+  }, [displayName]);
 
   const userRole = useMemo(() => {
     if (!user?.role) return "Staff";
-    return user.role.charAt(0).toUpperCase() + user.role.slice(1);
+    return ROLE_LABELS[user.role] ?? "Staff";
   }, [user?.role]);
+
+  const navigation = useMemo(() => navForRole(user?.role), [user?.role]);
 
   useEffect(() => {
     let active = true;
@@ -106,8 +110,24 @@ export function TenantLayout(): ReactElement {
     };
   }, [location.pathname, accessToken]);
 
-  if (!accessToken) {
+  if (!accessToken || !user) {
     return <Navigate to="/login" replace />;
+  }
+
+  // S7: the temporary-password flow is a hard gate, not a dismissible modal.
+  if (user?.must_change_password) {
+    return <ForcedPasswordChangeScreen />;
+  }
+
+  // S6: a mandatory-TOTP role cannot reach the shell before enrolment.
+  if (needsTotpEnrolment(user?.role, user?.totp_enabled)) {
+    return <Navigate to="/login/enroll" replace />;
+  }
+
+  // S3/S15: owner-only screens never render for staff. The API refuses them
+  // independently; this only prevents a dead-end screen.
+  if (user && !canAccessPath(user.role, location.pathname)) {
+    return <Navigate to={roleHome(user.role)} replace />;
   }
 
   const handleLogout = () => {
@@ -223,162 +243,62 @@ export function TenantLayout(): ReactElement {
 
       {/* Left Sidebar */}
       <aside className="fixed left-0 top-16 bottom-0 w-60 bg-white border-r border-slate-200/80 z-40 overflow-y-auto p-4 flex flex-col gap-6">
-        <div className="flex flex-col">
-          <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1 px-3">
-            Lab Operations
+        {navigation.operations.length > 0 && (
+          <div className="flex flex-col">
+            <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1 px-3">
+              Lab Operations
+            </div>
+            <nav className="flex flex-col gap-0.5">
+              {navigation.operations.map((item) => (
+                <Link key={item.to} to={item.to} className={linkClass(item.to)}>
+                  <div className="flex items-center gap-2.5">
+                    <span className="material-symbols-outlined text-[18px]">
+                      {item.icon}
+                    </span>
+                    <span>{item.label}</span>
+                  </div>
+                  {item.to === "/results/approvals" &&
+                    badges.pendingApprovals > 0 && (
+                      <span className="text-[11px] px-2 py-0.5 rounded-full bg-slate-100 text-teal-800 font-semibold">
+                        {badges.pendingApprovals}
+                      </span>
+                    )}
+                  {item.to === "/exceptions" && badges.exceptions > 0 && (
+                    <span className="text-[11px] px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-semibold">
+                      {badges.exceptions}
+                    </span>
+                  )}
+                </Link>
+              ))}
+            </nav>
           </div>
-          <nav className="flex flex-col gap-0.5">
-            <Link to="/" className={linkClass("/")}>
-              <span className="material-symbols-outlined text-[18px]">
-                home
-              </span>
-              <span>Home</span>
-            </Link>
-            <Link to="/patients" className={linkClass("/patients")}>
-              <span className="material-symbols-outlined text-[18px]">
-                personal_injury
-              </span>
-              <span>Patients</span>
-            </Link>
-            <Link to="/invoices" className={linkClass("/invoices")}>
-              <span className="material-symbols-outlined text-[18px]">
-                receipt_long
-              </span>
-              <span>Invoices &amp; Payments</span>
-            </Link>
-            <Link to="/samples" className={linkClass("/samples")}>
-              <span className="material-symbols-outlined text-[18px]">
-                colorize
-              </span>
-              <span>Samples</span>
-            </Link>
-            <Link to="/worklist" className={linkClass("/worklist")}>
-              <span className="material-symbols-outlined text-[18px]">
-                assignment
-              </span>
-              <span>Worklist</span>
-            </Link>
-            <Link
-              to="/worklist"
-              className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition-colors"
-            >
-              <span className="material-symbols-outlined text-[18px]">
-                edit_note
-              </span>
-              <span>Results Entry</span>
-            </Link>
-            <Link
-              to="/results/approvals"
-              className={`flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors ${
-                isLinkActive("/results/approvals")
-                  ? "bg-[#86f2e4]/70 text-[#005c55] font-semibold"
-                  : "text-slate-700 hover:bg-slate-50 hover:text-slate-900"
-              }`}
-            >
-              <div className="flex items-center gap-2.5">
-                <span className="material-symbols-outlined text-[18px]">
-                  verified
-                </span>
-                <span>Approvals</span>
-              </div>
-              <span className="text-[11px] px-2 py-0.5 rounded-full bg-slate-100 text-teal-800 font-semibold">
-                {badges.pendingApprovals}
-              </span>
-            </Link>
-            <Link to="/exceptions" className={linkClass("/exceptions")}>
-              <span className="material-symbols-outlined text-[18px]">
-                notification_important
-              </span>
-              <span>Critical Notifications</span>
-            </Link>
-            <Link to="/reports" className={linkClass("/reports")}>
-              <span className="material-symbols-outlined text-[18px]">
-                lab_profile
-              </span>
-              <span>Reports</span>
-            </Link>
-            <Link
-              to="/exceptions"
-              className={`flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors ${
-                isLinkActive("/exceptions")
-                  ? "bg-[#86f2e4]/70 text-[#005c55] font-semibold"
-                  : "text-slate-700 hover:bg-slate-50 hover:text-slate-900"
-              }`}
-            >
-              <div className="flex items-center gap-2.5">
-                <span className="material-symbols-outlined text-[18px]">
-                  warning
-                </span>
-                <span>Exceptions</span>
-              </div>
-              <span className="text-[11px] px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-semibold">
-                {badges.exceptions}
-              </span>
-            </Link>
-          </nav>
-        </div>
+        )}
 
-        <div className="flex flex-col">
-          <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1 px-3">
-            Management
+        {navigation.management.length > 0 && (
+          <div className="flex flex-col">
+            <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1 px-3">
+              Management
+            </div>
+            <nav className="flex flex-col gap-0.5">
+              {navigation.management.map((item) => (
+                <Link key={item.to} to={item.to} className={linkClass(item.to)}>
+                  <div className="flex items-center gap-2.5">
+                    <span className="material-symbols-outlined text-[18px]">
+                      {item.icon}
+                    </span>
+                    <span>{item.label}</span>
+                  </div>
+                  {item.to === "/settlements" &&
+                    badges.draftSettlements > 0 && (
+                      <span className="text-[11px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 font-semibold">
+                        {badges.draftSettlements}
+                      </span>
+                    )}
+                </Link>
+              ))}
+            </nav>
           </div>
-          <nav className="flex flex-col gap-0.5">
-            <Link to="/partners" className={linkClass("/partners")}>
-              <span className="material-symbols-outlined text-[18px]">
-                handshake
-              </span>
-              <span>Partners &amp; Share Ledger</span>
-            </Link>
-            <Link
-              to="/settlements"
-              className={`flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors ${
-                isLinkActive("/settlements")
-                  ? "bg-[#86f2e4]/70 text-[#005c55] font-semibold"
-                  : "text-slate-700 hover:bg-slate-50 hover:text-slate-900"
-              }`}
-            >
-              <div className="flex items-center gap-2.5">
-                <span className="material-symbols-outlined text-[18px]">
-                  account_balance_wallet
-                </span>
-                <span>Settlements</span>
-              </div>
-              <span className="text-[11px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 font-semibold">
-                {badges.draftSettlements}
-              </span>
-            </Link>
-            <Link to="/catalog" className={linkClass("/catalog")}>
-              <span className="material-symbols-outlined text-[18px]">
-                medical_services
-              </span>
-              <span>Catalog</span>
-            </Link>
-            <Link
-              to="/settings/account"
-              className={linkClass("/settings/account")}
-            >
-              <span className="material-symbols-outlined text-[18px]">
-                shield
-              </span>
-              <span>Account &amp; Security</span>
-            </Link>
-            <Link to="/settings" className={linkClass("/settings")}>
-              <span className="material-symbols-outlined text-[18px]">
-                settings
-              </span>
-              <span>Settings</span>
-            </Link>
-            <Link
-              to="/settings/branches"
-              className={linkClass("/settings/branches")}
-            >
-              <span className="material-symbols-outlined text-[18px]">
-                domain
-              </span>
-              <span>Branches</span>
-            </Link>
-          </nav>
-        </div>
+        )}
       </aside>
 
       {/* Main Content Area */}
@@ -387,9 +307,6 @@ export function TenantLayout(): ReactElement {
           <Outlet />
         </main>
       </div>
-
-      {/* One-time temporary-password warning (shown until dismissed or changed) */}
-      <MustChangePasswordModal />
     </div>
   );
 }

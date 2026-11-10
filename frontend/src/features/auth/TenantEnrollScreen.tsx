@@ -4,6 +4,7 @@ import { Check, Copy, ShieldCheck } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 import { useAuthStore } from "./authStore";
+import { roleHome } from "./access";
 
 /**
  * Tenant Owner / Staff mandatory TOTP enrolment screen.
@@ -110,7 +111,7 @@ export function TenantEnrollScreen(): ReactElement {
       const data = await res.json();
       setBackupCodes(data.backup_codes);
       if (user) {
-        setSession(accessToken, { ...user });
+        setSession(accessToken, { ...user, totp_enabled: true });
       }
     } catch {
       setError(
@@ -182,7 +183,7 @@ export function TenantEnrollScreen(): ReactElement {
             <button
               type="button"
               onClick={() =>
-                navigate(user?.role === "owner" ? "/" : "/invoices", {
+                navigate(roleHome(user?.role), {
                   replace: true,
                 })
               }

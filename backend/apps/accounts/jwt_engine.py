@@ -27,8 +27,13 @@ def mint_access_token(
     role: str,
     jti: str | None = None,
     session_id: uuid.UUID | str | None = None,
+    onboarding: str | None = None,
 ) -> tuple[str, str, int]:
     """Mint a 15-minute access JWT (Doc 08 §4.3).
+
+    ``onboarding`` marks a login-issued session that is still limited to the
+    password-change or TOTP-enrolment flow (S6). Tokens without the claim are
+    ordinary full sessions.
 
     Returns (encoded_jwt, jti, exp_timestamp).
     """
@@ -48,6 +53,8 @@ def mint_access_token(
     }
     if session_id:
         payload["sid"] = str(session_id)
+    if onboarding:
+        payload["onboarding"] = onboarding
 
     token = jwt.encode(payload, get_jwt_signing_key(), algorithm=JWT_ALGORITHM)
     return token, token_jti, exp_int

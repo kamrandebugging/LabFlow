@@ -196,7 +196,7 @@ describe("Screen 37: PartnerDetailScreen (/partners/:id)", () => {
       id: "u3",
       email: "recp@labflow.app",
       name: "Sobia Receptionist",
-      role: "receptionist",
+      role: "reception",
       branch_ids: ["b1"],
     });
 

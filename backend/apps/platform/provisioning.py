@@ -378,11 +378,16 @@ def create_tenant_provisioning(data: ProvisionTenantInput) -> ProvisionTenantRes
 
             temp_pass = generate_temp_password()
             temp_expires = timezone.now() + timedelta(hours=24)
+            # D-G: a new lab starts with the roles a small solo lab actually
+            # uses. Manager and Pathologist stay OFF until the Platform enables
+            # them; the Owner role is always present and never toggleable.
             roles = (
                 list(data.enabled_roles)
                 if data.enabled_roles is not None
-                else ["owner"]
+                else ["owner", "reception", "technician"]
             )
+            roles = [str(r).strip().lower() for r in roles if str(r).strip()]
+            roles = ["reception" if r == "receptionist" else r for r in roles]
             if "owner" not in roles:
                 roles.append("owner")
 
@@ -887,6 +892,7 @@ def create_tenant_owner_activation(
             )
             owner = StaffUser.objects.create(
                 email=cleaned_email,
+                display_name=(owner_name or "").strip()[:255],
                 role=Role.OWNER,
                 branch=None,
                 password_hash=initial_password_hash,

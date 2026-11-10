@@ -88,14 +88,20 @@ export const accountService = {
     return handleResponse<{ backup_codes: string[] }>(res);
   },
 
-  async disableTotp(
-    currentPassword: string,
-  ): Promise<{ status: string; message: string }> {
+  async disableTotp(currentPassword: string): Promise<{
+    status: string;
+    message: string;
+    re_enrol_required?: boolean;
+  }> {
     const res = await fetch("/api/v1/auth/totp/disable", {
       method: "POST",
       headers: getAuthHeaders(),
       body: JSON.stringify({ current_password: currentPassword }),
     });
-    return handleResponse<{ status: string; message: string }>(res);
+    return handleResponse<{
+      status: string;
+      message: string;
+      re_enrol_required?: boolean;
+    }>(res);
   },
 };

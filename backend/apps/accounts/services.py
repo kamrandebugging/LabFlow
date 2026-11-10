@@ -274,6 +274,11 @@ class StaffBranchService:
                     for row in cleaned
                 ]
             )
+            # Keep the home branch in lock-step with the primary assignment so
+            # revoking a branch also revokes the v1 home-branch fallback.
+            primary = next((row for row in cleaned if row["is_primary"]), None)
+            staff.branch = by_id[primary["branch_id"]] if primary else None
+            staff.save(update_fields=["branch", "updated_at"])
             after_rows = (
                 StaffBranch.objects.filter(staff_user=staff)
                 .select_related("branch")

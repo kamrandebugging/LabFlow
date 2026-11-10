@@ -161,7 +161,7 @@ describe("Screen 34: TenantSettingsScreen (/settings/tenant)", () => {
       id: "u3",
       email: "reception@labflow.app",
       name: "Rehan Reception",
-      role: "receptionist",
+      role: "reception",
       branch_ids: ["b1"],
     });
 

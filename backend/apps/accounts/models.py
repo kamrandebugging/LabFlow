@@ -2,6 +2,7 @@ import uuid
 
 from django.contrib.postgres.fields import ArrayField
 from django.db import models
+from django.db.models.functions import Lower
 
 from apps.branches.models import Branch
 
@@ -28,6 +29,23 @@ class StaffUser(models.Model):
     )
     role = models.CharField(max_length=50, choices=Role.choices)
     email = models.EmailField(max_length=255)
+    display_name = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+        help_text=(
+            "Human-readable name shown in audit trails, approvals, ledgers and "
+            "report footers. Required for accounts created through Staff CRUD."
+        ),
+    )
+    created_by = models.ForeignKey(
+        "self",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="created_staff",
+        db_column="created_by_id",
+    )
     password_hash = models.CharField(max_length=255)
     totp_secret_encrypted = models.TextField(null=True, blank=True)  # noqa: DJ001
     totp_backup_codes_hash = ArrayField(
@@ -48,13 +66,14 @@ class StaffUser(models.Model):
         db_table = "staff_user"
         constraints = [
             models.UniqueConstraint(fields=["email"], name="uq_staff_user_email"),
+            models.UniqueConstraint(Lower("email"), name="uq_staff_user_email_ci"),
         ]
         indexes = [
             models.Index(fields=["branch"], name="idx_staff_user_branch_id"),
         ]
 
     def __str__(self) -> str:
-        return f"{self.email} ({self.role})"
+        return f"{self.display_name or self.email} ({self.role})"
 
     @property
     def is_authenticated(self) -> bool:

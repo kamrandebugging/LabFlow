@@ -9,12 +9,39 @@ from typing import Any
 
 from rest_framework import authentication, exceptions
 
+from apps.accounts.auth_service import MANDATORY_TOTP_ROLES as _MANDATORY_TOTP_ROLES
 from apps.accounts.jwt_engine import decode_jwt
 from apps.accounts.models import StaffUser
 from apps.accounts.session_registry import (
     get_user_revocation_marker,
     is_access_jti_denylisted,
     is_session_revoked,
+)
+from apps.core.exceptions import OnboardingIncomplete
+
+# Routes a limited (login-issued) session may still call.
+_PASSWORD_CHANGE_PATHS = frozenset(
+    {
+        "/api/v1/auth/password/change",
+        "/api/v1/auth/password/change/",
+        "/api/v1/auth/logout",
+        "/api/v1/auth/logout/",
+        "/api/v1/auth/sessions",
+        "/api/v1/auth/sessions/",
+        "/api/v1/auth/sessions/revoke-all",
+        "/api/v1/auth/sessions/revoke-all/",
+        "/api/v1/auth/tenant",
+        "/api/v1/auth/tenant/",
+    }
+)
+_TOTP_ENROLL_PATHS = frozenset(
+    {
+        *_PASSWORD_CHANGE_PATHS,
+        "/api/v1/auth/totp/enroll",
+        "/api/v1/auth/totp/enroll/",
+        "/api/v1/auth/totp/enroll/confirm",
+        "/api/v1/auth/totp/enroll/confirm/",
+    }
 )
 
 
@@ -88,6 +115,22 @@ class JWTAuthentication(authentication.BaseAuthentication):
             user = StaffUser.objects.filter(id=user_id, is_active=True).first()
         if not user:
             raise exceptions.AuthenticationFailed("User not found or deactivated")
+
+        # S6/S7: a login-issued session cannot reach business endpoints while
+        # the account is still on a temporary password or a mandatory-TOTP
+        # role has not enrolled. The check is state-based, so finishing the
+        # flow upgrades the same token without a re-login.
+        if payload.get("onboarding"):
+            path = getattr(request, "path", "") or ""
+            if user.password_is_temporary:
+                if path not in _PASSWORD_CHANGE_PATHS:
+                    raise OnboardingIncomplete("password_change_required")
+            elif (
+                user.role in _MANDATORY_TOTP_ROLES
+                and not user.totp_enabled
+                and path not in _TOTP_ENROLL_PATHS
+            ):
+                raise OnboardingIncomplete("totp_enrollment_required")
 
         return user, payload
 

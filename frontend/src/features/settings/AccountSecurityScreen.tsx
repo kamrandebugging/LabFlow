@@ -16,6 +16,7 @@ import { accountService, AccountApiError } from "./accountService";
 export const AccountSecurityScreen: React.FC = () => {
   const user = useAuthStore((s) => s.user);
   const setSession = useAuthStore((s) => s.setSession);
+  const logout = useAuthStore((s) => s.logout);
 
   // --------------------------------------------------------------------------
   // Change password state
@@ -170,7 +171,14 @@ export const AccountSecurityScreen: React.FC = () => {
     setDisableBusy(true);
     setTotpError(null);
     try {
-      await accountService.disableTotp(disablePassword);
+      const result = await accountService.disableTotp(disablePassword);
+      if (result.re_enrol_required) {
+        // Mandatory role: the server revoked every session so a fresh login
+        // must enrol TOTP again before business screens unlock.
+        await logout();
+        window.location.replace("/login?reason=totp_disabled");
+        return;
+      }
       setTotpEnabled(false);
       setDisableOpen(false);
       setDisablePassword("");
