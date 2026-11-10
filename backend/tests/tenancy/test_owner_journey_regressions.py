@@ -26,7 +26,6 @@ from apps.accounts.models import Role, StaffBranch, StaffUser
 from apps.billing.serializers import PaymentSerializer
 from apps.patients.models import PatientConsent, PatientContact
 from apps.reports.services_query import _age_years
-from apps.samples.models import Sample
 from apps.samples.serializers import SampleDetailSerializer
 from tests.factories.branch import BranchFactory
 from tests.factories.samples import SampleEventFactory
@@ -247,7 +246,7 @@ class TestSampleDetailTimeline:
             assert events[0]["branch"]["name"] == "Event Branch"
 
 
-def _make_sample(branch: Any) -> Sample:
+def _make_sample(branch: Any) -> Any:
     """Minimal sample row for serializer-only assertions."""
     from tests.factories import InvoiceFactory, PatientFactory, SampleFactory
 
