@@ -217,6 +217,8 @@ jobs:
       - name: Verify backend loads with manage.py check
         working-directory: backend
         env:
+          DJANGO_SETTINGS_MODULE: config.settings.dev
+          LABFLOW_LOCAL_DEV: "1"
           DJANGO_SECRET_KEY: ci-build-verification-secret-key-32-chars-min
           DATABASE_URL: postgresql://dummy_user:dummy_password@localhost:5432/dummy_db
           REDIS_URL: redis://localhost:6379/0
