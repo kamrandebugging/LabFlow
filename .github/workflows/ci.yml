@@ -95,12 +95,12 @@ jobs:
         run: npm run typecheck
 
   test:
-    name: Unit & Integration Tests (${{ matrix.group }}/3)
+    name: Unit & Integration Tests (${{ matrix.group }}/5)
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        group: [1, 2, 3]
+        group: [1, 2, 3, 4, 5]
     services:
       postgres:
         image: postgres:16
@@ -163,7 +163,7 @@ jobs:
           DJANGO_SECRET_KEY: ci-test-secret-key-32-chars-minimum-length-for-testing
         run: |
           python -c "import os, urllib.parse; scheme = urllib.parse.urlparse(os.environ['DATABASE_URL']).scheme; assert scheme in ('postgres', 'postgresql'), 'FAIL: SQLite fallback prohibited. Must use PostgreSQL service container.'"
-          python -m pytest -q -n auto --splits 3 --group ${{ matrix.group }}
+          python -m pytest -q -n auto --splits 5 --group ${{ matrix.group }}
 
   build:
     name: Container & Artifact Build
@@ -276,4 +276,5 @@ jobs:
       - name: Run Node dependency vulnerability audit
         working-directory: frontend
         run: npm audit --audit-level=high
+
 
