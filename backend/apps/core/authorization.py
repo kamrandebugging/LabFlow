@@ -58,7 +58,7 @@ ROLE_POLICY: Final[dict[str, dict[str, frozenset[str]]]] = {
     "patient-detail": {
         "GET": ALL_STAFF,
         "PATCH": FRONT_DESK,
-        "DELETE": OWNER_ONLY,
+        "DELETE": ADMIN,
     },
     "patient-history": {"GET": ALL_STAFF},
     # --- Catalog -------------------------------------------------------------

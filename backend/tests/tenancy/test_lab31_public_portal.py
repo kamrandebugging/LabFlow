@@ -773,11 +773,10 @@ class TestFileDownloadAndHardening:
             url = ReportStorage().presigned_url("reports/abc/1.pdf", 900)
         assert url == "https://r2.example/reports/abc/1.pdf?expire=900"
 
-    def test_throttle_fail_open_on_cache_error(
+    def test_throttle_fail_closed_on_cache_error(
         self, client: Client, auth_headers: Any, lab31_setup: dict[str, Any]
     ) -> None:
-        """A down cache must not 500 patients — the throttle fails open
-        (and logs). Documented in apps/reports/throttling.py."""
+        """A down cache answers 429, never removes the public limit."""
         from unittest.mock import MagicMock
 
         broken = MagicMock()
@@ -789,8 +788,8 @@ class TestFileDownloadAndHardening:
                 HTTP_HOST=auth_headers()["Host"],
                 HTTP_X_FORWARDED_FOR=_unique_test_ip(),
             )
-        # Request was allowed through despite the cache failure.
-        assert resp.status_code == 404
+        assert resp.status_code == 429
+        assert resp["Retry-After"]
 
     def test_throttle_resets_on_non_numeric_value(
         self, client: Client, auth_headers: Any, lab31_setup: dict[str, Any]

@@ -313,10 +313,7 @@ class TestReviewFixups:
         import config.settings.base as base
 
         monkeypatch.setattr(base, "_IS_LOCAL_DEV", False)
-        monkeypatch.setenv(
-            "DJANGO_SECRET_KEY",
-            "jwt-secret-key-for-local-dev-signing-minimum-32-chars-length",
-        )
+        monkeypatch.setenv("DJANGO_SECRET_KEY", base._COMMITTED_TOTP_KEY)
         with pytest.raises(ImproperlyConfigured):
             base._require_env_secret(
                 "DJANGO_SECRET_KEY", forbidden=base._PUBLIC_EXAMPLE_VALUES
