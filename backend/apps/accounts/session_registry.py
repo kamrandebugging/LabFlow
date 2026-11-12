@@ -226,6 +226,24 @@ def mark_jti_used(jti: str, ttl_seconds: int = SEVEN_DAYS_SECONDS) -> None:
         logger.warning("Failed to mark jti used in Redis: %s", exc)
 
 
+class SessionRegistryUnavailable(Exception):
+    """The session registry could not be read/written (Redis unavailable)."""
+
+
+def claim_jti_once(jti: str, ttl_seconds: int = SEVEN_DAYS_SECONDS) -> bool:
+    """Atomically claim a refresh jti exactly once (SE-05, A2-4).
+
+    Returns True when this caller won the claim, False when the jti was
+    already used. Raises ``SessionRegistryUnavailable`` on a cache error so the
+    caller can deny the refresh without treating an outage as token theft
+    (django-reviewer finding 2026-11-12).
+    """
+    try:
+        return bool(cache.add(_used_jti_key(jti), "1", timeout=max(1, ttl_seconds)))
+    except Exception as exc:
+        raise SessionRegistryUnavailable(str(exc)) from exc
+
+
 def is_jti_used(jti: str) -> bool:
     """Check if refresh token jti was already rotated (reuse detection)."""
     try:

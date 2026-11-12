@@ -1,0 +1,6093 @@
+{
+  "gated_surfaces": [
+    {
+      "note": "Django admin; the Caddy ADMIN_ALLOWED_IPS allowlist is an operator step and is NOT enabled by default",
+      "path": "/admin/"
+    },
+    {
+      "note": "OpenAPI docs; gated by DOCS_ENABLED (Phase 3.2)",
+      "path": "/api/schema|docs|redoc"
+    }
+  ],
+  "generated_by": "python manage.py api_inventory",
+  "route_count": 317,
+  "routes": [
+    {
+      "methods": [
+        "GET"
+      ],
+      "name": "swagger-ui",
+      "path": "/api/docs/",
+      "permissions": [
+        "AllowAny"
+      ],
+      "public": true,
+      "roles": {},
+      "urlconf": "tenant",
+      "view": "SpectacularSwaggerView"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "name": "redoc",
+      "path": "/api/redoc/",
+      "permissions": [
+        "AllowAny"
+      ],
+      "public": true,
+      "roles": {},
+      "urlconf": "tenant",
+      "view": "SpectacularRedocView"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "name": "schema",
+      "path": "/api/schema/",
+      "permissions": [
+        "AllowAny"
+      ],
+      "public": true,
+      "roles": {},
+      "urlconf": "tenant",
+      "view": "SpectacularAPIView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "auth-login",
+      "path": "/api/v1/auth/login",
+      "permissions": [
+        "AllowAny"
+      ],
+      "public": true,
+      "roles": {},
+      "urlconf": "tenant",
+      "view": "LoginView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "auth-login",
+      "path": "/api/v1/auth/login/",
+      "permissions": [
+        "AllowAny"
+      ],
+      "public": true,
+      "roles": {},
+      "urlconf": "tenant",
+      "view": "LoginView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "auth-logout",
+      "path": "/api/v1/auth/logout",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "POST": [
+          "manager",
+          "owner",
+          "pathologist",
+          "reception",
+          "technician"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "LogoutView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "auth-logout",
+      "path": "/api/v1/auth/logout/",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "POST": [
+          "manager",
+          "owner",
+          "pathologist",
+          "reception",
+          "technician"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "LogoutView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "auth-password-reset-confirm",
+      "path": "/api/v1/auth/password-reset/confirm",
+      "permissions": [
+        "AllowAny"
+      ],
+      "public": true,
+      "roles": {},
+      "urlconf": "tenant",
+      "view": "PasswordResetConfirmView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "auth-password-reset-confirm",
+      "path": "/api/v1/auth/password-reset/confirm/",
+      "permissions": [
+        "AllowAny"
+      ],
+      "public": true,
+      "roles": {},
+      "urlconf": "tenant",
+      "view": "PasswordResetConfirmView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "auth-password-reset-request",
+      "path": "/api/v1/auth/password-reset/request",
+      "permissions": [
+        "AllowAny"
+      ],
+      "public": true,
+      "roles": {},
+      "urlconf": "tenant",
+      "view": "PasswordResetRequestView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "auth-password-reset-request",
+      "path": "/api/v1/auth/password-reset/request/",
+      "permissions": [
+        "AllowAny"
+      ],
+      "public": true,
+      "roles": {},
+      "urlconf": "tenant",
+      "view": "PasswordResetRequestView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "auth-password-change",
+      "path": "/api/v1/auth/password/change",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "POST": [
+          "manager",
+          "owner",
+          "pathologist",
+          "reception",
+          "technician"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "PasswordChangeView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "auth-password-change",
+      "path": "/api/v1/auth/password/change/",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "POST": [
+          "manager",
+          "owner",
+          "pathologist",
+          "reception",
+          "technician"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "PasswordChangeView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "auth-refresh",
+      "path": "/api/v1/auth/refresh",
+      "permissions": [
+        "AllowAny"
+      ],
+      "public": true,
+      "roles": {},
+      "urlconf": "tenant",
+      "view": "RefreshView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "auth-refresh",
+      "path": "/api/v1/auth/refresh/",
+      "permissions": [
+        "AllowAny"
+      ],
+      "public": true,
+      "roles": {},
+      "urlconf": "tenant",
+      "view": "RefreshView"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "name": "auth-sessions-list",
+      "path": "/api/v1/auth/sessions",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "manager",
+          "owner",
+          "pathologist",
+          "reception",
+          "technician"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "SessionListView"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "name": "auth-sessions-list",
+      "path": "/api/v1/auth/sessions/",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "manager",
+          "owner",
+          "pathologist",
+          "reception",
+          "technician"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "SessionListView"
+    },
+    {
+      "methods": [
+        "DELETE"
+      ],
+      "name": "auth-session-detail",
+      "path": "/api/v1/auth/sessions/<uuid:session_id>",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "DELETE": [
+          "manager",
+          "owner",
+          "pathologist",
+          "reception",
+          "technician"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "SessionDetailView"
+    },
+    {
+      "methods": [
+        "DELETE"
+      ],
+      "name": "auth-session-detail",
+      "path": "/api/v1/auth/sessions/<uuid:session_id>/",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "DELETE": [
+          "manager",
+          "owner",
+          "pathologist",
+          "reception",
+          "technician"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "SessionDetailView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "auth-sessions-revoke-all",
+      "path": "/api/v1/auth/sessions/revoke-all",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "POST": [
+          "manager",
+          "owner",
+          "pathologist",
+          "reception",
+          "technician"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "RevokeAllSessionsView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "auth-sessions-revoke-all",
+      "path": "/api/v1/auth/sessions/revoke-all/",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "POST": [
+          "manager",
+          "owner",
+          "pathologist",
+          "reception",
+          "technician"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "RevokeAllSessionsView"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "name": "auth-tenant",
+      "path": "/api/v1/auth/tenant",
+      "permissions": [
+        "AllowAny"
+      ],
+      "public": true,
+      "roles": {
+        "GET": [
+          "manager",
+          "owner",
+          "pathologist",
+          "reception",
+          "technician"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "TenantContextView"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "name": "auth-tenant",
+      "path": "/api/v1/auth/tenant/",
+      "permissions": [
+        "AllowAny"
+      ],
+      "public": true,
+      "roles": {
+        "GET": [
+          "manager",
+          "owner",
+          "pathologist",
+          "reception",
+          "technician"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "TenantContextView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "auth-totp-disable",
+      "path": "/api/v1/auth/totp/disable",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "POST": [
+          "manager",
+          "owner",
+          "pathologist",
+          "reception",
+          "technician"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "TotpDisableView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "auth-totp-disable",
+      "path": "/api/v1/auth/totp/disable/",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "POST": [
+          "manager",
+          "owner",
+          "pathologist",
+          "reception",
+          "technician"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "TotpDisableView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "auth-totp-enroll",
+      "path": "/api/v1/auth/totp/enroll",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "POST": [
+          "manager",
+          "owner",
+          "pathologist",
+          "reception",
+          "technician"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "TotpEnrollView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "auth-totp-enroll",
+      "path": "/api/v1/auth/totp/enroll/",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "POST": [
+          "manager",
+          "owner",
+          "pathologist",
+          "reception",
+          "technician"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "TotpEnrollView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "auth-totp-enroll-confirm",
+      "path": "/api/v1/auth/totp/enroll/confirm",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "POST": [
+          "manager",
+          "owner",
+          "pathologist",
+          "reception",
+          "technician"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "TotpEnrollConfirmView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "auth-totp-enroll-confirm",
+      "path": "/api/v1/auth/totp/enroll/confirm/",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "POST": [
+          "manager",
+          "owner",
+          "pathologist",
+          "reception",
+          "technician"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "TotpEnrollConfirmView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "auth-totp-verify",
+      "path": "/api/v1/auth/totp/verify",
+      "permissions": [
+        "AllowAny"
+      ],
+      "public": true,
+      "roles": {
+        "POST": [
+          "manager",
+          "owner",
+          "pathologist",
+          "reception",
+          "technician"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "TotpVerifyView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "auth-totp-verify",
+      "path": "/api/v1/auth/totp/verify/",
+      "permissions": [
+        "AllowAny"
+      ],
+      "public": true,
+      "roles": {
+        "POST": [
+          "manager",
+          "owner",
+          "pathologist",
+          "reception",
+          "technician"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "TotpVerifyView"
+    },
+    {
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "name": "invoice-collection",
+      "path": "/api/v1/billing/invoices",
+      "permissions": [
+        "IsAuthenticated",
+        "IsInBranchScope"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "manager",
+          "owner",
+          "pathologist",
+          "reception",
+          "technician"
+        ],
+        "POST": [
+          "manager",
+          "owner",
+          "reception"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "InvoiceCollectionView"
+    },
+    {
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "name": "invoice-collection",
+      "path": "/api/v1/billing/invoices/",
+      "permissions": [
+        "IsAuthenticated",
+        "IsInBranchScope"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "manager",
+          "owner",
+          "pathologist",
+          "reception",
+          "technician"
+        ],
+        "POST": [
+          "manager",
+          "owner",
+          "reception"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "InvoiceCollectionView"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "name": "invoice-detail",
+      "path": "/api/v1/billing/invoices/<str:invoice_id>",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "manager",
+          "owner",
+          "pathologist",
+          "reception",
+          "technician"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "InvoiceDetailView"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "name": "invoice-detail",
+      "path": "/api/v1/billing/invoices/<str:invoice_id>/",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "manager",
+          "owner",
+          "pathologist",
+          "reception",
+          "technician"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "InvoiceDetailView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "invoice-cancel",
+      "path": "/api/v1/billing/invoices/<uuid:invoice_id>/cancel",
+      "permissions": [
+        "IsAuthenticated",
+        "IsInBranchScope"
+      ],
+      "public": false,
+      "roles": {
+        "POST": [
+          "manager",
+          "owner",
+          "reception"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "InvoiceCancelView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "invoice-cancel",
+      "path": "/api/v1/billing/invoices/<uuid:invoice_id>/cancel/",
+      "permissions": [
+        "IsAuthenticated",
+        "IsInBranchScope"
+      ],
+      "public": false,
+      "roles": {
+        "POST": [
+          "manager",
+          "owner",
+          "reception"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "InvoiceCancelView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "payment-create",
+      "path": "/api/v1/billing/invoices/<uuid:invoice_id>/payments",
+      "permissions": [
+        "IsAuthenticated",
+        "IsInBranchScope"
+      ],
+      "public": false,
+      "roles": {
+        "POST": [
+          "manager",
+          "owner",
+          "reception"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "PaymentCreateView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "payment-create",
+      "path": "/api/v1/billing/invoices/<uuid:invoice_id>/payments/",
+      "permissions": [
+        "IsAuthenticated",
+        "IsInBranchScope"
+      ],
+      "public": false,
+      "roles": {
+        "POST": [
+          "manager",
+          "owner",
+          "reception"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "PaymentCreateView"
+    },
+    {
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "name": "branch-list-create",
+      "path": "/api/v1/branches",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "manager",
+          "owner",
+          "pathologist",
+          "reception",
+          "technician"
+        ],
+        "POST": [
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "BranchListCreateView"
+    },
+    {
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "name": "branch-list-create",
+      "path": "/api/v1/branches/",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "manager",
+          "owner",
+          "pathologist",
+          "reception",
+          "technician"
+        ],
+        "POST": [
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "BranchListCreateView"
+    },
+    {
+      "methods": [
+        "PATCH"
+      ],
+      "name": "branch-detail",
+      "path": "/api/v1/branches/<uuid:branch_id>",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "PATCH": [
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "BranchDetailView"
+    },
+    {
+      "methods": [
+        "PATCH"
+      ],
+      "name": "branch-detail",
+      "path": "/api/v1/branches/<uuid:branch_id>/",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "PATCH": [
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "BranchDetailView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "branch-close",
+      "path": "/api/v1/branches/<uuid:branch_id>/close",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "POST": [
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "BranchCloseView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "branch-close",
+      "path": "/api/v1/branches/<uuid:branch_id>/close/",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "POST": [
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "BranchCloseView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "branch-reopen",
+      "path": "/api/v1/branches/<uuid:branch_id>/reopen",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "POST": [
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "BranchReopenView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "branch-reopen",
+      "path": "/api/v1/branches/<uuid:branch_id>/reopen/",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "POST": [
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "BranchReopenView"
+    },
+    {
+      "methods": [
+        "PATCH"
+      ],
+      "name": "branch-detail",
+      "path": "/api/v1/branches<uuid:branch_id>",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "PATCH": [
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "BranchDetailView"
+    },
+    {
+      "methods": [
+        "PATCH"
+      ],
+      "name": "branch-detail",
+      "path": "/api/v1/branches<uuid:branch_id>/",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "PATCH": [
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "BranchDetailView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "branch-close",
+      "path": "/api/v1/branches<uuid:branch_id>/close",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "POST": [
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "BranchCloseView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "branch-close",
+      "path": "/api/v1/branches<uuid:branch_id>/close/",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "POST": [
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "BranchCloseView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "branch-reopen",
+      "path": "/api/v1/branches<uuid:branch_id>/reopen",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "POST": [
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "BranchReopenView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "branch-reopen",
+      "path": "/api/v1/branches<uuid:branch_id>/reopen/",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "POST": [
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "BranchReopenView"
+    },
+    {
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "name": "panel-list-create",
+      "path": "/api/v1/catalog/panels",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "manager",
+          "owner",
+          "pathologist",
+          "reception",
+          "technician"
+        ],
+        "POST": [
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "PanelListCreateView"
+    },
+    {
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "name": "panel-list-create",
+      "path": "/api/v1/catalog/panels/",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "manager",
+          "owner",
+          "pathologist",
+          "reception",
+          "technician"
+        ],
+        "POST": [
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "PanelListCreateView"
+    },
+    {
+      "methods": [
+        "GET",
+        "PATCH"
+      ],
+      "name": "panel-detail",
+      "path": "/api/v1/catalog/panels/<uuid:pk>",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "manager",
+          "owner",
+          "pathologist",
+          "reception",
+          "technician"
+        ],
+        "PATCH": [
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "PanelDetailView"
+    },
+    {
+      "methods": [
+        "GET",
+        "PATCH"
+      ],
+      "name": "panel-detail",
+      "path": "/api/v1/catalog/panels/<uuid:pk>/",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "manager",
+          "owner",
+          "pathologist",
+          "reception",
+          "technician"
+        ],
+        "PATCH": [
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "PanelDetailView"
+    },
+    {
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "name": "panel-prices",
+      "path": "/api/v1/catalog/panels/<uuid:pk>/prices",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "manager",
+          "owner",
+          "pathologist",
+          "reception"
+        ],
+        "POST": [
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "PanelPriceListCreateView"
+    },
+    {
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "name": "panel-prices",
+      "path": "/api/v1/catalog/panels/<uuid:pk>/prices/",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "manager",
+          "owner",
+          "pathologist",
+          "reception"
+        ],
+        "POST": [
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "PanelPriceListCreateView"
+    },
+    {
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "name": "test-list-create",
+      "path": "/api/v1/catalog/tests",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "manager",
+          "owner",
+          "pathologist",
+          "reception",
+          "technician"
+        ],
+        "POST": [
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "TestListCreateView"
+    },
+    {
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "name": "test-list-create",
+      "path": "/api/v1/catalog/tests/",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "manager",
+          "owner",
+          "pathologist",
+          "reception",
+          "technician"
+        ],
+        "POST": [
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "TestListCreateView"
+    },
+    {
+      "methods": [
+        "GET",
+        "PATCH",
+        "DELETE"
+      ],
+      "name": "test-detail",
+      "path": "/api/v1/catalog/tests/<uuid:pk>",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "DELETE": [
+          "owner"
+        ],
+        "GET": [
+          "manager",
+          "owner",
+          "pathologist",
+          "reception",
+          "technician"
+        ],
+        "PATCH": [
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "TestDetailView"
+    },
+    {
+      "methods": [
+        "GET",
+        "PATCH",
+        "DELETE"
+      ],
+      "name": "test-detail",
+      "path": "/api/v1/catalog/tests/<uuid:pk>/",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "DELETE": [
+          "owner"
+        ],
+        "GET": [
+          "manager",
+          "owner",
+          "pathologist",
+          "reception",
+          "technician"
+        ],
+        "PATCH": [
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "TestDetailView"
+    },
+    {
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "name": "test-prices",
+      "path": "/api/v1/catalog/tests/<uuid:pk>/prices",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "manager",
+          "owner",
+          "pathologist",
+          "reception"
+        ],
+        "POST": [
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "TestPriceListCreateView"
+    },
+    {
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "name": "test-prices",
+      "path": "/api/v1/catalog/tests/<uuid:pk>/prices/",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "manager",
+          "owner",
+          "pathologist",
+          "reception"
+        ],
+        "POST": [
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "TestPriceListCreateView"
+    },
+    {
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "name": "test-ranges",
+      "path": "/api/v1/catalog/tests/<uuid:pk>/ranges",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "manager",
+          "owner",
+          "pathologist",
+          "reception",
+          "technician"
+        ],
+        "POST": [
+          "owner",
+          "pathologist"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "ReferenceRangeListCreateView"
+    },
+    {
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "name": "test-ranges",
+      "path": "/api/v1/catalog/tests/<uuid:pk>/ranges/",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "manager",
+          "owner",
+          "pathologist",
+          "reception",
+          "technician"
+        ],
+        "POST": [
+          "owner",
+          "pathologist"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "ReferenceRangeListCreateView"
+    },
+    {
+      "methods": [
+        "PATCH"
+      ],
+      "name": "test-range-detail",
+      "path": "/api/v1/catalog/tests/<uuid:pk>/ranges/<uuid:range_id>",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "PATCH": [
+          "owner",
+          "pathologist"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "ReferenceRangeDetailView"
+    },
+    {
+      "methods": [
+        "PATCH"
+      ],
+      "name": "test-range-detail",
+      "path": "/api/v1/catalog/tests/<uuid:pk>/ranges/<uuid:range_id>/",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "PATCH": [
+          "owner",
+          "pathologist"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "ReferenceRangeDetailView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "demo-requests-capture",
+      "path": "/api/v1/demo-requests",
+      "permissions": [
+        "AllowAny"
+      ],
+      "public": true,
+      "roles": {},
+      "urlconf": "public",
+      "view": "PublicDemoRequestCaptureView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "demo-requests-capture",
+      "path": "/api/v1/demo-requests/",
+      "permissions": [
+        "AllowAny"
+      ],
+      "public": true,
+      "roles": {},
+      "urlconf": "public",
+      "view": "PublicDemoRequestCaptureView"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "name": "exceptions-list",
+      "path": "/api/v1/exceptions",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "manager",
+          "owner",
+          "pathologist",
+          "reception",
+          "technician"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "ExceptionsListView"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "name": "exceptions-list",
+      "path": "/api/v1/exceptions/",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "manager",
+          "owner",
+          "pathologist",
+          "reception",
+          "technician"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "ExceptionsListView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "export-request",
+      "path": "/api/v1/exports",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "POST": [
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "ExportRequestView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "export-request",
+      "path": "/api/v1/exports/",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "POST": [
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "ExportRequestView"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "name": "export-detail",
+      "path": "/api/v1/exports/<uuid:export_id>",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "ExportDetailView"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "name": "export-download",
+      "path": "/api/v1/exports/<uuid:export_id>/download",
+      "permissions": [
+        "AllowAny"
+      ],
+      "public": true,
+      "roles": {},
+      "urlconf": "tenant",
+      "view": "ExportDownloadView"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "name": "export-detail",
+      "path": "/api/v1/exports<uuid:export_id>",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "ExportDetailView"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "name": "export-download",
+      "path": "/api/v1/exports<uuid:export_id>/download",
+      "permissions": [
+        "AllowAny"
+      ],
+      "public": true,
+      "roles": {},
+      "urlconf": "tenant",
+      "view": "ExportDownloadView"
+    },
+    {
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "name": "invoice-collection",
+      "path": "/api/v1/invoices",
+      "permissions": [
+        "IsAuthenticated",
+        "IsInBranchScope"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "manager",
+          "owner",
+          "pathologist",
+          "reception",
+          "technician"
+        ],
+        "POST": [
+          "manager",
+          "owner",
+          "reception"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "InvoiceCollectionView"
+    },
+    {
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "name": "invoice-collection",
+      "path": "/api/v1/invoices/",
+      "permissions": [
+        "IsAuthenticated",
+        "IsInBranchScope"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "manager",
+          "owner",
+          "pathologist",
+          "reception",
+          "technician"
+        ],
+        "POST": [
+          "manager",
+          "owner",
+          "reception"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "InvoiceCollectionView"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "name": "invoice-detail",
+      "path": "/api/v1/invoices/<str:invoice_id>",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "manager",
+          "owner",
+          "pathologist",
+          "reception",
+          "technician"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "InvoiceDetailView"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "name": "invoice-detail",
+      "path": "/api/v1/invoices/<str:invoice_id>/",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "manager",
+          "owner",
+          "pathologist",
+          "reception",
+          "technician"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "InvoiceDetailView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "invoice-cancel",
+      "path": "/api/v1/invoices/<uuid:invoice_id>/cancel",
+      "permissions": [
+        "IsAuthenticated",
+        "IsInBranchScope"
+      ],
+      "public": false,
+      "roles": {
+        "POST": [
+          "manager",
+          "owner",
+          "reception"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "InvoiceCancelView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "invoice-cancel",
+      "path": "/api/v1/invoices/<uuid:invoice_id>/cancel/",
+      "permissions": [
+        "IsAuthenticated",
+        "IsInBranchScope"
+      ],
+      "public": false,
+      "roles": {
+        "POST": [
+          "manager",
+          "owner",
+          "reception"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "InvoiceCancelView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "payment-create",
+      "path": "/api/v1/invoices/<uuid:invoice_id>/payments",
+      "permissions": [
+        "IsAuthenticated",
+        "IsInBranchScope"
+      ],
+      "public": false,
+      "roles": {
+        "POST": [
+          "manager",
+          "owner",
+          "reception"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "PaymentCreateView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "payment-create",
+      "path": "/api/v1/invoices/<uuid:invoice_id>/payments/",
+      "permissions": [
+        "IsAuthenticated",
+        "IsInBranchScope"
+      ],
+      "public": false,
+      "roles": {
+        "POST": [
+          "manager",
+          "owner",
+          "reception"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "PaymentCreateView"
+    },
+    {
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "name": "panel-list-create",
+      "path": "/api/v1/panels",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "manager",
+          "owner",
+          "pathologist",
+          "reception",
+          "technician"
+        ],
+        "POST": [
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "PanelListCreateView"
+    },
+    {
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "name": "panel-list-create",
+      "path": "/api/v1/panels/",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "manager",
+          "owner",
+          "pathologist",
+          "reception",
+          "technician"
+        ],
+        "POST": [
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "PanelListCreateView"
+    },
+    {
+      "methods": [
+        "GET",
+        "PATCH"
+      ],
+      "name": "panel-detail",
+      "path": "/api/v1/panels/<uuid:pk>",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "manager",
+          "owner",
+          "pathologist",
+          "reception",
+          "technician"
+        ],
+        "PATCH": [
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "PanelDetailView"
+    },
+    {
+      "methods": [
+        "GET",
+        "PATCH"
+      ],
+      "name": "panel-detail",
+      "path": "/api/v1/panels/<uuid:pk>/",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "manager",
+          "owner",
+          "pathologist",
+          "reception",
+          "technician"
+        ],
+        "PATCH": [
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "PanelDetailView"
+    },
+    {
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "name": "panel-prices",
+      "path": "/api/v1/panels/<uuid:pk>/prices",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "manager",
+          "owner",
+          "pathologist",
+          "reception"
+        ],
+        "POST": [
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "PanelPriceListCreateView"
+    },
+    {
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "name": "panel-prices",
+      "path": "/api/v1/panels/<uuid:pk>/prices/",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "manager",
+          "owner",
+          "pathologist",
+          "reception"
+        ],
+        "POST": [
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "PanelPriceListCreateView"
+    },
+    {
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "name": "partner-collection",
+      "path": "/api/v1/partners/referral-partners",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "owner"
+        ],
+        "POST": [
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "PartnerCollectionView"
+    },
+    {
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "name": "partner-collection",
+      "path": "/api/v1/partners/referral-partners/",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "owner"
+        ],
+        "POST": [
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "PartnerCollectionView"
+    },
+    {
+      "methods": [
+        "GET",
+        "PATCH",
+        "DELETE"
+      ],
+      "name": "partner-detail",
+      "path": "/api/v1/partners/referral-partners/<uuid:partner_id>",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "DELETE": [
+          "owner"
+        ],
+        "GET": [
+          "owner"
+        ],
+        "PATCH": [
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "PartnerDetailView"
+    },
+    {
+      "methods": [
+        "GET",
+        "PATCH",
+        "DELETE"
+      ],
+      "name": "partner-detail",
+      "path": "/api/v1/partners/referral-partners/<uuid:partner_id>/",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "DELETE": [
+          "owner"
+        ],
+        "GET": [
+          "owner"
+        ],
+        "PATCH": [
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "PartnerDetailView"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "name": "partner-dashboard",
+      "path": "/api/v1/partners/referral-partners/<uuid:partner_id>/dashboard",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "PartnerDashboardView"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "name": "partner-dashboard",
+      "path": "/api/v1/partners/referral-partners/<uuid:partner_id>/dashboard/",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "PartnerDashboardView"
+    },
+    {
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "name": "rule-collection",
+      "path": "/api/v1/partners/referral-partners/<uuid:partner_id>/rules",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "owner"
+        ],
+        "POST": [
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "RuleCollectionView"
+    },
+    {
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "name": "rule-collection",
+      "path": "/api/v1/partners/referral-partners/<uuid:partner_id>/rules/",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "owner"
+        ],
+        "POST": [
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "RuleCollectionView"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "name": "share-ledger-list",
+      "path": "/api/v1/partners/referral-partners/ledger",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "manager",
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "ShareLedgerListView"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "name": "share-ledger-list",
+      "path": "/api/v1/partners/referral-partners/ledger/",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "manager",
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "ShareLedgerListView"
+    },
+    {
+      "methods": [
+        "PATCH"
+      ],
+      "name": "rule-detail",
+      "path": "/api/v1/partners/revenue-share-rules/<uuid:rule_id>",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "PATCH": [
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "RuleDetailView"
+    },
+    {
+      "methods": [
+        "PATCH"
+      ],
+      "name": "rule-detail",
+      "path": "/api/v1/partners/revenue-share-rules/<uuid:rule_id>/",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "PATCH": [
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "RuleDetailView"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "name": "settlement-statement-pdf",
+      "path": "/api/v1/partners/settlements/<uuid:settlement_id>/statement.pdf",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "manager",
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "SettlementStatementPdfView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "settlement-delivery-callback",
+      "path": "/api/v1/partners/settlements/delivery-callback",
+      "permissions": [
+        "AllowAny"
+      ],
+      "public": true,
+      "roles": {},
+      "urlconf": "tenant",
+      "view": "SettlementDeliveryCallbackView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "settlement-delivery-callback",
+      "path": "/api/v1/partners/settlements/delivery-callback/",
+      "permissions": [
+        "AllowAny"
+      ],
+      "public": true,
+      "roles": {},
+      "urlconf": "tenant",
+      "view": "SettlementDeliveryCallbackView"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "name": "settlement-exceptions",
+      "path": "/api/v1/partners/settlements/exceptions",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "manager",
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "SettlementExceptionsView"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "name": "settlement-exceptions",
+      "path": "/api/v1/partners/settlements/exceptions/",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "manager",
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "SettlementExceptionsView"
+    },
+    {
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "name": "patient-list-create",
+      "path": "/api/v1/patients",
+      "permissions": [
+        "IsAuthenticated",
+        "IsInBranchScope"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "manager",
+          "owner",
+          "pathologist",
+          "reception",
+          "technician"
+        ],
+        "POST": [
+          "manager",
+          "owner",
+          "reception"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "PatientListCreateView"
+    },
+    {
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "name": "patient-list-create",
+      "path": "/api/v1/patients/",
+      "permissions": [
+        "IsAuthenticated",
+        "IsInBranchScope"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "manager",
+          "owner",
+          "pathologist",
+          "reception",
+          "technician"
+        ],
+        "POST": [
+          "manager",
+          "owner",
+          "reception"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "PatientListCreateView"
+    },
+    {
+      "methods": [
+        "GET",
+        "PATCH",
+        "DELETE"
+      ],
+      "name": "patient-detail",
+      "path": "/api/v1/patients/<uuid:id>",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "DELETE": [
+          "owner"
+        ],
+        "GET": [
+          "manager",
+          "owner",
+          "pathologist",
+          "reception",
+          "technician"
+        ],
+        "PATCH": [
+          "manager",
+          "owner",
+          "reception"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "PatientDetailView"
+    },
+    {
+      "methods": [
+        "GET",
+        "PATCH",
+        "DELETE"
+      ],
+      "name": "patient-detail",
+      "path": "/api/v1/patients/<uuid:id>/",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "DELETE": [
+          "owner"
+        ],
+        "GET": [
+          "manager",
+          "owner",
+          "pathologist",
+          "reception",
+          "technician"
+        ],
+        "PATCH": [
+          "manager",
+          "owner",
+          "reception"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "PatientDetailView"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "name": "patient-history",
+      "path": "/api/v1/patients/<uuid:id>/history",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "manager",
+          "owner",
+          "pathologist",
+          "reception",
+          "technician"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "PatientHistoryView"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "name": "patient-history",
+      "path": "/api/v1/patients/<uuid:id>/history/",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "manager",
+          "owner",
+          "pathologist",
+          "reception",
+          "technician"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "PatientHistoryView"
+    },
+    {
+      "methods": [
+        "GET",
+        "PATCH",
+        "DELETE"
+      ],
+      "name": "patient-detail",
+      "path": "/api/v1/patients<uuid:id>",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "DELETE": [
+          "owner"
+        ],
+        "GET": [
+          "manager",
+          "owner",
+          "pathologist",
+          "reception",
+          "technician"
+        ],
+        "PATCH": [
+          "manager",
+          "owner",
+          "reception"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "PatientDetailView"
+    },
+    {
+      "methods": [
+        "GET",
+        "PATCH",
+        "DELETE"
+      ],
+      "name": "patient-detail",
+      "path": "/api/v1/patients<uuid:id>/",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "DELETE": [
+          "owner"
+        ],
+        "GET": [
+          "manager",
+          "owner",
+          "pathologist",
+          "reception",
+          "technician"
+        ],
+        "PATCH": [
+          "manager",
+          "owner",
+          "reception"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "PatientDetailView"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "name": "patient-history",
+      "path": "/api/v1/patients<uuid:id>/history",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "manager",
+          "owner",
+          "pathologist",
+          "reception",
+          "technician"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "PatientHistoryView"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "name": "patient-history",
+      "path": "/api/v1/patients<uuid:id>/history/",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "manager",
+          "owner",
+          "pathologist",
+          "reception",
+          "technician"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "PatientHistoryView"
+    },
+    {
+      "methods": [
+        "GET",
+        "PUT"
+      ],
+      "name": "platform-access-detail",
+      "path": "/api/v1/platform/access/<uuid:tenant_id>",
+      "permissions": [
+        "IsAuthenticatedPlatformUser"
+      ],
+      "public": false,
+      "roles": {},
+      "urlconf": "public",
+      "view": "PlatformAccessControlView"
+    },
+    {
+      "methods": [
+        "GET",
+        "PUT"
+      ],
+      "name": "platform-access-detail",
+      "path": "/api/v1/platform/access/<uuid:tenant_id>/",
+      "permissions": [
+        "IsAuthenticatedPlatformUser"
+      ],
+      "public": false,
+      "roles": {},
+      "urlconf": "public",
+      "view": "PlatformAccessControlView"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "name": "platform-audit-list",
+      "path": "/api/v1/platform/audit",
+      "permissions": [
+        "IsAuthenticatedPlatformUser"
+      ],
+      "public": false,
+      "roles": {},
+      "urlconf": "public",
+      "view": "PlatformAuditListView"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "name": "platform-audit-list",
+      "path": "/api/v1/platform/audit/",
+      "permissions": [
+        "IsAuthenticatedPlatformUser"
+      ],
+      "public": false,
+      "roles": {},
+      "urlconf": "public",
+      "view": "PlatformAuditListView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "platform-auth-login",
+      "path": "/api/v1/platform/auth/login",
+      "permissions": [
+        "AllowAny"
+      ],
+      "public": true,
+      "roles": {},
+      "urlconf": "public",
+      "view": "PlatformLoginView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "platform-auth-login",
+      "path": "/api/v1/platform/auth/login/",
+      "permissions": [
+        "AllowAny"
+      ],
+      "public": true,
+      "roles": {},
+      "urlconf": "public",
+      "view": "PlatformLoginView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "platform-auth-logout",
+      "path": "/api/v1/platform/auth/logout",
+      "permissions": [
+        "AllowAny"
+      ],
+      "public": true,
+      "roles": {},
+      "urlconf": "public",
+      "view": "PlatformLogoutView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "platform-auth-logout",
+      "path": "/api/v1/platform/auth/logout/",
+      "permissions": [
+        "AllowAny"
+      ],
+      "public": true,
+      "roles": {},
+      "urlconf": "public",
+      "view": "PlatformLogoutView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "platform-auth-password-reset-confirm",
+      "path": "/api/v1/platform/auth/password-reset/confirm",
+      "permissions": [
+        "AllowAny"
+      ],
+      "public": true,
+      "roles": {},
+      "urlconf": "public",
+      "view": "PlatformPasswordResetConfirmView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "platform-auth-password-reset-confirm",
+      "path": "/api/v1/platform/auth/password-reset/confirm/",
+      "permissions": [
+        "AllowAny"
+      ],
+      "public": true,
+      "roles": {},
+      "urlconf": "public",
+      "view": "PlatformPasswordResetConfirmView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "platform-auth-password-reset-request",
+      "path": "/api/v1/platform/auth/password-reset/request",
+      "permissions": [
+        "AllowAny"
+      ],
+      "public": true,
+      "roles": {},
+      "urlconf": "public",
+      "view": "PlatformPasswordResetRequestView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "platform-auth-password-reset-request",
+      "path": "/api/v1/platform/auth/password-reset/request/",
+      "permissions": [
+        "AllowAny"
+      ],
+      "public": true,
+      "roles": {},
+      "urlconf": "public",
+      "view": "PlatformPasswordResetRequestView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "platform-auth-refresh",
+      "path": "/api/v1/platform/auth/refresh",
+      "permissions": [
+        "AllowAny"
+      ],
+      "public": true,
+      "roles": {},
+      "urlconf": "public",
+      "view": "PlatformRefreshView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "platform-auth-refresh",
+      "path": "/api/v1/platform/auth/refresh/",
+      "permissions": [
+        "AllowAny"
+      ],
+      "public": true,
+      "roles": {},
+      "urlconf": "public",
+      "view": "PlatformRefreshView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "platform-auth-totp-enroll",
+      "path": "/api/v1/platform/auth/totp/enroll",
+      "permissions": [
+        "IsAuthenticatedPlatformUser"
+      ],
+      "public": false,
+      "roles": {},
+      "urlconf": "public",
+      "view": "PlatformTotpEnrollView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "platform-auth-totp-enroll",
+      "path": "/api/v1/platform/auth/totp/enroll/",
+      "permissions": [
+        "IsAuthenticatedPlatformUser"
+      ],
+      "public": false,
+      "roles": {},
+      "urlconf": "public",
+      "view": "PlatformTotpEnrollView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "platform-auth-totp-enroll-confirm",
+      "path": "/api/v1/platform/auth/totp/enroll/confirm",
+      "permissions": [
+        "IsAuthenticatedPlatformUser"
+      ],
+      "public": false,
+      "roles": {},
+      "urlconf": "public",
+      "view": "PlatformTotpEnrollConfirmView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "platform-auth-totp-enroll-confirm",
+      "path": "/api/v1/platform/auth/totp/enroll/confirm/",
+      "permissions": [
+        "IsAuthenticatedPlatformUser"
+      ],
+      "public": false,
+      "roles": {},
+      "urlconf": "public",
+      "view": "PlatformTotpEnrollConfirmView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "platform-auth-totp-verify",
+      "path": "/api/v1/platform/auth/totp/verify",
+      "permissions": [
+        "AllowAny"
+      ],
+      "public": true,
+      "roles": {},
+      "urlconf": "public",
+      "view": "PlatformTotpVerifyView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "platform-auth-totp-verify",
+      "path": "/api/v1/platform/auth/totp/verify/",
+      "permissions": [
+        "AllowAny"
+      ],
+      "public": true,
+      "roles": {},
+      "urlconf": "public",
+      "view": "PlatformTotpVerifyView"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "name": "platform-demo-requests-list",
+      "path": "/api/v1/platform/demo-requests",
+      "permissions": [
+        "IsAuthenticatedPlatformUser"
+      ],
+      "public": false,
+      "roles": {},
+      "urlconf": "public",
+      "view": "PlatformDemoRequestListView"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "name": "platform-demo-requests-list",
+      "path": "/api/v1/platform/demo-requests/",
+      "permissions": [
+        "IsAuthenticatedPlatformUser"
+      ],
+      "public": false,
+      "roles": {},
+      "urlconf": "public",
+      "view": "PlatformDemoRequestListView"
+    },
+    {
+      "methods": [
+        "GET",
+        "PATCH"
+      ],
+      "name": "platform-demo-requests-detail",
+      "path": "/api/v1/platform/demo-requests/<uuid:request_id>",
+      "permissions": [
+        "IsAuthenticatedPlatformUser"
+      ],
+      "public": false,
+      "roles": {},
+      "urlconf": "public",
+      "view": "PlatformDemoRequestDetailView"
+    },
+    {
+      "methods": [
+        "GET",
+        "PATCH"
+      ],
+      "name": "platform-demo-requests-detail",
+      "path": "/api/v1/platform/demo-requests/<uuid:request_id>/",
+      "permissions": [
+        "IsAuthenticatedPlatformUser"
+      ],
+      "public": false,
+      "roles": {},
+      "urlconf": "public",
+      "view": "PlatformDemoRequestDetailView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "platform-demo-requests-convert",
+      "path": "/api/v1/platform/demo-requests/<uuid:request_id>/convert",
+      "permissions": [
+        "IsAuthenticatedPlatformUser"
+      ],
+      "public": false,
+      "roles": {},
+      "urlconf": "public",
+      "view": "PlatformDemoRequestConvertView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "platform-demo-requests-convert",
+      "path": "/api/v1/platform/demo-requests/<uuid:request_id>/convert/",
+      "permissions": [
+        "IsAuthenticatedPlatformUser"
+      ],
+      "public": false,
+      "roles": {},
+      "urlconf": "public",
+      "view": "PlatformDemoRequestConvertView"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "name": "platform-health",
+      "path": "/api/v1/platform/health",
+      "permissions": [
+        "IsAuthenticatedPlatformUser"
+      ],
+      "public": false,
+      "roles": {},
+      "urlconf": "public",
+      "view": "PlatformHealthView"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "name": "platform-health",
+      "path": "/api/v1/platform/health/",
+      "permissions": [
+        "IsAuthenticatedPlatformUser"
+      ],
+      "public": false,
+      "roles": {},
+      "urlconf": "public",
+      "view": "PlatformHealthView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "platform-health-retry",
+      "path": "/api/v1/platform/health/failures/<str:failure_id>/retry",
+      "permissions": [
+        "IsAuthenticatedPlatformUser"
+      ],
+      "public": false,
+      "roles": {},
+      "urlconf": "public",
+      "view": "PlatformHealthRetryView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "platform-health-retry",
+      "path": "/api/v1/platform/health/failures/<str:failure_id>/retry/",
+      "permissions": [
+        "IsAuthenticatedPlatformUser"
+      ],
+      "public": false,
+      "roles": {},
+      "urlconf": "public",
+      "view": "PlatformHealthRetryView"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "name": "platform-metrics-root",
+      "path": "/api/v1/platform/metrics",
+      "permissions": [
+        "IsAuthenticatedPlatformUser"
+      ],
+      "public": false,
+      "roles": {},
+      "urlconf": "public",
+      "view": "PlatformOverviewMetricsView"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "name": "platform-metrics-root",
+      "path": "/api/v1/platform/metrics/",
+      "permissions": [
+        "IsAuthenticatedPlatformUser"
+      ],
+      "public": false,
+      "roles": {},
+      "urlconf": "public",
+      "view": "PlatformOverviewMetricsView"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "name": "platform-metrics-overview",
+      "path": "/api/v1/platform/metrics/overview",
+      "permissions": [
+        "IsAuthenticatedPlatformUser"
+      ],
+      "public": false,
+      "roles": {},
+      "urlconf": "public",
+      "view": "PlatformOverviewMetricsView"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "name": "platform-metrics-overview",
+      "path": "/api/v1/platform/metrics/overview/",
+      "permissions": [
+        "IsAuthenticatedPlatformUser"
+      ],
+      "public": false,
+      "roles": {},
+      "urlconf": "public",
+      "view": "PlatformOverviewMetricsView"
+    },
+    {
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "name": "platform-plans-list-create",
+      "path": "/api/v1/platform/plans",
+      "permissions": [
+        "IsAuthenticatedPlatformUser"
+      ],
+      "public": false,
+      "roles": {},
+      "urlconf": "public",
+      "view": "PlatformPlanListCreateView"
+    },
+    {
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "name": "platform-plans-list-create",
+      "path": "/api/v1/platform/plans/",
+      "permissions": [
+        "IsAuthenticatedPlatformUser"
+      ],
+      "public": false,
+      "roles": {},
+      "urlconf": "public",
+      "view": "PlatformPlanListCreateView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "platform-plan-retire",
+      "path": "/api/v1/platform/plans/<uuid:plan_id>/retire",
+      "permissions": [
+        "IsAuthenticatedPlatformUser"
+      ],
+      "public": false,
+      "roles": {},
+      "urlconf": "public",
+      "view": "PlatformPlanRetireView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "platform-plan-retire",
+      "path": "/api/v1/platform/plans/<uuid:plan_id>/retire/",
+      "permissions": [
+        "IsAuthenticatedPlatformUser"
+      ],
+      "public": false,
+      "roles": {},
+      "urlconf": "public",
+      "view": "PlatformPlanRetireView"
+    },
+    {
+      "methods": [
+        "GET",
+        "PUT"
+      ],
+      "name": "platform-settings",
+      "path": "/api/v1/platform/settings",
+      "permissions": [
+        "IsAuthenticatedPlatformUser"
+      ],
+      "public": false,
+      "roles": {},
+      "urlconf": "public",
+      "view": "PlatformSettingsView"
+    },
+    {
+      "methods": [
+        "GET",
+        "PUT"
+      ],
+      "name": "platform-settings",
+      "path": "/api/v1/platform/settings/",
+      "permissions": [
+        "IsAuthenticatedPlatformUser"
+      ],
+      "public": false,
+      "roles": {},
+      "urlconf": "public",
+      "view": "PlatformSettingsView"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "name": "platform-subscriptions-list",
+      "path": "/api/v1/platform/subscriptions",
+      "permissions": [
+        "IsAuthenticatedPlatformUser"
+      ],
+      "public": false,
+      "roles": {},
+      "urlconf": "public",
+      "view": "PlatformSubscriptionListView"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "name": "platform-subscriptions-list",
+      "path": "/api/v1/platform/subscriptions/",
+      "permissions": [
+        "IsAuthenticatedPlatformUser"
+      ],
+      "public": false,
+      "roles": {},
+      "urlconf": "public",
+      "view": "PlatformSubscriptionListView"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "name": "platform-subscriptions-detail",
+      "path": "/api/v1/platform/subscriptions/<uuid:subscription_id>",
+      "permissions": [
+        "IsAuthenticatedPlatformUser"
+      ],
+      "public": false,
+      "roles": {},
+      "urlconf": "public",
+      "view": "PlatformSubscriptionDetailView"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "name": "platform-subscriptions-detail",
+      "path": "/api/v1/platform/subscriptions/<uuid:subscription_id>/",
+      "permissions": [
+        "IsAuthenticatedPlatformUser"
+      ],
+      "public": false,
+      "roles": {},
+      "urlconf": "public",
+      "view": "PlatformSubscriptionDetailView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "platform-subscriptions-change-plan",
+      "path": "/api/v1/platform/subscriptions/<uuid:subscription_id>/change-plan",
+      "permissions": [
+        "IsAuthenticatedPlatformUser"
+      ],
+      "public": false,
+      "roles": {},
+      "urlconf": "public",
+      "view": "PlatformSubscriptionChangePlanView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "platform-subscriptions-change-plan",
+      "path": "/api/v1/platform/subscriptions/<uuid:subscription_id>/change-plan/",
+      "permissions": [
+        "IsAuthenticatedPlatformUser"
+      ],
+      "public": false,
+      "roles": {},
+      "urlconf": "public",
+      "view": "PlatformSubscriptionChangePlanView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "platform-subscriptions-mark-paid",
+      "path": "/api/v1/platform/subscriptions/<uuid:subscription_id>/mark-paid",
+      "permissions": [
+        "IsAuthenticatedPlatformUser"
+      ],
+      "public": false,
+      "roles": {},
+      "urlconf": "public",
+      "view": "PlatformSubscriptionMarkPaidView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "platform-subscriptions-mark-paid",
+      "path": "/api/v1/platform/subscriptions/<uuid:subscription_id>/mark-paid/",
+      "permissions": [
+        "IsAuthenticatedPlatformUser"
+      ],
+      "public": false,
+      "roles": {},
+      "urlconf": "public",
+      "view": "PlatformSubscriptionMarkPaidView"
+    },
+    {
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "name": "platform-tenants-create",
+      "path": "/api/v1/platform/tenants",
+      "permissions": [
+        "IsAuthenticatedPlatformUser"
+      ],
+      "public": false,
+      "roles": {},
+      "urlconf": "public",
+      "view": "PlatformTenantCreateView"
+    },
+    {
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "name": "platform-tenants-create",
+      "path": "/api/v1/platform/tenants/",
+      "permissions": [
+        "IsAuthenticatedPlatformUser"
+      ],
+      "public": false,
+      "roles": {},
+      "urlconf": "public",
+      "view": "PlatformTenantCreateView"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "name": "platform-tenant-detail",
+      "path": "/api/v1/platform/tenants/<uuid:tenant_id>",
+      "permissions": [
+        "IsAuthenticatedPlatformUser"
+      ],
+      "public": false,
+      "roles": {},
+      "urlconf": "public",
+      "view": "PlatformTenantDetailView"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "name": "platform-tenant-detail",
+      "path": "/api/v1/platform/tenants/<uuid:tenant_id>/",
+      "permissions": [
+        "IsAuthenticatedPlatformUser"
+      ],
+      "public": false,
+      "roles": {},
+      "urlconf": "public",
+      "view": "PlatformTenantDetailView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "platform-tenant-complete-offboarding",
+      "path": "/api/v1/platform/tenants/<uuid:tenant_id>/complete-offboarding",
+      "permissions": [
+        "IsAuthenticatedPlatformUser"
+      ],
+      "public": false,
+      "roles": {},
+      "urlconf": "public",
+      "view": "PlatformTenantCompleteOffboardView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "platform-tenant-complete-offboarding",
+      "path": "/api/v1/platform/tenants/<uuid:tenant_id>/complete-offboarding/",
+      "permissions": [
+        "IsAuthenticatedPlatformUser"
+      ],
+      "public": false,
+      "roles": {},
+      "urlconf": "public",
+      "view": "PlatformTenantCompleteOffboardView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "platform-tenant-offboard",
+      "path": "/api/v1/platform/tenants/<uuid:tenant_id>/offboard",
+      "permissions": [
+        "IsAuthenticatedPlatformUser"
+      ],
+      "public": false,
+      "roles": {},
+      "urlconf": "public",
+      "view": "PlatformTenantOffboardView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "platform-tenant-offboard",
+      "path": "/api/v1/platform/tenants/<uuid:tenant_id>/offboard/",
+      "permissions": [
+        "IsAuthenticatedPlatformUser"
+      ],
+      "public": false,
+      "roles": {},
+      "urlconf": "public",
+      "view": "PlatformTenantOffboardView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "platform-tenant-reactivate",
+      "path": "/api/v1/platform/tenants/<uuid:tenant_id>/reactivate",
+      "permissions": [
+        "IsAuthenticatedPlatformUser"
+      ],
+      "public": false,
+      "roles": {},
+      "urlconf": "public",
+      "view": "PlatformTenantReactivateView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "platform-tenant-reactivate",
+      "path": "/api/v1/platform/tenants/<uuid:tenant_id>/reactivate/",
+      "permissions": [
+        "IsAuthenticatedPlatformUser"
+      ],
+      "public": false,
+      "roles": {},
+      "urlconf": "public",
+      "view": "PlatformTenantReactivateView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "platform-tenant-resend-activation",
+      "path": "/api/v1/platform/tenants/<uuid:tenant_id>/resend-activation",
+      "permissions": [
+        "IsAuthenticatedPlatformUser"
+      ],
+      "public": false,
+      "roles": {},
+      "urlconf": "public",
+      "view": "PlatformTenantResendActivationView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "platform-tenant-resend-activation",
+      "path": "/api/v1/platform/tenants/<uuid:tenant_id>/resend-activation/",
+      "permissions": [
+        "IsAuthenticatedPlatformUser"
+      ],
+      "public": false,
+      "roles": {},
+      "urlconf": "public",
+      "view": "PlatformTenantResendActivationView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "platform-tenant-retry-provisioning",
+      "path": "/api/v1/platform/tenants/<uuid:tenant_id>/retry-provisioning",
+      "permissions": [
+        "IsAuthenticatedPlatformUser"
+      ],
+      "public": false,
+      "roles": {},
+      "urlconf": "public",
+      "view": "PlatformTenantRetryProvisioningView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "platform-tenant-retry-provisioning",
+      "path": "/api/v1/platform/tenants/<uuid:tenant_id>/retry-provisioning/",
+      "permissions": [
+        "IsAuthenticatedPlatformUser"
+      ],
+      "public": false,
+      "roles": {},
+      "urlconf": "public",
+      "view": "PlatformTenantRetryProvisioningView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "platform-tenant-subscription",
+      "path": "/api/v1/platform/tenants/<uuid:tenant_id>/subscription",
+      "permissions": [
+        "IsAuthenticatedPlatformUser"
+      ],
+      "public": false,
+      "roles": {},
+      "urlconf": "public",
+      "view": "PlatformTenantSubscriptionView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "platform-tenant-subscription",
+      "path": "/api/v1/platform/tenants/<uuid:tenant_id>/subscription/",
+      "permissions": [
+        "IsAuthenticatedPlatformUser"
+      ],
+      "public": false,
+      "roles": {},
+      "urlconf": "public",
+      "view": "PlatformTenantSubscriptionView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "platform-tenant-suspend",
+      "path": "/api/v1/platform/tenants/<uuid:tenant_id>/suspend",
+      "permissions": [
+        "IsAuthenticatedPlatformUser"
+      ],
+      "public": false,
+      "roles": {},
+      "urlconf": "public",
+      "view": "PlatformTenantSuspendView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "platform-tenant-suspend",
+      "path": "/api/v1/platform/tenants/<uuid:tenant_id>/suspend/",
+      "permissions": [
+        "IsAuthenticatedPlatformUser"
+      ],
+      "public": false,
+      "roles": {},
+      "urlconf": "public",
+      "view": "PlatformTenantSuspendView"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "name": "platform-users-list",
+      "path": "/api/v1/platform/users",
+      "permissions": [
+        "IsAuthenticatedPlatformUser"
+      ],
+      "public": false,
+      "roles": {},
+      "urlconf": "public",
+      "view": "PlatformUsersListView"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "name": "platform-users-list",
+      "path": "/api/v1/platform/users/",
+      "permissions": [
+        "IsAuthenticatedPlatformUser"
+      ],
+      "public": false,
+      "roles": {},
+      "urlconf": "public",
+      "view": "PlatformUsersListView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "platform-users-disable",
+      "path": "/api/v1/platform/users/<uuid:user_id>/disable",
+      "permissions": [
+        "IsAuthenticatedPlatformUser"
+      ],
+      "public": false,
+      "roles": {},
+      "urlconf": "public",
+      "view": "PlatformUserDisableView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "platform-users-disable",
+      "path": "/api/v1/platform/users/<uuid:user_id>/disable/",
+      "permissions": [
+        "IsAuthenticatedPlatformUser"
+      ],
+      "public": false,
+      "roles": {},
+      "urlconf": "public",
+      "view": "PlatformUserDisableView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "platform-users-invite",
+      "path": "/api/v1/platform/users/invite",
+      "permissions": [
+        "IsAuthenticatedPlatformUser"
+      ],
+      "public": false,
+      "roles": {},
+      "urlconf": "public",
+      "view": "PlatformUserInviteView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "platform-users-invite",
+      "path": "/api/v1/platform/users/invite/",
+      "permissions": [
+        "IsAuthenticatedPlatformUser"
+      ],
+      "public": false,
+      "roles": {},
+      "urlconf": "public",
+      "view": "PlatformUserInviteView"
+    },
+    {
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "name": "partner-collection",
+      "path": "/api/v1/referral-partners",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "owner"
+        ],
+        "POST": [
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "PartnerCollectionView"
+    },
+    {
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "name": "partner-collection",
+      "path": "/api/v1/referral-partners/",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "owner"
+        ],
+        "POST": [
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "PartnerCollectionView"
+    },
+    {
+      "methods": [
+        "GET",
+        "PATCH",
+        "DELETE"
+      ],
+      "name": "partner-detail",
+      "path": "/api/v1/referral-partners/<uuid:partner_id>",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "DELETE": [
+          "owner"
+        ],
+        "GET": [
+          "owner"
+        ],
+        "PATCH": [
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "PartnerDetailView"
+    },
+    {
+      "methods": [
+        "GET",
+        "PATCH",
+        "DELETE"
+      ],
+      "name": "partner-detail",
+      "path": "/api/v1/referral-partners/<uuid:partner_id>/",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "DELETE": [
+          "owner"
+        ],
+        "GET": [
+          "owner"
+        ],
+        "PATCH": [
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "PartnerDetailView"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "name": "partner-dashboard",
+      "path": "/api/v1/referral-partners/<uuid:partner_id>/dashboard",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "PartnerDashboardView"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "name": "partner-dashboard",
+      "path": "/api/v1/referral-partners/<uuid:partner_id>/dashboard/",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "PartnerDashboardView"
+    },
+    {
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "name": "rule-collection",
+      "path": "/api/v1/referral-partners/<uuid:partner_id>/rules",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "owner"
+        ],
+        "POST": [
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "RuleCollectionView"
+    },
+    {
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "name": "rule-collection",
+      "path": "/api/v1/referral-partners/<uuid:partner_id>/rules/",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "owner"
+        ],
+        "POST": [
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "RuleCollectionView"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "name": "share-ledger-list",
+      "path": "/api/v1/referral-partners/ledger",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "manager",
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "ShareLedgerListView"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "name": "share-ledger-list",
+      "path": "/api/v1/referral-partners/ledger/",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "manager",
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "ShareLedgerListView"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "name": "report-access",
+      "path": "/api/v1/report-access/<str:token>",
+      "permissions": [
+        "AllowAny"
+      ],
+      "public": true,
+      "roles": {},
+      "urlconf": "tenant",
+      "view": "ReportAccessView"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "name": "report-access",
+      "path": "/api/v1/report-access/<str:token>/",
+      "permissions": [
+        "AllowAny"
+      ],
+      "public": true,
+      "roles": {},
+      "urlconf": "tenant",
+      "view": "ReportAccessView"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "name": "report-file-download",
+      "path": "/api/v1/report-files/<path:signed>",
+      "permissions": [
+        "AllowAny"
+      ],
+      "public": true,
+      "roles": {},
+      "urlconf": "tenant",
+      "view": "ReportFileDownloadView"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "name": "report-file-download",
+      "path": "/api/v1/report-files/<path:signed>/",
+      "permissions": [
+        "AllowAny"
+      ],
+      "public": true,
+      "roles": {},
+      "urlconf": "tenant",
+      "view": "ReportFileDownloadView"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "name": "report-list",
+      "path": "/api/v1/reports",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "manager",
+          "owner",
+          "pathologist",
+          "reception",
+          "technician"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "ReportListView"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "name": "report-list",
+      "path": "/api/v1/reports/",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "manager",
+          "owner",
+          "pathologist",
+          "reception",
+          "technician"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "ReportListView"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "name": "report-detail",
+      "path": "/api/v1/reports/<uuid:report_id>",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "manager",
+          "owner",
+          "pathologist",
+          "reception",
+          "technician"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "ReportDetailView"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "name": "report-detail",
+      "path": "/api/v1/reports/<uuid:report_id>/",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "manager",
+          "owner",
+          "pathologist",
+          "reception",
+          "technician"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "ReportDetailView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "report-access-token-issue",
+      "path": "/api/v1/reports/<uuid:report_id>/access-token",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "POST": [
+          "manager",
+          "owner",
+          "reception"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "ReportAccessTokenIssueView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "report-access-token-issue",
+      "path": "/api/v1/reports/<uuid:report_id>/access-token/",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "POST": [
+          "manager",
+          "owner",
+          "reception"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "ReportAccessTokenIssueView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "report-deliver",
+      "path": "/api/v1/reports/<uuid:report_id>/deliver",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "POST": [
+          "manager",
+          "owner",
+          "reception"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "ReportDeliverView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "report-deliver",
+      "path": "/api/v1/reports/<uuid:report_id>/deliver/",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "POST": [
+          "manager",
+          "owner",
+          "reception"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "ReportDeliverView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "report-regenerate",
+      "path": "/api/v1/reports/<uuid:report_id>/regenerate",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "POST": [
+          "manager",
+          "owner",
+          "pathologist"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "ReportRegenerateView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "report-regenerate",
+      "path": "/api/v1/reports/<uuid:report_id>/regenerate/",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "POST": [
+          "manager",
+          "owner",
+          "pathologist"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "ReportRegenerateView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "report-access-token-revoke",
+      "path": "/api/v1/reports/<uuid:report_id>/revoke-token",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "POST": [
+          "manager",
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "ReportAccessTokenRevokeView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "report-access-token-revoke",
+      "path": "/api/v1/reports/<uuid:report_id>/revoke-token/",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "POST": [
+          "manager",
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "ReportAccessTokenRevokeView"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "name": "result-list",
+      "path": "/api/v1/results",
+      "permissions": [
+        "IsAuthenticated",
+        "IsInBranchScope"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "manager",
+          "owner",
+          "pathologist",
+          "reception",
+          "technician"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "ResultListView"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "name": "result-list",
+      "path": "/api/v1/results/",
+      "permissions": [
+        "IsAuthenticated",
+        "IsInBranchScope"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "manager",
+          "owner",
+          "pathologist",
+          "reception",
+          "technician"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "ResultListView"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "name": "result-detail",
+      "path": "/api/v1/results/<uuid:result_id>",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "manager",
+          "owner",
+          "pathologist",
+          "reception",
+          "technician"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "ResultDetailView"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "name": "result-detail",
+      "path": "/api/v1/results/<uuid:result_id>/",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "manager",
+          "owner",
+          "pathologist",
+          "reception",
+          "technician"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "ResultDetailView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "result-amend",
+      "path": "/api/v1/results/<uuid:result_id>/amend",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "POST": [
+          "owner",
+          "pathologist",
+          "technician"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "ResultAmendView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "result-amend",
+      "path": "/api/v1/results/<uuid:result_id>/amend/",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "POST": [
+          "owner",
+          "pathologist",
+          "technician"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "ResultAmendView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "result-approve",
+      "path": "/api/v1/results/<uuid:result_id>/approve",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "POST": [
+          "owner",
+          "pathologist"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "ResultApproveView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "result-approve",
+      "path": "/api/v1/results/<uuid:result_id>/approve/",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "POST": [
+          "owner",
+          "pathologist"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "ResultApproveView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "critical-notification",
+      "path": "/api/v1/results/<uuid:result_id>/critical-notifications",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "POST": [
+          "manager",
+          "owner",
+          "pathologist"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "CriticalNotificationView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "critical-notification",
+      "path": "/api/v1/results/<uuid:result_id>/critical-notifications/",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "POST": [
+          "manager",
+          "owner",
+          "pathologist"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "CriticalNotificationView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "result-withdraw",
+      "path": "/api/v1/results/<uuid:result_id>/withdraw",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "POST": [
+          "owner",
+          "pathologist",
+          "technician"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "ResultWithdrawView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "result-withdraw",
+      "path": "/api/v1/results/<uuid:result_id>/withdraw/",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "POST": [
+          "owner",
+          "pathologist",
+          "technician"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "ResultWithdrawView"
+    },
+    {
+      "methods": [
+        "PATCH"
+      ],
+      "name": "rule-detail",
+      "path": "/api/v1/revenue-share-rules/<uuid:rule_id>",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "PATCH": [
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "RuleDetailView"
+    },
+    {
+      "methods": [
+        "PATCH"
+      ],
+      "name": "rule-detail",
+      "path": "/api/v1/revenue-share-rules/<uuid:rule_id>/",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "PATCH": [
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "RuleDetailView"
+    },
+    {
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "name": "sample-collection",
+      "path": "/api/v1/samples",
+      "permissions": [
+        "IsAuthenticated",
+        "IsInBranchScope"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "manager",
+          "owner",
+          "pathologist",
+          "reception",
+          "technician"
+        ],
+        "POST": [
+          "manager",
+          "owner",
+          "reception"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "SampleCollectionView"
+    },
+    {
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "name": "sample-collection",
+      "path": "/api/v1/samples/",
+      "permissions": [
+        "IsAuthenticated",
+        "IsInBranchScope"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "manager",
+          "owner",
+          "pathologist",
+          "reception",
+          "technician"
+        ],
+        "POST": [
+          "manager",
+          "owner",
+          "reception"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "SampleCollectionView"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "name": "sample-detail",
+      "path": "/api/v1/samples/<uuid:sample_id>",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "manager",
+          "owner",
+          "pathologist",
+          "reception",
+          "technician"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "SampleDetailView"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "name": "sample-detail",
+      "path": "/api/v1/samples/<uuid:sample_id>/",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "manager",
+          "owner",
+          "pathologist",
+          "reception",
+          "technician"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "SampleDetailView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "sample-cancel",
+      "path": "/api/v1/samples/<uuid:sample_id>/cancel",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "POST": [
+          "manager",
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "SampleCancelView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "sample-cancel",
+      "path": "/api/v1/samples/<uuid:sample_id>/cancel/",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "POST": [
+          "manager",
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "SampleCancelView"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "name": "sample-events",
+      "path": "/api/v1/samples/<uuid:sample_id>/events",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "manager",
+          "owner",
+          "pathologist",
+          "reception",
+          "technician"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "SampleEventsView"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "name": "sample-events",
+      "path": "/api/v1/samples/<uuid:sample_id>/events/",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "manager",
+          "owner",
+          "pathologist",
+          "reception",
+          "technician"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "SampleEventsView"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "name": "sample-label",
+      "path": "/api/v1/samples/<uuid:sample_id>/label",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "manager",
+          "owner",
+          "reception",
+          "technician"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "SampleLabelView"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "name": "sample-label",
+      "path": "/api/v1/samples/<uuid:sample_id>/label/",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "manager",
+          "owner",
+          "reception",
+          "technician"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "SampleLabelView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "sample-receive",
+      "path": "/api/v1/samples/<uuid:sample_id>/receive",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "POST": [
+          "manager",
+          "owner",
+          "technician"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "SampleReceiveView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "sample-receive",
+      "path": "/api/v1/samples/<uuid:sample_id>/receive/",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "POST": [
+          "manager",
+          "owner",
+          "technician"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "SampleReceiveView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "sample-recollect",
+      "path": "/api/v1/samples/<uuid:sample_id>/recollect",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "POST": [
+          "manager",
+          "owner",
+          "reception"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "SampleRecollectView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "sample-recollect",
+      "path": "/api/v1/samples/<uuid:sample_id>/recollect/",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "POST": [
+          "manager",
+          "owner",
+          "reception"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "SampleRecollectView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "sample-reject",
+      "path": "/api/v1/samples/<uuid:sample_id>/reject",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "POST": [
+          "manager",
+          "owner",
+          "reception",
+          "technician"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "SampleRejectView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "sample-reject",
+      "path": "/api/v1/samples/<uuid:sample_id>/reject/",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "POST": [
+          "manager",
+          "owner",
+          "reception",
+          "technician"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "SampleRejectView"
+    },
+    {
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "name": "result-entry",
+      "path": "/api/v1/samples/<uuid:sample_id>/results",
+      "permissions": [
+        "IsAuthenticated",
+        "IsInBranchScope"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "manager",
+          "owner",
+          "pathologist",
+          "reception",
+          "technician"
+        ],
+        "POST": [
+          "owner",
+          "pathologist",
+          "technician"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "ResultEntryView"
+    },
+    {
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "name": "result-entry",
+      "path": "/api/v1/samples/<uuid:sample_id>/results/",
+      "permissions": [
+        "IsAuthenticated",
+        "IsInBranchScope"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "manager",
+          "owner",
+          "pathologist",
+          "reception",
+          "technician"
+        ],
+        "POST": [
+          "owner",
+          "pathologist",
+          "technician"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "ResultEntryView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "sample-transfer",
+      "path": "/api/v1/samples/<uuid:sample_id>/transfer",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "POST": [
+          "manager",
+          "owner",
+          "reception",
+          "technician"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "SampleTransferCreateView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "sample-transfer",
+      "path": "/api/v1/samples/<uuid:sample_id>/transfer/",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "POST": [
+          "manager",
+          "owner",
+          "reception",
+          "technician"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "SampleTransferCreateView"
+    },
+    {
+      "methods": [
+        "GET",
+        "PATCH"
+      ],
+      "name": "settings",
+      "path": "/api/v1/settings",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "manager",
+          "owner",
+          "pathologist",
+          "reception",
+          "technician"
+        ],
+        "PATCH": [
+          "manager",
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "SettingsView"
+    },
+    {
+      "methods": [
+        "GET",
+        "PATCH"
+      ],
+      "name": "settings",
+      "path": "/api/v1/settings/",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "manager",
+          "owner",
+          "pathologist",
+          "reception",
+          "technician"
+        ],
+        "PATCH": [
+          "manager",
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "SettingsView"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "name": "settlement-list",
+      "path": "/api/v1/settlements",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "manager",
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "SettlementListView"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "name": "settlement-list",
+      "path": "/api/v1/settlements/",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "manager",
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "SettlementListView"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "name": "settlement-detail",
+      "path": "/api/v1/settlements/<uuid:id>",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "manager",
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "SettlementDetailView"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "name": "settlement-detail",
+      "path": "/api/v1/settlements/<uuid:id>/",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "manager",
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "SettlementDetailView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "settlement-approve",
+      "path": "/api/v1/settlements/<uuid:id>/approve",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "POST": [
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "SettlementApproveView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "settlement-approve",
+      "path": "/api/v1/settlements/<uuid:id>/approve/",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "POST": [
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "SettlementApproveView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "settlement-cancel",
+      "path": "/api/v1/settlements/<uuid:id>/cancel",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "POST": [
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "SettlementCancelView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "settlement-cancel",
+      "path": "/api/v1/settlements/<uuid:id>/cancel/",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "POST": [
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "SettlementCancelView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "settlement-mark-paid",
+      "path": "/api/v1/settlements/<uuid:id>/mark-paid",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "POST": [
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "SettlementMarkPaidView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "settlement-mark-paid",
+      "path": "/api/v1/settlements/<uuid:id>/mark-paid/",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "POST": [
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "SettlementMarkPaidView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "settlement-send",
+      "path": "/api/v1/settlements/<uuid:id>/send",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "POST": [
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "SettlementSendView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "settlement-send",
+      "path": "/api/v1/settlements/<uuid:id>/send/",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "POST": [
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "SettlementSendView"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "name": "settlement-statement-pdf",
+      "path": "/api/v1/settlements/<uuid:settlement_id>/statement.pdf",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "manager",
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "SettlementStatementPdfView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "settlement-delivery-callback",
+      "path": "/api/v1/settlements/delivery-callback",
+      "permissions": [
+        "AllowAny"
+      ],
+      "public": true,
+      "roles": {},
+      "urlconf": "tenant",
+      "view": "SettlementDeliveryCallbackView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "settlement-delivery-callback",
+      "path": "/api/v1/settlements/delivery-callback/",
+      "permissions": [
+        "AllowAny"
+      ],
+      "public": true,
+      "roles": {},
+      "urlconf": "tenant",
+      "view": "SettlementDeliveryCallbackView"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "name": "settlement-exceptions",
+      "path": "/api/v1/settlements/exceptions",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "manager",
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "SettlementExceptionsView"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "name": "settlement-exceptions",
+      "path": "/api/v1/settlements/exceptions/",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "manager",
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "SettlementExceptionsView"
+    },
+    {
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "name": "staff-collection",
+      "path": "/api/v1/staff",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "owner"
+        ],
+        "POST": [
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "StaffCollectionView"
+    },
+    {
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "name": "staff-collection",
+      "path": "/api/v1/staff/",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "owner"
+        ],
+        "POST": [
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "StaffCollectionView"
+    },
+    {
+      "methods": [
+        "GET",
+        "PATCH"
+      ],
+      "name": "staff-detail",
+      "path": "/api/v1/staff/<uuid:staff_id>",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "owner"
+        ],
+        "PATCH": [
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "StaffDetailView"
+    },
+    {
+      "methods": [
+        "GET",
+        "PATCH"
+      ],
+      "name": "staff-detail",
+      "path": "/api/v1/staff/<uuid:staff_id>/",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "owner"
+        ],
+        "PATCH": [
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "StaffDetailView"
+    },
+    {
+      "methods": [
+        "GET",
+        "PUT"
+      ],
+      "name": "staff-branches",
+      "path": "/api/v1/staff/<uuid:staff_id>/branches",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "manager",
+          "owner"
+        ],
+        "PUT": [
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "StaffBranchesView"
+    },
+    {
+      "methods": [
+        "GET",
+        "PUT"
+      ],
+      "name": "staff-branches",
+      "path": "/api/v1/staff/<uuid:staff_id>/branches/",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "manager",
+          "owner"
+        ],
+        "PUT": [
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "StaffBranchesView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "staff-deactivate",
+      "path": "/api/v1/staff/<uuid:staff_id>/deactivate",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "POST": [
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "StaffDeactivateView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "staff-deactivate",
+      "path": "/api/v1/staff/<uuid:staff_id>/deactivate/",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "POST": [
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "StaffDeactivateView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "staff-reactivate",
+      "path": "/api/v1/staff/<uuid:staff_id>/reactivate",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "POST": [
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "StaffReactivateView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "staff-reactivate",
+      "path": "/api/v1/staff/<uuid:staff_id>/reactivate/",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "POST": [
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "StaffReactivateView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "staff-reset-password",
+      "path": "/api/v1/staff/<uuid:staff_id>/reset-password",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "POST": [
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "StaffResetPasswordView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "staff-reset-password",
+      "path": "/api/v1/staff/<uuid:staff_id>/reset-password/",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "POST": [
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "StaffResetPasswordView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "staff-totp-reset",
+      "path": "/api/v1/staff/<uuid:user_id>/reset-totp",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "POST": [
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "StaffTotpResetView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "staff-totp-reset",
+      "path": "/api/v1/staff/<uuid:user_id>/reset-totp/",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "POST": [
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "StaffTotpResetView"
+    },
+    {
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "name": "test-list-create",
+      "path": "/api/v1/tests",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "manager",
+          "owner",
+          "pathologist",
+          "reception",
+          "technician"
+        ],
+        "POST": [
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "TestListCreateView"
+    },
+    {
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "name": "test-list-create",
+      "path": "/api/v1/tests/",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "manager",
+          "owner",
+          "pathologist",
+          "reception",
+          "technician"
+        ],
+        "POST": [
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "TestListCreateView"
+    },
+    {
+      "methods": [
+        "GET",
+        "PATCH",
+        "DELETE"
+      ],
+      "name": "test-detail",
+      "path": "/api/v1/tests/<uuid:pk>",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "DELETE": [
+          "owner"
+        ],
+        "GET": [
+          "manager",
+          "owner",
+          "pathologist",
+          "reception",
+          "technician"
+        ],
+        "PATCH": [
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "TestDetailView"
+    },
+    {
+      "methods": [
+        "GET",
+        "PATCH",
+        "DELETE"
+      ],
+      "name": "test-detail",
+      "path": "/api/v1/tests/<uuid:pk>/",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "DELETE": [
+          "owner"
+        ],
+        "GET": [
+          "manager",
+          "owner",
+          "pathologist",
+          "reception",
+          "technician"
+        ],
+        "PATCH": [
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "TestDetailView"
+    },
+    {
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "name": "test-prices",
+      "path": "/api/v1/tests/<uuid:pk>/prices",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "manager",
+          "owner",
+          "pathologist",
+          "reception"
+        ],
+        "POST": [
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "TestPriceListCreateView"
+    },
+    {
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "name": "test-prices",
+      "path": "/api/v1/tests/<uuid:pk>/prices/",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "manager",
+          "owner",
+          "pathologist",
+          "reception"
+        ],
+        "POST": [
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "TestPriceListCreateView"
+    },
+    {
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "name": "test-ranges",
+      "path": "/api/v1/tests/<uuid:pk>/ranges",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "manager",
+          "owner",
+          "pathologist",
+          "reception",
+          "technician"
+        ],
+        "POST": [
+          "owner",
+          "pathologist"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "ReferenceRangeListCreateView"
+    },
+    {
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "name": "test-ranges",
+      "path": "/api/v1/tests/<uuid:pk>/ranges/",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "manager",
+          "owner",
+          "pathologist",
+          "reception",
+          "technician"
+        ],
+        "POST": [
+          "owner",
+          "pathologist"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "ReferenceRangeListCreateView"
+    },
+    {
+      "methods": [
+        "PATCH"
+      ],
+      "name": "test-range-detail",
+      "path": "/api/v1/tests/<uuid:pk>/ranges/<uuid:range_id>",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "PATCH": [
+          "owner",
+          "pathologist"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "ReferenceRangeDetailView"
+    },
+    {
+      "methods": [
+        "PATCH"
+      ],
+      "name": "test-range-detail",
+      "path": "/api/v1/tests/<uuid:pk>/ranges/<uuid:range_id>/",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "PATCH": [
+          "owner",
+          "pathologist"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "ReferenceRangeDetailView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "transfer-cancel",
+      "path": "/api/v1/transfers/<uuid:transfer_id>/cancel",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "POST": [
+          "manager",
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "TransferCancelView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "transfer-cancel",
+      "path": "/api/v1/transfers/<uuid:transfer_id>/cancel/",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "POST": [
+          "manager",
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "TransferCancelView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "transfer-mark-lost",
+      "path": "/api/v1/transfers/<uuid:transfer_id>/mark-lost",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "POST": [
+          "manager",
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "TransferMarkLostView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "transfer-mark-lost",
+      "path": "/api/v1/transfers/<uuid:transfer_id>/mark-lost/",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "POST": [
+          "manager",
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "TransferMarkLostView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "transfer-receive",
+      "path": "/api/v1/transfers/<uuid:transfer_id>/receive",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "POST": [
+          "manager",
+          "owner",
+          "reception",
+          "technician"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "TransferReceiveView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "transfer-receive",
+      "path": "/api/v1/transfers/<uuid:transfer_id>/receive/",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "POST": [
+          "manager",
+          "owner",
+          "reception",
+          "technician"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "TransferReceiveView"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "name": "transfer-exceptions",
+      "path": "/api/v1/transfers/exceptions",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "manager",
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "TransferExceptionsView"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "name": "transfer-exceptions",
+      "path": "/api/v1/transfers/exceptions/",
+      "permissions": [
+        "IsAuthenticated"
+      ],
+      "public": false,
+      "roles": {
+        "GET": [
+          "manager",
+          "owner"
+        ]
+      },
+      "urlconf": "tenant",
+      "view": "TransferExceptionsView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "webhook-notification-callback",
+      "path": "/api/v1/webhooks/n8n/notification",
+      "permissions": [
+        "AllowAny"
+      ],
+      "public": true,
+      "roles": {},
+      "urlconf": "tenant",
+      "view": "NotificationCallbackView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "webhook-notification-callback",
+      "path": "/api/v1/webhooks/n8n/notification/",
+      "permissions": [
+        "AllowAny"
+      ],
+      "public": true,
+      "roles": {},
+      "urlconf": "tenant",
+      "view": "NotificationCallbackView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "webhook-report-delivery-callback",
+      "path": "/api/v1/webhooks/n8n/report-delivery",
+      "permissions": [
+        "AllowAny"
+      ],
+      "public": true,
+      "roles": {},
+      "urlconf": "tenant",
+      "view": "ReportDeliveryCallbackView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "webhook-report-delivery-callback",
+      "path": "/api/v1/webhooks/n8n/report-delivery/",
+      "permissions": [
+        "AllowAny"
+      ],
+      "public": true,
+      "roles": {},
+      "urlconf": "tenant",
+      "view": "ReportDeliveryCallbackView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "webhook-settlement-delivery-callback",
+      "path": "/api/v1/webhooks/n8n/settlement-delivery",
+      "permissions": [
+        "AllowAny"
+      ],
+      "public": true,
+      "roles": {},
+      "urlconf": "tenant",
+      "view": "SettlementDeliveryCallbackView"
+    },
+    {
+      "methods": [
+        "POST"
+      ],
+      "name": "webhook-settlement-delivery-callback",
+      "path": "/api/v1/webhooks/n8n/settlement-delivery/",
+      "permissions": [
+        "AllowAny"
+      ],
+      "public": true,
+      "roles": {},
+      "urlconf": "tenant",
+      "view": "SettlementDeliveryCallbackView"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "name": "public-healthz",
+      "path": "/healthz",
+      "permissions": [],
+      "public": true,
+      "roles": {},
+      "urlconf": "public",
+      "view": "healthz_view"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "name": "internal-tls-check",
+      "path": "/internal/tls-check",
+      "permissions": [],
+      "public": true,
+      "roles": {},
+      "urlconf": "tenant",
+      "view": "tls_check_view"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "name": "internal-tls-check",
+      "path": "/internal/tls-check",
+      "permissions": [],
+      "public": true,
+      "roles": {},
+      "urlconf": "public",
+      "view": "tls_check_view"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "name": "internal-tls-check",
+      "path": "/internal/tls-check/",
+      "permissions": [],
+      "public": true,
+      "roles": {},
+      "urlconf": "tenant",
+      "view": "tls_check_view"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "name": "internal-tls-check",
+      "path": "/internal/tls-check/",
+      "permissions": [],
+      "public": true,
+      "roles": {},
+      "urlconf": "public",
+      "view": "tls_check_view"
+    },
+    {
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "name": "platform-tenants-create-short",
+      "path": "/platform/tenants",
+      "permissions": [
+        "IsAuthenticatedPlatformUser"
+      ],
+      "public": false,
+      "roles": {},
+      "urlconf": "public",
+      "view": "PlatformTenantCreateView"
+    },
+    {
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "name": "platform-tenants-create-short",
+      "path": "/platform/tenants/",
+      "permissions": [
+        "IsAuthenticatedPlatformUser"
+      ],
+      "public": false,
+      "roles": {},
+      "urlconf": "public",
+      "view": "PlatformTenantCreateView"
+    },
+    {
+      "methods": [
+        "GET"
+      ],
+      "name": "public-readyz",
+      "path": "/readyz",
+      "permissions": [],
+      "public": true,
+      "roles": {},
+      "urlconf": "public",
+      "view": "readyz_view"
+    }
+  ],
+  "version": 1
+}

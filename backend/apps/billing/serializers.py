@@ -89,7 +89,10 @@ class InvoiceCreateSerializer(serializers.Serializer):
         required=False, allow_null=True, default=None
     )
     items = serializers.ListField(
-        child=InvoiceItemInputSerializer(), min_length=1, allow_empty=False
+        child=InvoiceItemInputSerializer(),
+        min_length=1,
+        max_length=200,
+        allow_empty=False,
     )
     discount_amount = MoneyField(required=False, default=Decimal("0.00"))
     discount_reason = serializers.CharField(
@@ -204,7 +207,13 @@ class InvoiceSummarySerializer(serializers.Serializer):
 
 
 class InvoiceDetailSerializer(serializers.Serializer):
-    """Detail for GET /invoices/{id} — items + payments + net_paid."""
+    """Detail for GET /invoices/{id} — items + payments + net_paid.
+
+    LAB-49 Phase 5.2: Technician/Pathologist responses omit patient phone,
+    patient age and the discount reason (per-role output allowlist).
+    """
+
+    _PII_RESTRICTED_ROLES = frozenset({"technician", "pathologist"})
 
     id = serializers.UUIDField()
     invoice_number = serializers.CharField()
@@ -226,3 +235,13 @@ class InvoiceDetailSerializer(serializers.Serializer):
     payments = PaymentSerializer(many=True)
     net_paid = MoneyField()
     created_at = serializers.DateTimeField()
+
+    def to_representation(self, instance: Any) -> dict[str, Any]:
+        data = super().to_representation(instance)
+        request = self.context.get("request")
+        role = getattr(getattr(request, "user", None), "role", None)
+        if role in self._PII_RESTRICTED_ROLES:
+            data["patient_phone"] = None
+            data["patient_age"] = None
+            data["discount_reason"] = None
+        return data

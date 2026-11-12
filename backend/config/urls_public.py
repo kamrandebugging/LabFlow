@@ -77,8 +77,10 @@ def readyz_view(_request: object) -> JsonResponse:
             checks["cache"] = "ok"
 
     ready = all(value == "ok" for value in checks.values())
+    # LAB-49 Phase 3.6: public liveness surface only. Dependency detail is not
+    # an attack inventory — operators read it from structured logs/metrics.
     return JsonResponse(
-        {"status": "ok" if ready else "unavailable", "checks": checks},
+        {"status": "ok" if ready else "unavailable"},
         status=200 if ready else 503,
     )
 

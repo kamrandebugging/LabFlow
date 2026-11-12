@@ -42,13 +42,15 @@ import binascii
 import hashlib
 import json
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from typing import Any
 
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from django.db.models import Q, Sum
+from django.utils import timezone
 
 from apps.accounts.models import AuditLog, Role, StaffUser
 from apps.billing.models import Invoice, InvoiceItem, Payment
@@ -130,6 +132,13 @@ class OverpaymentError(BillingError):
 class RefundExceedsPaymentsError(BillingError):
     status_code = 422
     error_code = "refund_exceeds_payments"
+
+
+class RefundVelocityExceededError(BillingError):
+    """A6-1/A6-2: daily/per-invoice refund velocity tripwire."""
+
+    status_code = 429
+    error_code = "refund_velocity_exceeded"
 
 
 class ReferenceRequiredError(BillingError):
@@ -236,7 +245,9 @@ class BillingService:
             except ReferralPartner.DoesNotExist:
                 raise BillingNotFoundError("Referral partner not found.") from None
 
-        # BL-3: discount gates.
+        # BL-3: discount gates (LAB-49 Phase 2.3). A discount above 25% of the
+        # subtotal or above PKR 10,000 needs the Owner; a 100% discount is the
+        # same rule plus the reason and audit already required below.
         if discount_amount > Decimal("0.00"):
             if actor.role not in DISCOUNT_ROLES:
                 raise DiscountNotPermittedError(
@@ -298,6 +309,25 @@ class BillingService:
             raise DiscountExceedsSubtotalError(
                 "Discount cannot exceed the invoice subtotal."
             )
+        # LAB-49 Phase 2.3: a Manager may not zero out or heavily discount an
+        # invoice alone. >25% of subtotal or >PKR 10,000 requires the Owner;
+        # a 100% discount follows the same rule and is always audited.
+        if discount_amount > Decimal("0.00") and actor.role != Role.OWNER:
+            owner_threshold = Decimal(
+                str(getattr(settings, "DISCOUNT_OWNER_THRESHOLD_PKR", "10000.00"))
+            )
+            ratio_threshold = Decimal(
+                str(getattr(settings, "DISCOUNT_OWNER_THRESHOLD_RATIO", "0.25"))
+            )
+            if (
+                discount_amount > owner_threshold
+                or discount_amount > (subtotal * ratio_threshold)
+                or discount_amount == subtotal
+            ):
+                raise OwnerApprovalRequiredError(
+                    "Discounts above 25% of the subtotal or PKR 10,000 "
+                    "require the Owner."
+                )
         total = (subtotal - discount_amount).quantize(Decimal("0.01"))
 
         payload_hash = hashlib.sha256(
@@ -505,6 +535,10 @@ class PaymentService:
                 "Only Owner, Manager or Receptionist may record payments."
             )
 
+        # LAB-49 Phase 2.3 (API6 A6-1): velocity caps and the payment/refund
+        # aggregates are computed INSIDE the transaction under an invoice row
+        # lock, so concurrent requests cannot both slip under the cap
+        # (security review 2026-11-12).
         # BL-10: reference required for non-cash methods and for all refunds.
         if (method != Payment.Method.CASH or kind == Payment.Kind.REFUND) and (
             not reference
@@ -512,18 +546,6 @@ class PaymentService:
             raise ReferenceRequiredError(
                 "A reference is required for non-cash payments and all refunds."
             )
-
-        paid_sum, refund_sum = _payment_aggregates(invoice)
-
-        # BL-7 guards against the aggregates BEFORE the insert.
-        if kind == Payment.Kind.PAYMENT:
-            if paid_sum - refund_sum + amount > invoice.total:
-                raise OverpaymentError("Payment would exceed the invoice total.")
-        else:
-            if refund_sum + amount > paid_sum:
-                raise RefundExceedsPaymentsError(
-                    "Refund would exceed recorded payments."
-                )
 
         payload_hash = hashlib.sha256(
             _canonical_payment_payload(
@@ -536,6 +558,51 @@ class PaymentService:
         ).hexdigest()
 
         with transaction.atomic():
+            invoice = Invoice.objects.select_for_update().get(pk=invoice.pk)
+            if invoice.status == Invoice.Status.CANCELLED:
+                raise InvalidStateTransitionError(
+                    "Payments cannot be recorded on a cancelled invoice."
+                )
+
+            if kind == Payment.Kind.REFUND:
+                hour_ago = timezone.now() - timedelta(hours=1)
+                hourly = Payment.objects.filter(
+                    invoice=invoice,
+                    kind=Payment.Kind.REFUND,
+                    created_at__gte=hour_ago,
+                ).count()
+                if hourly >= int(
+                    getattr(settings, "REFUND_VELOCITY_PER_INVOICE_HOUR", 3)
+                ):
+                    raise RefundVelocityExceededError(
+                        "Too many refunds on this invoice in the last hour."
+                    )
+                if actor.role != Role.OWNER:
+                    day_start = timezone.now().replace(
+                        hour=0, minute=0, second=0, microsecond=0
+                    )
+                    today_total = Payment.objects.filter(
+                        kind=Payment.Kind.REFUND,
+                        received_by=actor,
+                        created_at__gte=day_start,
+                    ).aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
+                    daily_cap = Decimal(
+                        str(getattr(settings, "REFUND_MANAGER_DAILY_CAP", "25000.00"))
+                    )
+                    if today_total + amount > daily_cap:
+                        raise RefundVelocityExceededError(
+                            "Daily refund cap reached; ask the Owner to approve."
+                        )
+
+            paid_sum, refund_sum = _payment_aggregates(invoice)
+            if kind == Payment.Kind.PAYMENT:
+                if paid_sum - refund_sum + amount > invoice.total:
+                    raise OverpaymentError("Payment would exceed the invoice total.")
+            elif refund_sum + amount > paid_sum:
+                raise RefundExceedsPaymentsError(
+                    "Refund would exceed recorded payments."
+                )
+
             existing = Payment.objects.filter(idempotency_key=idempotency_key).first()
             if existing is not None:
                 if existing.payload_sha256 != payload_hash:

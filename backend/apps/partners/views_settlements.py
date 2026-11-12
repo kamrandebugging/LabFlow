@@ -140,6 +140,10 @@ def _mutate_view(
             _format_error("forbidden", "Only the Owner may do this."),
             status=status.HTTP_403_FORBIDDEN,
         )
+    if action in {"approve", "mark-paid"}:
+        from apps.accounts.step_up import enforce_step_up
+
+        enforce_step_up(user, request, action=f"settlement {action}")
     tenant = getattr(request, "tenant", None)
     if_match = request.META.get("HTTP_IF_MATCH")
     ip = _get_client_ip(request)
@@ -236,6 +240,9 @@ class SettlementSendView(APIView):
                 _format_error("forbidden", "Only the Owner may do this."),
                 status=status.HTTP_403_FORBIDDEN,
             )
+        from apps.accounts.step_up import enforce_step_up
+
+        enforce_step_up(user, request, action="settlement send")
         tenant = getattr(request, "tenant", None)
         ip = _get_client_ip(request)
         user_agent = request.META.get("HTTP_USER_AGENT", "")

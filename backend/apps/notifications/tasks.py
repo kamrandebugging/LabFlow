@@ -20,7 +20,6 @@ import os
 from datetime import UTC, datetime
 from typing import Any
 
-import requests
 from celery import shared_task
 from django.db import transaction
 from django.utils import timezone
@@ -172,7 +171,9 @@ def send_notification_task(schema_name: str, notification_id: str) -> dict[str, 
             return {"status": "held", "reason": "no_n8n_url"}
 
         try:
-            resp = requests.post(
+            from apps.core.safe_fetch import post as safe_post
+
+            resp = safe_post(
                 url,
                 data=raw,
                 headers={

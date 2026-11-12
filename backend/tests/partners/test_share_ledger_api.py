@@ -50,6 +50,8 @@ def _jwt(staff_id: uuid.UUID | Any, tenant_slug: str, role: str = "owner") -> st
                 "jti": uuid.uuid4().hex,
                 "iat": now,
                 "exp": now + 3600,
+                "iss": "labflow",
+                "aud": "labflow-api",
             },
             str(signing_key),
             algorithm="HS256",

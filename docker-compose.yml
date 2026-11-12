@@ -64,25 +64,45 @@ x-backend-common: &backend-common
       condition: service_healthy
   environment:
     # Settings: public (shared) schema only for the platform surface.
-    DJANGO_SETTINGS_MODULE: config.settings.base
+    DJANGO_SETTINGS_MODULE: ${DJANGO_SETTINGS_MODULE:-config.settings.prod}
     DJANGO_SECRET_KEY: "${DJANGO_SECRET_KEY:?error: DJANGO_SECRET_KEY is required — copy .env.example to .env and set it}"
     DJANGO_DEBUG: "False"
     DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-.localhost,127.0.0.1,localhost}
     DATABASE_URL: "postgresql://${POSTGRES_USER:-labflow_app}:${POSTGRES_PASSWORD:?error: POSTGRES_PASSWORD is required — copy .env.example to .env and set it}@postgres:5432/${POSTGRES_DB:-labflow}"
-    REDIS_URL: redis://redis:6379/0
-    CELERY_BROKER_URL: redis://redis:6379/0
+    REDIS_URL: "redis://:${REDIS_PASSWORD:?error: REDIS_PASSWORD is required}@redis:6379/0"
+    CELERY_BROKER_URL: "redis://:${REDIS_PASSWORD:?error: REDIS_PASSWORD is required}@redis:6379/0"
     LABFLOW_TOTP_ENCRYPTION_KEY: "${LABFLOW_TOTP_ENCRYPTION_KEY:?error: LABFLOW_TOTP_ENCRYPTION_KEY is required — copy .env.example to .env and set it}"
+    JWT_SIGNING_KEY: "${JWT_SIGNING_KEY:?error: JWT_SIGNING_KEY is required and must differ from DJANGO_SECRET_KEY}"
+    N8N_WEBHOOK_SECRET: "${N8N_WEBHOOK_SECRET:?error: N8N_WEBHOOK_SECRET is required and must differ from DJANGO_SECRET_KEY}"
+    EMAIL_HOST: ${EMAIL_HOST:-}
+    EMAIL_PORT: ${EMAIL_PORT:-587}
+    EMAIL_HOST_USER: ${EMAIL_HOST_USER:-}
+    EMAIL_HOST_PASSWORD: ${EMAIL_HOST_PASSWORD:-}
+    DEFAULT_FROM_EMAIL: ${DEFAULT_FROM_EMAIL:-no-reply@labflow.app}
+    FRONTEND_BASE_URL: ${FRONTEND_BASE_URL:-}
+    TRUSTED_PROXY_CIDRS: ${TRUSTED_PROXY_CIDRS:-127.0.0.1/32,::1/128,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16}
+    N8N_CALLBACK_HMAC_SECRET: ${N8N_CALLBACK_HMAC_SECRET:-}
+    SENTRY_DSN: ${SENTRY_DSN:-}
+    DOCS_ENABLED: ${DOCS_ENABLED:-0}
+    STEP_UP_ENABLED: ${STEP_UP_ENABLED:-0}
+    HIBP_ENABLED: ${HIBP_ENABLED:-0}
+    N8N_CALLBACK_REQUIRE_SIGNATURE: ${N8N_CALLBACK_REQUIRE_SIGNATURE:-0}
+    # Local Compose (base module) speaks HTTP behind Caddy; prod.py forces these on.
+    SECURE_SSL_REDIRECT: ${SECURE_SSL_REDIRECT:-0}
+    SECURE_HSTS_SECONDS: ${SECURE_HSTS_SECONDS:-0}
     PLATFORM_BASE_DOMAIN: ${PLATFORM_BASE_DOMAIN:-localhost}
     PLATFORM_FOUNDING_SLOTS_TOTAL: ${PLATFORM_FOUNDING_SLOTS_TOTAL:-0}
     PLATFORM_FOUNDING_PLAN_NAME: ${PLATFORM_FOUNDING_PLAN_NAME:-Founding}
     R2_BUCKET_NAME: ${R2_BUCKET_NAME:-labflow}
-    R2_ACCESS_KEY_ID: ${R2_ACCESS_KEY_ID:-minioadmin}
-    R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY:-minioadmin123}
+    R2_ACCESS_KEY_ID: "${R2_ACCESS_KEY_ID:?error: R2_ACCESS_KEY_ID is required — no default credentials}"
+    R2_SECRET_ACCESS_KEY: "${R2_SECRET_ACCESS_KEY:?error: R2_SECRET_ACCESS_KEY is required — no default credentials}"
 
 services:
   postgres:
     image: postgres:16.4
     container_name: labflow-postgres
+    mem_limit: 1g
+    cpus: "2.0"
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-labflow}
@@ -103,26 +123,37 @@ services:
     image: redis:7.4-alpine
     container_name: labflow-redis
     restart: unless-stopped
-    command: ["redis-server", "--appendonly", "yes"]
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --requirepass
+      - "${REDIS_PASSWORD:?REDIS_PASSWORD is required}"
     volumes:
       - redis_data:/data
     networks:
       - internal
+    environment:
+      REDIS_PASSWORD: "${REDIS_PASSWORD:?REDIS_PASSWORD is required}"
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" ping | grep -q PONG"]
       interval: 5s
       timeout: 3s
       retries: 5
       start_period: 3s
+    mem_limit: 256m
+    cpus: "1.0"
 
   minio:
     image: quay.io/minio/minio:RELEASE.2024-11-07T00-52-20Z
     container_name: labflow-minio
+    mem_limit: 512m
+    cpus: "1.0"
     restart: unless-stopped
     command: ["server", "/data", "--console-address", ":9001"]
     environment:
-      MINIO_ROOT_USER: ${R2_ACCESS_KEY_ID:-minioadmin}
-      MINIO_ROOT_PASSWORD: ${R2_SECRET_ACCESS_KEY:-minioadmin123}
+      MINIO_ROOT_USER: "${R2_ACCESS_KEY_ID:?R2_ACCESS_KEY_ID is required}"
+      MINIO_ROOT_PASSWORD: "${R2_SECRET_ACCESS_KEY:?R2_SECRET_ACCESS_KEY is required}"
     volumes:
       - minio_data:/data
     networks:
@@ -147,8 +178,8 @@ services:
     networks:
       - internal
     environment:
-      MINIO_ROOT_USER: ${R2_ACCESS_KEY_ID:-minioadmin}
-      MINIO_ROOT_PASSWORD: ${R2_SECRET_ACCESS_KEY:-minioadmin123}
+      MINIO_ROOT_USER: "${R2_ACCESS_KEY_ID:?R2_ACCESS_KEY_ID is required}"
+      MINIO_ROOT_PASSWORD: "${R2_SECRET_ACCESS_KEY:?R2_SECRET_ACCESS_KEY is required}"
       R2_BUCKET_NAME: ${R2_BUCKET_NAME:-labflow}
     entrypoint:
       - /bin/sh
@@ -165,21 +196,42 @@ services:
   backend:
     <<: *backend-common
     container_name: labflow-backend
+    mem_limit: 1g
+    cpus: "2.0"
     environment:
-      DJANGO_SETTINGS_MODULE: config.settings.base
+      DJANGO_SETTINGS_MODULE: ${DJANGO_SETTINGS_MODULE:-config.settings.prod}
       DJANGO_SECRET_KEY: "${DJANGO_SECRET_KEY:?error: DJANGO_SECRET_KEY is required — copy .env.example to .env and set it}"
       DJANGO_DEBUG: "False"
       DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-.localhost,127.0.0.1,localhost}
       DATABASE_URL: "postgresql://${POSTGRES_USER:-labflow_app}:${POSTGRES_PASSWORD:?error: POSTGRES_PASSWORD is required — copy .env.example to .env and set it}@postgres:5432/${POSTGRES_DB:-labflow}"
-      REDIS_URL: redis://redis:6379/0
-      CELERY_BROKER_URL: redis://redis:6379/0
+      REDIS_URL: "redis://:${REDIS_PASSWORD:?error: REDIS_PASSWORD is required}@redis:6379/0"
+      CELERY_BROKER_URL: "redis://:${REDIS_PASSWORD:?error: REDIS_PASSWORD is required}@redis:6379/0"
       LABFLOW_TOTP_ENCRYPTION_KEY: "${LABFLOW_TOTP_ENCRYPTION_KEY:?error: LABFLOW_TOTP_ENCRYPTION_KEY is required — copy .env.example to .env and set it}"
+      JWT_SIGNING_KEY: "${JWT_SIGNING_KEY:?error: JWT_SIGNING_KEY is required and must differ from DJANGO_SECRET_KEY}"
+      N8N_WEBHOOK_SECRET: "${N8N_WEBHOOK_SECRET:?error: N8N_WEBHOOK_SECRET is required and must differ from DJANGO_SECRET_KEY}"
+      # Mail is a security control (password reset). Empty here fails the prod boot.
+      EMAIL_HOST: ${EMAIL_HOST:-}
+      EMAIL_PORT: ${EMAIL_PORT:-587}
+      EMAIL_HOST_USER: ${EMAIL_HOST_USER:-}
+      EMAIL_HOST_PASSWORD: ${EMAIL_HOST_PASSWORD:-}
+      DEFAULT_FROM_EMAIL: ${DEFAULT_FROM_EMAIL:-no-reply@labflow.app}
+      FRONTEND_BASE_URL: ${FRONTEND_BASE_URL:-}
+      TRUSTED_PROXY_CIDRS: ${TRUSTED_PROXY_CIDRS:-127.0.0.1/32,::1/128,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16}
+      N8N_CALLBACK_HMAC_SECRET: ${N8N_CALLBACK_HMAC_SECRET:-}
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      DOCS_ENABLED: ${DOCS_ENABLED:-0}
+      STEP_UP_ENABLED: ${STEP_UP_ENABLED:-0}
+      HIBP_ENABLED: ${HIBP_ENABLED:-0}
+      N8N_CALLBACK_REQUIRE_SIGNATURE: ${N8N_CALLBACK_REQUIRE_SIGNATURE:-0}
+      # Local Compose (base module) speaks HTTP behind Caddy; prod.py forces these on.
+      SECURE_SSL_REDIRECT: ${SECURE_SSL_REDIRECT:-0}
+      SECURE_HSTS_SECONDS: ${SECURE_HSTS_SECONDS:-0}
       PLATFORM_BASE_DOMAIN: ${PLATFORM_BASE_DOMAIN:-localhost}
       PLATFORM_FOUNDING_SLOTS_TOTAL: ${PLATFORM_FOUNDING_SLOTS_TOTAL:-0}
       PLATFORM_FOUNDING_PLAN_NAME: ${PLATFORM_FOUNDING_PLAN_NAME:-Founding}
       R2_BUCKET_NAME: ${R2_BUCKET_NAME:-labflow}
-      R2_ACCESS_KEY_ID: ${R2_ACCESS_KEY_ID:-minioadmin}
-      R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY:-minioadmin123}
+      R2_ACCESS_KEY_ID: "${R2_ACCESS_KEY_ID:?error: R2_ACCESS_KEY_ID is required — no default credentials}"
+      R2_SECRET_ACCESS_KEY: "${R2_SECRET_ACCESS_KEY:?error: R2_SECRET_ACCESS_KEY is required — no default credentials}"
       RUN_MIGRATIONS: "1"
     healthcheck:
       test:
@@ -198,6 +250,8 @@ services:
   worker:
     <<: *backend-common
     container_name: labflow-worker
+    mem_limit: 1536m
+    cpus: "2.0"
     command:
       - celery
       - -A

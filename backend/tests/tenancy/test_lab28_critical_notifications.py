@@ -31,6 +31,7 @@ from apps.accounts.models import AuditLog, Role, StaffUser
 from apps.results.models import CriticalNotification, Result
 from tests.factories.branch import BranchFactory
 from tests.factories.results import CriticalNotificationFactory, ResultFactory
+from tests.factories.samples import SampleFactory
 from tests.factories.staff_user import StaffUserFactory
 
 NOTIFY_URL = "/api/v1/results/{result_id}/critical-notifications"
@@ -75,11 +76,13 @@ def lab28_setup(tenant_a: Any) -> dict[str, Any]:
             role=Role.OWNER, branch=None, email="owner@labflow.app"
         )
         critical_result = ResultFactory(
+            sample=SampleFactory(branch=branch),
             flag=Result.Flag.CRITICAL,
             status=Result.Status.APPROVED,
             value="450.0",
         )
         normal_result = ResultFactory(
+            sample=SampleFactory(branch=branch),
             flag=Result.Flag.NORMAL,
             status=Result.Status.APPROVED,
             value="95.0",

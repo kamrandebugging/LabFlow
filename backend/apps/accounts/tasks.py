@@ -1,57 +1,47 @@
-"""Celery tasks for accounts app (KAN-106)."""
+"""Accounts Celery tasks (LAB-49 fix-up: keep network I/O off the request path)."""
+
+from __future__ import annotations
 
 import logging
 from datetime import timedelta
 from typing import Any
 
 from celery import shared_task
-from django.utils import timezone
-from django_tenants.utils import schema_context
-
-from apps.accounts.models import PasswordResetToken
-from apps.core.models import Tenant
 
 logger = logging.getLogger(__name__)
 
 
 @shared_task(name="accounts.cleanup_expired_tokens")
 def cleanup_expired_tokens_task() -> dict[str, Any]:
-    """Purge password_reset_token rows created > 30 days ago across tenants
+    """Purge password-reset tokens older than 30 days across tenant schemas."""
+    from django.utils import timezone
+    from django_tenants.utils import schema_context
 
-    (Doc 02 §5.11, Doc 04 §13.2).
-    """
-    now = timezone.now()
-    cutoff = now - timedelta(days=30)
-    total_purged = 0
-    tenant_results: dict[str, int] = {}
+    from apps.accounts.models import PasswordResetToken
+    from apps.core.models import Tenant
 
-    # Iterate over all tenant schemas (Doc 04 §13.2 TP-5 fan-out pattern)
-    tenants = Tenant.objects.exclude(schema_name="public")
-    for tenant in tenants:
-        try:
-            with schema_context(tenant.schema_name):
-                deleted_count, _ = PasswordResetToken.objects.filter(
-                    created_at__lt=cutoff
-                ).delete()
-                tenant_results[tenant.schema_name] = deleted_count
-                total_purged += deleted_count
-                logger.info(
-                    "accounts.cleanup_expired_tokens: tenant_slug=%s schema=%s "
-                    "purged=%d tokens older than %s",
-                    tenant.slug,
-                    tenant.schema_name,
-                    deleted_count,
-                    cutoff.isoformat(),
-                )
-        except Exception:
-            logger.exception(
-                "accounts.cleanup_expired_tokens: failed for tenant_slug=%s schema=%s",
-                tenant.slug,
+    cutoff = timezone.now() - timedelta(days=30)
+    total = 0
+    for tenant in Tenant.objects.exclude(schema_name="public"):
+        with schema_context(tenant.schema_name):
+            deleted, _ = PasswordResetToken.objects.filter(
+                created_at__lt=cutoff
+            ).delete()
+            logger.info(
+                "accounts.cleanup_expired_tokens purged %s rows for %s",
+                deleted,
                 tenant.schema_name,
             )
+            total += deleted
+    return {"status": "success", "deleted": total}
 
-    return {
-        "status": "success",
-        "total_purged": total_purged,
-        "tenants": tenant_results,
-    }
+
+@shared_task(name="accounts.send_password_reset_email", max_retries=3)
+def send_password_reset_email_task(
+    email: str, display_name: str, link: str
+) -> dict[str, Any]:
+    """Deliver one password-reset link; retry transient SMTP failures."""
+    from apps.accounts.emails import send_password_reset_email_to
+
+    sent = send_password_reset_email_to(email, display_name, link)
+    return {"sent": sent}

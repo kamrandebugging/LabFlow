@@ -9,6 +9,7 @@ Rules:
 
 import logging
 import time
+import uuid
 from typing import Final
 
 from django.core.cache import cache
@@ -221,3 +222,98 @@ def check_and_record_generic_throttle(
         return False, 0
     except Exception:
         return True, window_seconds
+
+
+# ---------------------------------------------------------------------------
+# Progressive account lockout (LAB-49 Phase 5.6, SE-25)
+# ---------------------------------------------------------------------------
+
+
+def _lockout_key(tenant_id: str, email: str, ip: str = "") -> str:
+    return f"auth:lockout:{tenant_id}:{ip}:{email.strip().lower()}"
+
+
+def _violation_key(tenant_id: str, email: str, ip: str = "") -> str:
+    return f"auth:lockout:violations:{tenant_id}:{ip}:{email.strip().lower()}"
+
+
+def check_account_lockout(tenant_id: str, email: str, ip: str = "") -> tuple[bool, int]:
+    """Return (is_locked, retry_after_seconds).
+
+    Keyed per (tenant, email, IP) so an attacker cannot lock a victim out
+    from a different address (django-reviewer 2026-11-12).
+    """
+    try:
+        ttl = cache.get(_lockout_key(tenant_id, email, ip))
+        if ttl is not None:
+            return True, max(1, int(ttl))
+    except Exception:
+        # Fail closed: an unreadable lock state must not unlock accounts.
+        return True, 60
+    return False, 0
+
+
+def record_throttle_violation(tenant_id: str, email: str, ip: str = "") -> bool:
+    """Count a throttled login window; lock the account after N windows.
+
+    Returns True when this call engaged the lock. The lock is a Redis TTL
+    value; an Owner can clear it with ``manage.py unlock_account``.
+    """
+    from django.conf import settings
+
+    threshold = int(getattr(settings, "ACCOUNT_LOCKOUT_THRESHOLD", 3))
+    lock_seconds = int(getattr(settings, "ACCOUNT_LOCKOUT_SECONDS", 3600))
+    vkey = _violation_key(tenant_id, email, ip)
+    try:
+        # Count at most once per 15-minute throttle window, so a burst of
+        # retries inside one window cannot fast-forward the lock.
+        import time
+
+        window_id = int(time.time() // LOGIN_WINDOW_SECONDS)
+        if not cache.add(f"{vkey}:window:{window_id}", "1", timeout=lock_seconds):
+            return False
+        count = cache.get(vkey)
+        count = int(count or 0) + 1
+        cache.set(vkey, count, timeout=lock_seconds)
+        if count < threshold:
+            return False
+        cache.set(
+            _lockout_key(tenant_id, email, ip), lock_seconds, timeout=lock_seconds
+        )
+    except Exception:
+        # Cache outage during violation counting: keep the throttle closed but
+        # do not claim a lock we cannot store.
+        return False
+    try:
+        from apps.accounts.models import AuditLog, StaffUser
+
+        target = StaffUser.objects.filter(email=email.strip().lower()).first()
+        AuditLog.objects.create(
+            actor_id=None,
+            action="auth.account_locked",
+            entity_type="staff_user",
+            entity_id=target.id if target else uuid.uuid4(),
+            before_jsonb=None,
+            after_jsonb={
+                "email": email.strip().lower(),
+                "throttled_windows": count,
+                "lock_seconds": lock_seconds,
+            },
+            ip=None,
+            user_agent="login_throttle",
+        )
+    except Exception:
+        pass
+    return True
+
+
+def unlock_account(tenant_id: str, email: str, ip: str = "") -> None:
+    """Clear the lock and violation counter for this email+IP."""
+    for key in (
+        _lockout_key(tenant_id, email, ip),
+        _violation_key(tenant_id, email, ip),
+    ):
+        try:
+            cache.delete(key)
+        except Exception:
+            logger.warning("Failed to clear lockout key %s", key)

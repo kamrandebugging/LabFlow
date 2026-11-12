@@ -74,16 +74,15 @@ def export_tenant_task(schema_name: str, export_id: str) -> dict[str, Any]:
     Secrets are never exported (§4.3 exclusion list); the manifest records
     exactly which columns were excluded and why.
 
-    The bundle is returned as bytes in the result (the API layer persists
-    it under the tenant's storage prefix and mints the 7-day signed link).
-    Idempotent per export_id: a repeat run for a COMPLETE export returns
-    the existing bundle key without re-exporting.
+    The bundle is built on disk and streamed into storage; the API layer mints
+    the 7-day signed link. Idempotent per export_id: a repeat run for a
+    COMPLETE export returns the existing bundle key without re-exporting.
     """
     import logging
     import uuid
     from datetime import timedelta
 
-    from django.core.files.base import ContentFile
+    from django.conf import settings
     from django.core.files.storage import default_storage
     from django.db import transaction
     from django.utils import timezone
@@ -120,85 +119,148 @@ def export_tenant_task(schema_name: str, export_id: str) -> dict[str, Any]:
             export.status = DataExport.Status.RUNNING
             export.save(update_fields=["status", "updated_at"])
 
-        # Build the bundle outside the row lock.
+        # Build on disk (never whole-tenant list() + BytesIO) and stream the
+        # finished ZIP into storage (LAB-49 Phase 2.5).
+        import contextlib
+        import os
+        import tempfile
+
+        from django.core.files import File
+
+        temp_path = os.path.join(
+            tempfile.gettempdir(), f"labflow-export-{export.id}.zip"
+        )
         try:
-            bundle_bytes, manifest = _build_export_bundle(schema_name)
-        except Exception as exc:
-            logger.exception("tenants.export_tenant: export %s failed", export_id)
+            try:
+                manifest = _build_export_bundle_to_path(schema_name, temp_path)
+            except Exception as exc:
+                logger.exception("tenants.export_tenant: export %s failed", export_id)
+                with transaction.atomic():
+                    locked = DataExport.objects.select_for_update().get(pk=export.pk)
+                    locked.status = DataExport.Status.FAILED
+                    locked.error = f"{type(exc).__name__}: {exc}"[:2000]
+                    locked.save(update_fields=["status", "error", "updated_at"])
+                raise
+
+            # Persist bundle under tenant prefix; mint 7-day signed link.
+            bundle_key = f"exports/{schema_name}/{export.id}/export.zip"
+            if default_storage.exists(bundle_key):
+                default_storage.delete(bundle_key)
+            with open(temp_path, "rb") as bundle_file:
+                default_storage.save(bundle_key, File(bundle_file))
+            bundle_bytes = os.path.getsize(temp_path)
+            # Eager-mode test seam only: production never loads the ZIP in RAM.
+            eager_bundle = b""
+            if getattr(settings, "CELERY_TASK_ALWAYS_EAGER", False):
+                with open(temp_path, "rb") as bundle_file:
+                    eager_bundle = bundle_file.read()
+
+            from django.core.signing import TimestampSigner
+
+            signer = TimestampSigner(salt="labflow.data-export")
+            signed = signer.sign(str(export.id))
+            download_url = f"/api/v1/exports/{export.id}/download?sig={signed}"
+            expires_at = timezone.now() + timedelta(days=7)
+
             with transaction.atomic():
                 locked = DataExport.objects.select_for_update().get(pk=export.pk)
-                locked.status = DataExport.Status.FAILED
-                locked.error = f"{type(exc).__name__}: {exc}"[:2000]
-                locked.save(update_fields=["status", "error", "updated_at"])
-            raise
+                locked.status = DataExport.Status.COMPLETE
+                locked.bundle_key = bundle_key
+                locked.download_url = download_url
+                locked.download_expires_at = expires_at
+                locked.completed_at = timezone.now()
+                locked.error = None
+                locked.save(
+                    update_fields=[
+                        "status",
+                        "bundle_key",
+                        "download_url",
+                        "download_expires_at",
+                        "completed_at",
+                        "error",
+                        "updated_at",
+                    ]
+                )
+                AuditLog.objects.create(
+                    actor_id=locked.requested_by_id,
+                    action="data.export_completed",
+                    entity_type="data_export",
+                    entity_id=locked.id,
+                    after_jsonb={
+                        "export_id": str(locked.id),
+                        "bundle_key": bundle_key,
+                        "file_count": len(manifest["files"]),
+                        "event": "data.export_completed",
+                    },
+                )
+        finally:
+            with contextlib.suppress(OSError):
+                os.unlink(temp_path)
 
-        # Persist bundle under tenant prefix; mint 7-day signed link.
-        bundle_key = f"exports/{schema_name}/{export.id}/export.zip"
-        if default_storage.exists(bundle_key):
-            default_storage.delete(bundle_key)
-        default_storage.save(bundle_key, ContentFile(bundle_bytes))
-
-        from django.core.signing import TimestampSigner
-
-        signer = TimestampSigner(salt="labflow.data-export")
-        signed = signer.sign(str(export.id))
-        download_url = f"/api/v1/exports/{export.id}/download?sig={signed}"
-        expires_at = timezone.now() + timedelta(days=7)
-
-        with transaction.atomic():
-            locked = DataExport.objects.select_for_update().get(pk=export.pk)
-            locked.status = DataExport.Status.COMPLETE
-            locked.bundle_key = bundle_key
-            locked.download_url = download_url
-            locked.download_expires_at = expires_at
-            locked.completed_at = timezone.now()
-            locked.error = None
-            locked.save(
-                update_fields=[
-                    "status",
-                    "bundle_key",
-                    "download_url",
-                    "download_expires_at",
-                    "completed_at",
-                    "error",
-                    "updated_at",
-                ]
-            )
-            AuditLog.objects.create(
-                actor_id=locked.requested_by_id,
-                action="data.export_completed",
-                entity_type="data_export",
-                entity_id=locked.id,
-                after_jsonb={
-                    "export_id": str(locked.id),
-                    "bundle_key": bundle_key,
-                    "file_count": len(manifest["files"]),
-                    "event": "data.export_completed",
-                },
-            )
         logger.info(
             "tenants.export_tenant: export %s complete (%d files, %d bytes)",
             export_id,
             len(manifest["files"]),
-            len(bundle_bytes),
+            bundle_bytes,
         )
-        return {
+        result: dict[str, Any] = {
             "status": "ok",
             "export_id": str(export.id),
             "bundle_key": bundle_key,
-            "bundle_bytes": bundle_bytes,
+            "bundle_size": bundle_bytes,
             "manifest": manifest,
         }
+        if eager_bundle:
+            result["bundle_bytes"] = eager_bundle
+        return result
 
 
-def _build_export_bundle(schema_name: str) -> tuple[bytes, dict[str, Any]]:
-    """Build the export ZIP: CSVs + PDFs + manifest.json.
-
-    Returns (zip_bytes, manifest_dict). Secrets excluded per §4.3.
-    """
+def _write_table_csv(
+    zf: Any,
+    arcname: str,
+    field_names: list[str],
+    queryset: Any,
+) -> tuple[str, int, int]:
+    """Stream one table into a ZIP entry; return (sha256, rows, bytes)."""
     import csv
     import hashlib
     import io
+
+    hasher = hashlib.sha256()
+    row_count = 0
+    byte_count = 0
+    with zf.open(arcname, "w") as raw:
+        buffer = io.StringIO()
+        writer = csv.writer(buffer)
+
+        def flush_buffer() -> None:
+            nonlocal byte_count
+            data = buffer.getvalue().encode("utf-8")
+            raw.write(data)
+            hasher.update(data)
+            byte_count += len(data)
+            buffer.seek(0)
+            buffer.truncate(0)
+
+        writer.writerow(field_names)
+        flush_buffer()
+        for row in queryset.iterator(chunk_size=2000):
+            writer.writerow(["" if value is None else str(value) for value in row])
+            row_count += 1
+            if buffer.tell() >= 1_000_000:
+                flush_buffer()
+        flush_buffer()
+    return hasher.hexdigest(), row_count, byte_count
+
+
+def _build_export_bundle_to_path(schema_name: str, path: str) -> dict[str, Any]:
+    """Build the export ZIP on disk: CSVs + PDFs + manifest.json.
+
+    Streams one table at a time and one PDF chunk at a time into the ZIP, so
+    neither the whole tenant nor the whole bundle is held in memory (LAB-49
+    Phase 2.5). Secrets excluded per §4.3. Returns the manifest dict.
+    """
+    import hashlib
     import json
     import zipfile
 
@@ -211,8 +273,7 @@ def _build_export_bundle(schema_name: str) -> tuple[bytes, dict[str, Any]]:
     excluded_columns: list[dict[str, str]] = []
     seen_exclusions: set[tuple[str, str]] = set()
 
-    zip_buffer = io.BytesIO()
-    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+    with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as zf:
         # One CSV per tenant table (all models in the tenant schema).
         for model in django_apps.get_models():
             table = model._meta.db_table
@@ -245,29 +306,25 @@ def _build_export_bundle(schema_name: str) -> tuple[bytes, dict[str, Any]]:
                     continue
                 field_names.append(field.name)
 
-            rows = list(
+            queryset = (
                 model.objects.values_list(*field_names).order_by("pk")  # type: ignore[attr-defined]
                 if field_names
-                else []
+                else model.objects.none()  # type: ignore[attr-defined]
             )
-            csv_buffer = io.StringIO()
-            writer = csv.writer(csv_buffer)
-            writer.writerow(field_names)
-            for row in rows:
-                writer.writerow(["" if v is None else str(v) for v in row])
-            csv_bytes = csv_buffer.getvalue().encode("utf-8")
             arcname = f"tables/{table}.csv"
-            zf.writestr(arcname, csv_bytes)
+            sha256, row_count, byte_count = _write_table_csv(
+                zf, arcname, field_names, queryset
+            )
             files.append(
                 {
                     "name": arcname,
-                    "sha256": hashlib.sha256(csv_bytes).hexdigest(),
-                    "rows": len(rows),
-                    "bytes": len(csv_bytes),
+                    "sha256": sha256,
+                    "rows": row_count,
+                    "bytes": byte_count,
                 }
             )
 
-        # Every report PDF at its stored pdf_key.
+        # Every report PDF at its stored pdf_key, streamed in 1 MB chunks.
         try:
             from apps.reports.models import ReportVersion
 
@@ -275,15 +332,25 @@ def _build_export_bundle(schema_name: str) -> tuple[bytes, dict[str, Any]]:
                 pdf_key = version.pdf_key
                 if not pdf_key or not default_storage.exists(pdf_key):
                     continue
-                with default_storage.open(pdf_key, "rb") as fh:
-                    pdf_bytes = fh.read()
                 arcname = f"reports/{pdf_key}"
-                zf.writestr(arcname, pdf_bytes)
+                hasher = hashlib.sha256()
+                byte_count = 0
+                with (
+                    default_storage.open(pdf_key, "rb") as source,
+                    zf.open(arcname, "w") as target,
+                ):
+                    while True:
+                        chunk = source.read(1024 * 1024)
+                        if not chunk:
+                            break
+                        target.write(chunk)
+                        hasher.update(chunk)
+                        byte_count += len(chunk)
                 files.append(
                     {
                         "name": arcname,
-                        "sha256": hashlib.sha256(pdf_bytes).hexdigest(),
-                        "bytes": len(pdf_bytes),
+                        "sha256": hasher.hexdigest(),
+                        "bytes": byte_count,
                     }
                 )
         except Exception:
@@ -306,7 +373,4 @@ def _build_export_bundle(schema_name: str) -> tuple[bytes, dict[str, Any]]:
         manifest_bytes = json.dumps(manifest, indent=2).encode("utf-8")
         zf.writestr("manifest.json", manifest_bytes)
 
-    zip_bytes = zip_buffer.getvalue()
-    # Recompute manifest with the final file list (manifest.json itself
-    # is not checksummed inside the manifest).
-    return zip_bytes, manifest
+    return manifest

@@ -36,6 +36,14 @@ class OnboardingIncomplete(APIException):
     default_code = "onboarding_incomplete"
 
 
+class RoleDenied(APIException):
+    """403 forbidden — the central role policy refused this route (LAB-49)."""
+
+    status_code = 403
+    default_detail = "You do not have permission for this action."
+    default_code = "forbidden"
+
+
 def problem_json_exception_handler(exc: Exception, context: dict[str, Any]) -> Any:
     """DRF EXCEPTION_HANDLER: stable codes for scope + onboarding refusals."""
     if isinstance(exc, BranchScopeDenied):
@@ -54,6 +62,34 @@ def problem_json_exception_handler(exc: Exception, context: dict[str, Any]) -> A
         return Response(
             {"error": {"code": code, "message": message}},
             status=403,
+        )
+    if isinstance(exc, RoleDenied):
+        message = str(exc.detail)
+        return Response(
+            {
+                "type": "https://labflow.example/problems/forbidden",
+                "title": "Forbidden",
+                "status": 403,
+                "detail": message,
+                "code": "forbidden",
+                "error": {"code": "forbidden", "message": message},
+            },
+            status=403,
+            content_type="application/problem+json",
+        )
+    from rest_framework.exceptions import Throttled
+
+    if isinstance(exc, Throttled):
+        wait = int(getattr(exc, "wait", None) or 1)
+        return Response(
+            {
+                "error": {
+                    "code": "rate_limited",
+                    "message": "Too many requests. Please try again later.",
+                }
+            },
+            status=429,
+            headers={"Retry-After": str(max(1, wait))},
         )
     # Imported lazily: DRF imports the authentication backend while building
     # its settings, and ``rest_framework.views`` is still partially initialised

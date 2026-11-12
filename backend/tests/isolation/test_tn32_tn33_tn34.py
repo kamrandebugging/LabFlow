@@ -221,6 +221,22 @@ RAW_CACHE_ALLOWLIST: dict[str, str] = {
         "Apex-only platform operator sessions keyed by user id; the platform "
         "surface has no tenant schema context to segment on."
     ),
+    "apps/core/throttling.py": (
+        "Shared fixed-window counters; every key includes the tenant schema "
+        "(_tenant_key) and the user/IP identifier (LAB-49 Phase 2.1)."
+    ),
+    "apps/core/authorization.py": (
+        "Role-denial audit dedupe uses a 60s cache key; keys are actor+route+"
+        "method scoped and contain no tenant business data (LAB-49)."
+    ),
+    "apps/accounts/step_up.py": (
+        "Step-up markers are keyed by the globally unique staff user id "
+        "(auth:stepup:<user_id>); no cross-tenant collision is possible."
+    ),
+    "apps/automation/views_callbacks.py": (
+        "Callback replay nonces are a hash of the HMAC signature itself "
+        "(callback:nonce:<sha256>), not tenant data (LAB-49 Phase 4.2)."
+    ),
     "apps/platform/views_metrics.py": (
         "The 60s overview cache is a single apex-wide snapshot aggregated from "
         "the public schema only."

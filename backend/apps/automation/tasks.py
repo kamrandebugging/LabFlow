@@ -51,7 +51,7 @@ def retry_pending_deliveries_task() -> dict[str, Any]:
                         WebhookDelivery.Status.FAILED,
                     ],
                     next_attempt_at__lte=now,
-                ).order_by("next_attempt_at")
+                ).order_by("next_attempt_at")[:100]
                 for row in due:
                     url = webhook_url_for_event(row.event)
                     if not url:

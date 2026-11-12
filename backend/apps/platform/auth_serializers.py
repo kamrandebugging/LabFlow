@@ -1,11 +1,11 @@
 """Serializers for platform operator auth (Doc 08 §4.4)."""
 
-from typing import Any
-
 from rest_framework import serializers
 
+from apps.core.serializers import StrictSerializer
 
-class PlatformLoginSerializer(serializers.Serializer[dict[str, Any]]):
+
+class PlatformLoginSerializer(StrictSerializer):
     """POST /api/v1/platform/auth/login body."""
 
     email = serializers.CharField(
@@ -19,7 +19,7 @@ class PlatformLoginSerializer(serializers.Serializer[dict[str, Any]]):
     )
 
 
-class PlatformTotpVerifySerializer(serializers.Serializer[dict[str, Any]]):
+class PlatformTotpVerifySerializer(StrictSerializer):
     """POST /api/v1/platform/auth/totp/verify body."""
 
     email = serializers.CharField(
@@ -33,7 +33,7 @@ class PlatformTotpVerifySerializer(serializers.Serializer[dict[str, Any]]):
     )
 
 
-class PlatformTotpConfirmSerializer(serializers.Serializer[dict[str, Any]]):
+class PlatformTotpConfirmSerializer(StrictSerializer):
     """POST /api/v1/platform/auth/totp/enroll/confirm body."""
 
     code = serializers.CharField(
@@ -41,7 +41,7 @@ class PlatformTotpConfirmSerializer(serializers.Serializer[dict[str, Any]]):
     )
 
 
-class PlatformPasswordResetRequestSerializer(serializers.Serializer[dict[str, Any]]):
+class PlatformPasswordResetRequestSerializer(StrictSerializer):
     """POST /api/v1/platform/auth/password-reset/request body."""
 
     email = serializers.CharField(
@@ -49,7 +49,7 @@ class PlatformPasswordResetRequestSerializer(serializers.Serializer[dict[str, An
     )
 
 
-class PlatformPasswordResetConfirmSerializer(serializers.Serializer[dict[str, Any]]):
+class PlatformPasswordResetConfirmSerializer(StrictSerializer):
     """POST /api/v1/platform/auth/password-reset/confirm body."""
 
     token = serializers.CharField(required=False, allow_blank=True)

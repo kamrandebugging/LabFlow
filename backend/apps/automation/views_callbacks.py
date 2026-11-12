@@ -9,9 +9,15 @@ Check order per §5.4: path -> key -> tenant -> slug -> row -> state.
 
 from __future__ import annotations
 
+import hashlib
+import hmac
+import json
 import logging
+import time
 from typing import Any
 
+from django.conf import settings
+from django.core.cache import cache
 from rest_framework import permissions
 from rest_framework.request import Request
 from rest_framework.response import Response
@@ -24,6 +30,7 @@ from apps.automation.services import (
     apply_settlement_callback,
     verify_callback_key,
 )
+from apps.core.throttling import CallbackThrottle
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +39,67 @@ CALLBACK_KEY_HEADER = "HTTP_X_LABFLOW_CALLBACK_KEY"
 
 def _error_response(exc: CallbackError) -> Response:
     return Response({"error": exc.error_code}, status=exc.status_code)
+
+
+def _verify_signed_callback(
+    request: Request, raw_body: bytes, idempotency_key: str | None
+) -> None:
+    """Optional HMAC-SHA256 + 5-minute timestamp + replay rejection (SE-43).
+
+    Required when ``N8N_CALLBACK_REQUIRE_SIGNATURE`` is true (production) or
+    whenever the caller supplies a signature. The signed payload is
+    ``<timestamp>.<raw body>`` so body tampering is covered.
+    """
+    signature = request.headers.get("X-LabFlow-Signature", "") or ""
+    timestamp = request.headers.get("X-LabFlow-Timestamp", "") or ""
+    required = bool(getattr(settings, "N8N_CALLBACK_REQUIRE_SIGNATURE", False))
+    if not signature and not required:
+        return
+    if not signature or not timestamp:
+        raise CallbackError("signature_required", 401)
+    try:
+        sent_at = int(timestamp)
+    except ValueError:
+        raise CallbackError("stale_timestamp", 401) from None
+    if abs(int(time.time()) - sent_at) > 300:
+        raise CallbackError("stale_timestamp", 401)
+
+    secret = str(
+        getattr(settings, "N8N_CALLBACK_HMAC_SECRET", "")
+        or getattr(settings, "N8N_CALLBACK_KEY", "")
+        or ""
+    )
+    if not secret:
+        raise CallbackError("callback_not_configured", 503)
+    expected = hmac.new(
+        secret.encode(),
+        timestamp.encode() + b"." + raw_body,
+        hashlib.sha256,
+    ).hexdigest()
+    if not hmac.compare_digest(expected, signature):
+        raise CallbackError("invalid_signature", 401)
+
+    # Replay: the same signature (same body + same timestamp) may be seen once.
+    nonce = hashlib.sha256(signature.encode()).hexdigest()
+    try:
+        if not cache.add(f"callback:nonce:{nonce}", "1", timeout=600):
+            raise CallbackError("replayed_callback", 409)
+    except CallbackError:
+        raise
+    except Exception:
+        # Cache outage: fail closed for signed callbacks.
+        raise CallbackError("callback_unavailable", 503) from None
+
+
+def _raw_body_and_data(request: Request) -> tuple[bytes, dict[str, Any]]:
+    raw = getattr(request._request, "body", b"")  # noqa: SLF001 - DRF wrapper
+    if not raw:
+        return b"", {}
+    try:
+        parsed = json.loads(raw)
+    except (ValueError, UnicodeDecodeError):
+        raise CallbackError("invalid_body", 422) from None
+    return raw, parsed if isinstance(parsed, dict) else {}
 
 
 def _check_key_and_slug(request: Request, body: dict[str, Any]) -> None:
@@ -65,13 +133,15 @@ class NotificationCallbackView(APIView):
     """
 
     permission_classes = [permissions.AllowAny]
+    throttle_classes = [CallbackThrottle]
     authentication_classes: list[Any] = []
 
     def post(self, request: Request) -> Response:
-        body = request.data if isinstance(request.data, dict) else {}
+        raw_body, body = _raw_body_and_data(request)
         try:
             _check_key_and_slug(request, body)
             _require_fields(body, ["event", "tenant_slug", "idempotency_key", "status"])
+            _verify_signed_callback(request, raw_body, body.get("idempotency_key"))
             result = apply_notification_callback(
                 idempotency_key=str(body["idempotency_key"]),
                 status=str(body["status"]),
@@ -90,16 +160,18 @@ class ReportDeliveryCallbackView(APIView):
     """
 
     permission_classes = [permissions.AllowAny]
+    throttle_classes = [CallbackThrottle]
     authentication_classes: list[Any] = []
 
     def post(self, request: Request) -> Response:
-        body = request.data if isinstance(request.data, dict) else {}
+        raw_body, body = _raw_body_and_data(request)
         try:
             _check_key_and_slug(request, body)
             _require_fields(
                 body,
                 ["tenant_slug", "idempotency_key", "channel", "status"],
             )
+            _verify_signed_callback(request, raw_body, body.get("idempotency_key"))
             result = apply_report_delivery_callback(
                 idempotency_key=str(body["idempotency_key"]),
                 channel=str(body["channel"]),
@@ -120,16 +192,18 @@ class SettlementDeliveryCallbackView(APIView):
     """
 
     permission_classes = [permissions.AllowAny]
+    throttle_classes = [CallbackThrottle]
     authentication_classes: list[Any] = []
 
     def post(self, request: Request) -> Response:
-        body = request.data if isinstance(request.data, dict) else {}
+        raw_body, body = _raw_body_and_data(request)
         try:
             _check_key_and_slug(request, body)
             _require_fields(
                 body,
                 ["settlement_id", "tenant_slug", "idempotency_key", "status"],
             )
+            _verify_signed_callback(request, raw_body, body.get("idempotency_key"))
             result = apply_settlement_callback(
                 settlement_id=str(body["settlement_id"]),
                 idempotency_key=str(body["idempotency_key"]),

@@ -809,6 +809,9 @@ class TestReferenceRangeErrorEnvelope:
 
             for res in (res_403, res_422):
                 body = res.json()
-                assert set(body.keys()) == {"error"}
+                # LAB-49 role denials use problem+json with the same error
+                # envelope plus RFC 9457 fields.
+                assert "error" in body
+                assert body["error"]["code"]
                 assert "code" in body["error"]
                 assert "message" in body["error"]

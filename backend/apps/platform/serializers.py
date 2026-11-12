@@ -3,8 +3,10 @@ from typing import Any
 
 from rest_framework import serializers
 
+from apps.core.serializers import StrictSerializer
 
-class BranchProvisionInputSerializer(serializers.Serializer[dict[str, Any]]):
+
+class BranchProvisionInputSerializer(StrictSerializer):
     """A branch the owner wants created during provisioning (P-6)."""
 
     name = serializers.CharField(
@@ -22,7 +24,7 @@ class BranchProvisionInputSerializer(serializers.Serializer[dict[str, Any]]):
     )
 
 
-class TenantProvisionRequestSerializer(serializers.Serializer[dict[str, Any]]):
+class TenantProvisionRequestSerializer(StrictSerializer):
     name = serializers.CharField(
         required=True,
         allow_blank=True,
@@ -103,7 +105,7 @@ class TenantProvisionRequestSerializer(serializers.Serializer[dict[str, Any]]):
         return attrs
 
 
-class PlanCreateSerializer(serializers.Serializer[dict[str, Any]]):
+class PlanCreateSerializer(StrictSerializer):
     """POST /platform/plans body (Doc 04 §15.1). Price is a Decimal string."""
 
     name = serializers.CharField(required=True, max_length=100)
@@ -127,7 +129,7 @@ class PlanCreateSerializer(serializers.Serializer[dict[str, Any]]):
         return value.strip()
 
 
-class SubscriptionChangeSerializer(serializers.Serializer[dict[str, Any]]):
+class SubscriptionChangeSerializer(StrictSerializer):
     """POST /platform/tenants/{id}/subscription body (Doc 04 §15.1)."""
 
     plan_id = serializers.UUIDField(required=True)
@@ -138,7 +140,7 @@ class SubscriptionChangeSerializer(serializers.Serializer[dict[str, Any]]):
     ends_at = serializers.DateTimeField(required=False, allow_null=True)
 
 
-class TenantSuspendSerializer(serializers.Serializer[dict[str, Any]]):
+class TenantSuspendSerializer(StrictSerializer):
     """POST /platform/tenants/{id}/suspend — reason required (Doc 04 §15.1)."""
 
     reason = serializers.CharField(
@@ -149,7 +151,7 @@ class TenantSuspendSerializer(serializers.Serializer[dict[str, Any]]):
     )
 
 
-class TenantOffboardCompleteSerializer(serializers.Serializer[dict[str, Any]]):
+class TenantOffboardCompleteSerializer(StrictSerializer):
     """POST /platform/tenants/{id}/complete-offboarding.
 
     confirm_schema_drop must be explicitly true (Doc 04 §15.1) — this
@@ -173,7 +175,7 @@ class TenantOffboardCompleteSerializer(serializers.Serializer[dict[str, Any]]):
         return attrs
 
 
-class PlatformAuditFilterSerializer(serializers.Serializer[dict[str, Any]]):
+class PlatformAuditFilterSerializer(StrictSerializer):
     """GET /platform/audit — filter params (Doc 04 §15.1)."""
 
     action = serializers.CharField(required=False, allow_blank=True)

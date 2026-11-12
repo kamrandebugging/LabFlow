@@ -18,7 +18,6 @@ import uuid
 from datetime import timedelta
 from typing import Any
 
-import requests
 from celery import shared_task
 from django.conf import settings
 from django.db import transaction
@@ -246,10 +245,12 @@ def _n8n_webhook_url() -> str:
 
 
 def _post_to_n8n(url: str, body: dict[str, Any], signature: str) -> None:
-    """POST the signed event to n8n. Raises on transport/HTTP failure."""
-    resp = requests.post(
+    """POST the signed event through the shared safe fetcher."""
+    from apps.core.safe_fetch import post as safe_post
+
+    resp = safe_post(
         url,
-        json=body,
+        json_body=body,
         headers={
             "Content-Type": "application/json",
             "X-LabFlow-Signature": signature,

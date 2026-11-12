@@ -607,7 +607,8 @@ class TestPaymentGuards:
             billing_setup,
             discount="2300.00",
             discount_reason="charity case",
-            actor_key="manager",
+            # LAB-49 Phase 2.3: a 100% discount requires the Owner.
+            actor_key="owner",
             key_suffix="g6",
         )
         assert invoice.status == "paid"

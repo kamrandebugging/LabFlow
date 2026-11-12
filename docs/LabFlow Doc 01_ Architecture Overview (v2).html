@@ -96,7 +96,7 @@ a{color:#f0c476}
 
 <h2 id="s6">6. Confirmed technology stack</h2>
 <div class="box"><table><thead><tr><th>Layer</th><th>Choice</th><th>Why chosen</th><th>Rejected</th></tr></thead><tbody>
-<tr><td>Backend</td><td>Python 3.12, Django 5, DRF, drf-spectacular</td><td>Batteries included; admin, ORM, auth, migrations already in the box.</td><td>FastAPI, Flask, Node</td></tr>
+<tr><td>Backend</td><td>Python 3.12, Django 6.1, DRF, drf-spectacular</td><td>Batteries included; admin, ORM, auth, migrations already in the box.</td><td>FastAPI, Flask, Node</td></tr>
 <tr><td>Multi-tenancy</td><td>django-tenants (schema per tenant)</td><td>Strong isolation without N databases or tenant_id filter risk.</td><td>Database per tenant, shared tenant_id tables</td></tr>
 <tr><td>Data</td><td>PostgreSQL 16, Redis 7</td><td>Relational integrity for money; Redis doubles as broker and cache.</td><td>MySQL, RabbitMQ</td></tr>
 <tr><td>Jobs</td><td>Celery 5 + Beat</td><td>Mature retries and scheduling on the Redis already deployed.</td><td>RQ, Dramatiq</td></tr>
@@ -564,8 +564,8 @@ a{color:#f0c476}
     API -.-&gt; Sentry</pre>
 
 <h2 id="s10">10. Container diagram</h2>
-<p>The containers running on the single VPS, grouped in four layers. At the <b>Edge</b>, Caddy (:443, auto-HTTPS with on-demand TLS and the ask check) is the only public entry point: it serves the React SPA as static files and proxies API and admin traffic to Django. The <b>Application</b> layer is Django 5 + DRF (gunicorn, :8000), the Celery Worker — queues: default, reports, notifications, billing, referral_partners, maintenance — and Celery Beat on cron schedules, which hands its work to Redis. The <b>Data layer</b> is PostgreSQL 16 (public + tenant_* schemas), Redis 7 (broker + cache) and Cloudflare R2 / MinIO for reports and bills. In <b>Ops</b>, self-hosted n8n receives signed webhooks from Django, and Sentry receives errors from Django and the worker (dashed lines).</p>
-<div class="diagram"><svg viewBox="0 0 1000 810" role="img" aria-label="Container diagram: Caddy at the Edge serves the React SPA as static files and proxies API and admin traffic to Django 5 + DRF in the Application layer, alongside the Celery Worker and Celery Beat. Below, the Data layer holds PostgreSQL 16, Redis 7 and Cloudflare R2 / MinIO, and Ops holds self-hosted n8n and Sentry.">
+<p>The containers running on the single VPS, grouped in four layers. At the <b>Edge</b>, Caddy (:443, auto-HTTPS with on-demand TLS and the ask check) is the only public entry point: it serves the React SPA as static files and proxies API and admin traffic to Django. The <b>Application</b> layer is Django 6.1 + DRF (gunicorn, :8000), the Celery Worker — queues: default, reports, notifications, billing, referral_partners, maintenance — and Celery Beat on cron schedules, which hands its work to Redis. The <b>Data layer</b> is PostgreSQL 16 (public + tenant_* schemas), Redis 7 (broker + cache) and Cloudflare R2 / MinIO for reports and bills. In <b>Ops</b>, self-hosted n8n receives signed webhooks from Django, and Sentry receives errors from Django and the worker (dashed lines).</p>
+<div class="diagram"><svg viewBox="0 0 1000 810" role="img" aria-label="Container diagram: Caddy at the Edge serves the React SPA as static files and proxies API and admin traffic to Django 6.1 + DRF in the Application layer, alongside the Celery Worker and Celery Beat. Below, the Data layer holds PostgreSQL 16, Redis 7 and Cloudflare R2 / MinIO, and Ops holds self-hosted n8n and Sentry.">
 <defs><marker id="arr2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#9aa7b4"/></marker></defs>
 <g fill="none" stroke="#4a5561">
 <rect x="260" y="14" width="480" height="156" rx="10"/>
@@ -611,7 +611,7 @@ a{color:#f0c476}
 <text x="500" y="242" font-weight="700">Application</text>
 <text x="151" y="372">React SPA</text>
 <text x="151" y="396" font-size="12">Vite build, static</text>
-<text x="388" y="372">Django 5 + DRF</text>
+<text x="388" y="372">Django 6.1 + DRF</text>
 <text x="388" y="396" font-size="12">gunicorn, :8000</text>
 <text x="653" y="306">Celery Worker</text>
 <text x="653" y="334" font-size="12.5">queues: default, reports,</text>
@@ -645,7 +645,7 @@ a{color:#f0c476}
     end
     subgraph Application
         SPA["React SPA&lt;br/&gt;Vite build, static"]
-        Django["Django 5 + DRF&lt;br/&gt;gunicorn, :8000"]
+        Django["Django 6.1 + DRF&lt;br/&gt;gunicorn, :8000"]
         Worker["Celery Worker&lt;br/&gt;queues: default, reports,&lt;br/&gt;notifications, billing,&lt;br/&gt;referral_partners,&lt;br/&gt;maintenance"]
         Beat["Celery Beat&lt;br/&gt;cron schedules"]
     end
@@ -1271,7 +1271,7 @@ file_server
 <p class="meta">This table is the summary of record for each ADR: the decision taken and the main alternative rejected.</p>
 <div class="box"><table><thead><tr><th>ADR</th><th>Decision</th><th>Main alternative rejected</th></tr></thead><tbody>
 <tr><td>001</td><td>Modular monolith</td><td>Microservices, serverless</td></tr>
-<tr><td>002</td><td>Django 5 + DRF</td><td>FastAPI, Flask</td></tr>
+<tr><td>002</td><td>Django 6.1 + DRF</td><td>FastAPI, Flask</td></tr>
 <tr><td>003</td><td>Schema per tenant (django-tenants)</td><td>Database per tenant, tenant_id tables</td></tr>
 <tr><td>004</td><td>React SPA, separate frontend</td><td>Next.js, Django templates</td></tr>
 <tr><td>005</td><td>Short JWT + httpOnly rotating refresh cookie</td><td>Server sessions, refresh in localStorage</td></tr>

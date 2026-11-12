@@ -8,8 +8,8 @@ throttle pattern in the repo — this module is the pattern.
 Design notes:
 - The throttle runs BEFORE the argon2 hash scan, so an attacker cannot
   turn the ~100ms-per-row verify cost into a cheap DoS.
-- Fail-open on cache errors: a down cache must not 500 patients; the
-  failure is logged. The trade-off is documented here rather than hidden.
+- Fail closed on cache errors: an unavailable cache answers 429 rather than
+  removing the public-endpoint limit (security review 2026-11-12).
 - The fixed window uses atomic cache.add (SET NX + TTL) for the first
   hit, so concurrent first-hits cannot double-count and the window
   always expires on every cache backend.
@@ -32,18 +32,10 @@ RATE_LIMIT_WINDOW_SECONDS = 60
 
 
 def get_client_ip(request: Request) -> str:
-    """Best-effort client IP (X-Forwarded-For aware).
+    """Client IP from the shared trusted-proxy helper."""
+    from apps.core.ip import get_client_ip as _get_client_ip
 
-    Caveat (documented, not hidden): XFF is client-spoofable. In prod the
-    edge proxy (Caddy) must be configured with trusted_proxies so the
-    XFF it forwards is authoritative; otherwise a client can rotate fake
-    XFF values to dodge this throttle. Same convention as the rest of the
-    codebase's audit IP capture.
-    """
-    x_forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
-    if x_forwarded_for:
-        return x_forwarded_for.split(",")[0].strip()
-    return request.META.get("REMOTE_ADDR", "")
+    return _get_client_ip(request)
 
 
 def public_rate_limit_exceeded(request: Request, scope: str) -> bool:
@@ -68,6 +60,48 @@ def public_rate_limit_exceeded(request: Request, scope: str) -> bool:
         return count > limit
     except Exception:
         logger.warning(
-            "report-portal throttle cache error; allowing request", exc_info=True
+            "report-portal throttle cache error; failing closed", exc_info=True
         )
-        return False
+        return True
+
+
+def _fixed_window(key: str, limit: int, window_seconds: int) -> bool:
+    """True when the counter for ``key`` exceeded ``limit``."""
+    try:
+        if cache.add(key, 1, timeout=window_seconds):
+            return False
+        try:
+            count = cache.incr(key)
+        except ValueError:
+            cache.set(key, 1, timeout=window_seconds)
+            return False
+        return count > limit
+    except Exception:
+        logger.warning(
+            "report token throttle cache error; failing closed", exc_info=True
+        )
+        return True
+
+
+def report_ip_rate_limit_exceeded(request: Request) -> bool:
+    """120 requests / 10 minutes / IP for the patient-access endpoints."""
+    limit = int(getattr(settings, "REPORT_IP_RATE_LIMIT_PER_10MIN", 120))
+    return _fixed_window(
+        f"labflow:rl:report_ip10:{get_client_ip(request)}", limit, 10 * 60
+    )
+
+
+def report_token_rate_limit_exceeded(token: str) -> bool:
+    """60 per 10 minutes per report access token (API6 A6-4)."""
+    import hashlib
+
+    digest = hashlib.sha256((token or "").encode()).hexdigest()[:32]
+    limit = int(getattr(settings, "REPORT_TOKEN_RATE_LIMIT_PER_10MIN", 60))
+    return _fixed_window(f"labflow:rl:report_token:{digest}", limit, 10 * 60)
+
+
+def record_invalid_report_token(request: Request) -> bool:
+    """20 invalid-token attempts/hour/IP; True when the budget is exhausted."""
+    limit = int(getattr(settings, "REPORT_INVALID_TOKEN_PER_HOUR", 20))
+    key = f"labflow:rl:report_invalid:{get_client_ip(request)}"
+    return _fixed_window(key, limit, 60 * 60)

@@ -33,6 +33,8 @@ from apps.accounts.jwt_engine import (
 )
 from apps.accounts.models import AuditLog, LoginEvent, Role, StaffUser
 from apps.accounts.session_registry import (
+    SessionRegistryUnavailable,
+    claim_jti_once,
     clear_all_user_sessions,
     delete_session,
     denylist_access_jti,
@@ -40,9 +42,7 @@ from apps.accounts.session_registry import (
     get_active_sessions,
     get_user_revocation_marker,
     is_jti_denylisted,
-    is_jti_used,
     is_session_revoked,
-    mark_jti_used,
     mark_session_revoked,
     register_session,
     set_user_revocation_marker,
@@ -59,6 +59,21 @@ MANDATORY_TOTP_ROLES: Final[set[str]] = {
     Role.MANAGER,
     Role.PATHOLOGIST,
 }
+
+
+def _ua_family(user_agent: str) -> str:
+    """Coarse UA family for refresh binding (D6: UA only, not exact string).
+
+    Version bumps and minor string churn must not log users out; a family
+    change is the actionable tripwire (django-reviewer 2026-11-12).
+    """
+    value = (user_agent or "").lower()
+    if not value:
+        return ""
+    for name in ("edg/", "chrome/", "firefox/", "safari/", "opr/", "curl/", "python"):
+        if name in value:
+            return name.rstrip("/")
+    return "other"
 
 
 class AuthService:
@@ -104,10 +119,9 @@ class AuthService:
             )
             return False, None, "invalid_credentials"
 
-        # Check TOTP requirements (Doc 01 §14, Doc 08 §4.1)
-        totp_mandated = user.role in MANDATORY_TOTP_ROLES and not getattr(
-            settings, "DEBUG", False
-        )
+        # Check TOTP requirements (Doc 01 §14, Doc 08 §4.1). Mandatory roles
+        # must enrol regardless of DEBUG — there is no debug bypass (A2-3).
+        totp_mandated = user.role in MANDATORY_TOTP_ROLES
 
         if user.totp_enabled:
             LoginEvent.objects.create(
@@ -255,8 +269,19 @@ class AuthService:
         family_exp = payload["exp"]
         tenant_slug = payload.get("tenant", "tenant")
 
-        # Reuse Detection: jti already marked used or denylisted (SE-05)
-        if is_jti_used(presented_jti) or is_jti_denylisted(presented_jti):
+        # Reuse Detection: jti already used (atomic claim) or denylisted (SE-05)
+        now_int = int(time.time())
+        remaining_ttl = max(1, family_exp - now_int)
+        if is_jti_denylisted(presented_jti):
+            claimed = False
+        else:
+            try:
+                claimed = claim_jti_once(presented_jti, remaining_ttl)
+            except SessionRegistryUnavailable:
+                # A cache outage must deny this refresh, not revoke every
+                # session as if the token were stolen.
+                return False, None, "refresh_unavailable"
+        if not claimed:
             logger.warning(
                 "se_05_refresh_reuse_detected: user %s, family %s",
                 user_id,
@@ -282,7 +307,6 @@ class AuthService:
             return False, None, "invalid_refresh_token"
 
         # Check family lifetime cap
-        now_int = int(time.time())
         if now_int >= family_exp:
             return False, None, "refresh_expired"
 
@@ -300,13 +324,42 @@ class AuthService:
         if not matching_session:
             return False, None, "invalid_refresh_token"
 
+        # Fingerprint binding (A2-4): a stolen refresh token replayed from a
+        # different user agent is refused and the session is revoked.
+        stored_ua = str(matching_session.get("user_agent") or "")
+        stored_family = _ua_family(stored_ua or "")
+        presented_family = _ua_family(user_agent or "")
+        if stored_family and (
+            not presented_family or stored_family != presented_family
+        ):
+            logger.warning(
+                "auth_refresh_fingerprint_mismatch: user %s session %s",
+                user_id,
+                matching_session.get("id"),
+            )
+            with schema_context(tenant_slug):
+                AuditLog.objects.create(
+                    actor_id=user_id,
+                    action="auth.refresh_fingerprint_mismatch",
+                    entity_type="session",
+                    entity_id=str(matching_session.get("id") or user_id),
+                    before_jsonb=None,
+                    after_jsonb={
+                        "stored_ua": stored_ua,
+                        "presented_ua": user_agent,
+                        "stored_family": stored_family,
+                        "presented_family": presented_family,
+                    },
+                    ip=ip,
+                    user_agent=user_agent,
+                )
+            if sid:
+                mark_session_revoked(sid)
+            return False, None, "refresh_fingerprint_mismatch"
+
         user = StaffUser.objects.filter(id=user_id, is_active=True).first()
         if not user:
             return False, None, "invalid_credentials"
-
-        # Mark presented jti as used
-        remaining_ttl = max(1, family_exp - now_int)
-        mark_jti_used(presented_jti, ttl_seconds=remaining_ttl)
 
         # Mint new tokens in same family. A session that was created limited
         # (temporary password / mandatory TOTP) stays limited until the flow
@@ -593,6 +646,24 @@ class AuthService:
         cache.set(cache_key, data, timeout=300)
         return challenge_token
 
+    @classmethod
+    def get_challenge_user_id(
+        cls, challenge_token: str | None, tenant_id: str | None = None
+    ) -> str | None:
+        """Resolve the user behind a server-issued challenge (throttle keying).
+
+        The TOTP verify throttle must bind to the account, not to an
+        attacker-supplied ``email`` field. The challenge is server-issued and
+        already carries the user id (security review 2026-11-12).
+        """
+        if not challenge_token:
+            return None
+        data = cache.get(f"auth:challenge:{challenge_token}")
+        if not isinstance(data, dict):
+            return None
+        user_id = data.get("user_id")
+        return str(user_id) if user_id else None
+
     @staticmethod
     def _challenge_email_key(email: str, tenant_id: str | None) -> str:
         """Cache key for the challenge issued to a (tenant, email) pair."""
@@ -729,10 +800,6 @@ class AuthService:
                 return False, None, "invalid_credentials"
 
             is_matched = False
-
-            # In DEBUG mode, allow master dev code 123456
-            if getattr(settings, "DEBUG", False) and code == "123456":
-                is_matched = True
 
             # 1. Try TOTP secret match if enrolled
             if not is_matched and user.totp_secret_encrypted:

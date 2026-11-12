@@ -68,6 +68,10 @@ jobs:
         working-directory: frontend
         run: npx prettier --check .
 
+      - name: Run frontend tests
+        working-directory: frontend
+        run: npm test --if-present
+
   typecheck:
     name: Type Checks
     runs-on: ubuntu-latest
@@ -91,8 +95,12 @@ jobs:
         run: npm run typecheck
 
   test:
-    name: Unit & Integration Tests
+    name: Unit & Integration Tests (${{ matrix.group }}/5)
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [1, 2, 3, 4, 5]
     services:
       postgres:
         image: postgres:16
@@ -138,17 +146,6 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e "./backend[dev,test]"
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: "npm"
-          cache-dependency-path: "frontend/package-lock.json"
-
-      - name: Install frontend dependencies
-        working-directory: frontend
-        run: npm ci
-
       - name: Check Migration Drift Gate (Doc 09 §7.5)
         working-directory: backend
         env:
@@ -166,11 +163,7 @@ jobs:
           DJANGO_SECRET_KEY: ci-test-secret-key-32-chars-minimum-length-for-testing
         run: |
           python -c "import os, urllib.parse; scheme = urllib.parse.urlparse(os.environ['DATABASE_URL']).scheme; assert scheme in ('postgres', 'postgresql'), 'FAIL: SQLite fallback prohibited. Must use PostgreSQL service container.'"
-          python -m pytest -q -n auto
-
-      - name: Run frontend tests
-        working-directory: frontend
-        run: npm test --if-present
+          python -m pytest -q -n auto --splits 5 --group ${{ matrix.group }}
 
   build:
     name: Container & Artifact Build
@@ -224,6 +217,8 @@ jobs:
       - name: Verify backend loads with manage.py check
         working-directory: backend
         env:
+          DJANGO_SETTINGS_MODULE: config.settings.dev
+          LABFLOW_LOCAL_DEV: "1"
           DJANGO_SECRET_KEY: ci-build-verification-secret-key-32-chars-min
           DATABASE_URL: postgresql://dummy_user:dummy_password@localhost:5432/dummy_db
           REDIS_URL: redis://localhost:6379/0
@@ -283,4 +278,5 @@ jobs:
       - name: Run Node dependency vulnerability audit
         working-directory: frontend
         run: npm audit --audit-level=high
+
 

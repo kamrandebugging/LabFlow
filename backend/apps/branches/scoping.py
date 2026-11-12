@@ -50,6 +50,19 @@ def effective_branch_ids(user: StaffUser) -> set[uuid.UUID]:
     return ids
 
 
+def in_branch_scope(user: StaffUser, branch_id: uuid.UUID | None) -> bool:
+    """True when ``branch_id`` is inside the caller's branch scope.
+
+    Tenant-wide roles (Owner/Pathologist) bypass scope by design (BS-1).
+    A branch-scoped caller with no assignment matches nothing (fail closed).
+    """
+    if user.is_tenant_wide:
+        return True
+    if branch_id is None:
+        return False
+    return branch_id in effective_branch_ids(user)
+
+
 class BranchScopedQuerySet(models.QuerySet[_M, _M]):
     """Layer 1 — queryset-level branch scope (Doc 04 §8.5).
 

@@ -17,6 +17,7 @@ from apps.accounts.session_registry import (
     is_access_jti_denylisted,
     is_session_revoked,
 )
+from apps.core.authorization import enforce_role_policy
 from apps.core.exceptions import OnboardingIncomplete
 
 # Routes a limited (login-issued) session may still call.
@@ -120,7 +121,7 @@ class JWTAuthentication(authentication.BaseAuthentication):
         # the account is still on a temporary password or a mandatory-TOTP
         # role has not enrolled. The check is state-based, so finishing the
         # flow upgrades the same token without a re-login.
-        if payload.get("onboarding"):
+        if payload.get("onboarding") or payload.get("totp_enrollment_required"):
             path = getattr(request, "path", "") or ""
             if user.password_is_temporary:
                 if path not in _PASSWORD_CHANGE_PATHS:
@@ -131,6 +132,19 @@ class JWTAuthentication(authentication.BaseAuthentication):
                 and path not in _TOTP_ENROLL_PATHS
             ):
                 raise OnboardingIncomplete("totp_enrollment_required")
+
+        # Central deny-by-default role policy (LAB-49 Phase 1.3, API5 BFLA).
+        # Runs for every authenticated tenant request, independent of the
+        # view's permission_classes, so a forgotten inline check still denies.
+        # A method the view does not implement is left to DRF's 405 so
+        # method-switch probing keeps its standard response.
+        view_cls = getattr(getattr(request, "resolver_match", None), "func", None)
+        view_cls = getattr(view_cls, "cls", None)
+        method = (getattr(request, "method", "") or "").lower()
+        if method not in {"options", "head"} and (
+            view_cls is None or hasattr(view_cls, method)
+        ):
+            enforce_role_policy(user, request)
 
         return user, payload
 

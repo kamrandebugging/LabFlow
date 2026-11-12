@@ -5,23 +5,28 @@ description = "LabFlow - Multi-tenant SaaS platform for diagnostic laboratories"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "django>=5.2.18",
-    "djangorestframework>=3.15.0",
-    "drf-spectacular>=0.27.0",
-    "django-tenants>=3.7.0",
-    "django-environ>=0.11.0",
-    "psycopg[binary]>=3.1.0",
-    "redis>=5.0.0",
+    # LAB-49 Phase 3.5: pin the Django major/minor actually deployed (6.1.x).
+    # Doc 01 still says Django 5; adopting 6.1 is the recorded decision.
+    "django>=6.1,<6.2",
+    "djangorestframework>=3.18.2,<3.19",
+    "drf-spectacular>=0.27.0,<1.0",
+    "django-tenants>=3.7.0,<4.0",
+    "django-environ>=0.11.0,<1.0",
+    "psycopg[binary]>=3.1.0,<4.0",
+    "redis>=5.0.0,<6.0",
     "celery>=5.0,<6.0",
     "packaging>=24.0",  # kombu redis transport imports packaging (worker/beat crash without it)
-    "PyJWT>=2.8.0",
-    "argon2-cffi>=23.1.0",
-    "pyotp>=2.10.0",
+    "PyJWT>=2.8.0,<3.0",
+    "argon2-cffi>=23.1.0,<26.0",
+    "pyotp>=2.10.0,<3.0",
     "cryptography>=50.0.2",
-    "weasyprint>=60.0",
-    "qrcode>=7.4.2",
-    "requests>=2.31.0",
-    "gunicorn>=22.0.0",
+    "weasyprint>=70.0,<71.0",
+    "qrcode>=7.4.2,<9.0",
+    "requests>=2.31.0,<3.0",
+    "gunicorn>=22.0.0,<24.0",
+    # LAB-49 Phase 3.7 (SE-30): error reporting, scrubber wired in
+    # apps/core/observability.py.
+    "sentry-sdk[django]>=2.0.0,<3.0",
 ]
 
 [project.optional-dependencies]
@@ -29,16 +34,19 @@ dev = [
     "pytest>=8.0.0",
     "pytest-django>=4.8.0",
     "pytest-xdist>=3.0.0",
+    "pytest-split>=0.10.0",
     "factory-boy>=3.3.0",
     "mypy>=1.10.0,<2.0",
     "django-stubs>=5.0.0",
     "djangorestframework-stubs>=3.15.0",
     "ruff>=0.4.0",
+    "pip-audit>=2.7.0",
 ]
 test = [
     "pytest>=8.0.0",
     "pytest-django>=4.9.0",
     "pytest-xdist>=3.0.0",
+    "pytest-split>=0.10.0",
     "factory-boy>=3.3.0",
     "pypdf>=4.0.0",
     "mypy>=1.11.0",

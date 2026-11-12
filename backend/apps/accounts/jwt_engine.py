@@ -12,6 +12,8 @@ import jwt
 from django.conf import settings
 
 JWT_ALGORITHM: Final[str] = "HS256"
+JWT_ISSUER: Final[str] = "labflow"
+JWT_AUDIENCE: Final[str] = "labflow-api"
 ACCESS_TOKEN_LIFETIME_SECONDS: Final[int] = 900  # 15 minutes
 REFRESH_TOKEN_LIFETIME_SECONDS: Final[int] = 7 * 86400  # 7 days
 
@@ -50,11 +52,16 @@ def mint_access_token(
         "iat": int(now.timestamp()),
         "exp": exp_int,
         "typ": "access",
+        "iss": JWT_ISSUER,
+        "aud": JWT_AUDIENCE,
     }
     if session_id:
         payload["sid"] = str(session_id)
     if onboarding:
         payload["onboarding"] = onboarding
+        # LAB-49 Phase 0.3: explicit claim for clients/auditors.
+        if onboarding == "totp_enroll":
+            payload["totp_enrollment_required"] = True
 
     token = jwt.encode(payload, get_jwt_signing_key(), algorithm=JWT_ALGORITHM)
     return token, token_jti, exp_int
@@ -88,6 +95,8 @@ def mint_refresh_token(
         "iat": now_int,
         "exp": exp_int,
         "typ": "refresh",
+        "iss": JWT_ISSUER,
+        "aud": JWT_AUDIENCE,
     }
     if session_id:
         payload["sid"] = str(session_id)
@@ -109,7 +118,11 @@ def decode_jwt(
             raw_token,
             get_jwt_signing_key(),
             algorithms=[JWT_ALGORITHM],  # RFC 8725: single algorithm allowlist
-            options={"require": ["sub", "jti", "iat", "exp", "typ"]},
+            issuer=JWT_ISSUER,
+            audience=JWT_AUDIENCE,
+            options={
+                "require": ["sub", "jti", "iat", "exp", "typ", "iss", "aud"],
+            },
         )
     except jwt.PyJWTError as exc:
         raise ValueError(f"Invalid JWT: {exc}") from exc

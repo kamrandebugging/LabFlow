@@ -26,7 +26,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.accounts.models import StaffUser
-from apps.reports.models import ReportVersion
+from apps.reports.models import Report, ReportVersion
 from apps.reports.serializers import ReportDeliverSerializer, TokenRevokeSerializer
 from apps.reports.services import (
     FILE_URL_VALIDITY_SECONDS,
@@ -40,7 +40,13 @@ from apps.reports.services import (
     ReportService,
 )
 from apps.reports.storage import REPORT_FILE_SIGNER_SALT, ReportStorage
-from apps.reports.throttling import get_client_ip, public_rate_limit_exceeded
+from apps.reports.throttling import (
+    get_client_ip,
+    public_rate_limit_exceeded,
+    record_invalid_report_token,
+    report_ip_rate_limit_exceeded,
+    report_token_rate_limit_exceeded,
+)
 
 
 def _format_error(code: str, message: str, details: Any = None) -> dict[str, Any]:
@@ -199,14 +205,20 @@ class ReportAccessView(APIView):
     authentication_classes: list[Any] = []
 
     def get(self, request: Request, token: str) -> Response | HttpResponse:
-        if public_rate_limit_exceeded(request, scope="report_access"):
-            return Response(
+        if (
+            public_rate_limit_exceeded(request, scope="report_access")
+            or report_ip_rate_limit_exceeded(request)
+            or report_token_rate_limit_exceeded(token)
+        ):
+            response = Response(
                 _format_error(
                     "rate_limited",
                     "Too many requests. Please try again in a minute.",
                 ),
                 status=429,
             )
+            response["Retry-After"] = "60"
+            return response
         try:
             payload = ReportAccessService.redeem_access_token(
                 token=token,
@@ -214,6 +226,16 @@ class ReportAccessView(APIView):
                 user_agent=request.META.get("HTTP_USER_AGENT", ""),
             )
         except ReportError as exc:
+            if exc.status_code in (404, 410) and record_invalid_report_token(request):
+                response = Response(
+                    _format_error(
+                        "rate_limited",
+                        "Too many invalid report links. Try again later.",
+                    ),
+                    status=429,
+                )
+                response["Retry-After"] = "3600"
+                return response
             if exc.status_code == 410:
                 phone = (
                     exc.details.get("phone") if isinstance(exc.details, dict) else None
@@ -223,12 +245,12 @@ class ReportAccessView(APIView):
                 _format_error(exc.error_code, str(exc) or exc.error_code, exc.details),
                 status=exc.status_code,
             )
-        response = HttpResponse(status=302)
-        response["Location"] = payload["redirect_url"]
+        redirect_response = HttpResponse(status=302)
+        redirect_response["Location"] = payload["redirect_url"]
         # The signed file URL is short-lived: never let a browser/proxy
         # cache the 302, or a reopened link would replay an expired URL.
-        response["Cache-Control"] = "no-store"
-        return response
+        redirect_response["Cache-Control"] = "no-store"
+        return redirect_response
 
 
 class ReportFileDownloadView(APIView):
@@ -245,14 +267,18 @@ class ReportFileDownloadView(APIView):
     authentication_classes: list[Any] = []
 
     def get(self, request: Request, signed: str) -> Response | FileResponse:
-        if public_rate_limit_exceeded(request, scope="report_file"):
-            return Response(
+        if public_rate_limit_exceeded(
+            request, scope="report_file"
+        ) or report_ip_rate_limit_exceeded(request):
+            response = Response(
                 _format_error(
                     "rate_limited",
                     "Too many requests. Please try again in a minute.",
                 ),
                 status=429,
             )
+            response["Retry-After"] = "60"
+            return response
         try:
             pdf_key = TimestampSigner(salt=REPORT_FILE_SIGNER_SALT).unsign(
                 signed, max_age=FILE_URL_VALIDITY_SECONDS
@@ -262,7 +288,17 @@ class ReportFileDownloadView(APIView):
                 _format_error("file_not_found", "File not found."),
                 status=status.HTTP_404_NOT_FOUND,
             )
-        if not ReportVersion.objects.filter(pdf_key=pdf_key).exists():
+        version = (
+            ReportVersion.objects.select_related("report")
+            .filter(pdf_key=pdf_key)
+            .first()
+        )
+        # S5/G5: a signed URL issued before a report is voided must not keep
+        # streaming. Re-check the owning report's status at download time.
+        if version is None or version.report.status not in (
+            Report.Status.FINAL,
+            Report.Status.AMENDED,
+        ):
             return Response(
                 _format_error("file_not_found", "File not found."),
                 status=status.HTTP_404_NOT_FOUND,
@@ -274,14 +310,14 @@ class ReportFileDownloadView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
         filename = pdf_key.rsplit("/", 1)[-1]
-        response = FileResponse(
+        file_response = FileResponse(
             storage.open_pdf(pdf_key),
             content_type="application/pdf",
             filename=filename,
             as_attachment=False,
         )
-        response["Cache-Control"] = "no-store"
-        return response
+        file_response["Cache-Control"] = "no-store"
+        return file_response
 
 
 class ReportDeliverView(APIView):
