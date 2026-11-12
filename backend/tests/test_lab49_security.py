@@ -56,9 +56,7 @@ class TestSecretFailClosed:
         finally:
             base._IS_LOCAL_DEV = original
 
-    def test_committed_totp_key_is_rejected_outside_dev(
-        self, monkeypatch: Any
-    ) -> None:
+    def test_committed_totp_key_is_rejected_outside_dev(self, monkeypatch: Any) -> None:
         from django.core.exceptions import ImproperlyConfigured
 
         import config.settings.base as base
