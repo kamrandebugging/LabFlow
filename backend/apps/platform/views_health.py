@@ -72,7 +72,8 @@ class PlatformHealthView(APIView):
             if cache_client is not None:
                 kw = cache_client.get_client().connection_pool.connection_kwargs
                 r = Redis.from_url(kw.get("host", "redis://localhost:6379/0"))
-                celery_pending = r.llen("celery")
+                raw_pending = r.llen("celery")
+                celery_pending = raw_pending if isinstance(raw_pending, int) else 0
         except Exception:
             celery_pending = 0
 
