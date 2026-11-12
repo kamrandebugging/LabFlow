@@ -56,21 +56,20 @@ class TestSecretFailClosed:
         finally:
             base._IS_LOCAL_DEV = original
 
-    def test_committed_totp_key_is_rejected_outside_dev(self) -> None:
+    def test_committed_totp_key_is_rejected_outside_dev(
+        self, monkeypatch: Any
+    ) -> None:
         from django.core.exceptions import ImproperlyConfigured
 
         import config.settings.base as base
 
-        original_local = base._IS_LOCAL_DEV
-        base._IS_LOCAL_DEV = False
-        try:
-            with pytest.raises(ImproperlyConfigured):
-                base._require_env_secret(
-                    "DJANGO_SECRET_KEY",
-                    forbidden=frozenset({base._INSECURE_SECRET_DEFAULT}),
-                )
-        finally:
-            base._IS_LOCAL_DEV = original_local
+        monkeypatch.setattr(base, "_IS_LOCAL_DEV", False)
+        monkeypatch.setenv("DJANGO_SECRET_KEY", base._COMMITTED_TOTP_KEY)
+        with pytest.raises(ImproperlyConfigured):
+            base._require_env_secret(
+                "DJANGO_SECRET_KEY",
+                forbidden=base._PUBLIC_EXAMPLE_VALUES,
+            )
 
 
 class TestTotpHardening:
