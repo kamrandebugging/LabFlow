@@ -5,8 +5,10 @@
 		burst 5
 	}
 	servers {
-		# Trust the immediate peer (Cloudflare / the VPS edge) for the client
-		# IP. X-Forwarded-For parsing in Django uses the last trusted hop.
+		# Trust the immediate peer for the client IP. This default covers
+		# Docker/RFC1918 peers only; a Cloudflare-proxied deployment MUST add
+		# Cloudflare's published ranges here and in TRUSTED_PROXY_CIDRS
+		# (docs/security/edge-hardening.md). Do not use a bare public_ranges.
 		trusted_proxies static private_ranges
 	}
 }

@@ -19,16 +19,42 @@ means a trivial request flood takes the lab down. Controls are layered:
 
 ## 2. Caddy (implemented)
 
-- `trusted_proxies static private_ranges` so `X-Forwarded-For` handling uses the
-  trusted peer and the app reads the **last** hop.
+- `trusted_proxies static private_ranges` trusts the Docker/RFC1918 peer; the
+  app reads the **last** trusted hop and honours `CF-Connecting-IP` only when
+  the immediate peer is in `TRUSTED_PROXY_CIDRS`. A Cloudflare-proxied
+  deployment **must** add Cloudflare's published ranges to both Caddy's
+  `trusted_proxies` and `TRUSTED_PROXY_CIDRS`; with only `private_ranges`, all
+  clients appear as one edge IP and per-IP limits/audit IPs are wrong.
 - `request_body { max_size 5MB }` on `/api/*` (second 413 layer).
 - `/internal/*` blocked publicly.
-- `/admin/*` should carry an `ADMIN_ALLOWED_IPS` allowlist; see the Caddyfile
-  comment. Do not expose the admin without it in production.
+- `/admin/*` is **not** IP-gated by default. Before production, add a Caddy
+  `remote_ip` matcher using `ADMIN_ALLOWED_IPS` (the env var is documented in
+  `.env.example`); until then Django's own auth is the only gate. The checked-in
+  inventory records this as an operator step, not an implemented control.
 
 There is no `rate_limit` directive in the stock `caddy:2.8.4` image (it needs
 the `caddy-ratelimit` plugin). Application throttling is the enforced layer;
 add the plugin only if you also rebuild the Caddy image.
+
+## 2b. Client-facing 429 contract (implemented)
+
+Every throttled response is `429` with `Retry-After` (seconds) and a stable
+`rate_limited` error code. Defaults:
+
+| Scope | Budget |
+|---|---|
+| Authenticated reads | 600/min/user |
+| Authenticated writes | 300/min/user, 3,000/min/tenant |
+| Login | 5/15 min per tenant+email, 20/15 min per tenant+IP |
+| TOTP verify | 10/15 min per account (bound to the server challenge user) |
+| Refresh | 30/min/IP |
+| Report access | 60/min/IP, 120/10 min/IP, 60/10 min/token, 20 invalid/hour/IP |
+| Demo requests | 5/hour/IP |
+| n8n callbacks | 120/min/IP |
+| Exports | 1/hour/tenant; downloads 60/min/IP |
+
+A Redis outage makes the public report-portal and core throttles fail **closed**
+(429), not open. Clients should honour `Retry-After` and back off.
 
 ## 3. Cloudflare WAF + CDN (deployment checklist, 2.7b)
 
@@ -46,6 +72,9 @@ Cloudflare is already the DNS provider (Doc 10). In the dashboard:
 6. Under Attack Mode is the manual break-glass switch.
 7. Keep the origin IP out of DNS history (proxied records only); firewall the
    VPS so only Cloudflare IP ranges reach ports 80/443.
+8. Set `TRUSTED_PROXY_CIDRS` (and Caddy `trusted_proxies`) to the Cloudflare
+   ranges from <https://www.cloudflare.com/ips/> so the app sees the real client
+   IP instead of the edge IP.
 
 ## 4. Acceptance test (the "one laptop" test)
 

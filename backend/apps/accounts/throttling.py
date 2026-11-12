@@ -229,18 +229,22 @@ def check_and_record_generic_throttle(
 # ---------------------------------------------------------------------------
 
 
-def _lockout_key(tenant_id: str, email: str) -> str:
-    return f"auth:lockout:{tenant_id}:{email.strip().lower()}"
+def _lockout_key(tenant_id: str, email: str, ip: str = "") -> str:
+    return f"auth:lockout:{tenant_id}:{ip}:{email.strip().lower()}"
 
 
-def _violation_key(tenant_id: str, email: str) -> str:
-    return f"auth:lockout:violations:{tenant_id}:{email.strip().lower()}"
+def _violation_key(tenant_id: str, email: str, ip: str = "") -> str:
+    return f"auth:lockout:violations:{tenant_id}:{ip}:{email.strip().lower()}"
 
 
-def check_account_lockout(tenant_id: str, email: str) -> tuple[bool, int]:
-    """Return (is_locked, retry_after_seconds)."""
+def check_account_lockout(tenant_id: str, email: str, ip: str = "") -> tuple[bool, int]:
+    """Return (is_locked, retry_after_seconds).
+
+    Keyed per (tenant, email, IP) so an attacker cannot lock a victim out
+    from a different address (django-reviewer 2026-11-12).
+    """
     try:
-        ttl = cache.get(_lockout_key(tenant_id, email))
+        ttl = cache.get(_lockout_key(tenant_id, email, ip))
         if ttl is not None:
             return True, max(1, int(ttl))
     except Exception:
@@ -249,7 +253,7 @@ def check_account_lockout(tenant_id: str, email: str) -> tuple[bool, int]:
     return False, 0
 
 
-def record_throttle_violation(tenant_id: str, email: str) -> bool:
+def record_throttle_violation(tenant_id: str, email: str, ip: str = "") -> bool:
     """Count a throttled login window; lock the account after N windows.
 
     Returns True when this call engaged the lock. The lock is a Redis TTL
@@ -259,7 +263,7 @@ def record_throttle_violation(tenant_id: str, email: str) -> bool:
 
     threshold = int(getattr(settings, "ACCOUNT_LOCKOUT_THRESHOLD", 3))
     lock_seconds = int(getattr(settings, "ACCOUNT_LOCKOUT_SECONDS", 3600))
-    vkey = _violation_key(tenant_id, email)
+    vkey = _violation_key(tenant_id, email, ip)
     try:
         # Count at most once per 15-minute throttle window, so a burst of
         # retries inside one window cannot fast-forward the lock.
@@ -273,7 +277,9 @@ def record_throttle_violation(tenant_id: str, email: str) -> bool:
         cache.set(vkey, count, timeout=lock_seconds)
         if count < threshold:
             return False
-        cache.set(_lockout_key(tenant_id, email), lock_seconds, timeout=lock_seconds)
+        cache.set(
+            _lockout_key(tenant_id, email, ip), lock_seconds, timeout=lock_seconds
+        )
     except Exception:
         # Cache outage during violation counting: keep the throttle closed but
         # do not claim a lock we cannot store.
@@ -301,9 +307,12 @@ def record_throttle_violation(tenant_id: str, email: str) -> bool:
     return True
 
 
-def unlock_account(tenant_id: str, email: str) -> None:
-    """Clear the lock and violation counter (Owner-unlock path)."""
-    for key in (_lockout_key(tenant_id, email), _violation_key(tenant_id, email)):
+def unlock_account(tenant_id: str, email: str, ip: str = "") -> None:
+    """Clear the lock and violation counter for this email+IP."""
+    for key in (
+        _lockout_key(tenant_id, email, ip),
+        _violation_key(tenant_id, email, ip),
+    ):
         try:
             cache.delete(key)
         except Exception:

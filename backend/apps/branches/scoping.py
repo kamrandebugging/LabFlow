@@ -26,7 +26,6 @@ branch scope — it is deliberately NOT routed through ``scoped_to``.
 from __future__ import annotations
 
 import uuid
-from collections.abc import Callable
 from typing import TYPE_CHECKING, TypeVar
 
 from django.core.exceptions import ImproperlyConfigured
@@ -62,29 +61,6 @@ def in_branch_scope(user: StaffUser, branch_id: uuid.UUID | None) -> bool:
     if branch_id is None:
         return False
     return branch_id in effective_branch_ids(user)
-
-
-def get_scoped_or_404[T: models.Model](
-    model: type[T],
-    user: StaffUser,
-    pk: uuid.UUID | str,
-    *,
-    error_factory: Callable[[str], Exception],
-    select_for_update: bool = False,
-) -> T:
-    """Fetch one branch-scoped object for ``user`` or raise ``error_factory``.
-
-    This is the single front door for per-object fetches (LAB-49 Phase 1.2,
-    OWASP API1 BOLA): the scope predicate is applied in the query, so a
-    foreign object is indistinguishable from a missing one (404, P-7).
-    """
-    queryset = model.objects.scoped_to(user)
-    if select_for_update:
-        queryset = queryset.select_for_update()
-    try:
-        return queryset.get(pk=pk)
-    except (model.DoesNotExist, ValueError, TypeError):
-        raise error_factory("Not found.") from None
 
 
 class BranchScopedQuerySet(models.QuerySet[_M, _M]):

@@ -116,3 +116,20 @@ class TestPerRoleOutputAllowlist:
         assert technician_data["patient_age"] is None
         assert technician_data["discount_reason"] is None
         assert owner_data["patient_phone"] == "03001234567"
+
+    def test_patient_list_summary_applies_same_role_mask(self, tenant_a: Any) -> None:
+        from apps.patients.serializers import PatientSummarySerializer
+
+        with schema_context(tenant_a.schema_name):
+            patient = PatientFactory()
+            technician_data = PatientSummarySerializer(
+                patient, context={"request": _request_for(Role.TECHNICIAN)}
+            ).data
+            owner_data = PatientSummarySerializer(
+                patient, context={"request": _request_for(Role.OWNER)}
+            ).data
+
+        assert technician_data["phone"] is None
+        assert technician_data["date_of_birth"] is None
+        assert technician_data["year_of_birth"] is None
+        assert owner_data["phone"] == patient.phone

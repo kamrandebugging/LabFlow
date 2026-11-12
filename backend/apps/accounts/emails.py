@@ -27,12 +27,11 @@ def reset_link(request: Any, raw_token: str) -> str:
     return f"{base}{path}?{urlencode({'token': raw_token})}"
 
 
-def send_password_reset_email(request: Any, user: Any, raw_token: str) -> bool:
-    """Send exactly one working reset link; never raise into the 202 path."""
-    link = reset_link(request, raw_token)
+def send_password_reset_email_to(email: str, display_name: str, link: str) -> bool:
+    """Send exactly one working reset link to an explicit address."""
     subject = "Reset your LabFlow password"
     body = (
-        f"Hello {user.display_name or user.email},\n\n"
+        f"Hello {display_name or email},\n\n"
         "Use the link below to reset your LabFlow password. It expires in "
         "60 minutes and can be used once:\n\n"
         f"{link}\n\n"
@@ -43,10 +42,17 @@ def send_password_reset_email(request: Any, user: Any, raw_token: str) -> bool:
             subject,
             body,
             str(getattr(settings, "DEFAULT_FROM_EMAIL", "no-reply@labflow.app")),
-            [user.email],
+            [email],
             fail_silently=False,
         )
         return True
     except Exception as exc:  # pragma: no cover - provider outage
         logger.error("Password-reset email delivery failed: %s", exc)
         return False
+
+
+def send_password_reset_email(request: Any, user: Any, raw_token: str) -> bool:
+    """Send exactly one working reset link; never raise into the 202 path."""
+    return send_password_reset_email_to(
+        user.email, user.display_name or "", reset_link(request, raw_token)
+    )

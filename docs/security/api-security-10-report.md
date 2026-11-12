@@ -51,6 +51,17 @@ The Cloud X Berry Facebook reel *"Secure your API by avoiding these 10 Common Mi
 
 Per the user's instruction: **web research first, LabFlow code second, report third.** Each topic section is grounded in OWASP sources actually read (listed per section). Where a source could not be reached (the OWASP API Top 10 2023 PDF — no verbatim `owasp.org` PDF URL surfaced; several guessed per-risk `owasp.org` URLs returned 404), that is stated, and the official HTML edition pages at `api-security.owasp.org` plus the OWASP Cheat Sheet Series were used instead — same content, different URL. Every LabFlow state claim cites file path + line number. Anything that could not be verified is marked **UNVERIFIED** — never asserted from memory. Two corrections to the brief's leads were found during verification and are recorded in the relevant sections: (a) `base.py` at main `23b0964` **does** have a partial security-headers block (the "no headers" claim was true at `5e98a06` only); (b) **Redis cache is configured at main** (`RedisCache`, main L289-306) — the "no Redis cache" claim is stale; (c) the "email-keyed challenge fallback still exists" note **does not match current code** — no email-code fallback exists in tenant auth at `5e98a06`.
 
+### Decisions register (user-approved 2026-11-12)
+
+| # | Decision | Resolution | Where enforced |
+|---|---|---|---|
+| D1 | Patient-read roles (Doc 03 §6.6) | **All staff**, with per-role PII masking (Technician/Pathologist lose phone, DOB, contacts, consents) | `apps/core/authorization.py` `patient-*` policy; `PatientSummarySerializer` / `PatientDetailSerializer` `to_representation` |
+| D2 | Owner result approval | **Allowed**; Owner self-approval is audited (`owner_self_approval`) | `RESULT_APPROVE_ROLES` + `approve_result` audit note |
+| D3 | Django version | **Django 6.1 adopted**; Doc 01 updated from Django 5 | `backend/pyproject.toml`, `backend/uv.lock`, Doc 01 |
+| D4 | Object storage | **Local disk for the pilot**; backup runbook mandatory before any pilot lab goes live; R2 revisited after the pilot | `docs/security/lab49-implementation-report.md` §7, storage task |
+| D5 | JWT `iss`/`aud` | **No dual-accept window**; all users re-login once on deploy | `apps/accounts/jwt_engine.py` (`iss=labflow`, `aud=labflow-api`) |
+| D6 | Refresh fingerprint | **User-agent only**, not IP | `AuthService.refresh_tokens` fingerprint check |
+
 ### OWASP sources used across the report
 
 - OWASP API Security Top 10 2023 list — https://owasp.org/API-Security/editions/2023/en/0x11-t10/

@@ -58,8 +58,8 @@ def _local_dev_hosts() -> set[str]:
     return {"localhost", "127.0.0.1", "::1"}
 
 
-def validate_url(url: str) -> str:
-    """Validate scheme + resolved destination; return the URL unchanged."""
+def validate_url(url: str, *, resolve: bool = True) -> str:
+    """Validate scheme (+ resolved destination when ``resolve`` is true)."""
     parsed = urlparse(url or "")
     if not parsed.scheme or not parsed.hostname:
         raise UnsafeURLError("webhook URL is not an absolute URL.")
@@ -72,6 +72,8 @@ def validate_url(url: str) -> str:
         raise UnsafeURLError(f"scheme {parsed.scheme!r} is not allowed.")
 
     port = parsed.port or (443 if parsed.scheme == "https" else 80)
+    if not resolve:
+        return url
     try:
         infos = socket.getaddrinfo(host, port, type=socket.SOCK_STREAM)
     except socket.gaierror as exc:
@@ -118,12 +120,14 @@ def post(
             body += chunk
             if len(body) > MAX_RESPONSE_BYTES:
                 raise SafeFetchError("upstream response exceeded the 1 MB cap.")
+    except requests.RequestException as exc:
+        raise SafeFetchError(str(exc)) from exc
     finally:
         response.close()
     return SafeResponse(status_code=response.status_code, content=body)
 
 
-def validate_configured_webhooks() -> None:
+def validate_configured_webhooks(*, resolve: bool = True) -> None:
     """Fail loudly on a misconfigured webhook URL (startup check)."""
     candidates = []
     single = str(getattr(settings, "N8N_WEBHOOK_URL", "") or "")
@@ -133,4 +137,4 @@ def validate_configured_webhooks() -> None:
         if url:
             candidates.append(str(url))
     for candidate in candidates:
-        validate_url(candidate)
+        validate_url(candidate, resolve=resolve)

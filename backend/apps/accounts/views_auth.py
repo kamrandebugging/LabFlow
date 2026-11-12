@@ -46,11 +46,9 @@ FIVE_MINUTES_SECONDS = 300
 
 
 def _get_client_ip(request: Request) -> str:
-    x_forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
-    if x_forwarded_for:
-        # Caddy appends the real peer; the last hop is the trusted one.
-        return x_forwarded_for.split(",")[-1].strip()
-    return request.META.get("REMOTE_ADDR", "127.0.0.1")
+    from apps.core.ip import get_client_ip
+
+    return get_client_ip(request)
 
 
 def _get_tenant_id(request: Request) -> str:
@@ -140,7 +138,7 @@ class LoginView(APIView):
         tenant_id = _get_tenant_id(request)
 
         # 1. Throttling Check (Doc 08 §10.1 & §10.3 fail-closed)
-        locked, lock_retry = check_account_lockout(tenant_id, email)
+        locked, lock_retry = check_account_lockout(tenant_id, email, ip)
         if locked:
             response = Response(
                 {
@@ -183,7 +181,7 @@ class LoginView(APIView):
                 ip=ip,
                 user_agent=user_agent,
             )
-            just_locked = record_throttle_violation(tenant_id, email)
+            just_locked = record_throttle_violation(tenant_id, email, ip)
             response = Response(
                 {
                     "error": {
@@ -307,6 +305,16 @@ class RefreshView(APIView):
         )
 
         if not success or data is None:
+            if err_code == "refresh_unavailable":
+                return Response(
+                    {
+                        "error": {
+                            "code": "service_unavailable",
+                            "message": "Authentication service temporarily unavailable",
+                        }
+                    },
+                    status=status.HTTP_503_SERVICE_UNAVAILABLE,
+                )
             if err_code == "refresh_reuse_detected":
                 return Response(
                     {
@@ -886,17 +894,23 @@ class PasswordResetRequestView(APIView):
 
         # LAB-49 Phase 4.5 / API2 A2-7: deliver the single-use link. The raw
         # token goes only into the message; it is never stored or logged.
-        from apps.accounts.emails import send_password_reset_email
+        # Delivery is queued so the request path never blocks on SMTP.
+        from apps.accounts.emails import reset_link
+        from apps.accounts.tasks import send_password_reset_email_task
 
-        send_password_reset_email(request, user, raw_token)
+        send_password_reset_email_task.delay(
+            user.email, user.display_name or "", reset_link(request, raw_token)
+        )
 
-        # Enqueue reset notification email (Doc 08 §17 A-27)
+        # The notification row remains for audit continuity, but is SENT:
+        # delivery already happened through the task, so the sweep must not
+        # send a second, link-less email (django-reviewer 2026-11-12).
         Notification.objects.create(
             template_key="password_reset",
             recipient_type=Notification.RecipientType.STAFF,
             recipient_id=user.id,
             channel=Notification.Channel.EMAIL,
-            status=Notification.Status.PENDING,
+            status=Notification.Status.SENT,
         )
 
         return accepted_response

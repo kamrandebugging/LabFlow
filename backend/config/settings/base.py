@@ -24,12 +24,26 @@ environ.Env.read_env(BASE_DIR / ".env")
 # also opts into the dev defaults.
 # -----------------------------------------------------------------------------
 _SETTINGS_MODULE = os.environ.get("DJANGO_SETTINGS_MODULE", "")
+# Only the explicit dev/test modules may use local placeholder secrets.
+# LABFLOW_LOCAL_DEV no longer weakens base/prod (security review 2026-11-12).
 _IS_LOCAL_DEV = bool(
-    os.environ.get("LABFLOW_LOCAL_DEV") == "1"
-    or _SETTINGS_MODULE.endswith(".dev")
-    or _SETTINGS_MODULE.endswith(".test")
+    _SETTINGS_MODULE.endswith(".dev") or _SETTINGS_MODULE.endswith(".test")
 )
 
+# Every value that has ever been published in `.env.example` or the repo is
+# treated as public and refused outside dev/test.
+_PUBLIC_EXAMPLE_VALUES = frozenset(
+    {
+        "django-insecure-dev-key-change-in-production",
+        "django-insecure-dev-key-change-in-production-minimum-50-chars-long",
+        "django-insecure-dev-only-secret-key-for-local-scaffold-boot",
+        "jwt-secret-key-for-local-dev-signing-minimum-32-chars-length",
+        "dev_n8n_webhook_secret_32_characters_minimum",
+        "dev_n8n_callback_key_secret_value",
+        "replace-with-a-generated-fernet-key",
+        "sb_wYl5m_YtxnHje0H4_ZEZ35_8mNfguSqqV897s_ts=",
+    }
+)
 _INSECURE_SECRET_DEFAULT = "django-insecure-dev-key-change-in-production"
 # The Fernet key committed to the public repository. Treated as compromised:
 # accepted only for local dev/test, rejected everywhere else.
@@ -58,9 +72,11 @@ def _require_env_secret(
             raise ImproperlyConfigured(
                 f"{name} must be set in the environment (no insecure default)."
             )
-    if not _IS_LOCAL_DEV and value in forbidden:
+    if not _IS_LOCAL_DEV and (
+        value in forbidden or value.upper().startswith("CHANGE_ME") or len(value) < 32
+    ):
         raise ImproperlyConfigured(
-            f"{name} uses a known public/default value and must be rotated."
+            f"{name} uses a public/default/placeholder value and must be rotated."
         )
     if must_differ_from is not None and not _IS_LOCAL_DEV:
         other_name, other_value = must_differ_from
@@ -74,7 +90,7 @@ def _require_env_secret(
 SECRET_KEY = _require_env_secret(
     "DJANGO_SECRET_KEY",
     local_default=_INSECURE_SECRET_DEFAULT,
-    forbidden=frozenset({_INSECURE_SECRET_DEFAULT}),
+    forbidden=_PUBLIC_EXAMPLE_VALUES,
 )
 DEBUG = env.bool("DJANGO_DEBUG", default=False)
 ALLOWED_HOSTS = env.list(
@@ -290,7 +306,7 @@ PASSWORD_HASHERS = [
 JWT_SIGNING_KEY = _require_env_secret(
     "JWT_SIGNING_KEY",
     local_default=SECRET_KEY,
-    forbidden=frozenset({_INSECURE_SECRET_DEFAULT}),
+    forbidden=_PUBLIC_EXAMPLE_VALUES,
     must_differ_from=("DJANGO_SECRET_KEY", SECRET_KEY),
 )
 JWT_ACCESS_TOKEN_LIFETIME_SECONDS = 900  # 15 minutes (Doc 08 §4.3)
@@ -300,7 +316,7 @@ AUTH_CHALLENGE_COOKIE_NAME = "auth_challenge"
 LABFLOW_TOTP_ENCRYPTION_KEY = _require_env_secret(
     "LABFLOW_TOTP_ENCRYPTION_KEY",
     local_default=_COMMITTED_TOTP_KEY,
-    forbidden=frozenset({_COMMITTED_TOTP_KEY}),
+    forbidden=_PUBLIC_EXAMPLE_VALUES,
 )
 
 # Master dashboard Phase 1: founding-offer inventory (Doc 01 ADR-010).
@@ -334,6 +350,7 @@ REPORT_ACCESS_RATE_LIMIT_PER_MINUTE = 60
 REPORT_TOKEN_RATE_LIMIT_PER_10MIN = env.int(
     "REPORT_TOKEN_RATE_LIMIT_PER_10MIN", default=60
 )
+REPORT_IP_RATE_LIMIT_PER_10MIN = env.int("REPORT_IP_RATE_LIMIT_PER_10MIN", default=120)
 REPORT_INVALID_TOKEN_PER_HOUR = env.int("REPORT_INVALID_TOKEN_PER_HOUR", default=20)
 
 # Rate-limit matrix (LAB-49 Phase 2.1, OWASP API4 G-1/G-2/G-3/G-7/G-14).
@@ -363,7 +380,13 @@ REFUND_VELOCITY_PER_INVOICE_HOUR = env.int(
 DISCOUNT_OWNER_THRESHOLD_PKR = env("DISCOUNT_OWNER_THRESHOLD_PKR", default="10000.00")
 DISCOUNT_OWNER_THRESHOLD_RATIO = env("DISCOUNT_OWNER_THRESHOLD_RATIO", default="0.25")
 
-# Request body / array caps (LAB-49 Phase 2.4, API4 G-4/G-5).
+# Trusted edge proxies for client-IP extraction. Default covers loopback and
+# Docker/RFC1918 peers; add Cloudflare ranges for a proxied deployment
+# (security review 2026-11-12; see docs/security/edge-hardening.md).
+TRUSTED_PROXY_CIDRS = env(
+    "TRUSTED_PROXY_CIDRS",
+    default="127.0.0.1/32,::1/128,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16",
+)
 DATA_UPLOAD_MAX_MEMORY_SIZE = env.int(
     "DATA_UPLOAD_MAX_MEMORY_SIZE", default=5 * 1024 * 1024
 )
@@ -416,6 +439,14 @@ if not _IS_LOCAL_DEV:
         raise ImproperlyConfigured(
             "N8N_WEBHOOK_SECRET must differ from DJANGO_SECRET_KEY (key separation)."
         )
+    if (
+        _n8n_secret in _PUBLIC_EXAMPLE_VALUES
+        or (_n8n_secret and _n8n_secret.upper().startswith("CHANGE_ME"))
+        or (_n8n_secret and len(_n8n_secret) < 32)
+    ):
+        raise ImproperlyConfigured(
+            "N8N_WEBHOOK_SECRET uses a public/weak value; rotate it."
+        )
 N8N_WEBHOOK_SECRET = _n8n_secret
 # Test/rehearsal seam: complete deliveries through the callback path
 # without an n8n round-trip. Never True in production.
@@ -423,8 +454,23 @@ SETTLEMENT_DELIVERY_STUB = env.bool("SETTLEMENT_DELIVERY_STUB", default=False)
 
 # Outbound webhook engine (Doc 06 §5; Doc 02 §8: service API keys in env only).
 N8N_CALLBACK_KEY = env("N8N_CALLBACK_KEY", default="")
+if (
+    not _IS_LOCAL_DEV
+    and N8N_CALLBACK_KEY
+    and (
+        N8N_CALLBACK_KEY in _PUBLIC_EXAMPLE_VALUES
+        or N8N_CALLBACK_KEY.upper().startswith("CHANGE_ME")
+        or len(N8N_CALLBACK_KEY) < 32
+    )
+):
+    raise ImproperlyConfigured(
+        "N8N_CALLBACK_KEY uses a public/weak value; rotate it (32+ chars)."
+    )
 # Set during callback-key rotation; Django dual-accepts both keys (§5.5).
 N8N_CALLBACK_KEY_NEXT = env("N8N_CALLBACK_KEY_NEXT", default="")
+# Separate HMAC secret for inbound callback signatures (django-reviewer
+# 2026-11-12). Falls back to N8N_CALLBACK_KEY only when unset.
+N8N_CALLBACK_HMAC_SECRET = env("N8N_CALLBACK_HMAC_SECRET", default="")
 # Event → n8n webhook URL map (Doc 10 holds n8n configuration values).
 N8N_WEBHOOK_URLS: dict[str, str] = {}
 # LAB-49 Phase 4.2 (SE-43): require HMAC + timestamp on inbound callbacks.

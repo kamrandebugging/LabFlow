@@ -73,7 +73,9 @@ class PatientListCreateView(BranchScopedAPIView):
             ip=ip,
             user_agent=user_agent,
         )
-        serializer = PatientSummarySerializer(patients, many=True)
+        serializer = PatientSummarySerializer(
+            patients, many=True, context={"request": request}
+        )
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def post(self, request: Request) -> Response:

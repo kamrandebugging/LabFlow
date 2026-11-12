@@ -535,36 +535,10 @@ class PaymentService:
                 "Only Owner, Manager or Receptionist may record payments."
             )
 
-        # LAB-49 Phase 2.3 (API6 A6-1): velocity caps, enforced in the service
-        # so every caller (view, task, future automation) inherits them.
-        if kind == Payment.Kind.REFUND:
-            hour_ago = timezone.now() - timedelta(hours=1)
-            hourly = Payment.objects.filter(
-                invoice=invoice,
-                kind=Payment.Kind.REFUND,
-                created_at__gte=hour_ago,
-            ).count()
-            if hourly >= int(getattr(settings, "REFUND_VELOCITY_PER_INVOICE_HOUR", 3)):
-                raise RefundVelocityExceededError(
-                    "Too many refunds on this invoice in the last hour."
-                )
-            if actor.role != Role.OWNER:
-                day_start = timezone.now().replace(
-                    hour=0, minute=0, second=0, microsecond=0
-                )
-                today_total = Payment.objects.filter(
-                    kind=Payment.Kind.REFUND,
-                    received_by=actor,
-                    created_at__gte=day_start,
-                ).aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
-                daily_cap = Decimal(
-                    str(getattr(settings, "REFUND_MANAGER_DAILY_CAP", "25000.00"))
-                )
-                if today_total + amount > daily_cap:
-                    raise RefundVelocityExceededError(
-                        "Daily refund cap reached; ask the Owner to approve."
-                    )
-
+        # LAB-49 Phase 2.3 (API6 A6-1): velocity caps and the payment/refund
+        # aggregates are computed INSIDE the transaction under an invoice row
+        # lock, so concurrent requests cannot both slip under the cap
+        # (security review 2026-11-12).
         # BL-10: reference required for non-cash methods and for all refunds.
         if (method != Payment.Method.CASH or kind == Payment.Kind.REFUND) and (
             not reference
@@ -572,18 +546,6 @@ class PaymentService:
             raise ReferenceRequiredError(
                 "A reference is required for non-cash payments and all refunds."
             )
-
-        paid_sum, refund_sum = _payment_aggregates(invoice)
-
-        # BL-7 guards against the aggregates BEFORE the insert.
-        if kind == Payment.Kind.PAYMENT:
-            if paid_sum - refund_sum + amount > invoice.total:
-                raise OverpaymentError("Payment would exceed the invoice total.")
-        else:
-            if refund_sum + amount > paid_sum:
-                raise RefundExceedsPaymentsError(
-                    "Refund would exceed recorded payments."
-                )
 
         payload_hash = hashlib.sha256(
             _canonical_payment_payload(
@@ -596,6 +558,51 @@ class PaymentService:
         ).hexdigest()
 
         with transaction.atomic():
+            invoice = Invoice.objects.select_for_update().get(pk=invoice.pk)
+            if invoice.status == Invoice.Status.CANCELLED:
+                raise InvalidStateTransitionError(
+                    "Payments cannot be recorded on a cancelled invoice."
+                )
+
+            if kind == Payment.Kind.REFUND:
+                hour_ago = timezone.now() - timedelta(hours=1)
+                hourly = Payment.objects.filter(
+                    invoice=invoice,
+                    kind=Payment.Kind.REFUND,
+                    created_at__gte=hour_ago,
+                ).count()
+                if hourly >= int(
+                    getattr(settings, "REFUND_VELOCITY_PER_INVOICE_HOUR", 3)
+                ):
+                    raise RefundVelocityExceededError(
+                        "Too many refunds on this invoice in the last hour."
+                    )
+                if actor.role != Role.OWNER:
+                    day_start = timezone.now().replace(
+                        hour=0, minute=0, second=0, microsecond=0
+                    )
+                    today_total = Payment.objects.filter(
+                        kind=Payment.Kind.REFUND,
+                        received_by=actor,
+                        created_at__gte=day_start,
+                    ).aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
+                    daily_cap = Decimal(
+                        str(getattr(settings, "REFUND_MANAGER_DAILY_CAP", "25000.00"))
+                    )
+                    if today_total + amount > daily_cap:
+                        raise RefundVelocityExceededError(
+                            "Daily refund cap reached; ask the Owner to approve."
+                        )
+
+            paid_sum, refund_sum = _payment_aggregates(invoice)
+            if kind == Payment.Kind.PAYMENT:
+                if paid_sum - refund_sum + amount > invoice.total:
+                    raise OverpaymentError("Payment would exceed the invoice total.")
+            elif refund_sum + amount > paid_sum:
+                raise RefundExceedsPaymentsError(
+                    "Refund would exceed recorded payments."
+                )
+
             existing = Payment.objects.filter(idempotency_key=idempotency_key).first()
             if existing is not None:
                 if existing.payload_sha256 != payload_hash:

@@ -112,7 +112,10 @@ def build_inventory() -> dict[str, Any]:
         "gated_surfaces": [
             {
                 "path": "/admin/",
-                "note": "Django admin; IP-allowlisted at Caddy (Phase 3.2)",
+                "note": (
+                    "Django admin; the Caddy ADMIN_ALLOWED_IPS allowlist is an "
+                    "operator step and is NOT enabled by default"
+                ),
             },
             {
                 "path": "/api/schema|docs|redoc",

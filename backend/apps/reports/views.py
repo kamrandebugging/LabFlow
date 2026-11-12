@@ -44,6 +44,7 @@ from apps.reports.throttling import (
     get_client_ip,
     public_rate_limit_exceeded,
     record_invalid_report_token,
+    report_ip_rate_limit_exceeded,
     report_token_rate_limit_exceeded,
 )
 
@@ -204,8 +205,10 @@ class ReportAccessView(APIView):
     authentication_classes: list[Any] = []
 
     def get(self, request: Request, token: str) -> Response | HttpResponse:
-        if public_rate_limit_exceeded(request, scope="report_access") or (
-            report_token_rate_limit_exceeded(token)
+        if (
+            public_rate_limit_exceeded(request, scope="report_access")
+            or report_ip_rate_limit_exceeded(request)
+            or report_token_rate_limit_exceeded(token)
         ):
             response = Response(
                 _format_error(
@@ -223,8 +226,16 @@ class ReportAccessView(APIView):
                 user_agent=request.META.get("HTTP_USER_AGENT", ""),
             )
         except ReportError as exc:
-            if exc.status_code in (404, 410):
-                record_invalid_report_token(request)
+            if exc.status_code in (404, 410) and record_invalid_report_token(request):
+                response = Response(
+                    _format_error(
+                        "rate_limited",
+                        "Too many invalid report links. Try again later.",
+                    ),
+                    status=429,
+                )
+                response["Retry-After"] = "3600"
+                return response
             if exc.status_code == 410:
                 phone = (
                     exc.details.get("phone") if isinstance(exc.details, dict) else None
@@ -256,7 +267,9 @@ class ReportFileDownloadView(APIView):
     authentication_classes: list[Any] = []
 
     def get(self, request: Request, signed: str) -> Response | FileResponse:
-        if public_rate_limit_exceeded(request, scope="report_file"):
+        if public_rate_limit_exceeded(
+            request, scope="report_file"
+        ) or report_ip_rate_limit_exceeded(request):
             response = Response(
                 _format_error(
                     "rate_limited",

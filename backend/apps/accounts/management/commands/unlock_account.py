@@ -24,14 +24,18 @@ class Command(BaseCommand):
     def add_arguments(self, parser: Any) -> None:
         parser.add_argument("--tenant", required=True, help="Tenant schema name.")
         parser.add_argument("--email", required=True, help="Staff email address.")
+        parser.add_argument(
+            "--ip", default="", help="Client IP whose lock should be cleared."
+        )
 
     def handle(self, *args: Any, **options: Any) -> None:
         from apps.accounts.models import AuditLog, StaffUser
 
         tenant = str(options["tenant"])
         email = str(options["email"]).strip().lower()
+        ip = str(options.get("ip") or "")
         with schema_context(tenant):
-            unlock_account(tenant, email)
+            unlock_account(tenant, email, ip)
             target = StaffUser.objects.filter(email=email).first()
             AuditLog.objects.create(
                 actor_id=None,

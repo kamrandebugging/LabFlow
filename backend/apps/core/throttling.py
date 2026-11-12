@@ -11,7 +11,6 @@ project exception handler renders with a ``Retry-After`` header and the stable
 
 from __future__ import annotations
 
-import hashlib
 import time
 from typing import Any
 
@@ -30,16 +29,9 @@ def _tenant_key() -> str:
 
 
 def _client_ip(request: Any) -> str:
-    meta = getattr(request, "META", {}) or {}
-    # Caddy appends the real peer; the last hop is the trusted one.
-    forwarded = meta.get("HTTP_X_FORWARDED_FOR", "")
-    if forwarded:
-        return forwarded.split(",")[-1].strip() or "unknown"
-    return meta.get("REMOTE_ADDR") or "unknown"
+    from apps.core.ip import get_client_ip
 
-
-def _digest(value: str) -> str:
-    return hashlib.sha256(value.encode("utf-8")).hexdigest()[:24]
+    return get_client_ip(request)
 
 
 class FixedWindowThrottle(BaseThrottle):
@@ -136,14 +128,22 @@ class TotpVerifyThrottle(FixedWindowThrottle):
     window_seconds = 15 * 60
 
     def get_ident(self, request: Any) -> str:
+        # Bind to the server-issued challenge's user, never to a body ``email``
+        # an attacker can rotate per attempt (security review 2026-11-12).
+        from apps.accounts.auth_service import AuthService
+
+        cookies = getattr(request, "COOKIES", {}) or {}
         data = getattr(request, "data", {}) or {}
-        email = data.get("email") or getattr(request, "query_params", {}).get("email")
-        if not email:
-            challenge = (getattr(request, "COOKIES", {}) or {}).get(
-                "auth_challenge"
-            ) or ""
-            email = f"challenge:{challenge}"
-        return f"email:{_digest(str(email).strip().lower())}"
+        if not isinstance(data, dict):
+            data = {}
+        challenge = cookies.get("auth_challenge") or data.get("challenge_token")
+        tenant = getattr(getattr(request, "tenant", None), "schema_name", None)
+        user_id = AuthService.get_challenge_user_id(
+            challenge, tenant_id=str(tenant) if tenant else None
+        )
+        if user_id:
+            return f"user:{user_id}"
+        return f"ip:{_client_ip(request)}"
 
 
 class RefreshThrottle(FixedWindowThrottle):

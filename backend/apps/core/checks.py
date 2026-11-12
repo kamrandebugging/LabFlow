@@ -20,7 +20,7 @@ def check_outbound_webhooks(app_configs: Any, **kwargs: Any) -> list[Error]:
     from apps.core.safe_fetch import UnsafeURLError, validate_configured_webhooks
 
     try:
-        validate_configured_webhooks()
+        validate_configured_webhooks(resolve=False)
     except UnsafeURLError as exc:
         return [
             Error(

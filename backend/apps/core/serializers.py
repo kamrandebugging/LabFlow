@@ -31,11 +31,21 @@ def reject_unknown_fields(
 
 
 class StrictFieldsMixin:
-    """Mixin that rejects unknown input fields in ``validate``."""
+    """Mixin that rejects unknown input fields before DRF binds them.
 
-    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
-        attrs = super().validate(attrs)  # type: ignore[misc]
-        return reject_unknown_fields(self, attrs)  # type: ignore[arg-type]
+    The check runs in ``to_internal_value`` (always called) instead of
+    ``validate`` (frequently overridden without ``super()``) so a subclass
+    cannot silently bypass it (django-reviewer 2026-11-12).
+    """
+
+    def to_internal_value(self, data: Any) -> Any:
+        if isinstance(data, dict):
+            unknown = set(data.keys()) - set(self.fields)
+            if unknown:
+                raise serializers.ValidationError(
+                    {"unknown_fields": sorted(str(u) for u in unknown)}
+                )
+        return super().to_internal_value(data)  # type: ignore[misc]
 
 
 class StrictSerializer(StrictFieldsMixin, serializers.Serializer):

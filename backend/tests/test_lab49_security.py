@@ -301,3 +301,67 @@ class TestPasswordResetDelivery:
         assert response.status_code == 202
         assert len(mail.outbox) == 1
         assert "token=" in mail.outbox[0].body
+
+
+class TestReviewFixups:
+    def test_published_example_secret_is_rejected_outside_dev(
+        self, monkeypatch: Any
+    ) -> None:
+        from django.core.exceptions import ImproperlyConfigured
+
+        import config.settings.base as base
+
+        monkeypatch.setattr(base, "_IS_LOCAL_DEV", False)
+        monkeypatch.setenv(
+            "DJANGO_SECRET_KEY",
+            "jwt-secret-key-for-local-dev-signing-minimum-32-chars-length",
+        )
+        with pytest.raises(ImproperlyConfigured):
+            base._require_env_secret(
+                "DJANGO_SECRET_KEY", forbidden=base._PUBLIC_EXAMPLE_VALUES
+            )
+
+    def test_refresh_with_omitted_user_agent_is_rejected(self, tenant_a: Any) -> None:
+        with schema_context(tenant_a.schema_name):
+            user = StaffUserFactory(role=Role.RECEPTION)
+        session = AuthService.create_session(
+            user=user,
+            tenant_id=tenant_a.schema_name,
+            ip="203.0.113.9",
+            user_agent="UA-original",
+        )
+        success, payload, err = AuthService.refresh_tokens(
+            session["refresh_token"], ip="203.0.113.9", user_agent=""
+        )
+        assert success is False
+        assert payload is None
+        assert err == "refresh_fingerprint_mismatch"
+
+    def test_chunked_body_without_content_length_is_413(self) -> None:
+        from types import SimpleNamespace
+
+        from apps.core.middleware import PayloadLimitMiddleware
+
+        request = SimpleNamespace(
+            META={"HTTP_TRANSFER_ENCODING": "chunked"},
+            content_length=None,
+            method="POST",
+        )
+        with override_settings(DATA_UPLOAD_MAX_MEMORY_SIZE=1024):
+            response = PayloadLimitMiddleware(lambda _request: None)(request)
+        assert response.status_code == 413
+        import json
+
+        assert json.loads(response.content)["error"]["code"] == "payload_too_large"
+
+    def test_inventory_does_not_claim_admin_ip_gating(self) -> None:
+        surfaces = build_inventory()["gated_surfaces"]
+        admin_note = next(s for s in surfaces if s["path"] == "/admin/")["note"]
+        assert "NOT enabled by default" in admin_note
+
+    def test_every_public_url_name_resolves(self) -> None:
+        from apps.core.authorization import PUBLIC_URL_NAMES
+
+        names = {route["name"] for route in build_inventory()["routes"]}
+        names.update({"public-healthz", "public-readyz"})
+        assert not (PUBLIC_URL_NAMES - names)

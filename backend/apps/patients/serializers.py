@@ -120,7 +120,13 @@ class PatientConsentSerializer(serializers.ModelSerializer[PatientConsent]):
 
 
 class PatientSummarySerializer(serializers.Serializer):
-    """Patient summary serializer handling both in-scope and BS-4 cross-branch views."""
+    """Patient summary serializer handling both in-scope and BS-4 cross-branch views.
+
+    LAB-49 Phase 5.2: the same per-role PII allowlist as the detail serializer,
+    so listing patients cannot bypass the masking.
+    """
+
+    _PII_RESTRICTED_ROLES = frozenset({"technician", "pathologist"})
 
     id = serializers.UUIDField(read_only=True)
     mrn = serializers.CharField(read_only=True)
@@ -167,6 +173,16 @@ class PatientSummarySerializer(serializers.Serializer):
         if getattr(obj, "_is_cross_branch", False):
             return None
         return obj.updated_at.isoformat() if obj.updated_at else None
+
+    def to_representation(self, instance: Patient) -> dict[str, Any]:
+        data = super().to_representation(instance)
+        request = self.context.get("request")
+        role = getattr(getattr(request, "user", None), "role", None)
+        if role in self._PII_RESTRICTED_ROLES:
+            data["phone"] = None
+            data["date_of_birth"] = None
+            data["year_of_birth"] = None
+        return data
 
 
 class PatientDetailSerializer(serializers.ModelSerializer[Patient]):

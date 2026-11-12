@@ -189,9 +189,9 @@ PUBLIC_URL_NAMES: Final[frozenset[str]] = frozenset(
         "report-file-download",
         "export-download",
         "settlement-delivery-callback",
-        "webhook-delivery-callback",
         "webhook-notification-callback",
-        "webhook-settlement-callback",
+        "webhook-report-delivery-callback",
+        "webhook-settlement-delivery-callback",
         "demo-requests-capture",
         # platform (apex) and infrastructure routes
         "public-healthz",
@@ -200,7 +200,6 @@ PUBLIC_URL_NAMES: Final[frozenset[str]] = frozenset(
         "schema",
         "swagger-ui",
         "redoc",
-        "admin",
     }
 )
 
@@ -233,22 +232,37 @@ def is_role_allowed(user: Any, request: Any) -> bool:
     return getattr(user, "role", None) in allowed
 
 
-def _audit_denial(user: Any, request: Any) -> None:
-    """Best-effort append-only denial row; never block the 403 response."""
+def _audit_denial(
+    user: Any, request: Any, *, action: str = "auth.access_denied"
+) -> None:
+    """Best-effort append-only denial row; never block the 403 response.
+
+    Deduplicated per (actor, route, method) for 60 seconds so a probing loop
+    cannot inflate the audit table without bound (security review 2026-11-12).
+    """
     try:
-        from apps.accounts.models import AuditLog
+        from django.core.cache import cache
 
         resolver_match = getattr(request, "resolver_match", None)
         url_name = getattr(resolver_match, "url_name", None) or ""
+        method = getattr(request, "method", "") or ""
         actor_id = getattr(user, "id", None)
+        dedupe_key = f"auth:denial-audit:{action}:{actor_id}:{url_name}:{method}"
+        if not cache.add(dedupe_key, "1", timeout=60):
+            return
+    except Exception:  # cache outage: still write the first row
+        pass
+    try:
+        from apps.accounts.models import AuditLog
+
         AuditLog.objects.create(
             actor_id=actor_id,
-            action="auth.access_denied",
+            action=action,
             entity_type="route",
             entity_id=actor_id,
             after_jsonb={
                 "url_name": url_name,
-                "method": getattr(request, "method", ""),
+                "method": method,
                 "role": getattr(user, "role", None),
                 "path": getattr(request, "path", ""),
             },
@@ -260,18 +274,25 @@ def _audit_denial(user: Any, request: Any) -> None:
 
 
 def _client_ip(request: Any) -> str | None:
-    meta = getattr(request, "META", {}) or {}
-    forwarded = meta.get("HTTP_X_FORWARDED_FOR", "")
-    if forwarded:
-        return forwarded.split(",")[-1].strip() or None
-    return meta.get("REMOTE_ADDR") or None
+    from apps.core.ip import get_client_ip
+
+    return get_client_ip(request)
 
 
 def enforce_role_policy(user: Any, request: Any) -> None:
     """Raise ``RoleDenied`` (and audit) when the role policy denies."""
     if is_role_allowed(user, request):
         return
-    _audit_denial(user, request)
+    resolver_match = getattr(request, "resolver_match", None)
+    url_name = normalize_url_name(getattr(resolver_match, "url_name", None))
+    method = (getattr(request, "method", "") or "").upper()
+    entry = ROLE_POLICY.get(url_name)
+    action = (
+        "auth.policy_missing_method"
+        if entry is not None and method not in entry
+        else "auth.access_denied"
+    )
+    _audit_denial(user, request, action=action)
     from apps.core.exceptions import RoleDenied
 
     raise RoleDenied()

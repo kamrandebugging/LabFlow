@@ -64,7 +64,11 @@ def _verify_signed_callback(
     if abs(int(time.time()) - sent_at) > 300:
         raise CallbackError("stale_timestamp", 401)
 
-    secret = str(getattr(settings, "N8N_CALLBACK_KEY", "") or "")
+    secret = str(
+        getattr(settings, "N8N_CALLBACK_HMAC_SECRET", "")
+        or getattr(settings, "N8N_CALLBACK_KEY", "")
+        or ""
+    )
     if not secret:
         raise CallbackError("callback_not_configured", 503)
     expected = hmac.new(
@@ -136,8 +140,8 @@ class NotificationCallbackView(APIView):
         raw_body, body = _raw_body_and_data(request)
         try:
             _check_key_and_slug(request, body)
-            _verify_signed_callback(request, raw_body, body.get("idempotency_key"))
             _require_fields(body, ["event", "tenant_slug", "idempotency_key", "status"])
+            _verify_signed_callback(request, raw_body, body.get("idempotency_key"))
             result = apply_notification_callback(
                 idempotency_key=str(body["idempotency_key"]),
                 status=str(body["status"]),
@@ -163,11 +167,11 @@ class ReportDeliveryCallbackView(APIView):
         raw_body, body = _raw_body_and_data(request)
         try:
             _check_key_and_slug(request, body)
-            _verify_signed_callback(request, raw_body, body.get("idempotency_key"))
             _require_fields(
                 body,
                 ["tenant_slug", "idempotency_key", "channel", "status"],
             )
+            _verify_signed_callback(request, raw_body, body.get("idempotency_key"))
             result = apply_report_delivery_callback(
                 idempotency_key=str(body["idempotency_key"]),
                 channel=str(body["channel"]),
@@ -195,11 +199,11 @@ class SettlementDeliveryCallbackView(APIView):
         raw_body, body = _raw_body_and_data(request)
         try:
             _check_key_and_slug(request, body)
-            _verify_signed_callback(request, raw_body, body.get("idempotency_key"))
             _require_fields(
                 body,
                 ["settlement_id", "tenant_slug", "idempotency_key", "status"],
             )
+            _verify_signed_callback(request, raw_body, body.get("idempotency_key"))
             result = apply_settlement_callback(
                 settlement_id=str(body["settlement_id"]),
                 idempotency_key=str(body["idempotency_key"]),

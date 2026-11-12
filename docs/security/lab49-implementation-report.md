@@ -183,11 +183,14 @@ The report was verified at `5e98a06` with spot-checks at `23b0964`. Main is now
   same Owner rule. All enforced in the service layer.
 - **2.4 Body/array caps.** `DATA_UPLOAD_MAX_MEMORY_SIZE` 5 MB,
   `DATA_UPLOAD_MAX_NUMBER_FIELDS` 1000, invoice `items` max 200, and a
-  `PayloadLimitMiddleware` that answers **413** with a machine code.
+  `PayloadLimitMiddleware` that answers **413** with a machine code. A chunked
+  body with no `Content-Length` is refused with 413 rather than promising a cap
+  the middleware cannot measure (fix-up, security review 2026-11-12).
 - **2.5 Export guard.** Rejects when an export is already PENDING/RUNNING
   (409), rate-limits requests to 1/hour/tenant, throttles downloads to
-  60/min/IP, and binds detail to the requester. The whole-tenant ZIP builder was
-  not rewritten to stream (see residual risk).
+  60/min/IP, and binds detail to the requester. The ZIP is now **built on disk
+  and streamed into storage**, one table/PDF chunk at a time — never
+  whole-tenant `list()` + `BytesIO` (fix-up, security review 2026-11-12).
 - **2.6 Celery hardening.** Global 300 s hard / 240 s soft limits; per-task
   annotations for PDF (120 s, 30/m), report delivery (120 s, 60/m),
   notifications (60 s, 60/m), settlement delivery (30/m), export (600 s);
@@ -232,8 +235,9 @@ The report was verified at `5e98a06` with spot-checks at `23b0964`. Main is now
 - **3.5 Dependencies.** Django pinned to the deployed `6.1.x` line (formal
   adoption of Django 6; Doc 01 still says 5 and should be updated by the
   product owner), upper bounds on the other runtime deps, `sentry-sdk` declared,
-  `pip-audit` added to the dev/test extras. `uv.lock` regeneration is listed in
-  §10 (needs the user's `uv` toolchain/network).
+  `pip-audit` added to the dev/test extras. `uv.lock` was regenerated with
+  `uv 0.12.5` (Django 6.1.2, sentry-sdk 2.74.0, pip-audit 2.10.1) and
+  `uv lock --check` passes.
 - **3.6 Ready/internal/Redis.** `/readyz` returns status only (no dependency
   detail) to unauthenticated callers; `InternalPathMiddleware` 404s
   `/internal/*` for public source addresses even if Caddy is bypassed; Redis
@@ -316,17 +320,35 @@ The report was verified at `5e98a06` with spot-checks at `23b0964`. Main is now
 
 ---
 
-## 4. Decisions taken (and why)
+## 4. Decisions taken (user-approved 2026-11-12)
 
-| Decision | Choice | Rationale |
-|---|---|---|
-| Patient-read roles (Doc 03 §6.6) | All staff, with per-role PII masking | Technicians/pathologists need patient context; masking closes the exposure without breaking clinical flow |
-| Owner result approval | Allowed (already in code) | Current `RESULT_APPROVE_ROLES` includes owner; the report's "P-only" note is stale; owner self-approval is audited |
-| Django version | Adopt 6.1.x, pin `<6.2` | The deployed venv is 6.1.2 and uses `MAILERS`; Doc 01 needs a one-line update |
-| R2/MinIO | Local disk storage, documented | Wiring `django-storages`/boto3 safely is a separate change; the false "R2 wired" claim is removed |
-| Refresh fingerprint | Bind on user agent only | IP churn is legitimate on mobile networks; UA mismatch is a useful tripwire without false lockouts |
-| Step-up / HIBP / callback signatures | Off in dev/test, on in prod | Keeps the suite deterministic while enforcing in production |
-| Inline role checks | Kept as defence-in-depth | Central policy is the primary control; removing ~60 inline checks in one night would add more risk than it removes |
+| # | Decision | Resolution | Rationale / enforcement |
+|---|---|---|---|
+| D1 | Patient-read roles (Doc 03 §6.6) | **All staff**, with per-role PII masking | Technicians/pathologists need patient context; masking closes the exposure without breaking clinical flow. Enforced in `PatientSummarySerializer` + `PatientDetailSerializer`. |
+| D2 | Owner result approval | **Allowed**; self-approval audited | `RESULT_APPROVE_ROLES` includes owner; `approve_result` writes `owner_self_approval`. |
+| D3 | Django version | **Django 6.1 adopted**; Doc 01 updated | `pyproject.toml` pins `>=6.1,<6.2`; `uv.lock` pins 6.1.2. |
+| D4 | Object storage | **Local disk for the pilot**; backup runbook mandatory before any pilot lab; R2 revisited after the pilot | No `django-storages`/boto3; the false "R2 wired" claim is removed. |
+| D5 | JWT `iss`/`aud` | **No dual-accept window**; all users re-login once on deploy | `decode_jwt` requires `iss=labflow`, `aud=labflow-api`. |
+| D6 | Refresh fingerprint | **User-agent only**, not IP | IP churn is legitimate on mobile networks; UA mismatch is a useful tripwire. |
+| — | Step-up / HIBP / callback signatures | Off in dev/test, on in prod | Keeps the suite deterministic while enforcing in production. |
+| — | Inline role checks | Kept as defence-in-depth | Central policy is the primary control; removing ~60 inline checks in one night would add more risk than it removes. |
+
+### 4a. Fix-up run (2026-11-12)
+
+- **ECC review:** `django-reviewer` + `security-reviewer` were run against the
+  LAB-49 diff; every finding was fixed (example-value secret rejection,
+  server-bound TOTP throttle, denial-audit dedupe, patient-list masking,
+  refresh-UA fail-closed, refund-cap row lock, chunked-body 413, trusted-proxy
+  IP handling, and the `/admin/` claim corrected).
+- **QR golden:** proven pre-existing on clean main `428b3e3` — the same test
+  fails there, and the HTML is byte-identical after stripping the QR `data:`
+  URI. Not a LAB-49 regression; no golden file was changed.
+- **`uv.lock`:** regenerated with `uv 0.12.5`; `uv lock --check` passes.
+- **Patient-access throttles:** 60/10 min per token, 120/10 min per IP, and
+  20 invalid tokens/hour per IP are all enforced, with `Retry-After` on every
+  429 and fail-closed cache behaviour (`backend/tests/test_api4_resource_limits.py`).
+- **Export ZIP:** built on disk and streamed into storage; one table/PDF chunk
+  at a time (`backend/tests/tenancy/test_lab38_data_export.py`).
 
 ---
 
@@ -366,6 +388,16 @@ The report was verified at `5e98a06` with spot-checks at `23b0964`. Main is now
 
 ### Automated tests
 
+- **Fix-up run (2026-11-12):**
+  - `tests/test_lab49_security.py`, `tests/test_api3_bopla.py`,
+    `tests/test_api4_resource_limits.py` — **41 passed** (adds: published
+    example-secret rejection, refresh-UA omission rejection, chunked-body 413,
+    inventory admin-claim, patient-list masking, TOTP throttle binding,
+    trusted-proxy IP handling, patient-access 60/10 min + 120/10 min + 20/hour).
+  - `tests/tenancy/test_lab38_data_export.py` — **6 passed** after the on-disk
+    streaming rewrite.
+  - QR golden failure proven on clean main `428b3e3` (same failure; HTML
+    byte-identical after removing the QR `data:` URI).
 - `backend/tests/test_lab49_security.py` + `backend/tests/test_api3_bopla.py`
   — **28 passed** (secrets, TOTP master code, role policy + denial audit, policy
   coverage, JWT claims, 413, headers, no-store, docs gate, origin check,
@@ -443,9 +475,7 @@ These are **not** claimed as complete:
    backup implications.
 6. **Frontend Sentry initialisation** — dependency declared, module not
    imported/initialised tonight to avoid an uninstalled-package build break.
-7. **`uv.lock` regeneration** — needs the user's `uv` toolchain/network; the
-   `pyproject.toml` pins are in place.
-8. **CI workflow changes** — per the hard rule I did not touch
+7. **CI workflow changes** — per the hard rule I did not touch
    `.github/workflows/ci.yml`. Add these lines yourself:
 
 ```yaml
@@ -460,10 +490,10 @@ These are **not** claimed as complete:
 # or: uv run pip-audit
 ```
 
-9. **Dedicated unit tests for every safe-fetch payload / lockout / HIBP / schema
+8. **Dedicated unit tests for every safe-fetch payload / lockout / HIBP / schema
    validation** — the controls exist and the main regression suites are green;
    the exhaustive payload matrix is follow-up work.
-10. **Demo-seed credential rotation** — the seed is dev-only and already gated;
+9. **Demo-seed credential rotation** — the seed is dev-only and already gated;
     randomising passwords would break the existing dg seed verification test
     without a coordinated change.
 
@@ -535,26 +565,31 @@ These are **not** claimed as complete:
 ## 11. Final test evidence
 
 ```
-python -m pytest tests/test_lab49_security.py tests/test_api3_bopla.py -q
-28 passed
+pytest tests/test_lab49_security.py tests/test_api3_bopla.py \
+  tests/test_api4_resource_limits.py \
+  tests/tenancy/test_lab13_password_reset.py \
+  tests/tenancy/test_lab11_refresh_rotation.py -q
+71 passed
 
-python -m pytest tests --ignore=tests/tenancy --ignore=tests/partners \
-  --ignore=tests/automation --ignore=tests/notifications \
-  --ignore=tests/isolation --ignore=tests/dg -q
-166 passed
+pytest tests/tenancy/test_lab38_data_export.py -q
+6 passed
 
-python -m pytest <18 affected tenancy modules> -q
-390 passed, 1 failed (pre-existing QR-bytes golden mismatch, HTML identical)
-
-python -m pytest apps/accounts/tests -q
-13 passed
+pytest -q -n auto   (one attempt)
+ABORTED at 20%: xdist worker deadlock. Root cause is pre-existing and
+reproducible: tests/dg/test_dg17_seed_verification.py spawns
+`manage.py seed_demo_tenant`, which blocks on tenant DDL locks held by the
+parallel workers (earlier runs showed "node down: Not properly terminated").
+Serial per-directory runs complete: root 166 passed; affected tenancy 390
+passed + 1 pre-existing QR golden mismatch; app tests 13 passed.
 ```
 
 ```
 ruff check .          -> All checks passed
-ruff format --check   -> 398 files already formatted
+ruff format --check   -> 400 files already formatted
 manage.py check       -> System check identified no issues
 api_inventory --check -> matches the live URLconf (317 routes)
 docker compose config -> valid
 npm run build         -> built in ~48s
+uv lock --check       -> lockfile up to date
+prod settings         -> boots with real values; refuses CHANGE_ME/public values
 ```

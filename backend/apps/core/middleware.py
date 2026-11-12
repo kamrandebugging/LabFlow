@@ -62,6 +62,18 @@ class PayloadLimitMiddleware:
                 content_length = None
         if limit and content_length is not None and content_length > limit:
             return JsonResponse(_ERROR_413, status=413)
+        # A chunked body has no Content-Length, so the check above cannot see
+        # its size. API clients send a length; refuse the ambiguous case rather
+        # than promise a cap that is not enforced (security review 2026-11-12).
+        transfer_encoding = (getattr(request, "META", {}) or {}).get(
+            "HTTP_TRANSFER_ENCODING", ""
+        )
+        if (
+            limit
+            and content_length is None
+            and "chunked" in str(transfer_encoding).lower()
+        ):
+            return JsonResponse(_ERROR_413, status=413)
         return self.get_response(request)
 
 

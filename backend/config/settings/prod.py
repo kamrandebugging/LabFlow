@@ -18,6 +18,7 @@ DOCS_ENABLED = False
 STEP_UP_ENABLED = True
 N8N_CALLBACK_REQUIRE_SIGNATURE = True
 ALLOW_INSECURE_LOCAL_WEBHOOKS = False
+HIBP_ENABLED = True
 # Force the transport posture regardless of a stray local .env.
 SECURE_SSL_REDIRECT = True
 SECURE_HSTS_SECONDS = 63072000
@@ -37,9 +38,23 @@ if not ALLOWED_HOSTS:  # noqa: F405
 if JWT_SIGNING_KEY == SECRET_KEY:  # noqa: F405
     raise ImproperlyConfigured("JWT_SIGNING_KEY must differ from DJANGO_SECRET_KEY.")
 
+try:
+    from cryptography.fernet import Fernet
+
+    Fernet(LABFLOW_TOTP_ENCRYPTION_KEY.encode())  # noqa: F405
+except Exception as exc:  # noqa: BLE001
+    raise ImproperlyConfigured(
+        "LABFLOW_TOTP_ENCRYPTION_KEY must be a valid Fernet key."
+    ) from exc
+
 if not SECURE_SSL_REDIRECT or SECURE_HSTS_SECONDS < 31536000:  # noqa: F405
     raise ImproperlyConfigured(
         "Production requires SECURE_SSL_REDIRECT and HSTS >= 1 year."
+    )
+
+if N8N_CALLBACK_REQUIRE_SIGNATURE and not N8N_CALLBACK_HMAC_SECRET:  # noqa: F405
+    raise ImproperlyConfigured(
+        "N8N_CALLBACK_HMAC_SECRET must be set when callback signatures are required."
     )
 
 if not MAILERS["default"]["OPTIONS"].get("host"):  # noqa: F405
