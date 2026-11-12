@@ -95,6 +95,9 @@ class TestLAB11LoginEndpoint:
         assert data.get("expires_in") == 900
         assert data.get("user", {}).get("email") == "receptionist@authlab.com"
         assert data.get("user", {}).get("role") == Role.RECEPTION
+        # Legacy tenants with no explicit Platform list keep the pre-feature
+        # behaviour: no session-level role gate.
+        assert "enabled_roles" not in data.get("user", {})
 
         # 2. Refresh token MUST NOT be in response body (Strict DoD rule!)
         assert "refresh" not in data
@@ -119,6 +122,28 @@ class TestLAB11LoginEndpoint:
             assert event is not None
             assert event.success is True
             assert event.staff_user == receptionist
+
+    def test_login_returns_explicit_enabled_roles_for_new_tenants(
+        self, client: Client, receptionist: StaffUser, tenant_a: Any
+    ) -> None:
+        """A Platform-configured role list is returned to the SPA."""
+        tenant_a.enabled_roles = [Role.OWNER, Role.RECEPTION]
+        tenant_a.save(update_fields=["enabled_roles"])
+
+        response = client.post(
+            "/api/v1/auth/login",
+            data={
+                "email": "receptionist@authlab.com",
+                "password": "CorrectHorseBatteryStaple123!",
+            },
+            content_type="application/json",
+        )
+
+        assert response.status_code == 200
+        assert response.json()["user"]["enabled_roles"] == [
+            Role.OWNER,
+            Role.RECEPTION,
+        ]
 
     def test_login_invalid_credentials_returns_generic_401(
         self, client: Client, receptionist: StaffUser, tenant_a: Any

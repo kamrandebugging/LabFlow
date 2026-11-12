@@ -118,14 +118,16 @@ export const PatientListScreen: React.FC<PatientListScreenProps> = ({
               className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`}
             />
           </button>
-          <button
-            type="button"
-            onClick={onNewPatient}
-            className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-[#005c55] hover:bg-[#0f766e] text-white text-sm font-medium rounded-lg shadow-sm transition-colors cursor-pointer"
-          >
-            <Plus className="w-4 h-4" />
-            <span>New patient</span>
-          </button>
+          {onNewPatient ? (
+            <button
+              type="button"
+              onClick={onNewPatient}
+              className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-[#005c55] hover:bg-[#0f766e] text-white text-sm font-medium rounded-lg shadow-sm transition-colors cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              <span>New patient</span>
+            </button>
+          ) : null}
         </div>
       </div>
 
@@ -222,7 +224,9 @@ export const PatientListScreen: React.FC<PatientListScreenProps> = ({
                     <p className="text-xs text-slate-400 mt-1">
                       {searchQuery
                         ? "Try adjusting your search criteria"
-                        : "Register your first patient using the button above"}
+                        : onNewPatient
+                          ? "Register your first patient using the button above"
+                          : "No patient records are available in your branch scope"}
                     </p>
                   </td>
                 </tr>

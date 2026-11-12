@@ -161,6 +161,7 @@ export interface SampleListFilter {
   branch_id?: string;
   page?: number;
   limit?: number;
+  order?: "newest" | "oldest";
 }
 
 export interface SampleListResponse {

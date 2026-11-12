@@ -256,6 +256,7 @@ export const partnersService = {
     status?: SettlementStatus | string;
     limit?: number;
     cursor?: string;
+    signal?: AbortSignal;
   }): Promise<SettlementListResponse> {
     const query = new URLSearchParams();
     if (params?.partner_id) query.set("partner_id", params.partner_id);
@@ -269,6 +270,7 @@ export const partnersService = {
     const res = await fetch(endpoint, {
       method: "GET",
       headers: getAuthHeaders(),
+      signal: params?.signal,
     });
     return handleResponse<SettlementListResponse>(res);
   },

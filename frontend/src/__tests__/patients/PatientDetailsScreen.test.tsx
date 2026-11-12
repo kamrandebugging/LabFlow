@@ -82,6 +82,7 @@ describe("Screen 10: Patient Details (10-patient-details.html & Doc 03 §5.1)", 
       <PatientDetailsScreen
         patientId="p-100"
         service={mockService}
+        canManage
         onEdit={mockOnEdit}
       />,
     );

@@ -115,6 +115,15 @@ class SampleCollectionView(BranchScopedAPIView):
                     status=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 )
 
+        order_param = request.query_params.get("order")
+        if order_param is not None and order_param not in ("oldest", "newest"):
+            return Response(
+                _format_error(
+                    "validation_error", "order must be 'oldest' or 'newest'."
+                ),
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+
         limit_param = request.query_params.get("limit")
         try:
             samples, total = SampleService.list_samples(
@@ -123,6 +132,7 @@ class SampleCollectionView(BranchScopedAPIView):
                 branch_id=branch_id_param,
                 q=request.query_params.get("q"),
                 limit=int(limit_param) if limit_param else None,
+                order=order_param,
             )
         except ValueError:
             return Response(

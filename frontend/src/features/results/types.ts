@@ -4,7 +4,13 @@
  */
 
 export type ResultFlag =
-  "normal" | "low" | "high" | "critical_low" | "critical_high" | "abnormal";
+  | "normal"
+  | "low"
+  | "high"
+  | "critical"
+  | "critical_low"
+  | "critical_high"
+  | "abnormal";
 export type ResultStatus =
   "entered" | "approved" | "rejected" | "withdrawn" | "amended";
 export type ApprovalDecision = "approved" | "rejected";

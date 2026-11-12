@@ -317,17 +317,25 @@ class SampleService:
         branch_id: str | None = None,
         q: str | None = None,
         limit: int | None = None,
+        order: str | None = None,
     ) -> tuple[list[Sample], int]:
         """List samples with search and filters, bounded to prevent DoS."""
         qs = (
             Sample.objects.scoped_to(actor)
             .select_related("invoice__patient", "branch")
             .prefetch_related("sample_tests__test")
-            .order_by("-collected_at", "-created_at")
         )
+        if order == "oldest":
+            qs = qs.order_by("collected_at", "created_at")
+        else:
+            qs = qs.order_by("-collected_at", "-created_at")
 
         if status and status != "all":
-            qs = qs.filter(status=status.strip().lower())
+            clean_status = status.strip().lower()
+            # An unknown status must be a 422, never a plausible-looking zero.
+            if clean_status not in Sample.Status.values:
+                raise ValueError(f"Unknown sample status: {status}.")
+            qs = qs.filter(status=clean_status)
 
         if branch_id and branch_id != "all":
             b_uuid = uuid.UUID(str(branch_id).strip())

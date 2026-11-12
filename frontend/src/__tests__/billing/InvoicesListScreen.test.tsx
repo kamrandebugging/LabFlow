@@ -100,6 +100,17 @@ describe("Screen 13: Invoices List (13-invoices.html & Doc 03 §5.3)", () => {
     expect(handleNewInvoice).toHaveBeenCalledTimes(1);
   });
 
+  it("shows an unavailable daily total when the server omits it", async () => {
+    vi.mocked(billingService.listInvoices).mockResolvedValue({
+      results: [],
+    });
+
+    render(<InvoicesListScreen />);
+
+    expect(await screen.findByText("—")).toBeInTheDocument();
+    expect(screen.queryByText("PKR 0.00")).not.toBeInTheDocument();
+  });
+
   it("triggers onSelectInvoice callback when clicking view invoice action", async () => {
     const handleSelect = vi.fn();
     render(<InvoicesListScreen onSelectInvoice={handleSelect} />);

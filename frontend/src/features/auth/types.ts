@@ -15,6 +15,8 @@ export interface AuthUser {
   email?: string;
   role: UserRole;
   branch_ids: string[];
+  /** Canonical roles the Platform currently enables for this lab. */
+  enabled_roles?: UserRole[];
   display_name?: string;
   /** True while the account is still on the provisioning-issued temp password. */
   must_change_password?: boolean;

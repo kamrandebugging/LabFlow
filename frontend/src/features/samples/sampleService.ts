@@ -22,6 +22,7 @@ export const sampleService = {
    */
   async listSamples(
     filters: SampleListFilter = {},
+    signal?: AbortSignal,
   ): Promise<SampleListResponse> {
     const query: Record<string, string | number | boolean | null | undefined> =
       {};
@@ -32,6 +33,8 @@ export const sampleService = {
     if (filters.branch_id && filters.branch_id !== "all") {
       query.branch_id = filters.branch_id;
     }
+    if (filters.limit) query.limit = filters.limit;
+    if (filters.order) query.order = filters.order;
 
     try {
       const data = await apiRequest<
@@ -40,7 +43,7 @@ export const sampleService = {
             total?: number;
           }
         | SampleDetail[]
-      >("/samples", { query });
+      >("/samples", { query, signal });
 
       if (Array.isArray(data)) {
         return { results: data, total: data.length };

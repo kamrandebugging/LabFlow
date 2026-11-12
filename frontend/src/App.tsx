@@ -63,9 +63,17 @@ import {
 } from "./features/partners";
 import { ScreenCatalogViewer } from "./features/screens/ScreenCatalogViewer";
 import { OwnerDashboardScreen } from "./features/dashboard/OwnerDashboardScreen";
-import { RoleHomeScreen } from "./features/dashboard/RoleHomeScreen";
+import { ManagerDashboardScreen } from "./features/dashboard/ManagerDashboardScreen";
+import { ReceptionistDashboardScreen } from "./features/dashboard/ReceptionistDashboardScreen";
+import { TechnicianDashboardScreen } from "./features/dashboard/TechnicianDashboardScreen";
+import { PathologistDashboardScreen } from "./features/dashboard/PathologistDashboardScreen";
 import { StaffScreen } from "./features/staff";
-import { roleHome } from "./features/auth/access";
+import {
+  canAccessPath,
+  isRoleEnabled,
+  isUserRole,
+  roleHome,
+} from "./features/auth/access";
 import { TenantLayout } from "./features/layout/TenantLayout";
 import {
   AccessControlScreen,
@@ -107,12 +115,31 @@ import {
 
 function HomeScreen(): JSX.Element {
   const user = useAuthStore((state) => state.user);
-  // The Owner keeps the full operational dashboard. Every staff role lands on
-  // its own workspace instead of the Owner screen (FR-12).
-  if (user?.role === "owner" || !user) {
-    return <OwnerDashboardScreen />;
+
+  // The Owner keeps the full operational dashboard. Every other role gets its
+  // own screen; an unknown/missing role never falls through to Owner data.
+  if (
+    !user ||
+    !isUserRole(user.role) ||
+    !isRoleEnabled(user.role, user.enabled_roles)
+  ) {
+    return <Navigate to="/login" replace />;
   }
-  return <RoleHomeScreen />;
+
+  switch (user.role) {
+    case "owner":
+      return <OwnerDashboardScreen />;
+    case "manager":
+      return <ManagerDashboardScreen />;
+    case "reception":
+      return <ReceptionistDashboardScreen />;
+    case "technician":
+      return <TechnicianDashboardScreen />;
+    case "pathologist":
+      return <PathologistDashboardScreen />;
+    default:
+      return <Navigate to="/login" replace />;
+  }
 }
 
 function StaffLoginWrapper(): JSX.Element {
@@ -193,10 +220,12 @@ function TwoFactorAuthWrapper(): JSX.Element {
 
 function PatientListWrapper(): JSX.Element {
   const navigate = useNavigate();
+  const user = useAuthStore((state) => state.user);
+  const canRegister = canAccessPath(user?.role, "/patients/new");
   return (
     <main className="min-h-screen bg-slate-50">
       <PatientListScreen
-        onNewPatient={() => navigate("/patients/new")}
+        onNewPatient={canRegister ? () => navigate("/patients/new") : undefined}
         onSelectPatient={(id) => navigate(`/patients/${id}`)}
       />
     </main>
@@ -253,10 +282,15 @@ function RegisterPatientWrapper(): JSX.Element {
 function PatientDetailsWrapper(): JSX.Element {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
+  const user = useAuthStore((state) => state.user);
+  const canManage = canAccessPath(user?.role, `/patients/${id}/edit`);
+  const canDelete = user?.role === "owner" || user?.role === "manager";
   return (
     <main className="min-h-screen bg-slate-50 py-6">
       <PatientDetailsScreen
         patientId={id || ""}
+        canManage={canManage}
+        canDelete={canDelete}
         onBack={() => navigate("/patients")}
         onEdit={(patientId) => navigate(`/patients/${patientId}/edit`)}
         onViewHistory={(patientId) =>
@@ -357,11 +391,15 @@ function InvoiceDetailWrapper(): JSX.Element {
 
 function SamplesListWrapper(): JSX.Element {
   const navigate = useNavigate();
+  const user = useAuthStore((state) => state.user);
+  const canCollect = canAccessPath(user?.role, "/samples/collect/step1");
   return (
     <main className="min-h-screen bg-slate-50">
       <SampleAccessioningListScreen
         onSelectSample={(id) => navigate(`/samples/${id}`)}
-        onCollectNew={() => navigate("/samples/collect/step1")}
+        onCollectNew={
+          canCollect ? () => navigate("/samples/collect/step1") : undefined
+        }
         onPrintLabels={(ids) => {
           if (ids[0]) navigate(`/samples/${ids[0]}/label`);
         }}

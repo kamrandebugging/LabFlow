@@ -30,6 +30,7 @@ import type {
   ResultDetailRecord,
   ResultFlag,
   ResultRowInput,
+  ResultStatus,
   WorklistItem,
 } from "./types";
 
@@ -90,6 +91,7 @@ const RESULT_FLAGS: ResultFlag[] = [
   "normal",
   "low",
   "high",
+  "critical",
   "critical_low",
   "critical_high",
   "abnormal",
@@ -100,6 +102,21 @@ function normalizeFlag(value: string | null): ResultFlag | null {
     return value as ResultFlag;
   }
   return null;
+}
+
+const RESULT_STATUSES: ResultStatus[] = [
+  "entered",
+  "approved",
+  "rejected",
+  "withdrawn",
+  "amended",
+];
+
+function normalizeStatus(value: string): ResultStatus {
+  if (RESULT_STATUSES.includes(value as ResultStatus)) {
+    return value as ResultStatus;
+  }
+  throw new Error(`Unknown result status returned by the server: ${value}`);
 }
 
 function calculateWaitingDisplay(isoTimestamp?: string | null): string {
@@ -152,7 +169,7 @@ function toResultDetail(row: BackendResultRow): ResultDetailRecord {
     unit: row.unit ?? "",
     flag: normalizeFlag(row.flag),
     is_critical: row.is_critical,
-    status: row.status as ResultDetailRecord["status"],
+    status: normalizeStatus(row.status),
     matched_range: row.matched_range,
     critical_threshold: row.critical_threshold ?? undefined,
     entered_by_name: row.entered_by_name ?? "",
@@ -281,25 +298,41 @@ export const resultsService = {
 
   /**
    * Screen 21: Technician Worklist.
-   * Derived from real GET /api/v1/samples/ data filtered client-side.
-   * Renders honest empty state if no samples are pending.
+   * Queries the four pending statuses server-side in oldest-first order, so a
+   * busy lab's newest page can never hide an older pending accession. The
+   * preview may still be capped per status, but the global oldest pending
+   * rows are always included.
    */
   async getWorklist(options?: {
     branchId?: string;
     statusFilter?: string;
     demoMode?: boolean;
+    signal?: AbortSignal;
   }): Promise<WorklistItem[]> {
-    const { results: samples } = await sampleService.listSamples({
-      branch_id: options?.branchId,
-    });
-
-    // Worklist includes samples in collected, received, in_process, or rejected states
-    const relevant = samples.filter((s: SampleSummary) =>
-      ["collected", "received", "in_process", "rejected"].includes(s.status),
+    const statuses = ["collected", "received", "in_process", "rejected"];
+    const pages = await Promise.all(
+      statuses.map((status) =>
+        sampleService.listSamples(
+          {
+            branch_id: options?.branchId,
+            status,
+            order: "oldest",
+            limit: 100,
+          },
+          options?.signal,
+        ),
+      ),
     );
 
+    const byId = new Map<string, SampleSummary>();
+    for (const page of pages) {
+      for (const sample of page.results) {
+        byId.set(sample.id, sample);
+      }
+    }
+
     // Oldest collection first
-    const sorted = [...relevant].sort((a, b) => {
+    const sorted = [...byId.values()].sort((a, b) => {
       const timeA = a.collected_at ? new Date(a.collected_at).getTime() : 0;
       const timeB = b.collected_at ? new Date(b.collected_at).getTime() : 0;
       return timeA - timeB;
@@ -331,12 +364,28 @@ export const resultsService = {
   },
 
   /**
+   * Real result rows filtered by status (GET /api/v1/results?status=...).
+   * Used by role dashboards for approved-result history and critical counts.
+   */
+  async listResults(
+    status?: ResultStatus,
+    signal?: AbortSignal,
+  ): Promise<ResultDetailRecord[]> {
+    const data = await apiRequest<ResultListResponse>("/results", {
+      query: status ? { status } : {},
+      signal,
+    });
+    return (data.results ?? []).map(toResultDetail);
+  },
+
+  /**
    * Screen 23: Pathologist / Owner Approvals Queue.
    * Reads real Result rows awaiting verification (GET /api/v1/results?status=entered).
    */
-  async getApprovalsQueue(): Promise<ApprovalQueueItem[]> {
+  async getApprovalsQueue(signal?: AbortSignal): Promise<ApprovalQueueItem[]> {
     const data = await apiRequest<ResultListResponse>("/results", {
       query: { status: "entered" },
+      signal,
     });
     const rows = data.results ?? [];
     const items = rows.map(toApprovalQueueItem);
