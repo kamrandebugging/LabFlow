@@ -18,6 +18,7 @@ written best-effort — probing leaves a trail (SE-13 second half).
 from __future__ import annotations
 
 import logging
+import uuid
 from typing import Any, Final
 
 logger = logging.getLogger(__name__)
@@ -259,7 +260,7 @@ def _audit_denial(
             actor_id=actor_id,
             action=action,
             entity_type="route",
-            entity_id=actor_id,
+            entity_id=actor_id if actor_id else uuid.uuid4(),
             after_jsonb={
                 "url_name": url_name,
                 "method": method,

@@ -107,7 +107,7 @@ def capture_security_alert(message: str, **context: Any) -> None:
         )
     )
     try:
-        import sentry_sdk  # type: ignore[import-not-found]
+        import sentry_sdk
     except ImportError:
         return
     try:

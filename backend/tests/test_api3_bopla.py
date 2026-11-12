@@ -8,7 +8,7 @@
 from __future__ import annotations
 
 from types import SimpleNamespace
-from typing import Any
+from typing import Any, cast
 
 import pytest
 from django_tenants.utils import schema_context
@@ -16,6 +16,7 @@ from django_tenants.utils import schema_context
 from apps.accounts.models import Role
 from apps.billing.serializers import InvoiceDetailSerializer
 from apps.core.serializers import StrictSerializer
+from apps.patients.models import Patient
 from apps.patients.serializers import PatientDetailSerializer
 from tests.factories.patients import PatientFactory
 
@@ -65,7 +66,7 @@ class TestStrictSerializers:
 class TestPerRoleOutputAllowlist:
     def test_technician_patient_detail_hides_pii(self, tenant_a: Any) -> None:
         with schema_context(tenant_a.schema_name):
-            patient = PatientFactory()
+            patient = cast(Patient, PatientFactory())
 
             technician_data = PatientDetailSerializer(
                 patient, context={"request": _request_for(Role.TECHNICIAN)}
@@ -83,7 +84,7 @@ class TestPerRoleOutputAllowlist:
         assert owner_data["phone"] == patient.phone
 
     def test_technician_invoice_detail_hides_pii(self) -> None:
-        payload = {
+        payload: dict[str, Any] = {
             "id": "00000000-0000-0000-0000-000000000001",
             "invoice_number": "INV-1",
             "patient_id": "00000000-0000-0000-0000-000000000002",
@@ -121,7 +122,7 @@ class TestPerRoleOutputAllowlist:
         from apps.patients.serializers import PatientSummarySerializer
 
         with schema_context(tenant_a.schema_name):
-            patient = PatientFactory()
+            patient = cast(Patient, PatientFactory())
             technician_data = PatientSummarySerializer(
                 patient, context={"request": _request_for(Role.TECHNICIAN)}
             ).data

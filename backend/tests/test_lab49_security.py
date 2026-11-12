@@ -7,7 +7,8 @@ Redis services like every other tenancy test.
 
 from __future__ import annotations
 
-from typing import Any
+import uuid
+from typing import Any, cast
 
 import jwt
 import pytest
@@ -99,7 +100,7 @@ class TestRolePolicy:
             "/api/v1/exports",
             data="{}",
             content_type="application/json",
-            HTTP_AUTHORIZATION=_auth_header(technician),
+            HTTP_AUTHORIZATION=_auth_header(cast(StaffUser, technician)),
             HTTP_IDEMPOTENCY_KEY="denied-1",
         )
         assert response.status_code == 403
@@ -167,9 +168,9 @@ class TestJwtClaims:
 
     def test_refresh_token_carries_iss_and_aud(self) -> None:
         token, _jti, _exp = mint_refresh_token(
-            staff_user_id="00000000-0000-0000-0000-000000000001",
+            staff_user_id=uuid.UUID("00000000-0000-0000-0000-000000000001"),
             tenant_slug="tenant_a",
-            family_id="00000000-0000-0000-0000-000000000002",
+            family_id=uuid.UUID("00000000-0000-0000-0000-000000000002"),
         )
         payload = jwt.decode(
             token,
@@ -325,7 +326,7 @@ class TestReviewFixups:
         with schema_context(tenant_a.schema_name):
             user = StaffUserFactory(role=Role.RECEPTION)
         session = AuthService.create_session(
-            user=user,
+            user=cast(StaffUser, user),
             tenant_id=tenant_a.schema_name,
             ip="203.0.113.9",
             user_agent="UA-original",

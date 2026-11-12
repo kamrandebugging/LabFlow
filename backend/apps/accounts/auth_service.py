@@ -327,8 +327,8 @@ class AuthService:
         # Fingerprint binding (A2-4): a stolen refresh token replayed from a
         # different user agent is refused and the session is revoked.
         stored_ua = str(matching_session.get("user_agent") or "")
-        stored_family = _ua_family(stored_ua)
-        presented_family = _ua_family(user_agent)
+        stored_family = _ua_family(stored_ua or "")
+        presented_family = _ua_family(user_agent or "")
         if stored_family and (
             not presented_family or stored_family != presented_family
         ):
@@ -342,7 +342,7 @@ class AuthService:
                     actor_id=user_id,
                     action="auth.refresh_fingerprint_mismatch",
                     entity_type="session",
-                    entity_id=matching_session.get("id"),
+                    entity_id=str(matching_session.get("id") or user_id),
                     before_jsonb=None,
                     after_jsonb={
                         "stored_ua": stored_ua,
@@ -648,7 +648,7 @@ class AuthService:
 
     @classmethod
     def get_challenge_user_id(
-        cls, challenge_token: str, tenant_id: str | None = None
+        cls, challenge_token: str | None, tenant_id: str | None = None
     ) -> str | None:
         """Resolve the user behind a server-issued challenge (throttle keying).
 

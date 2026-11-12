@@ -9,7 +9,10 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from sentry_sdk.types import Event, Hint
 
 logger = logging.getLogger(__name__)
 
@@ -65,7 +68,7 @@ def _scrub_mapping(value: Any) -> Any:
     return value
 
 
-def scrub_event(event: dict[str, Any], _hint: Any = None) -> dict[str, Any]:
+def scrub_event(event: Event, _hint: Hint | None = None) -> Event | None:
     """Remove secrets/PII from a Sentry event (pure function)."""
     scrubbed = _scrub_mapping(event)
     headers = scrubbed.get("request", {}).get("headers")

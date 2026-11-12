@@ -38,6 +38,8 @@ class StrictFieldsMixin:
     cannot silently bypass it (django-reviewer 2026-11-12).
     """
 
+    fields: Any
+
     def to_internal_value(self, data: Any) -> Any:
         if isinstance(data, dict):
             unknown = set(data.keys()) - set(self.fields)

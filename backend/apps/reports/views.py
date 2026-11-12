@@ -245,12 +245,12 @@ class ReportAccessView(APIView):
                 _format_error(exc.error_code, str(exc) or exc.error_code, exc.details),
                 status=exc.status_code,
             )
-        response = HttpResponse(status=302)
-        response["Location"] = payload["redirect_url"]
+        redirect_response = HttpResponse(status=302)
+        redirect_response["Location"] = payload["redirect_url"]
         # The signed file URL is short-lived: never let a browser/proxy
         # cache the 302, or a reopened link would replay an expired URL.
-        response["Cache-Control"] = "no-store"
-        return response
+        redirect_response["Cache-Control"] = "no-store"
+        return redirect_response
 
 
 class ReportFileDownloadView(APIView):
@@ -310,14 +310,14 @@ class ReportFileDownloadView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
         filename = pdf_key.rsplit("/", 1)[-1]
-        response = FileResponse(
+        file_response = FileResponse(
             storage.open_pdf(pdf_key),
             content_type="application/pdf",
             filename=filename,
             as_attachment=False,
         )
-        response["Cache-Control"] = "no-store"
-        return response
+        file_response["Cache-Control"] = "no-store"
+        return file_response
 
 
 class ReportDeliverView(APIView):

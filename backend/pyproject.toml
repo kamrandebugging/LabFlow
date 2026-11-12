@@ -8,7 +8,7 @@ dependencies = [
     # LAB-49 Phase 3.5: pin the Django major/minor actually deployed (6.1.x).
     # Doc 01 still says Django 5; adopting 6.1 is the recorded decision.
     "django>=6.1,<6.2",
-    "djangorestframework>=3.15.0,<3.16",
+    "djangorestframework>=3.18.2,<3.19",
     "drf-spectacular>=0.27.0,<1.0",
     "django-tenants>=3.7.0,<4.0",
     "django-environ>=0.11.0,<1.0",
@@ -20,7 +20,7 @@ dependencies = [
     "argon2-cffi>=23.1.0,<26.0",
     "pyotp>=2.10.0,<3.0",
     "cryptography>=50.0.2",
-    "weasyprint>=60.0,<70.0",
+    "weasyprint>=70.0,<71.0",
     "qrcode>=7.4.2,<9.0",
     "requests>=2.31.0,<3.0",
     "gunicorn>=22.0.0,<24.0",
