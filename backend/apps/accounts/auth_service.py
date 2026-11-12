@@ -33,6 +33,7 @@ from apps.accounts.jwt_engine import (
 )
 from apps.accounts.models import AuditLog, LoginEvent, Role, StaffUser
 from apps.accounts.session_registry import (
+    claim_jti_once,
     clear_all_user_sessions,
     delete_session,
     denylist_access_jti,
@@ -40,9 +41,7 @@ from apps.accounts.session_registry import (
     get_active_sessions,
     get_user_revocation_marker,
     is_jti_denylisted,
-    is_jti_used,
     is_session_revoked,
-    mark_jti_used,
     mark_session_revoked,
     register_session,
     set_user_revocation_marker,
@@ -104,10 +103,9 @@ class AuthService:
             )
             return False, None, "invalid_credentials"
 
-        # Check TOTP requirements (Doc 01 §14, Doc 08 §4.1)
-        totp_mandated = user.role in MANDATORY_TOTP_ROLES and not getattr(
-            settings, "DEBUG", False
-        )
+        # Check TOTP requirements (Doc 01 §14, Doc 08 §4.1). Mandatory roles
+        # must enrol regardless of DEBUG — there is no debug bypass (A2-3).
+        totp_mandated = user.role in MANDATORY_TOTP_ROLES
 
         if user.totp_enabled:
             LoginEvent.objects.create(
@@ -255,8 +253,12 @@ class AuthService:
         family_exp = payload["exp"]
         tenant_slug = payload.get("tenant", "tenant")
 
-        # Reuse Detection: jti already marked used or denylisted (SE-05)
-        if is_jti_used(presented_jti) or is_jti_denylisted(presented_jti):
+        # Reuse Detection: jti already used (atomic claim) or denylisted (SE-05)
+        now_int = int(time.time())
+        remaining_ttl = max(1, family_exp - now_int)
+        if is_jti_denylisted(presented_jti) or not claim_jti_once(
+            presented_jti, remaining_ttl
+        ):
             logger.warning(
                 "se_05_refresh_reuse_detected: user %s, family %s",
                 user_id,
@@ -282,7 +284,6 @@ class AuthService:
             return False, None, "invalid_refresh_token"
 
         # Check family lifetime cap
-        now_int = int(time.time())
         if now_int >= family_exp:
             return False, None, "refresh_expired"
 
@@ -300,13 +301,32 @@ class AuthService:
         if not matching_session:
             return False, None, "invalid_refresh_token"
 
+        # Fingerprint binding (A2-4): a stolen refresh token replayed from a
+        # different user agent is refused and the session is revoked.
+        stored_ua = str(matching_session.get("user_agent") or "")
+        if stored_ua and user_agent and stored_ua != user_agent:
+            logger.warning(
+                "auth_refresh_fingerprint_mismatch: user %s session %s",
+                user_id,
+                matching_session.get("id"),
+            )
+            AuditLog.objects.create(
+                actor_id=user_id,
+                action="auth.refresh_fingerprint_mismatch",
+                entity_type="session",
+                entity_id=matching_session.get("id"),
+                before_jsonb=None,
+                after_jsonb={"stored_ua": stored_ua, "presented_ua": user_agent},
+                ip=ip,
+                user_agent=user_agent,
+            )
+            if sid:
+                mark_session_revoked(sid)
+            return False, None, "refresh_fingerprint_mismatch"
+
         user = StaffUser.objects.filter(id=user_id, is_active=True).first()
         if not user:
             return False, None, "invalid_credentials"
-
-        # Mark presented jti as used
-        remaining_ttl = max(1, family_exp - now_int)
-        mark_jti_used(presented_jti, ttl_seconds=remaining_ttl)
 
         # Mint new tokens in same family. A session that was created limited
         # (temporary password / mandatory TOTP) stays limited until the flow
@@ -729,10 +749,6 @@ class AuthService:
                 return False, None, "invalid_credentials"
 
             is_matched = False
-
-            # In DEBUG mode, allow master dev code 123456
-            if getattr(settings, "DEBUG", False) and code == "123456":
-                is_matched = True
 
             # 1. Try TOTP secret match if enrolled
             if not is_matched and user.totp_secret_encrypted:

@@ -7,6 +7,7 @@ import jwt
 import pytest
 from django.conf import settings
 from django.db import IntegrityError
+from django.utils import timezone
 from django_tenants.utils import schema_context
 from rest_framework.test import APIClient
 
@@ -78,6 +79,11 @@ def _tenant_staff_jwt(staff_id: uuid.UUID | Any, tenant_slug: str = "tenant_a") 
                 "tenant": tenant_slug,
                 "role": "owner",
                 "typ": "access",
+                "jti": uuid.uuid4().hex,
+                "iat": int(timezone.now().timestamp()),
+                "exp": int(timezone.now().timestamp()) + 3600,
+                "iss": "labflow",
+                "aud": "labflow-api",
             },
             str(signing_key),
             algorithm="HS256",

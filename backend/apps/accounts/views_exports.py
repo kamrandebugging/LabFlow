@@ -24,6 +24,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.accounts.models import AuditLog, DataExport, Role, StaffUser
+from apps.core.throttling import ExportDownloadThrottle, ExportThrottle
 
 logger = logging.getLogger(__name__)
 
@@ -58,6 +59,7 @@ class ExportRequestView(APIView):
     """POST /api/v1/exports — request a data-portability export."""
 
     permission_classes = [permissions.IsAuthenticated]
+    throttle_classes = [ExportThrottle]
 
     def post(self, request: Request) -> Response:
         user = cast(StaffUser, request.user)
@@ -68,6 +70,18 @@ class ExportRequestView(APIView):
                     "Only the Lab Owner may request a data export.",
                 ),
                 status=status.HTTP_403_FORBIDDEN,
+            )
+        # One in-flight export per tenant: each build is O(whole tenant DB).
+        if DataExport.objects.filter(
+            requested_by=user,
+            status__in=[DataExport.Status.PENDING, DataExport.Status.RUNNING],
+        ).exists():
+            return Response(
+                _format_error(
+                    "export_in_progress",
+                    "An export is already pending or running.",
+                ),
+                status=status.HTTP_409_CONFLICT,
             )
         # Idempotency-Key required for non-idempotent writes (standing rule).
         idempotency_key = request.headers.get("Idempotency-Key")
@@ -133,7 +147,7 @@ class ExportDetailView(APIView):
                 _format_error("not_found", "Export not found."),
                 status=status.HTTP_404_NOT_FOUND,
             )
-        export = DataExport.objects.filter(pk=pk).first()
+        export = DataExport.objects.filter(pk=pk, requested_by=user).first()
         if export is None:
             return Response(
                 _format_error("not_found", "Export not found."),
@@ -165,6 +179,7 @@ class ExportDownloadView(APIView):
 
     permission_classes = [permissions.AllowAny]
     authentication_classes: list[Any] = []
+    throttle_classes = [ExportDownloadThrottle]
 
     def get(self, request: Request, export_id: Any) -> Response:
         sig = request.query_params.get("sig")

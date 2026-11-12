@@ -60,7 +60,7 @@ from django.db.models import Q
 from apps.accounts.models import AuditLog, Role, StaffUser, TenantSetting
 from apps.billing.models import Invoice, InvoiceItem
 from apps.branches.models import Branch
-from apps.branches.scoping import effective_branch_ids
+from apps.branches.scoping import effective_branch_ids, in_branch_scope
 from apps.catalog.models import Panel, Test
 from apps.results.models import Result
 from apps.samples.models import (
@@ -247,6 +247,18 @@ def _get_sample(sample_id: uuid.UUID) -> Sample:
         raise SampleNotFoundError("Sample not found.") from None
 
 
+def _get_scoped_sample(sample_id: uuid.UUID, actor: StaffUser) -> Sample:
+    """Fetch a sample the caller may act on, or 404 (LAB-49 Phase 1.2, BOLA).
+
+    A sample on another branch is indistinguishable from a missing sample —
+    never a 403 that confirms an accession exists elsewhere (P-7).
+    """
+    sample = _get_sample(sample_id)
+    if not in_branch_scope(actor, sample.branch_id):
+        raise SampleNotFoundError("Sample not found.")
+    return sample
+
+
 def _caller_branch(actor: StaffUser) -> Any:
     """The branch holding the caller; fail closed for scoped accounts.
 
@@ -355,6 +367,11 @@ class SampleService:
         if invoice.status == Invoice.Status.CANCELLED:
             raise InvoiceCancelledError("Cannot collect against a cancelled invoice.")
 
+        # S5 (BOLA): a branch-scoped caller may only collect against an
+        # invoice inside their own branch scope. Foreign invoices are 404.
+        if not in_branch_scope(actor, invoice.branch_id):
+            raise SampleNotFoundError("Invoice not found.")
+
         all_items = list(invoice.items.select_related("test", "panel"))
         if invoice_item_ids is not None:
             wanted = {str(i) for i in invoice_item_ids}
@@ -403,9 +420,10 @@ class SampleService:
         billing_hold = hold_row is not None and hold_row.value.lower() == "true"
 
         now = datetime.now(KARACHI)
-        collecting_branch = actor.branch if actor.branch_id else None
-        if collecting_branch is None:
-            collecting_branch = invoice.branch
+        # The sample belongs to the invoice's branch, never the caller's home
+        # branch: custody, downstream branch gates and revenue attribution must
+        # agree with the invoice (LAB-49 Phase 1.2, G3).
+        collecting_branch = invoice.branch
 
         with transaction.atomic():
             accession_id = _mint_accession_id()
@@ -581,7 +599,7 @@ class SampleService:
         reject_note_required when code is `other` without a note.
         Enqueues samples.notify_rejection via transaction.on_commit.
         """
-        sample = _get_sample(sample_id)
+        sample = _get_scoped_sample(sample_id, actor)
         clean_note = (note or "").strip()
         if reason_code == Sample.RejectionReasonCode.OTHER and not clean_note:
             raise RejectNoteRequiredError(
@@ -666,7 +684,7 @@ class SampleService:
         with no result row). Never touches the invoice (no double billing).
         Audit links old accession -> new accession.
         """
-        old = _get_sample(sample_id)
+        old = _get_scoped_sample(sample_id, actor)
         if old.status != Sample.Status.REJECTED:
             raise InvalidStateTransitionError(
                 "Only a rejected sample can be recollected."
@@ -760,7 +778,7 @@ class SampleService:
         otherwise; 409 sample_has_results once any result exists (even
         entered); 422 cancel_reason_required on empty reason.
         """
-        sample = _get_sample(sample_id)
+        sample = _get_scoped_sample(sample_id, actor)
         clean_reason = (reason or "").strip()
         if not clean_reason:
             raise CancelReasonRequiredError("A cancellation reason is required.")

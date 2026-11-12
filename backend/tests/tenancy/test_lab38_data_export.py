@@ -25,6 +25,7 @@ from typing import Any
 from unittest.mock import patch
 
 import pytest
+from django.core.cache import cache
 from django.test import Client
 from django_tenants.utils import tenant_context
 
@@ -35,6 +36,14 @@ from tests.factories.staff_user import StaffUserFactory
 
 EXPORTS_URL = "/api/v1/exports"
 EXPORT_DETAIL_URL = "/api/v1/exports/{export_id}"
+
+
+@pytest.fixture(autouse=True)
+def _clear_export_throttle_cache() -> Any:
+    """LAB-49: export requests are 1/hour/tenant; isolate each test."""
+    cache.clear()
+    yield
+    cache.clear()
 
 
 @pytest.fixture

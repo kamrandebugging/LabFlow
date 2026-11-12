@@ -24,11 +24,14 @@ from apps.accounts.serializers_auth import (
     TotpVerifySerializer,
 )
 from apps.accounts.throttling import (
+    check_account_lockout,
     check_and_record_login_throttle,
     check_and_record_password_reset_throttle,
+    record_throttle_violation,
     reset_login_throttle,
 )
 from apps.accounts.token_service import InvalidResetTokenError, TokenService
+from apps.core.throttling import RefreshThrottle, TotpVerifyThrottle
 from apps.notifications.models import Notification
 
 logger = logging.getLogger(__name__)
@@ -45,7 +48,8 @@ FIVE_MINUTES_SECONDS = 300
 def _get_client_ip(request: Request) -> str:
     x_forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
     if x_forwarded_for:
-        return x_forwarded_for.split(",")[0].strip()
+        # Caddy appends the real peer; the last hop is the trusted one.
+        return x_forwarded_for.split(",")[-1].strip()
     return request.META.get("REMOTE_ADDR", "127.0.0.1")
 
 
@@ -136,6 +140,22 @@ class LoginView(APIView):
         tenant_id = _get_tenant_id(request)
 
         # 1. Throttling Check (Doc 08 §10.1 & §10.3 fail-closed)
+        locked, lock_retry = check_account_lockout(tenant_id, email)
+        if locked:
+            response = Response(
+                {
+                    "error": {
+                        "code": "account_locked",
+                        "message": (
+                            "This account is temporarily locked after repeated "
+                            "failed attempts. Ask the Owner to unlock it."
+                        ),
+                    }
+                },
+                status=status.HTTP_429_TOO_MANY_REQUESTS,
+            )
+            response["Retry-After"] = str(lock_retry)
+            return response
         try:
             is_throttled, retry_after = check_and_record_login_throttle(
                 tenant_id=tenant_id,
@@ -163,10 +183,11 @@ class LoginView(APIView):
                 ip=ip,
                 user_agent=user_agent,
             )
+            just_locked = record_throttle_violation(tenant_id, email)
             response = Response(
                 {
                     "error": {
-                        "code": "rate_limited",
+                        "code": "account_locked" if just_locked else "rate_limited",
                         "message": (
                             "Too many failed login attempts. Please try again later."
                         ),
@@ -261,6 +282,7 @@ class RefreshView(APIView):
     """POST /api/v1/auth/refresh."""
 
     permission_classes = [permissions.AllowAny]
+    throttle_classes = [RefreshThrottle]
 
     def post(self, request: Request) -> Response:
         refresh_token = request.COOKIES.get(REFRESH_COOKIE_NAME)
@@ -664,6 +686,7 @@ class TotpVerifyView(APIView):
     """POST /api/v1/auth/totp/verify (Doc 08 §4.4)."""
 
     permission_classes = [permissions.AllowAny]
+    throttle_classes = [TotpVerifyThrottle]
 
     def post(self, request: Request) -> Response:
         data = request.data if isinstance(request.data, dict) else {}
@@ -856,10 +879,16 @@ class PasswordResetRequestView(APIView):
             return accepted_response
 
         # Generate token (Doc 08 §4.5: supersedes prior live reset token)
-        TokenService.generate(
+        raw_token = TokenService.generate(
             user=user,
             purpose=PasswordResetToken.Purpose.PASSWORD_RESET,
         )
+
+        # LAB-49 Phase 4.5 / API2 A2-7: deliver the single-use link. The raw
+        # token goes only into the message; it is never stored or logged.
+        from apps.accounts.emails import send_password_reset_email
+
+        send_password_reset_email(request, user, raw_token)
 
         # Enqueue reset notification email (Doc 08 §17 A-27)
         Notification.objects.create(

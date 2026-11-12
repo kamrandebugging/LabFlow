@@ -66,6 +66,10 @@ def _resolve_default_redis_url() -> str:
 
 
 DEBUG = False
+# Tests use plain HTTP through the Django test client.
+SECURE_SSL_REDIRECT = False
+SECURE_HSTS_SECONDS = 0
+DOCS_ENABLED = False
 
 # Ensure django_tenants postgresql engine is configured
 _db_user = os.environ.get("POSTGRES_USER", "labflow")

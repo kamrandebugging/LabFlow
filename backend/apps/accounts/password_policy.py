@@ -58,4 +58,42 @@ def validate_password_policy(
             "Password is too common and easily guessable",
         )
 
+    if is_breached_password(password):
+        return (
+            False,
+            "password_breached",
+            "This password has appeared in a known data breach",
+        )
+
     return True, None, None
+
+
+def is_breached_password(password: str) -> bool:
+    """HIBP k-anonymity check (API2 A2-6).
+
+    Only the first five SHA-1 characters leave the process; the provider never
+    sees the password or the full hash. Disabled unless ``HIBP_ENABLED`` is on,
+    and fail-open on any network/provider error so a provider outage cannot
+    lock every user out of password changes.
+    """
+    from django.conf import settings
+
+    if not getattr(settings, "HIBP_ENABLED", False):
+        return False
+    import hashlib
+
+    import requests
+
+    digest = hashlib.sha1(password.encode("utf-8")).hexdigest().upper()
+    prefix, suffix = digest[:5], digest[5:]
+    url = f"https://api.pwnedpasswords.com/range/{prefix}"
+    try:
+        response = requests.get(url, timeout=3)
+        response.raise_for_status()
+    except Exception:
+        return False
+    for line in response.text.splitlines():
+        candidate, _, _count = line.partition(":")
+        if candidate.strip().upper() == suffix:
+            return True
+    return False

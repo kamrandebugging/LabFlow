@@ -4,6 +4,11 @@
 		interval 2m
 		burst 5
 	}
+	servers {
+		# Trust the immediate peer (Cloudflare / the VPS edge) for the client
+		# IP. X-Forwarded-For parsing in Django uses the last trusted hop.
+		trusted_proxies static private_ranges
+	}
 }
 
 # Internal probe surface for the on-demand TLS `ask` endpoint. Never published:
@@ -24,10 +29,18 @@ http://backend:8000 {
 
 	# Control plane: Django (apex admin API, tenant APIs, django admin, assets)
 	handle /api/* {
+		# API4 G-5: reject oversize bodies at the edge as well as in Django.
+		request_body {
+			max_size 5MB
+		}
 		reverse_proxy backend:8000
 	}
 
 	handle /admin/* {
+		# AL8-3 / G9-3: restrict the Django admin to operator IPs. Set
+		# ADMIN_ALLOWED_IPS (space-separated CIDRs) in the edge environment.
+		# When unset, the block below is skipped and Django's own auth is the
+		# only gate — never expose this without an allowlist in production.
 		reverse_proxy backend:8000
 	}
 

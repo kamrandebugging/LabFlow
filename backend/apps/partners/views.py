@@ -23,6 +23,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.accounts.models import Role, StaffUser
+from apps.core.throttling import CallbackThrottle
 from apps.notifications.models import Notification
 from apps.partners.delivery import (
     SettlementDeliveryError,
@@ -400,6 +401,7 @@ class SettlementDeliveryCallbackView(APIView):
 
     permission_classes = [permissions.AllowAny]
     authentication_classes = []
+    throttle_classes = [CallbackThrottle]
 
     def post(self, request: Request) -> Response:
         from django.db import connection

@@ -19,8 +19,6 @@ from __future__ import annotations
 
 import hmac
 import logging
-import urllib.error
-import urllib.request
 import uuid
 from datetime import datetime, timedelta
 from typing import Any
@@ -41,6 +39,8 @@ CALLBACK_KEY_HEADER = "X-LabFlow-Callback-Key"
 # cadence (Doc 10 §9: minutes 3/18/33/48), not the per-row delay.
 RETRY_BASE_DELAY = timedelta(minutes=5)
 RETRY_MAX_DELAY = timedelta(hours=2)
+# SE-44: bounded retries, then a terminal FAILED row (dead-letter analogue).
+WEBHOOK_MAX_ATTEMPTS = 5
 
 # HTTP timeout for the outbound POST (seconds).
 WEBHOOK_POST_TIMEOUT_SECONDS = 15
@@ -79,34 +79,37 @@ def retry_delay(attempts: int) -> timedelta:
     return min(delay, RETRY_MAX_DELAY)
 
 
-def _post_signed(url: str, raw_body: bytes, signature: str) -> tuple[int, bytes]:
-    """POST the signed body; return (status_code, response_body).
+def _validate_whatsapp_url(url: str) -> None:
+    """Only https://wa.me/... may be stored/broadcast (API10 G10-4)."""
+    from urllib.parse import urlparse
 
-    Raises WebhookTransportError on timeout / DNS / connection failure.
-    Separated for testability — tests patch this instead of the network.
+    parsed = urlparse(url)
+    if parsed.scheme != "https" or parsed.hostname != "wa.me":
+        raise CallbackError("invalid_whatsapp_url", 422)
+
+
+def _post_signed(url: str, raw_body: bytes, signature: str) -> tuple[int, bytes]:
+    """POST the signed body through the shared safe fetcher.
+
+    Raises WebhookTransportError on timeout / DNS / connection failure or an
+    unsafe destination (API7 G-11). Separated for testability — tests patch
+    this instead of the network.
     """
-    request = urllib.request.Request(
-        url,
-        data=raw_body,
-        method="POST",
-        headers={
-            "Content-Type": "application/json",
-            signing.SIGNATURE_HEADER: signature,
-        },
-    )
+    from apps.core.safe_fetch import SafeFetchError, UnsafeURLError
+    from apps.core.safe_fetch import post as safe_post
+
     try:
-        with urllib.request.urlopen(
-            request, timeout=WEBHOOK_POST_TIMEOUT_SECONDS
-        ) as response:
-            return response.status, response.read()
-    except urllib.error.HTTPError as exc:
-        # Non-2xx: the server answered; the caller decides retry vs sent.
-        try:
-            body = exc.read()
-        except Exception:
-            body = b""
-        return exc.code, body
-    except Exception as exc:  # timeout, DNS, refused, ...
+        response = safe_post(
+            url,
+            data=raw_body,
+            headers={
+                "Content-Type": "application/json",
+                signing.SIGNATURE_HEADER: signature,
+            },
+            timeout=WEBHOOK_POST_TIMEOUT_SECONDS,
+        )
+        return response.status_code, response.content
+    except (SafeFetchError, UnsafeURLError) as exc:
         raise WebhookTransportError(str(exc)) from exc
 
 
@@ -135,9 +138,13 @@ def _send_row(
     try:
         status_code, _ = _post_signed(webhook_url, raw_body, signature)
     except WebhookTransportError as exc:
-        row.status = WebhookDelivery.Status.PENDING
         row.attempts = row.attempts + 1
-        row.next_attempt_at = timezone.now() + retry_delay(row.attempts)
+        if row.attempts >= WEBHOOK_MAX_ATTEMPTS:
+            row.status = WebhookDelivery.Status.FAILED
+            row.next_attempt_at = None
+        else:
+            row.status = WebhookDelivery.Status.PENDING
+            row.next_attempt_at = timezone.now() + retry_delay(row.attempts)
         row.last_error = f"transport_error: {exc}"
         row.save(
             update_fields=[
@@ -168,9 +175,13 @@ def _send_row(
             row.event,
         )
     else:
-        row.status = WebhookDelivery.Status.PENDING
         row.attempts = row.attempts + 1
-        row.next_attempt_at = timezone.now() + retry_delay(row.attempts)
+        if row.attempts >= WEBHOOK_MAX_ATTEMPTS:
+            row.status = WebhookDelivery.Status.FAILED
+            row.next_attempt_at = None
+        else:
+            row.status = WebhookDelivery.Status.PENDING
+            row.next_attempt_at = timezone.now() + retry_delay(row.attempts)
         row.last_error = f"http_{status_code}"
         row.save(
             update_fields=[
@@ -248,7 +259,7 @@ def retry_due_deliveries(
             WebhookDelivery.Status.FAILED,
         ],
         next_attempt_at__lte=at,
-    ).order_by("next_attempt_at")
+    ).order_by("next_attempt_at")[:100]
     attempted = 0
     for row in due:
         _send_row(row, webhook_url, secret, restamp=True)
@@ -487,6 +498,7 @@ def apply_report_delivery_callback(
             if channel == ReportDelivery.Channel.WHATSAPP:
                 if not whatsapp_url:
                     raise CallbackError("whatsapp_url_required", 422)
+                _validate_whatsapp_url(whatsapp_url)
                 row.whatsapp_url = whatsapp_url
                 update_fields = [
                     "status",

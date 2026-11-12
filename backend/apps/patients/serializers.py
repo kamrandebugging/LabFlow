@@ -12,6 +12,7 @@ from typing import Any
 from django.utils import timezone
 from rest_framework import serializers
 
+from apps.core.serializers import StrictSerializer
 from apps.patients.models import Patient, PatientConsent, PatientContact
 
 
@@ -58,7 +59,7 @@ class PatientValidationMixin:
         return value
 
 
-class PatientCreateSerializer(PatientValidationMixin, serializers.Serializer):
+class PatientCreateSerializer(PatientValidationMixin, StrictSerializer):
     """Registration serializer enforcing PT-V1 validation."""
 
     name = serializers.CharField(required=True)
@@ -83,7 +84,7 @@ class PatientCreateSerializer(PatientValidationMixin, serializers.Serializer):
         return normalized
 
 
-class PatientUpdateSerializer(PatientValidationMixin, serializers.Serializer):
+class PatientUpdateSerializer(PatientValidationMixin, StrictSerializer):
     """Update serializer supporting partial PATCH."""
 
     name = serializers.CharField(required=False)
@@ -169,7 +170,14 @@ class PatientSummarySerializer(serializers.Serializer):
 
 
 class PatientDetailSerializer(serializers.ModelSerializer[Patient]):
-    """Detailed patient representation including contacts and consents."""
+    """Detailed patient representation including contacts and consents.
+
+    LAB-49 Phase 5.2: per-role output allowlist. Technician and Pathologist
+    keep the clinical identifiers they need but lose phone, DOB, contacts and
+    consents. ``deleted_at`` is never exposed (A3-3).
+    """
+
+    _PII_RESTRICTED_ROLES = frozenset({"technician", "pathologist"})
 
     contacts = PatientContactSerializer(many=True, read_only=True)
     consents = PatientConsentSerializer(many=True, read_only=True)
@@ -188,12 +196,22 @@ class PatientDetailSerializer(serializers.ModelSerializer[Patient]):
             "branch_id",
             "created_at",
             "updated_at",
-            "deleted_at",
             "contacts",
             "consents",
             "invoices",
             "samples",
         ]
+
+    def to_representation(self, instance: Patient) -> dict[str, Any]:
+        data = super().to_representation(instance)
+        request = self.context.get("request")
+        role = getattr(getattr(request, "user", None), "role", None)
+        if role in self._PII_RESTRICTED_ROLES:
+            data["phone"] = None
+            data["date_of_birth"] = None
+            data["contacts"] = []
+            data["consents"] = []
+        return data
 
     def get_invoices(self, obj: Patient) -> list[dict[str, Any]]:
         return []

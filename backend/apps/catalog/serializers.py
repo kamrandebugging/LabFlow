@@ -18,6 +18,7 @@ from rest_framework import serializers
 
 from apps.branches.models import Branch
 from apps.catalog.models import Panel, ReferenceRange, Test, TestPrice
+from apps.core.serializers import StrictSerializer
 
 
 def _effective_tenant_price(
@@ -122,7 +123,7 @@ class TestSerializer(serializers.ModelSerializer[Test]):
         return Panel.objects.filter(panel_tests__test_id=obj.id).exists()
 
 
-class TestCreateSerializer(serializers.Serializer):
+class TestCreateSerializer(StrictSerializer):
     code = serializers.CharField(max_length=64, required=True)
     name = serializers.CharField(max_length=255, required=True)
     category = serializers.CharField(
@@ -150,7 +151,7 @@ class TestCreateSerializer(serializers.Serializer):
         return name
 
 
-class TestUpdateSerializer(serializers.Serializer):
+class TestUpdateSerializer(StrictSerializer):
     name = serializers.CharField(max_length=255, required=False)
     category = serializers.CharField(
         max_length=128, required=False, allow_null=True, allow_blank=True
@@ -208,7 +209,7 @@ class PanelSerializer(serializers.ModelSerializer[Panel]):
         )
 
 
-class PanelCreateSerializer(serializers.Serializer):
+class PanelCreateSerializer(StrictSerializer):
     code = serializers.CharField(max_length=64, required=True)
     name = serializers.CharField(max_length=255, required=True)
     test_ids = serializers.ListField(
@@ -256,7 +257,7 @@ class PanelCreateSerializer(serializers.Serializer):
         return deduped
 
 
-class PanelUpdateSerializer(serializers.Serializer):
+class PanelUpdateSerializer(StrictSerializer):
     name = serializers.CharField(max_length=255, required=False)
     test_ids = serializers.ListField(
         child=serializers.UUIDField(), required=False, allow_empty=True
@@ -312,7 +313,7 @@ class TestPriceSerializer(serializers.ModelSerializer[TestPrice]):
         return f"{obj.price:.2f}"
 
 
-class TestPriceCreateSerializer(serializers.Serializer):
+class TestPriceCreateSerializer(StrictSerializer):
     amount = MoneyField(required=True)
     effective_from = serializers.DateTimeField(required=False)
     branch_id = serializers.UUIDField(required=False, allow_null=True)

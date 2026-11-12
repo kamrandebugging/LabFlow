@@ -226,6 +226,20 @@ def mark_jti_used(jti: str, ttl_seconds: int = SEVEN_DAYS_SECONDS) -> None:
         logger.warning("Failed to mark jti used in Redis: %s", exc)
 
 
+def claim_jti_once(jti: str, ttl_seconds: int = SEVEN_DAYS_SECONDS) -> bool:
+    """Atomically claim a refresh jti exactly once (SE-05, A2-4).
+
+    ``cache.add`` is Redis ``SET NX`` — check and mark in one round trip, so
+    two concurrent replays cannot both win the TOCTOU race. Fails closed when
+    the cache is unavailable (returns False: caller treats it as reuse).
+    """
+    try:
+        return bool(cache.add(_used_jti_key(jti), "1", timeout=max(1, ttl_seconds)))
+    except Exception as exc:
+        logger.warning("Failed to claim jti atomically in Redis: %s", exc)
+        return False
+
+
 def is_jti_used(jti: str) -> bool:
     """Check if refresh token jti was already rotated (reuse detection)."""
     try:

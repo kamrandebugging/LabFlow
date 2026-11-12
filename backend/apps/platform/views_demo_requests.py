@@ -16,6 +16,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.core.models import DemoRequest, Tenant
+from apps.core.throttling import DemoRequestThrottle
 from apps.platform.views import (
     IsAuthenticatedPlatformUser,
     PlatformJWTAuthentication,
@@ -33,6 +34,7 @@ class PublicDemoRequestCaptureView(APIView):
     """POST /api/v1/demo-requests — public lead capture for Book a Demo."""
 
     permission_classes = [permissions.AllowAny]
+    throttle_classes = [DemoRequestThrottle]
 
     def post(self, request: Request) -> Response:
         data = request.data if isinstance(request.data, dict) else {}

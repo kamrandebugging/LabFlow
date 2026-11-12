@@ -51,6 +51,8 @@ def _mint_jwt(staff_id: uuid.UUID, tenant_slug: str, role: str) -> str:
         "jti": uuid.uuid4().hex,
         "iat": now,
         "exp": now + 3600,
+        "iss": "labflow",
+        "aud": "labflow-api",
     }
     return str(jwt.encode(payload, str(signing_key), algorithm="HS256"))
 

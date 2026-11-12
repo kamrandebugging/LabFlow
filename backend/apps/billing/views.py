@@ -27,7 +27,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.accounts.models import StaffUser
-from apps.billing.models import Invoice
+from apps.billing.models import Invoice, Payment
 from apps.billing.serializers import (
     InvoiceCancelSerializer,
     InvoiceCreateSerializer,
@@ -242,6 +242,12 @@ class PaymentCreateView(APIView):
         ip = _get_client_ip(request)
         user_agent = request.META.get("HTTP_USER_AGENT", "")
 
+        # LAB-49 Phase 2.8: a refund needs fresh TOTP proof.
+        if data["kind"] == Payment.Kind.REFUND:
+            from apps.accounts.step_up import enforce_step_up
+
+            enforce_step_up(user, request, action="a refund")
+
         try:
             payment, created = PaymentService.record_payment(
                 invoice_id=invoice_id,
@@ -425,7 +431,8 @@ class InvoiceDetailView(APIView):
             "created_at": invoice.created_at,
         }
         return Response(
-            InvoiceDetailSerializer(payload).data, status=status.HTTP_200_OK
+            InvoiceDetailSerializer(payload, context={"request": request}).data,
+            status=status.HTTP_200_OK,
         )
 
 

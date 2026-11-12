@@ -224,6 +224,34 @@ def _caller_branch(actor: StaffUser) -> Any:
     return actor.branch
 
 
+def _get_result_for_actor(
+    result_id: uuid.UUID,
+    actor: StaffUser,
+    *,
+    lock: bool = False,
+    related: tuple[str, ...] = (),
+) -> Result:
+    """Fetch one result inside the caller's branch scope, or 404.
+
+    LAB-49 Phase 1.2 (API1 BOLA): the scope predicate runs in the query, so
+    a result on another branch is indistinguishable from a missing one.
+    """
+    queryset = Result.objects.all()
+    if not actor.is_tenant_wide:
+        branch_ids = effective_branch_ids(actor)
+        if not branch_ids:
+            raise ResultNotFoundError("Result not found.")
+        queryset = queryset.filter(sample__branch_id__in=branch_ids)
+    if related:
+        queryset = queryset.select_related(*related)
+    if lock:
+        queryset = queryset.select_for_update()
+    try:
+        return queryset.get(pk=result_id)
+    except (Result.DoesNotExist, ValueError, TypeError):
+        raise ResultNotFoundError("Result not found.") from None
+
+
 def _age_in_days(dob: date | None, as_of: date) -> int | None:
     if dob is None:
         return None
@@ -483,8 +511,10 @@ class ResultService:
                 "test",
                 "entered_by",
             )
-            if actor.branch_id:
-                results = results.filter(sample__branch_id=actor.branch_id)
+            if not actor.is_tenant_wide:
+                results = results.filter(
+                    sample__branch_id__in=effective_branch_ids(actor)
+                )
             result = results.get(pk=result_id)
         except Result.DoesNotExist:
             raise ResultNotFoundError("Result not found.") from None
@@ -725,14 +755,9 @@ class ResultService:
             )
 
         with transaction.atomic():
-            try:
-                result = (
-                    Result.objects.select_for_update()
-                    .select_related("sample")
-                    .get(pk=result_id)
-                )
-            except Result.DoesNotExist:
-                raise ResultNotFoundError("Result not found.") from None
+            result = _get_result_for_actor(
+                result_id, actor, lock=True, related=("sample",)
+            )
 
             if result.status != Result.Status.ENTERED:
                 raise InvalidStateTransitionError(
@@ -896,10 +921,7 @@ class ResultService:
         is recorded in audit_log only. The row is read-only afterwards.
         """
         with transaction.atomic():
-            try:
-                result = Result.objects.select_for_update().get(pk=result_id)
-            except Result.DoesNotExist:
-                raise ResultNotFoundError("Result not found.") from None
+            result = _get_result_for_actor(result_id, actor, lock=True)
 
             if result.entered_by_id != actor.id:
                 raise WithdrawNotPermittedError(
@@ -962,14 +984,12 @@ class ResultService:
             raise AmendReasonRequiredError("An amendment requires a non-empty reason.")
 
         with transaction.atomic():
-            try:
-                old = (
-                    Result.objects.select_for_update()
-                    .select_related("sample__invoice__patient", "sample__branch")
-                    .get(pk=result_id)
-                )
-            except Result.DoesNotExist:
-                raise ResultNotFoundError("Result not found.") from None
+            old = _get_result_for_actor(
+                result_id,
+                actor,
+                lock=True,
+                related=("sample__invoice__patient", "sample__branch"),
+            )
 
             if old.status != Result.Status.APPROVED:
                 raise InvalidStateTransitionError(
@@ -1102,10 +1122,7 @@ class ResultService:
             raise NotificationInFutureError("notified_at cannot be in the future.")
 
         with transaction.atomic():
-            try:
-                result = Result.objects.get(pk=result_id)
-            except Result.DoesNotExist:
-                raise ResultNotFoundError("Result not found.") from None
+            result = _get_result_for_actor(result_id, actor)
 
             if result.flag != Result.Flag.CRITICAL:
                 raise NotCriticalError(

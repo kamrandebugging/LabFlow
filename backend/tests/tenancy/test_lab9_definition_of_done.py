@@ -1,5 +1,6 @@
 import json
 import logging
+import uuid
 from decimal import Decimal
 from typing import Any
 from unittest.mock import patch
@@ -9,6 +10,7 @@ import pytest
 from django.conf import settings
 from django.contrib.auth.hashers import check_password
 from django.db import DatabaseError, connection
+from django.utils import timezone
 from django_tenants.utils import schema_context
 from rest_framework.test import APIClient
 
@@ -122,6 +124,11 @@ def _tenant_staff_jwt(staff_id: Any, tenant_slug: str = "tenant_a") -> str:
                 "tenant": tenant_slug,
                 "role": "owner",
                 "typ": "access",
+                "jti": uuid.uuid4().hex,
+                "iat": int(timezone.now().timestamp()),
+                "exp": int(timezone.now().timestamp()) + 3600,
+                "iss": "labflow",
+                "aud": "labflow-api",
             },
             str(signing_key),
             algorithm="HS256",

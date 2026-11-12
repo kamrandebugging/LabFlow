@@ -217,7 +217,8 @@ class TestInvoiceDiscountAndStatus:
     def test_zero_total_invoice_created_paid(
         self, tenant_a: Any, billing_setup: dict[str, Any], auth_headers: Any
     ) -> None:
-        headers = auth_headers(billing_setup["manager"])
+        # LAB-49 Phase 2.3: a 100% discount requires the Owner.
+        headers = auth_headers(billing_setup["owner"])
         body = _base_body(
             billing_setup,
             items=[{"test_id": str(billing_setup["test_a"].id), "qty": 1}],

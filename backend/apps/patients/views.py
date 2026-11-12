@@ -146,7 +146,9 @@ class PatientListCreateView(BranchScopedAPIView):
                 status=status.HTTP_409_CONFLICT,
             )
 
-        detail_serializer = PatientDetailSerializer(patient)
+        detail_serializer = PatientDetailSerializer(
+            patient, context={"request": request}
+        )
         return Response(detail_serializer.data, status=status.HTTP_201_CREATED)
 
 
@@ -178,7 +180,7 @@ class PatientDetailView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        serializer = PatientDetailSerializer(patient)
+        serializer = PatientDetailSerializer(patient, context={"request": request})
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def patch(self, request: Request, id: uuid.UUID) -> Response:
@@ -251,7 +253,9 @@ class PatientDetailView(APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        detail_serializer = PatientDetailSerializer(updated_patient)
+        detail_serializer = PatientDetailSerializer(
+            updated_patient, context={"request": request}
+        )
         return Response(detail_serializer.data, status=status.HTTP_200_OK)
 
     def delete(self, request: Request, id: uuid.UUID) -> Response:
