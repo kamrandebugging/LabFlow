@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { Trans, useTranslation } from "react-i18next";
 import {
   AlertCircle,
   Check,
@@ -13,6 +14,8 @@ import {
   Tag,
   X,
 } from "lucide-react";
+import { messageForError } from "../../lib/errors";
+import { formatMoney } from "../../lib/format";
 import { catalogService } from "./catalogService";
 import type {
   DiagnosticPanel,
@@ -29,6 +32,8 @@ export function TestPanelsScreen({
   onSwitchToTests,
   service = catalogService,
 }: TestPanelsScreenProps): JSX.Element {
+  const { t, i18n } = useTranslation(["settings", "common"]);
+  const lang = i18n.resolvedLanguage === "ur" ? "ur" : "en";
   const [panels, setPanels] = useState<DiagnosticPanel[]>([]);
   const [availableTests, setAvailableTests] = useState<DiagnosticTest[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -61,12 +66,14 @@ export function TestPanelsScreen({
       setAvailableTests(testsData);
     } catch (err: unknown) {
       setError(
-        err instanceof Error ? err.message : "Failed to load diagnostic panels",
+        err && typeof err === "object" && "code" in err
+          ? messageForError(err, (key, options) => t(`common:${key}`, options))
+          : t("settings:panels.load_failed"),
       );
     } finally {
       setIsLoading(false);
     }
-  }, [searchQuery, service]);
+  }, [searchQuery, service, t]);
 
   useEffect(() => {
     fetchPanelsAndTests();
@@ -112,7 +119,9 @@ export function TestPanelsScreen({
       );
     } catch (err: unknown) {
       setError(
-        err instanceof Error ? err.message : "Failed to update panel status",
+        err && typeof err === "object" && "code" in err
+          ? messageForError(err, (key, options) => t(`common:${key}`, options))
+          : t("settings:panels.status_failed"),
       );
     }
   };
@@ -125,17 +134,15 @@ export function TestPanelsScreen({
     const trimmedName = newName.trim();
 
     if (!trimmedCode) {
-      setModalError("Panel code is required.");
+      setModalError(t("settings:panels.error_code"));
       return;
     }
     if (!trimmedName) {
-      setModalError("Panel name is required.");
+      setModalError(t("settings:panels.error_name"));
       return;
     }
     if (selectedTestIds.length === 0) {
-      setModalError(
-        "Please select at least one component test for this panel.",
-      );
+      setModalError(t("settings:panels.error_select"));
       return;
     }
 
@@ -158,18 +165,17 @@ export function TestPanelsScreen({
       setTestSearchInModal("");
       fetchPanelsAndTests();
     } catch (err: unknown) {
-      const msg =
-        err instanceof Error ? err.message : "Failed to create panel.";
+      const msg = err instanceof Error ? err.message : "";
       if (msg.includes("empty_panel")) {
-        setModalError(
-          "A diagnostic panel must bundle at least one active test.",
-        );
+        setModalError(t("settings:panels.error_empty"));
       } else if (msg.includes("inactive_component")) {
+        setModalError(t("settings:panels.error_inactive"));
+      } else if (err && typeof err === "object" && "code" in err) {
         setModalError(
-          "Selected tests contain inactive components. Please choose active tests.",
+          messageForError(err, (key, options) => t(`common:${key}`, options)),
         );
       } else {
-        setModalError(msg);
+        setModalError(t("settings:panels.error_create"));
       }
     } finally {
       setIsSaving(false);
@@ -198,11 +204,10 @@ export function TestPanelsScreen({
             </span>
             <div>
               <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-                Diagnostic Panels (Screen 32)
+                {t("settings:panels.title")}
               </h1>
               <p className="text-sm text-slate-500">
-                Configure multi-test diagnostic panels, specimen routing, and
-                bundled package rates.
+                {t("settings:panels.subtitle")}
               </p>
             </div>
           </div>
@@ -216,13 +221,13 @@ export function TestPanelsScreen({
               onClick={onSwitchToTests}
               className="px-3.5 py-1.5 text-xs font-semibold rounded-md text-slate-600 hover:text-slate-900 transition-colors"
             >
-              Individual Tests (31)
+              {t("settings:panels.tab_individual")}
             </button>
             <button
               type="button"
               className="px-3.5 py-1.5 text-xs font-semibold rounded-md bg-white text-indigo-700 shadow-sm"
             >
-              Test Panels (32)
+              {t("settings:panels.tab_panels")}
             </button>
           </div>
 
@@ -232,7 +237,7 @@ export function TestPanelsScreen({
             className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm transition-all"
           >
             <Plus className="w-4 h-4" />
-            Create Panel
+            {t("settings:panels.create")}
           </button>
         </div>
       </div>
@@ -241,7 +246,7 @@ export function TestPanelsScreen({
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
           <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">
-            Total Panels
+            {t("settings:panels.kpi_total")}
           </p>
           <p className="text-2xl font-bold text-slate-800 mt-1">
             {stats.total}
@@ -249,7 +254,7 @@ export function TestPanelsScreen({
         </div>
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
           <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">
-            Active Panels
+            {t("settings:panels.kpi_active")}
           </p>
           <p className="text-2xl font-bold text-emerald-600 mt-1">
             {stats.active}
@@ -257,7 +262,7 @@ export function TestPanelsScreen({
         </div>
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
           <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">
-            Total Bundled Tests
+            {t("settings:panels.kpi_components")}
           </p>
           <p className="text-2xl font-bold text-indigo-600 mt-1">
             {stats.totalComponents}
@@ -265,7 +270,7 @@ export function TestPanelsScreen({
         </div>
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
           <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">
-            Avg Tests / Panel
+            {t("settings:panels.kpi_avg")}
           </p>
           <p className="text-2xl font-bold text-slate-800 mt-1">
             {stats.avgComponents}
@@ -276,13 +281,13 @@ export function TestPanelsScreen({
       {/* 3. Search and Status Filters */}
       <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex flex-col md:flex-row items-center justify-between gap-4">
         <div className="relative w-full md:w-96">
-          <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+          <Search className="absolute start-3 top-2.5 h-4 w-4 text-slate-400" />
           <input
             type="text"
-            placeholder="Search panels by code, name, or keyword..."
+            placeholder={t("settings:panels.search_placeholder")}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
+            className="w-full ps-9 pe-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
           />
         </div>
 
@@ -299,7 +304,7 @@ export function TestPanelsScreen({
                     : "hover:text-slate-900"
                 }`}
               >
-                {filter.charAt(0) + filter.slice(1).toLowerCase()}
+                {t(`settings:panels.filter_${filter.toLowerCase()}`)}
               </button>
             ))}
           </div>
@@ -309,7 +314,7 @@ export function TestPanelsScreen({
             onClick={fetchPanelsAndTests}
             disabled={isLoading}
             className="p-2 border border-slate-300 rounded-lg text-slate-600 hover:bg-slate-50 focus:outline-none transition"
-            title="Refresh panels"
+            title={t("settings:panels.refresh_title")}
           >
             <RefreshCw
               className={`w-4 h-4 ${isLoading ? "animate-spin text-indigo-600" : ""}`}
@@ -338,15 +343,21 @@ export function TestPanelsScreen({
       {/* 4. Panels Data Table */}
       <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-xs">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm text-slate-600">
+          <table className="w-full text-start text-sm text-slate-600">
             <thead className="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase tracking-wider">
               <tr>
-                <th className="py-3 px-4 w-28">Panel Code</th>
-                <th className="py-3 px-4">Panel Name</th>
-                <th className="py-3 px-4">Bundled Component Tests</th>
-                <th className="py-3 px-4">Package Price</th>
-                <th className="py-3 px-4">Status</th>
-                <th className="py-3 px-4 text-right">Actions</th>
+                <th className="py-3 px-4 w-28">
+                  {t("settings:panels.col_code")}
+                </th>
+                <th className="py-3 px-4">{t("settings:panels.col_name")}</th>
+                <th className="py-3 px-4">
+                  {t("settings:panels.col_components")}
+                </th>
+                <th className="py-3 px-4">{t("settings:panels.col_price")}</th>
+                <th className="py-3 px-4">{t("settings:panels.col_status")}</th>
+                <th className="py-3 px-4 text-end">
+                  {t("settings:panels.col_actions")}
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -354,13 +365,13 @@ export function TestPanelsScreen({
                 <tr>
                   <td colSpan={6} className="py-12 text-center text-slate-400">
                     <RefreshCw className="w-6 h-6 animate-spin mx-auto text-indigo-500 mb-2" />
-                    Loading diagnostic panels...
+                    {t("settings:panels.loading")}
                   </td>
                 </tr>
               ) : filteredPanels.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="py-12 text-center text-slate-400">
-                    No diagnostic panels found matching your criteria.
+                    {t("settings:panels.empty")}
                   </td>
                 </tr>
               ) : (
@@ -374,12 +385,15 @@ export function TestPanelsScreen({
                     <React.Fragment key={panel.id}>
                       <tr className="hover:bg-slate-50/75 transition-colors">
                         <td className="py-3.5 px-4 font-mono font-bold text-indigo-600">
-                          {panel.code}
+                          <bdi dir="ltr">{panel.code}</bdi>
                         </td>
                         <td className="py-3.5 px-4 font-medium text-slate-900">
-                          <div>{panel.name}</div>
+                          <div>
+                            <bdi dir="ltr">{panel.name}</bdi>
+                          </div>
                           <div className="text-xs text-slate-400 font-mono mt-0.5">
-                            ID: {panel.id.slice(0, 8)}...
+                            {t("settings:panels.id_prefix")}{" "}
+                            <bdi dir="ltr">{panel.id.slice(0, 8)}</bdi>...
                           </div>
                         </td>
                         <td className="py-3.5 px-4">
@@ -389,7 +403,7 @@ export function TestPanelsScreen({
                                 key={test.id}
                                 className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200"
                               >
-                                {test.name}
+                                <bdi dir="ltr">{test.name}</bdi>
                               </span>
                             ))}
                             {testsCount > 3 && (
@@ -402,7 +416,9 @@ export function TestPanelsScreen({
                                 }
                                 className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition"
                               >
-                                +{testsCount - 3} more
+                                {t("settings:panels.more", {
+                                  n: testsCount - 3,
+                                })}
                                 {isExpanded ? (
                                   <ChevronUp className="w-3 h-3" />
                                 ) : (
@@ -413,7 +429,9 @@ export function TestPanelsScreen({
                           </div>
                         </td>
                         <td className="py-3.5 px-4 font-semibold text-slate-900">
-                          {panel.price ? `PKR ${panel.price}` : "Standard"}
+                          {panel.price
+                            ? formatMoney(panel.price, lang)
+                            : t("settings:panels.standard")}
                         </td>
                         <td className="py-3.5 px-4">
                           <span
@@ -423,16 +441,20 @@ export function TestPanelsScreen({
                                 : "bg-slate-100 text-slate-600 border border-slate-200"
                             }`}
                           >
-                            {panel.is_active ? "Active" : "Inactive"}
+                            {panel.is_active
+                              ? t("common:status.active")
+                              : t("common:status.inactive")}
                           </span>
                         </td>
-                        <td className="py-3.5 px-4 text-right">
+                        <td className="py-3.5 px-4 text-end">
                           <button
                             type="button"
                             onClick={() => handleTogglePanelStatus(panel)}
                             className="text-xs font-medium text-slate-500 hover:text-indigo-600 underline transition"
                           >
-                            {panel.is_active ? "Deactivate" : "Activate"}
+                            {panel.is_active
+                              ? t("settings:panels.deactivate")
+                              : t("settings:panels.activate")}
                           </button>
                         </td>
                       </tr>
@@ -447,25 +469,32 @@ export function TestPanelsScreen({
                             <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-xs">
                               <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3 flex items-center gap-1.5">
                                 <Tag className="w-3.5 h-3.5 text-indigo-500" />
-                                All Bundled Tests in {panel.name} (
-                                {displayTests.length})
+                                <Trans
+                                  i18nKey="settings:panels.expanded_title"
+                                  values={{
+                                    name: panel.name,
+                                    n: displayTests.length,
+                                  }}
+                                  components={{ bdi: <bdi dir="ltr" /> }}
+                                />
                               </h4>
                               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                                {displayTests.map((t) => (
+                                {displayTests.map((test) => (
                                   <div
-                                    key={t.id}
+                                    key={test.id}
                                     className="p-2.5 rounded-lg border border-slate-100 bg-slate-50/50 flex flex-col justify-between"
                                   >
                                     <div className="flex items-center justify-between">
                                       <span className="font-mono text-xs font-bold text-slate-700">
-                                        {t.code}
+                                        <bdi dir="ltr">{test.code}</bdi>
                                       </span>
                                       <span className="text-[10px] uppercase font-semibold text-slate-400 bg-white px-1.5 py-0.5 rounded border border-slate-100">
-                                        {t.category || "General"}
+                                        {test.category ||
+                                          t("settings:panels.general")}
                                       </span>
                                     </div>
                                     <div className="text-xs font-medium text-slate-900 mt-1">
-                                      {t.name}
+                                      <bdi dir="ltr">{test.name}</bdi>
                                     </div>
                                   </div>
                                 ))}
@@ -501,12 +530,12 @@ export function TestPanelsScreen({
                   id="create-panel-heading"
                   className="text-lg font-bold text-slate-900"
                 >
-                  Create Diagnostic Panel
+                  {t("settings:panels.modal_title")}
                 </h3>
               </div>
               <button
                 type="button"
-                aria-label="Close dialog"
+                aria-label={t("settings:panels.modal_close_aria")}
                 onClick={() => setIsModalOpen(false)}
                 className="text-slate-400 hover:text-slate-600 transition"
               >
@@ -528,13 +557,13 @@ export function TestPanelsScreen({
                     htmlFor="panelCodeInput"
                     className="block text-xs font-semibold text-slate-700 mb-1"
                   >
-                    Panel Code *
+                    {t("settings:panels.code_label")}
                   </label>
                   <input
                     id="panelCodeInput"
                     type="text"
                     required
-                    placeholder="e.g. CBC, LFT, CMP"
+                    placeholder={t("settings:panels.code_placeholder")}
                     value={newCode}
                     onChange={(e) => setNewCode(e.target.value.toUpperCase())}
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-mono uppercase focus:ring-2 focus:ring-indigo-500 focus:outline-none"
@@ -546,13 +575,13 @@ export function TestPanelsScreen({
                     htmlFor="panelNameInput"
                     className="block text-xs font-semibold text-slate-700 mb-1"
                   >
-                    Panel Name *
+                    {t("settings:panels.name_label")}
                   </label>
                   <input
                     id="panelNameInput"
                     type="text"
                     required
-                    placeholder="e.g. Complete Blood Count"
+                    placeholder={t("settings:panels.name_placeholder")}
                     value={newName}
                     onChange={(e) => setNewName(e.target.value)}
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
@@ -565,12 +594,12 @@ export function TestPanelsScreen({
                   htmlFor="panelPriceInput"
                   className="block text-xs font-semibold text-slate-700 mb-1"
                 >
-                  Bundled Package Base Price (PKR)
+                  {t("settings:panels.price_label")}
                 </label>
                 <input
                   id="panelPriceInput"
                   type="text"
-                  placeholder="e.g. 1500.00"
+                  placeholder={t("settings:panels.price_placeholder")}
                   value={newPrice}
                   onChange={(e) => setNewPrice(e.target.value)}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-mono focus:ring-2 focus:ring-indigo-500 focus:outline-none"
@@ -581,7 +610,9 @@ export function TestPanelsScreen({
               <div>
                 <div className="flex justify-between items-center mb-1">
                   <label className="text-xs font-semibold text-slate-700">
-                    Select Component Tests * ({selectedTestIds.length} selected)
+                    {t("settings:panels.select_tests", {
+                      n: selectedTestIds.length,
+                    })}
                   </label>
                   {selectedTestIds.length > 0 && (
                     <button
@@ -589,26 +620,26 @@ export function TestPanelsScreen({
                       onClick={() => setSelectedTestIds([])}
                       className="text-xs text-indigo-600 hover:text-indigo-800"
                     >
-                      Clear Selection
+                      {t("settings:panels.clear_selection")}
                     </button>
                   )}
                 </div>
 
                 <div className="relative mb-2">
-                  <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-slate-400" />
+                  <Search className="absolute start-3 top-2.5 h-3.5 w-3.5 text-slate-400" />
                   <input
                     type="text"
-                    placeholder="Filter tests by name or department..."
+                    placeholder={t("settings:panels.filter_tests_placeholder")}
                     value={testSearchInModal}
                     onChange={(e) => setTestSearchInModal(e.target.value)}
-                    className="w-full pl-8 pr-3 py-1.5 border border-slate-200 rounded-md text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                    className="w-full ps-8 pe-3 py-1.5 border border-slate-200 rounded-md text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none"
                   />
                 </div>
 
                 <div className="max-h-48 overflow-y-auto border border-slate-200 rounded-lg divide-y divide-slate-100 p-1">
                   {modalFilteredTests.length === 0 ? (
                     <div className="py-6 text-center text-xs text-slate-400">
-                      No matching diagnostic tests available.
+                      {t("settings:panels.no_tests")}
                     </div>
                   ) : (
                     modalFilteredTests.map((test) => {
@@ -637,16 +668,16 @@ export function TestPanelsScreen({
                               <Square className="w-4 h-4 text-slate-300" />
                             )}
                             <div>
-                              <span className="font-mono text-xs font-bold text-slate-800 mr-2">
-                                {test.code}
+                              <span className="font-mono text-xs font-bold text-slate-800 me-2">
+                                <bdi dir="ltr">{test.code}</bdi>
                               </span>
                               <span className="text-xs text-slate-700">
-                                {test.name}
+                                <bdi dir="ltr">{test.name}</bdi>
                               </span>
                             </div>
                           </div>
                           <span className="text-[10px] font-medium text-slate-400 uppercase">
-                            {test.category || "General"}
+                            {test.category || t("settings:panels.general")}
                           </span>
                         </div>
                       );
@@ -661,7 +692,7 @@ export function TestPanelsScreen({
                   onClick={() => setIsModalOpen(false)}
                   className="px-4 py-2 border border-slate-300 text-slate-700 rounded-lg text-sm hover:bg-slate-50 transition"
                 >
-                  Cancel
+                  {t("common:actions.cancel")}
                 </button>
                 <button
                   type="submit"
@@ -671,12 +702,12 @@ export function TestPanelsScreen({
                   {isSaving ? (
                     <>
                       <RefreshCw className="w-4 h-4 animate-spin" />
-                      Creating...
+                      {t("settings:panels.creating")}
                     </>
                   ) : (
                     <>
                       <Check className="w-4 h-4" />
-                      Create Diagnostic Panel
+                      {t("settings:panels.modal_title")}
                     </>
                   )}
                 </button>

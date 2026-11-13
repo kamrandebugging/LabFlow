@@ -1,5 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { Trans, useTranslation } from "react-i18next";
 import { useAuthStore } from "../auth/authStore";
+import { messageForError } from "../../lib/errors";
+import { formatDate } from "../../lib/format";
 import { settingsService, SettingsApiError } from "./settingsService";
 import type {
   Branch,
@@ -10,6 +13,7 @@ import type {
 } from "./types";
 
 export const BranchesScreen: React.FC = () => {
+  const { t } = useTranslation(["settings", "common"]);
   const user = useAuthStore((s) => s.user);
   const isOwner = user?.role === "owner";
 
@@ -50,13 +54,13 @@ export const BranchesScreen: React.FC = () => {
       );
       setBranches(data);
     } catch (err: unknown) {
-      const msg =
-        err instanceof Error ? err.message : "Failed to load branches";
-      setErrorMsg(msg);
+      setErrorMsg(
+        messageForError(err, (key, options) => t(`common:${key}`, options)),
+      );
     } finally {
       setIsLoading(false);
     }
-  }, [includeClosed, isOwner]);
+  }, [includeClosed, isOwner, t]);
 
   useEffect(() => {
     void fetchBranches();
@@ -127,7 +131,7 @@ export const BranchesScreen: React.FC = () => {
   const handleSubmitAdd = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
     if (!formCode.trim() || !formName.trim()) {
-      setActionError("Branch code and name are required.");
+      setActionError(t("settings:branches.error_required"));
       return;
     }
 
@@ -159,24 +163,25 @@ export const BranchesScreen: React.FC = () => {
         const limitDetails = details as PlanLimitDetails | undefined;
         if (limitDetails?.plan_limit) {
           setActionError(
-            `Plan limit reached: your plan allows up to ${limitDetails.plan_limit} facilities (current count: ${limitDetails.current_count}). Please upgrade your subscription to add more branches.`,
+            t("settings:branches.error_plan_limit", {
+              limit: limitDetails.plan_limit,
+              current: limitDetails.current_count,
+            }),
           );
         } else {
-          setActionError(
-            err instanceof Error ? err.message : "Plan limit reached",
-          );
+          setActionError(t("settings:branches.error_plan_limit_short"));
         }
       } else if (code === "duplicate_branch_code") {
         setActionError(
-          `Branch code "${formCode.toUpperCase()}" is already in use.`,
+          t("settings:branches.error_duplicate_code", {
+            code: formCode.toUpperCase(),
+          }),
         );
       } else if (code === "invalid_branch_code") {
-        setActionError(
-          "Branch code must be exactly 3 uppercase letters or digits (e.g. LHE).",
-        );
+        setActionError(t("settings:branches.error_invalid_code_add"));
       } else {
         setActionError(
-          err instanceof Error ? err.message : "Failed to create branch",
+          messageForError(err, (key, options) => t(`common:${key}`, options)),
         );
       }
     } finally {
@@ -215,20 +220,18 @@ export const BranchesScreen: React.FC = () => {
       const code = isSettingsErr ? (err as { code: string }).code : undefined;
 
       if (code === "branch_code_immutable") {
-        setActionError(
-          "Branch code is permanently locked because patients or specimens already reference this branch.",
-        );
+        setActionError(t("settings:branches.error_code_immutable"));
       } else if (code === "duplicate_branch_code") {
         setActionError(
-          `Branch code "${formCode.toUpperCase()}" is already in use.`,
+          t("settings:branches.error_duplicate_code", {
+            code: formCode.toUpperCase(),
+          }),
         );
       } else if (code === "invalid_branch_code") {
-        setActionError(
-          "Branch code must be exactly 3 uppercase alphanumeric characters.",
-        );
+        setActionError(t("settings:branches.error_invalid_code_edit"));
       } else {
         setActionError(
-          err instanceof Error ? err.message : "Failed to update branch",
+          messageForError(err, (key, options) => t(`common:${key}`, options)),
         );
       }
     } finally {
@@ -260,12 +263,10 @@ export const BranchesScreen: React.FC = () => {
       if (code === "branch_has_open_work") {
         const workDetails = details as BranchOpenWorkDetails | undefined;
         setCloseBlockerDetails(workDetails || {});
-        setActionError(
-          "Cannot close branch: open work is active at this facility. All specimens and transfers must be completed first.",
-        );
+        setActionError(t("settings:branches.error_open_work"));
       } else {
         setActionError(
-          err instanceof Error ? err.message : "Failed to close branch",
+          messageForError(err, (key, options) => t(`common:${key}`, options)),
         );
       }
     } finally {
@@ -282,7 +283,7 @@ export const BranchesScreen: React.FC = () => {
       await fetchBranches();
     } catch (err: unknown) {
       setErrorMsg(
-        err instanceof Error ? err.message : "Failed to reopen branch",
+        messageForError(err, (key, options) => t(`common:${key}`, options)),
       );
     } finally {
       setIsSubmitting(false);
@@ -295,17 +296,19 @@ export const BranchesScreen: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-3 border-b border-slate-200">
         <div>
           <div className="flex items-center gap-2 text-xs text-slate-500 mb-1">
-            <span>Settings</span>
-            <span className="material-symbols-outlined text-[14px]">
+            <span>{t("common:nav.settings")}</span>
+            <span className="material-symbols-outlined text-[14px] rtl:rotate-180">
               chevron_right
             </span>
-            <span className="text-teal-700 font-medium">Branches</span>
+            <span className="text-teal-700 font-medium">
+              {t("settings:branches.title")}
+            </span>
           </div>
           <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-            Branches
+            {t("settings:branches.title")}
           </h1>
           <p className="text-sm text-slate-600 mt-0.5">
-            Lab branches and collection centres for specimen intake and testing
+            {t("settings:branches.subtitle")}
           </p>
         </div>
 
@@ -316,7 +319,7 @@ export const BranchesScreen: React.FC = () => {
             className="inline-flex items-center gap-2 bg-teal-600 hover:bg-teal-700 active:bg-teal-800 text-white font-medium text-sm px-4 py-2.5 rounded-lg shadow-sm transition-all"
           >
             <span className="material-symbols-outlined text-[19px]">add</span>
-            <span>Add branch</span>
+            <span>{t("settings:branches.add")}</span>
           </button>
         )}
       </div>
@@ -328,7 +331,9 @@ export const BranchesScreen: React.FC = () => {
             error
           </span>
           <div className="text-sm">
-            <p className="font-semibold">Unable to load branches</p>
+            <p className="font-semibold">
+              {t("settings:branches.load_error_title")}
+            </p>
             <p className="text-red-700 mt-0.5">{errorMsg}</p>
           </div>
         </div>
@@ -340,7 +345,7 @@ export const BranchesScreen: React.FC = () => {
         <div className="bg-white border border-slate-200 rounded-xl p-3.5 flex items-center justify-between shadow-sm">
           <div>
             <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
-              Total Facilities
+              {t("settings:branches.metric_total")}
             </p>
             <p className="text-xl font-bold text-slate-900 mt-0.5">
               {metrics.total}
@@ -357,7 +362,7 @@ export const BranchesScreen: React.FC = () => {
         <div className="bg-white border border-slate-200 rounded-xl p-3.5 flex items-center justify-between shadow-sm">
           <div>
             <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
-              Full Testing Labs
+              {t("settings:branches.metric_testing")}
             </p>
             <p className="text-xl font-bold text-slate-900 mt-0.5">
               {metrics.testingLabs}
@@ -374,7 +379,7 @@ export const BranchesScreen: React.FC = () => {
         <div className="bg-white border border-slate-200 rounded-xl p-3.5 flex items-center justify-between shadow-sm">
           <div>
             <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
-              Collection Centres
+              {t("settings:branches.metric_collection")}
             </p>
             <p className="text-xl font-bold text-slate-900 mt-0.5">
               {metrics.collectionCentres}
@@ -391,13 +396,17 @@ export const BranchesScreen: React.FC = () => {
         <div className="bg-white border border-slate-200 rounded-xl p-3.5 flex items-center justify-between shadow-sm">
           <div>
             <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
-              Operations
+              {t("settings:branches.metric_operations")}
             </p>
             <p className="text-base font-bold text-slate-900 mt-0.5 flex items-center gap-1.5">
-              <span className="text-teal-700">{metrics.openCount} Open</span>
+              <span className="text-teal-700">
+                {t("settings:branches.open_count", { n: metrics.openCount })}
+              </span>
               <span className="text-slate-300 font-normal">·</span>
               <span className="text-slate-500 font-medium text-xs">
-                {metrics.closedCount} Closed
+                {t("settings:branches.closed_count", {
+                  n: metrics.closedCount,
+                })}
               </span>
             </p>
           </div>
@@ -422,7 +431,7 @@ export const BranchesScreen: React.FC = () => {
                 : "text-slate-600 hover:text-slate-900"
             }`}
           >
-            All ({metrics.total})
+            {t("settings:branches.tab_all", { n: metrics.total })}
           </button>
           <button
             type="button"
@@ -433,7 +442,7 @@ export const BranchesScreen: React.FC = () => {
                 : "text-slate-600 hover:text-slate-900"
             }`}
           >
-            Open ({metrics.openCount})
+            {t("settings:branches.tab_open", { n: metrics.openCount })}
           </button>
           <button
             type="button"
@@ -444,7 +453,7 @@ export const BranchesScreen: React.FC = () => {
                 : "text-slate-600 hover:text-slate-900"
             }`}
           >
-            Closed ({metrics.closedCount})
+            {t("settings:branches.tab_closed", { n: metrics.closedCount })}
           </button>
           <button
             type="button"
@@ -455,22 +464,24 @@ export const BranchesScreen: React.FC = () => {
                 : "text-slate-600 hover:text-slate-900"
             }`}
           >
-            Collection ({metrics.collectionCentres})
+            {t("settings:branches.tab_collection", {
+              n: metrics.collectionCentres,
+            })}
           </button>
         </div>
 
         {/* Search input + Include closed toggle */}
         <div className="flex items-center gap-3">
           <div className="relative flex-1 sm:w-64">
-            <span className="material-symbols-outlined absolute left-2.5 top-2.5 text-[18px] text-slate-400">
+            <span className="material-symbols-outlined absolute start-2.5 top-2.5 text-[18px] text-slate-400">
               search
             </span>
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search branch code or name..."
-              className="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-teal-600 text-slate-900"
+              placeholder={t("settings:branches.search_placeholder")}
+              className="w-full ps-8 pe-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-teal-600 text-slate-900"
             />
           </div>
 
@@ -482,7 +493,7 @@ export const BranchesScreen: React.FC = () => {
                 onChange={(e) => setIncludeClosed(e.target.checked)}
                 className="rounded border-slate-300 text-teal-600 focus:ring-teal-500 w-3.5 h-3.5"
               />
-              <span>Include closed</span>
+              <span>{t("settings:branches.include_closed")}</span>
             </label>
           )}
         </div>
@@ -511,12 +522,18 @@ export const BranchesScreen: React.FC = () => {
             <span className="material-symbols-outlined text-[24px]">store</span>
           </div>
           <h3 className="text-base font-semibold text-slate-900">
-            No branches found
+            {t("settings:branches.empty_title")}
           </h3>
           <p className="text-xs text-slate-500 max-w-sm mx-auto">
-            {searchQuery
-              ? `No facilities matched "${searchQuery}". Try adjusting your search query or tab filter.`
-              : "No branches are currently configured for this tenant."}
+            {searchQuery ? (
+              <Trans
+                i18nKey="settings:branches.empty_search"
+                values={{ query: searchQuery }}
+                components={{ bdi: <bdi dir="ltr" /> }}
+              />
+            ) : (
+              t("settings:branches.empty_none")
+            )}
           </p>
           {isOwner && !searchQuery && (
             <button
@@ -525,7 +542,7 @@ export const BranchesScreen: React.FC = () => {
               className="mt-2 inline-flex items-center gap-2 bg-teal-600 hover:bg-teal-700 text-white text-xs font-medium px-3.5 py-2 rounded-lg"
             >
               <span className="material-symbols-outlined text-[16px]">add</span>
-              <span>Add your first branch</span>
+              <span>{t("settings:branches.add_first")}</span>
             </button>
           )}
         </div>
@@ -550,18 +567,18 @@ export const BranchesScreen: React.FC = () => {
                     <div className="space-y-1">
                       <div className="flex items-center flex-wrap gap-2">
                         <h3 className="text-base font-bold text-slate-900">
-                          {branch.name}
+                          <bdi dir="ltr">{branch.name}</bdi>
                         </h3>
                         {branch.is_collection_centre ? (
                           <span className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 border border-blue-200 font-semibold px-2 py-0.5 rounded text-[11px]">
                             <span className="material-symbols-outlined text-[13px]">
                               point_of_sale
                             </span>
-                            Collection centre
+                            {t("settings:branches.badge_collection")}
                           </span>
                         ) : (
                           <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-teal-50 text-teal-800 border border-teal-200">
-                            Testing facility
+                            {t("settings:branches.badge_testing")}
                           </span>
                         )}
                       </div>
@@ -569,15 +586,15 @@ export const BranchesScreen: React.FC = () => {
                       <div className="flex items-center gap-2 pt-0.5">
                         <span
                           className="inline-flex items-center gap-1 font-mono text-[12px] bg-slate-100 text-slate-700 px-2 py-0.5 rounded border border-slate-200 font-medium"
-                          title="Branch identifier code"
+                          title={t("settings:branches.code_title")}
                         >
                           <span className="material-symbols-outlined text-[13px] text-slate-500">
                             lock
                           </span>
-                          {branch.code}
+                          <bdi dir="ltr">{branch.code}</bdi>
                         </span>
                         <span className="text-[11px] text-slate-400">
-                          Code locked once referenced
+                          {t("settings:branches.code_locked")}
                         </span>
                       </div>
                     </div>
@@ -586,12 +603,12 @@ export const BranchesScreen: React.FC = () => {
                     {isClosed ? (
                       <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs bg-slate-100 text-slate-600 border border-slate-200 font-medium shrink-0">
                         <span className="w-2 h-2 rounded-full bg-slate-400"></span>
-                        Closed
+                        {t("settings:branches.status_closed")}
                       </span>
                     ) : (
                       <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs bg-green-50 text-green-700 border border-green-200 font-medium shrink-0">
                         <span className="w-2 h-2 rounded-full bg-green-600"></span>
-                        Open
+                        {t("settings:branches.status_open")}
                       </span>
                     )}
                   </div>
@@ -603,7 +620,11 @@ export const BranchesScreen: React.FC = () => {
                         pin_drop
                       </span>
                       <span>
-                        {branch.address || "No street address recorded"}
+                        {branch.address ? (
+                          <bdi dir="ltr">{branch.address}</bdi>
+                        ) : (
+                          t("settings:branches.no_address")
+                        )}
                       </span>
                     </div>
                     {branch.phone && (
@@ -611,7 +632,7 @@ export const BranchesScreen: React.FC = () => {
                         <span className="material-symbols-outlined text-[16px] text-slate-400">
                           call
                         </span>
-                        <span>{branch.phone}</span>
+                        <span dir="ltr">{branch.phone}</span>
                       </div>
                     )}
                   </div>
@@ -626,7 +647,7 @@ export const BranchesScreen: React.FC = () => {
                           <span className="material-symbols-outlined text-[16px] text-green-600">
                             check_circle
                           </span>
-                          <span>Result entry enabled for bench testing</span>
+                          <span>{t("settings:branches.result_entry_on")}</span>
                         </>
                       ) : (
                         <>
@@ -634,8 +655,7 @@ export const BranchesScreen: React.FC = () => {
                             block
                           </span>
                           <span className="text-slate-500">
-                            Result entry disabled (Specimen intake &amp;
-                            accessioning only)
+                            {t("settings:branches.result_entry_off")}
                           </span>
                         </>
                       )}
@@ -646,18 +666,14 @@ export const BranchesScreen: React.FC = () => {
                         <span className="material-symbols-outlined text-[16px] text-teal-600">
                           sync_alt
                         </span>
-                        <span>
-                          Routes specimens to primary testing facility
-                        </span>
+                        <span>{t("settings:branches.routes_specimens")}</span>
                       </div>
                     ) : (
                       <div className="flex items-center gap-2 text-slate-600">
                         <span className="material-symbols-outlined text-[16px] text-teal-600">
                           biotech
                         </span>
-                        <span>
-                          Full analytical processing bench &amp; validation
-                        </span>
+                        <span>{t("settings:branches.full_bench")}</span>
                       </div>
                     )}
 
@@ -667,15 +683,11 @@ export const BranchesScreen: React.FC = () => {
                           history
                         </span>
                         <span>
-                          Operations closed on{" "}
-                          {new Date(branch.deleted_at).toLocaleDateString(
-                            "en-GB",
-                            {
-                              day: "numeric",
-                              month: "short",
-                              year: "numeric",
-                            },
-                          )}
+                          <Trans
+                            i18nKey="settings:branches.closed_on"
+                            values={{ date: formatDate(branch.deleted_at) }}
+                            components={{ bdi: <bdi dir="ltr" /> }}
+                          />
                         </span>
                       </div>
                     )}
@@ -692,7 +704,7 @@ export const BranchesScreen: React.FC = () => {
                         disabled={isSubmitting}
                         className="px-3.5 py-1.5 bg-white border border-teal-600 hover:bg-teal-50 text-teal-700 text-xs font-semibold rounded-lg shadow-sm transition-colors"
                       >
-                        Reopen branch
+                        {t("settings:branches.reopen")}
                       </button>
                     ) : (
                       <button
@@ -705,7 +717,7 @@ export const BranchesScreen: React.FC = () => {
                         disabled={isSubmitting}
                         className="px-3.5 py-1.5 bg-white border border-slate-300 hover:border-red-300 text-slate-700 hover:text-red-600 text-xs font-medium rounded-lg shadow-sm hover:bg-red-50/50 transition-colors"
                       >
-                        Close branch
+                        {t("settings:branches.close")}
                       </button>
                     )}
 
@@ -714,7 +726,7 @@ export const BranchesScreen: React.FC = () => {
                       onClick={() => handleOpenEdit(branch)}
                       className="text-teal-700 hover:text-teal-800 text-xs font-semibold hover:underline"
                     >
-                      Edit details
+                      {t("settings:branches.edit")}
                     </button>
                   </div>
                 )}
@@ -731,19 +743,17 @@ export const BranchesScreen: React.FC = () => {
         </div>
         <div className="space-y-1 text-xs">
           <h4 className="font-bold text-slate-900">
-            Multi-Branch Specimen Transfer Protocol &amp; Branch Code
-            Immutability
+            {t("settings:branches.policy_title")}
           </h4>
           <p className="text-slate-600 leading-relaxed">
-            Branch Identifier codes (3 uppercase characters, e.g.{" "}
-            <code className="font-mono bg-slate-100 px-1 py-0.5 rounded text-slate-800">
-              LHE
-            </code>
-            ) are permanently sealed once referenced by any accessioned specimen
-            barcode or patient record. Specimens accessioned at satellite
-            collection centres preserve their accession barcode and generate
-            automated custody handshakes upon physical arrival at the testing
-            bench.
+            <Trans
+              i18nKey="settings:branches.policy_body"
+              components={{
+                code: (
+                  <code className="font-mono bg-slate-100 px-1 py-0.5 rounded text-slate-800" />
+                ),
+              }}
+            />
           </p>
         </div>
       </div>
@@ -754,7 +764,7 @@ export const BranchesScreen: React.FC = () => {
           <div className="bg-white rounded-xl shadow-xl border border-slate-200 max-w-md w-full p-6 space-y-4">
             <div className="flex items-center justify-between pb-2 border-b border-slate-100">
               <h3 className="text-base font-bold text-slate-900">
-                Add New Branch
+                {t("settings:branches.modal_add_title")}
               </h3>
               <button
                 type="button"
@@ -776,7 +786,7 @@ export const BranchesScreen: React.FC = () => {
             <form onSubmit={handleSubmitAdd} className="space-y-3.5 text-xs">
               <div>
                 <label className="block font-semibold text-slate-700 mb-1">
-                  Branch Code (3 chars, uppercase) *
+                  {t("settings:branches.code_label_add")}
                 </label>
                 <input
                   type="text"
@@ -784,51 +794,50 @@ export const BranchesScreen: React.FC = () => {
                   maxLength={3}
                   value={formCode}
                   onChange={(e) => setFormCode(e.target.value.toUpperCase())}
-                  placeholder="e.g. LHE"
+                  placeholder={t("settings:branches.code_placeholder")}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg font-mono text-sm uppercase focus:ring-1 focus:ring-teal-500 focus:outline-none"
                 />
                 <p className="text-[11px] text-slate-500 mt-1">
-                  Unique 3-character prefix for accession barcodes. Immutable
-                  once used.
+                  {t("settings:branches.code_help")}
                 </p>
               </div>
 
               <div>
                 <label className="block font-semibold text-slate-700 mb-1">
-                  Branch Name *
+                  {t("settings:branches.name_label")}
                 </label>
                 <input
                   type="text"
                   required
                   value={formName}
                   onChange={(e) => setFormName(e.target.value)}
-                  placeholder="e.g. Gulberg Main Reference Lab"
+                  placeholder={t("settings:branches.name_placeholder")}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-1 focus:ring-teal-500 focus:outline-none"
                 />
               </div>
 
               <div>
                 <label className="block font-semibold text-slate-700 mb-1">
-                  Physical Address
+                  {t("settings:branches.address_label")}
                 </label>
                 <input
                   type="text"
                   value={formAddress}
                   onChange={(e) => setFormAddress(e.target.value)}
-                  placeholder="e.g. 14-B Gulberg III, Lahore"
+                  placeholder={t("settings:branches.address_placeholder")}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-1 focus:ring-teal-500 focus:outline-none"
                 />
               </div>
 
               <div>
                 <label className="block font-semibold text-slate-700 mb-1">
-                  Contact Phone
+                  {t("settings:branches.phone_label")}
                 </label>
                 <input
                   type="text"
                   value={formPhone}
                   onChange={(e) => setFormPhone(e.target.value)}
-                  placeholder="e.g. +92 42 35789000"
+                  placeholder={t("settings:branches.phone_placeholder")}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-1 focus:ring-teal-500 focus:outline-none"
                 />
               </div>
@@ -843,11 +852,10 @@ export const BranchesScreen: React.FC = () => {
                   />
                   <div>
                     <span className="font-semibold text-slate-800 block">
-                      This is a Collection Centre
+                      {t("settings:branches.is_collection")}
                     </span>
                     <span className="text-slate-500 block text-[11px]">
-                      Collection centres take walk-ins and transfer specimens to
-                      testing labs. Counts toward plan limits.
+                      {t("settings:branches.collection_help_add")}
                     </span>
                   </div>
                 </label>
@@ -860,14 +868,16 @@ export const BranchesScreen: React.FC = () => {
                   disabled={isSubmitting}
                   className="px-4 py-2 border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 text-xs font-medium"
                 >
-                  Cancel
+                  {t("common:actions.cancel")}
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting}
                   className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-xs font-semibold shadow-sm"
                 >
-                  {isSubmitting ? "Saving..." : "Create Branch"}
+                  {isSubmitting
+                    ? t("common:actions.saving")
+                    : t("settings:branches.create")}
                 </button>
               </div>
             </form>
@@ -881,7 +891,11 @@ export const BranchesScreen: React.FC = () => {
           <div className="bg-white rounded-xl shadow-xl border border-slate-200 max-w-md w-full p-6 space-y-4">
             <div className="flex items-center justify-between pb-2 border-b border-slate-100">
               <h3 className="text-base font-bold text-slate-900">
-                Edit Branch: {editingBranch.name}
+                <Trans
+                  i18nKey="settings:branches.modal_edit_title"
+                  values={{ name: editingBranch.name }}
+                  components={{ bdi: <bdi dir="ltr" /> }}
+                />
               </h3>
               <button
                 type="button"
@@ -903,7 +917,7 @@ export const BranchesScreen: React.FC = () => {
             <form onSubmit={handleSubmitEdit} className="space-y-3.5 text-xs">
               <div>
                 <label className="block font-semibold text-slate-700 mb-1">
-                  Branch Code (3 chars)
+                  {t("settings:branches.code_label_edit")}
                 </label>
                 <input
                   type="text"
@@ -913,14 +927,13 @@ export const BranchesScreen: React.FC = () => {
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg font-mono text-sm uppercase focus:ring-1 focus:ring-teal-500 focus:outline-none"
                 />
                 <p className="text-[11px] text-slate-500 mt-1">
-                  Note: If any patients or specimens already reference this
-                  branch, code changes will be refused by the server.
+                  {t("settings:branches.code_note_edit")}
                 </p>
               </div>
 
               <div>
                 <label className="block font-semibold text-slate-700 mb-1">
-                  Branch Name *
+                  {t("settings:branches.name_label")}
                 </label>
                 <input
                   type="text"
@@ -933,7 +946,7 @@ export const BranchesScreen: React.FC = () => {
 
               <div>
                 <label className="block font-semibold text-slate-700 mb-1">
-                  Physical Address
+                  {t("settings:branches.address_label")}
                 </label>
                 <input
                   type="text"
@@ -945,7 +958,7 @@ export const BranchesScreen: React.FC = () => {
 
               <div>
                 <label className="block font-semibold text-slate-700 mb-1">
-                  Contact Phone
+                  {t("settings:branches.phone_label")}
                 </label>
                 <input
                   type="text"
@@ -965,10 +978,10 @@ export const BranchesScreen: React.FC = () => {
                   />
                   <div>
                     <span className="font-semibold text-slate-800 block">
-                      This is a Collection Centre
+                      {t("settings:branches.is_collection")}
                     </span>
                     <span className="text-slate-500 block text-[11px]">
-                      Collection centres route specimens to testing labs.
+                      {t("settings:branches.collection_help_edit")}
                     </span>
                   </div>
                 </label>
@@ -981,14 +994,16 @@ export const BranchesScreen: React.FC = () => {
                   disabled={isSubmitting}
                   className="px-4 py-2 border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 text-xs font-medium"
                 >
-                  Cancel
+                  {t("common:actions.cancel")}
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting}
                   className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-xs font-semibold shadow-sm"
                 >
-                  {isSubmitting ? "Saving..." : "Save Changes"}
+                  {isSubmitting
+                    ? t("common:actions.saving")
+                    : t("settings:branches.save_changes")}
                 </button>
               </div>
             </form>
@@ -1005,14 +1020,19 @@ export const BranchesScreen: React.FC = () => {
                 warning
               </span>
               <h3 className="text-base font-bold text-slate-900">
-                Close Branch: {closingBranch.name} ({closingBranch.code})
+                <Trans
+                  i18nKey="settings:branches.modal_close_title"
+                  values={{
+                    name: closingBranch.name,
+                    code: closingBranch.code,
+                  }}
+                  components={{ bdi: <bdi dir="ltr" /> }}
+                />
               </h3>
             </div>
 
             <p className="text-xs text-slate-600 leading-relaxed">
-              Closing this branch soft-deletes the facility and suspends new
-              accessions. Historical invoices, specimens, and patient reports
-              will remain preserved.
+              {t("settings:branches.close_help")}
             </p>
 
             {/* If blocked by open work */}
@@ -1022,36 +1042,45 @@ export const BranchesScreen: React.FC = () => {
                   <span className="material-symbols-outlined text-[16px]">
                     error
                   </span>
-                  Active Work Preconditions Failed
+                  {t("settings:branches.blocker_title")}
                 </p>
-                <ul className="list-disc list-inside space-y-1 text-red-700 pl-1">
+                <ul className="list-disc list-inside space-y-1 text-red-700 ps-1">
                   {typeof closeBlockerDetails.samples_held === "number" &&
                     closeBlockerDetails.samples_held > 0 && (
                       <li>
-                        <strong>{closeBlockerDetails.samples_held}</strong>{" "}
-                        specimens held / in processing
+                        <strong>
+                          <bdi dir="ltr">
+                            {closeBlockerDetails.samples_held}
+                          </bdi>
+                        </strong>{" "}
+                        {t("settings:branches.blocker_samples")}
                       </li>
                     )}
                   {typeof closeBlockerDetails.open_transfers_in === "number" &&
                     closeBlockerDetails.open_transfers_in > 0 && (
                       <li>
-                        <strong>{closeBlockerDetails.open_transfers_in}</strong>{" "}
-                        inbound specimen transfers open
+                        <strong>
+                          <bdi dir="ltr">
+                            {closeBlockerDetails.open_transfers_in}
+                          </bdi>
+                        </strong>{" "}
+                        {t("settings:branches.blocker_in")}
                       </li>
                     )}
                   {typeof closeBlockerDetails.open_transfers_out === "number" &&
                     closeBlockerDetails.open_transfers_out > 0 && (
                       <li>
                         <strong>
-                          {closeBlockerDetails.open_transfers_out}
+                          <bdi dir="ltr">
+                            {closeBlockerDetails.open_transfers_out}
+                          </bdi>
                         </strong>{" "}
-                        outbound transfers pending arrival
+                        {t("settings:branches.blocker_out")}
                       </li>
                     )}
                 </ul>
                 <p className="text-[11px] text-red-600 mt-1">
-                  Please resolve or transfer all open work before closing this
-                  facility.
+                  {t("settings:branches.blocker_hint")}
                 </p>
               </div>
             )}
@@ -1069,7 +1098,7 @@ export const BranchesScreen: React.FC = () => {
                 disabled={isSubmitting}
                 className="px-4 py-2 border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 text-xs font-medium"
               >
-                Cancel
+                {t("common:actions.cancel")}
               </button>
               <button
                 type="button"
@@ -1077,7 +1106,9 @@ export const BranchesScreen: React.FC = () => {
                 disabled={isSubmitting}
                 className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-semibold shadow-sm"
               >
-                {isSubmitting ? "Closing..." : "Confirm Close"}
+                {isSubmitting
+                  ? t("settings:branches.closing")
+                  : t("settings:branches.confirm_close")}
               </button>
             </div>
           </div>

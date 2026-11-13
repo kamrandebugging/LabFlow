@@ -149,7 +149,7 @@ describe("Settings → Staff", () => {
     expect(screen.getByText("Tmp-Pass-1234!")).toBeInTheDocument();
   });
 
-  it("shows the backend's role_not_enabled error instead of inventing success", async () => {
+  it("shows a translated failure instead of inventing success", async () => {
     vi.mocked(staffService.create).mockRejectedValue(
       new Error("The Pathologist role is not enabled for this lab."),
     );
@@ -167,9 +167,7 @@ describe("Settings → Staff", () => {
     );
 
     expect(
-      await screen.findByText(
-        "The Pathologist role is not enabled for this lab.",
-      ),
+      await screen.findByText("Could not create staff."),
     ).toBeInTheDocument();
   });
 });

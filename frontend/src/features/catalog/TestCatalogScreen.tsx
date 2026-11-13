@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
+import { Trans, useTranslation } from "react-i18next";
 import {
   Plus,
   Search,
@@ -8,19 +9,20 @@ import {
   X,
   Tag,
 } from "lucide-react";
+import { messageForError } from "../../lib/errors";
 import { catalogService } from "./catalogService";
 import { ReferenceRangesManager } from "./ReferenceRangesManager";
 import type { DiagnosticTest, TestCreateInput } from "./types";
 
 const CATEGORIES = [
-  "All",
-  "Hematology",
-  "Biochemistry",
-  "Immunology",
-  "Microbiology",
-  "Histopathology",
-  "Molecular",
-];
+  { value: "All", slug: "all" },
+  { value: "Hematology", slug: "hematology" },
+  { value: "Biochemistry", slug: "biochemistry" },
+  { value: "Immunology", slug: "immunology" },
+  { value: "Microbiology", slug: "microbiology" },
+  { value: "Histopathology", slug: "histopathology" },
+  { value: "Molecular", slug: "molecular" },
+] as const;
 
 interface TestCatalogScreenProps {
   onSwitchToPanels?: () => void;
@@ -31,6 +33,7 @@ export function TestCatalogScreen({
   onSwitchToPanels,
   service = catalogService,
 }: TestCatalogScreenProps): JSX.Element {
+  const { t } = useTranslation(["settings", "common"]);
   const [tests, setTests] = useState<DiagnosticTest[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
@@ -59,11 +62,15 @@ export function TestCatalogScreen({
       });
       setTests(data);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to load tests");
+      setError(
+        err && typeof err === "object" && "code" in err
+          ? messageForError(err, (key, options) => t(`common:${key}`, options))
+          : t("settings:catalog.load_failed"),
+      );
     } finally {
       setIsLoading(false);
     }
-  }, [searchQuery, selectedCategory, service]);
+  }, [searchQuery, selectedCategory, service, t]);
 
   useEffect(() => {
     fetchTests();
@@ -74,11 +81,11 @@ export function TestCatalogScreen({
     setModalError(null);
 
     if (!newCode.trim()) {
-      setModalError("Test code is required.");
+      setModalError(t("settings:catalog.error_code"));
       return;
     }
     if (!newName.trim()) {
-      setModalError("Test name is required.");
+      setModalError(t("settings:catalog.error_name"));
       return;
     }
 
@@ -101,7 +108,9 @@ export function TestCatalogScreen({
       fetchTests();
     } catch (err: unknown) {
       setModalError(
-        err instanceof Error ? err.message : "Failed to create test.",
+        err && typeof err === "object" && "code" in err
+          ? messageForError(err, (key, options) => t(`common:${key}`, options))
+          : t("settings:catalog.error_create"),
       );
     } finally {
       setIsSaving(false);
@@ -114,11 +123,10 @@ export function TestCatalogScreen({
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 font-headline">
-            Diagnostic Test Catalog
+            {t("settings:catalog.title")}
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Standard laboratory investigations, departments & reference
-            parameters
+            {t("settings:catalog.subtitle")}
           </p>
         </div>
 
@@ -128,14 +136,14 @@ export function TestCatalogScreen({
             type="button"
             className="px-3 py-1.5 rounded-md bg-white text-teal-800 font-semibold shadow-xs"
           >
-            Individual Tests
+            {t("settings:catalog.tab_individual")}
           </button>
           <button
             type="button"
             onClick={onSwitchToPanels}
             className="px-3 py-1.5 rounded-md text-slate-600 hover:text-slate-900 transition-colors"
           >
-            Test Panels
+            {t("settings:catalog.tab_panels")}
           </button>
         </div>
       </div>
@@ -143,20 +151,20 @@ export function TestCatalogScreen({
       {/* 2. Department Category Pills */}
       <div
         className="flex items-center gap-2 overflow-x-auto pb-1"
-        aria-label="Department filters"
+        aria-label={t("settings:catalog.dept_filter_aria")}
       >
         {CATEGORIES.map((cat) => (
           <button
-            key={cat}
+            key={cat.value}
             type="button"
-            onClick={() => setSelectedCategory(cat)}
+            onClick={() => setSelectedCategory(cat.value)}
             className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${
-              selectedCategory === cat
+              selectedCategory === cat.value
                 ? "bg-[#005c55] text-white shadow-xs"
                 : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
             }`}
           >
-            {cat}
+            {t(`settings:catalog.categories.${cat.slug}`)}
           </button>
         ))}
       </div>
@@ -164,13 +172,13 @@ export function TestCatalogScreen({
       {/* 3. Search Bar & Action Buttons */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
         <div className="relative w-full sm:w-96">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4 pointer-events-none" />
+          <Search className="absolute start-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4 pointer-events-none" />
           <input
             type="search"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search by code, test name or department..."
-            className="w-full pl-9 pr-4 py-2 bg-white text-slate-900 text-sm placeholder:text-slate-400 rounded-lg border border-slate-200 shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 transition-all"
+            placeholder={t("settings:catalog.search_placeholder")}
+            className="w-full ps-9 pe-4 py-2 bg-white text-slate-900 text-sm placeholder:text-slate-400 rounded-lg border border-slate-200 shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 transition-all"
           />
         </div>
 
@@ -179,7 +187,7 @@ export function TestCatalogScreen({
             type="button"
             onClick={() => fetchTests()}
             className="p-2 text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg border border-slate-200 transition-colors"
-            title="Refresh test catalog"
+            title={t("settings:catalog.refresh_title")}
           >
             <RefreshCw
               className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`}
@@ -191,7 +199,7 @@ export function TestCatalogScreen({
             className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-[#005c55] hover:bg-[#0f766e] text-white text-sm font-medium rounded-lg shadow-sm transition-colors cursor-pointer"
           >
             <Plus className="w-4 h-4" />
-            <span>Add New Test</span>
+            <span>{t("settings:catalog.add")}</span>
           </button>
         </div>
       </div>
@@ -211,7 +219,7 @@ export function TestCatalogScreen({
             onClick={() => fetchTests()}
             className="underline font-semibold hover:text-red-900"
           >
-            Retry
+            {t("settings:catalog.retry")}
           </button>
         </div>
       )}
@@ -220,7 +228,7 @@ export function TestCatalogScreen({
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table
-            className="w-full text-left border-collapse"
+            className="w-full text-start border-collapse"
             data-testid="test-catalog-table"
           >
             <thead>
@@ -229,37 +237,37 @@ export function TestCatalogScreen({
                   scope="col"
                   className="py-3 px-4 text-xs font-semibold uppercase tracking-wider text-slate-500"
                 >
-                  Test Code
+                  {t("settings:catalog.col_code")}
                 </th>
                 <th
                   scope="col"
                   className="py-3 px-4 text-xs font-semibold uppercase tracking-wider text-slate-500"
                 >
-                  Investigation Name
+                  {t("settings:catalog.col_name")}
                 </th>
                 <th
                   scope="col"
                   className="py-3 px-4 text-xs font-semibold uppercase tracking-wider text-slate-500"
                 >
-                  Department
+                  {t("settings:catalog.col_department")}
                 </th>
                 <th
                   scope="col"
                   className="py-3 px-4 text-xs font-semibold uppercase tracking-wider text-slate-500"
                 >
-                  Unit
+                  {t("settings:catalog.col_unit")}
                 </th>
                 <th
                   scope="col"
                   className="py-3 px-4 text-xs font-semibold uppercase tracking-wider text-slate-500"
                 >
-                  Status
+                  {t("settings:catalog.col_status")}
                 </th>
                 <th
                   scope="col"
-                  className="py-3 px-4 text-xs font-semibold uppercase tracking-wider text-slate-500 text-right"
+                  className="py-3 px-4 text-xs font-semibold uppercase tracking-wider text-slate-500 text-end"
                 >
-                  Ranges
+                  {t("settings:catalog.col_ranges")}
                 </th>
               </tr>
             </thead>
@@ -272,7 +280,7 @@ export function TestCatalogScreen({
                   >
                     <div className="inline-flex items-center gap-2">
                       <RefreshCw className="w-4 h-4 animate-spin text-teal-600" />
-                      <span>Loading test catalog...</span>
+                      <span>{t("settings:catalog.loading")}</span>
                     </div>
                   </td>
                 </tr>
@@ -283,11 +291,13 @@ export function TestCatalogScreen({
                     className="py-12 text-center text-slate-500 text-sm"
                   >
                     <Tag className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-                    <p className="font-medium text-slate-700">No tests found</p>
+                    <p className="font-medium text-slate-700">
+                      {t("settings:catalog.empty_title")}
+                    </p>
                     <p className="text-xs text-slate-400 mt-1">
                       {searchQuery
-                        ? "Try searching for a different code or investigation name"
-                        : "Click 'Add New Test' above to define laboratory tests"}
+                        ? t("settings:catalog.empty_search")
+                        : t("settings:catalog.empty_hint")}
                     </p>
                   </td>
                 </tr>
@@ -299,14 +309,14 @@ export function TestCatalogScreen({
                   >
                     <td className="py-3.5 px-4 align-middle">
                       <span className="font-mono text-xs font-bold text-teal-800 bg-teal-50 px-2 py-0.5 rounded border border-teal-200">
-                        {test.code}
+                        <bdi dir="ltr">{test.code}</bdi>
                       </span>
                     </td>
                     <td className="py-3.5 px-4 align-middle font-medium text-slate-900 text-sm">
-                      {test.name}
+                      <bdi dir="ltr">{test.name}</bdi>
                     </td>
                     <td className="py-3.5 px-4 align-middle text-sm text-slate-600">
-                      {test.category || "General"}
+                      {test.category || t("settings:catalog.general")}
                     </td>
                     <td className="py-3.5 px-4 align-middle font-mono text-xs text-slate-500">
                       {test.unit || "—"}
@@ -319,16 +329,18 @@ export function TestCatalogScreen({
                             : "bg-slate-100 text-slate-500 border border-slate-200"
                         }`}
                       >
-                        {test.is_active ? "Active" : "Inactive"}
+                        {test.is_active
+                          ? t("common:status.active")
+                          : t("common:status.inactive")}
                       </span>
                     </td>
-                    <td className="py-3.5 px-4 align-middle text-right">
+                    <td className="py-3.5 px-4 align-middle text-end">
                       <button
                         type="button"
                         onClick={() => setRangesTest(test)}
                         className="px-2.5 py-1 text-xs font-medium text-teal-800 bg-teal-50 hover:bg-teal-100 border border-teal-200 rounded-md transition-colors cursor-pointer"
                       >
-                        Ranges
+                        {t("settings:catalog.ranges_button")}
                       </button>
                     </td>
                   </tr>
@@ -349,7 +361,7 @@ export function TestCatalogScreen({
           <div className="bg-white rounded-xl shadow-xl max-w-lg w-full border border-slate-200 overflow-hidden">
             <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
               <h2 className="text-base font-bold text-slate-900">
-                Define Diagnostic Test
+                {t("settings:catalog.modal_title")}
               </h2>
               <button
                 type="button"
@@ -374,13 +386,14 @@ export function TestCatalogScreen({
                     htmlFor="testCodeInput"
                     className="block text-xs font-semibold text-slate-700 mb-1"
                   >
-                    Test Code <span className="text-red-500">*</span>
+                    {t("settings:catalog.code_label")}{" "}
+                    <span className="text-red-500">*</span>
                   </label>
                   <input
                     id="testCodeInput"
                     type="text"
                     required
-                    placeholder="e.g. CBC"
+                    placeholder={t("settings:catalog.code_placeholder")}
                     value={newCode}
                     onChange={(e) => setNewCode(e.target.value)}
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-mono uppercase focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 outline-none"
@@ -391,7 +404,7 @@ export function TestCatalogScreen({
                     htmlFor="testCategorySelect"
                     className="block text-xs font-semibold text-slate-700 mb-1"
                   >
-                    Department
+                    {t("settings:catalog.dept_label")}
                   </label>
                   <select
                     id="testCategorySelect"
@@ -399,9 +412,9 @@ export function TestCatalogScreen({
                     onChange={(e) => setNewCategory(e.target.value)}
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 outline-none"
                   >
-                    {CATEGORIES.filter((c) => c !== "All").map((c) => (
-                      <option key={c} value={c}>
-                        {c}
+                    {CATEGORIES.filter((c) => c.value !== "All").map((c) => (
+                      <option key={c.value} value={c.value}>
+                        {t(`settings:catalog.categories.${c.slug}`)}
                       </option>
                     ))}
                   </select>
@@ -413,13 +426,14 @@ export function TestCatalogScreen({
                   htmlFor="testNameInput"
                   className="block text-xs font-semibold text-slate-700 mb-1"
                 >
-                  Investigation Name <span className="text-red-500">*</span>
+                  {t("settings:catalog.name_label")}{" "}
+                  <span className="text-red-500">*</span>
                 </label>
                 <input
                   id="testNameInput"
                   type="text"
                   required
-                  placeholder="e.g. Complete Blood Count"
+                  placeholder={t("settings:catalog.name_placeholder")}
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 outline-none"
@@ -432,12 +446,12 @@ export function TestCatalogScreen({
                     htmlFor="testUnitInput"
                     className="block text-xs font-semibold text-slate-700 mb-1"
                   >
-                    Unit of Measurement
+                    {t("settings:catalog.unit_label")}
                   </label>
                   <input
                     id="testUnitInput"
                     type="text"
-                    placeholder="e.g. mg/dL, g/dL"
+                    placeholder={t("settings:catalog.unit_placeholder")}
                     value={newUnit}
                     onChange={(e) => setNewUnit(e.target.value)}
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-mono focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 outline-none"
@@ -448,12 +462,12 @@ export function TestCatalogScreen({
                     htmlFor="testPriceInput"
                     className="block text-xs font-semibold text-slate-700 mb-1"
                   >
-                    Base Price (PKR)
+                    {t("settings:catalog.price_label")}
                   </label>
                   <input
                     id="testPriceInput"
                     type="text"
-                    placeholder="e.g. 1200.00"
+                    placeholder={t("settings:catalog.price_placeholder")}
                     value={newPrice}
                     onChange={(e) => setNewPrice(e.target.value)}
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-mono focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 outline-none"
@@ -467,7 +481,7 @@ export function TestCatalogScreen({
                   onClick={() => setIsModalOpen(false)}
                   className="px-4 py-2 border border-slate-300 text-slate-700 rounded-lg text-sm hover:bg-slate-50 transition-colors"
                 >
-                  Cancel
+                  {t("common:actions.cancel")}
                 </button>
                 <button
                   type="submit"
@@ -479,7 +493,7 @@ export function TestCatalogScreen({
                   ) : (
                     <Check className="w-4 h-4" />
                   )}
-                  <span>Save Test</span>
+                  <span>{t("settings:catalog.save")}</span>
                 </button>
               </div>
             </form>
@@ -493,18 +507,24 @@ export function TestCatalogScreen({
           className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50"
           role="dialog"
           aria-modal="true"
-          aria-label={`Reference ranges for ${rangesTest.code}`}
+          aria-label={t("settings:catalog.ranges_modal_aria", {
+            code: rangesTest.code,
+          })}
         >
           <div className="bg-white rounded-xl shadow-xl w-full max-w-3xl max-h-[85vh] overflow-y-auto">
             <div className="sticky top-0 bg-white border-b border-slate-100 px-5 py-4 flex items-center justify-between rounded-t-xl">
               <h2 className="text-base font-bold text-slate-900">
-                Reference Ranges — {rangesTest.code}
+                <Trans
+                  i18nKey="settings:catalog.ranges_modal_title"
+                  values={{ code: rangesTest.code }}
+                  components={{ bdi: <bdi dir="ltr" /> }}
+                />
               </h2>
               <button
                 type="button"
                 onClick={() => setRangesTest(null)}
                 className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
-                aria-label="Close ranges"
+                aria-label={t("settings:catalog.ranges_close_aria")}
               >
                 <X className="w-5 h-5" />
               </button>
