@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useId, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   ArrowLeft,
   ArrowRightLeft,
@@ -19,6 +20,8 @@ import {
   User,
   X,
 } from "lucide-react";
+import { messageForError } from "../../lib/errors";
+import { formatDate, formatDateTime } from "../../lib/format";
 import { sampleService } from "./sampleService";
 import { settingsService } from "../settings/settingsService";
 import type { Branch } from "../settings/types";
@@ -32,64 +35,72 @@ export interface SampleDetailScreenProps {
   service?: typeof sampleService;
 }
 
-const REJECTION_REASONS: Array<{ code: RejectionReasonCode; label: string }> = [
-  { code: "hemolyzed", label: "Gross hemolysis detected on centrifugation" },
-  { code: "clotted", label: "Clotted EDTA / micro-clots detected" },
-  { code: "insufficient_volume", label: "Quantity not sufficient (QNS)" },
-  { code: "wrong_tube", label: "Incorrect tube type or additive" },
-  { code: "mislabelled", label: "Mislabeled / unlabeled tube" },
-  { code: "damaged_transport", label: "Container cracked or leaking" },
-  { code: "other", label: "Other quality deviation" },
+type Translator = (key: string) => string;
+
+const REJECTION_REASONS: Array<{ code: RejectionReasonCode; key: string }> = [
+  { code: "hemolyzed", key: "samples:reject_reasons.hemolyzed" },
+  { code: "clotted", key: "samples:reject_reasons.clotted" },
+  {
+    code: "insufficient_volume",
+    key: "samples:reject_reasons.insufficient_volume",
+  },
+  { code: "wrong_tube", key: "samples:reject_reasons.wrong_tube" },
+  { code: "mislabelled", key: "samples:reject_reasons.mislabelled" },
+  {
+    code: "damaged_transport",
+    key: "samples:reject_reasons.damaged_transport",
+  },
+  { code: "other", key: "samples:reject_reasons.other" },
 ];
 
-function getStatusPill(status: SampleStatus): JSX.Element {
+function getStatusPill(status: SampleStatus, t: Translator): JSX.Element {
   switch (status) {
     case "collected":
       return (
         <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">
           <span className="w-2 h-2 rounded-full bg-blue-600" />
-          Collected
+          {t("common:status.sample.collected")}
         </span>
       );
     case "received":
       return (
         <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-teal-50 text-teal-800 border border-teal-200">
           <span className="w-2 h-2 rounded-full bg-teal-600" />
-          Received
+          {t("common:status.sample.received")}
         </span>
       );
     case "in_process":
       return (
         <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-orange-50 text-orange-800 border border-orange-200">
           <span className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
-          In process
+          {t("common:status.sample.in_process")}
         </span>
       );
     case "ready":
       return (
         <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
           <span className="w-2 h-2 rounded-full bg-emerald-600" />
-          Ready / Reported
+          {t("samples:status.ready_reported")}
         </span>
       );
     case "rejected":
       return (
         <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-red-50 text-red-800 border border-red-200">
           <span className="w-2 h-2 rounded-full bg-red-600" />
-          Rejected
+          {t("common:status.sample.rejected")}
         </span>
       );
     case "cancelled":
       return (
         <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200">
           <span className="w-2 h-2 rounded-full bg-slate-500" />
-          Cancelled
+          {t("common:status.sample.cancelled")}
         </span>
       );
     default:
       return (
         <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700">
-          {status}
+          {t("common:labels.unknown")}
         </span>
       );
   }
@@ -102,6 +113,7 @@ export function SampleDetailScreen({
   onViewPatient,
   service = sampleService,
 }: SampleDetailScreenProps): JSX.Element {
+  const { t } = useTranslation(["samples", "common"]);
   const [sample, setSample] = useState<SampleDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -140,13 +152,11 @@ export function SampleDetailScreen({
       const data = await service.getSample(sampleId);
       setSample(data);
     } catch (err: unknown) {
-      const msg =
-        err instanceof Error ? err.message : "Failed to load sample details";
-      setErrorMessage(msg);
+      setErrorMessage(messageForError(err, t));
     } finally {
       setIsLoading(false);
     }
-  }, [sampleId, service]);
+  }, [sampleId, service, t]);
 
   useEffect(() => {
     loadDetail();
@@ -180,8 +190,8 @@ export function SampleDetailScreen({
   // Toast Auto-Dismiss
   useEffect(() => {
     if (!toastMessage) return;
-    const t = setTimeout(() => setToastMessage(null), 5000);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setToastMessage(null), 5000);
+    return () => clearTimeout(timer);
   }, [toastMessage]);
 
   const handleCopyAccession = async () => {
@@ -203,14 +213,15 @@ export function SampleDetailScreen({
       setIsReceiving(true);
       await service.receiveSample(sample.id);
       setToastMessage({
-        title: "Sample received",
-        description: `${sample.accession_id} is now received at ${sample.branch_name}.`,
+        title: t("samples:toast.received_title"),
+        description: t("samples:toast.received_desc", {
+          accession: sample.accession_id,
+          branch: sample.branch_name,
+        }),
       });
       await loadDetail();
     } catch (err: unknown) {
-      const msg =
-        err instanceof Error ? err.message : "Failed to receive sample";
-      setErrorMessage(msg);
+      setErrorMessage(messageForError(err, t));
     } finally {
       setIsReceiving(false);
     }
@@ -226,13 +237,14 @@ export function SampleDetailScreen({
       });
       setShowRejectModal(false);
       setToastMessage({
-        title: "Sample rejected",
-        description: `Accession ${sample.accession_id} marked as rejected. Recollection flagged.`,
+        title: t("samples:toast.rejected_title"),
+        description: t("samples:toast.rejected_desc", {
+          accession: sample.accession_id,
+        }),
       });
       await loadDetail();
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Rejection failed";
-      setErrorMessage(msg);
+      setErrorMessage(messageForError(err, t));
     } finally {
       setIsRejecting(false);
     }
@@ -248,13 +260,14 @@ export function SampleDetailScreen({
       });
       setShowTransferModal(false);
       setToastMessage({
-        title: "Transfer initiated",
-        description: `Specimen transit record created for ${sample.accession_id}.`,
+        title: t("samples:toast.transfer_title"),
+        description: t("samples:toast.transfer_desc", {
+          accession: sample.accession_id,
+        }),
       });
       await loadDetail();
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Transfer failed";
-      setErrorMessage(msg);
+      setErrorMessage(messageForError(err, t));
     } finally {
       setIsTransferring(false);
     }
@@ -264,7 +277,7 @@ export function SampleDetailScreen({
     return (
       <main className="w-full min-h-screen bg-slate-50 flex flex-col items-center justify-center p-8 text-slate-600">
         <RotateCw className="w-8 h-8 animate-spin text-teal-600 mb-3" />
-        <p className="text-sm font-medium">Loading sample record...</p>
+        <p className="text-sm font-medium">{t("samples:detail.loading")}</p>
       </main>
     );
   }
@@ -275,18 +288,18 @@ export function SampleDetailScreen({
         <div className="bg-white border border-red-200 rounded-xl p-6 max-w-md w-full shadow-sm text-center">
           <Ban className="w-10 h-10 text-red-600 mx-auto mb-3" />
           <h2 className="text-lg font-bold text-slate-900 mb-1">
-            Accession Not Found
+            {t("samples:detail.not_found_title")}
           </h2>
           <p className="text-sm text-slate-600 mb-4">
-            {errorMessage || "Sample record could not be retrieved."}
+            {errorMessage || t("samples:detail.not_found_body")}
           </p>
           <button
             type="button"
             onClick={onBack}
             className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-teal-600 text-white text-sm font-medium hover:bg-teal-700"
           >
-            <ArrowLeft className="w-4 h-4" />
-            Back to Accessioning
+            <ArrowLeft className="w-4 h-4 rtl:rotate-180" />
+            {t("samples:detail.back_to_accessioning")}
           </button>
         </div>
       </main>
@@ -301,14 +314,17 @@ export function SampleDetailScreen({
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 flex flex-col gap-6">
         {/* Breadcrumb & Metadata */}
         <div className="flex flex-wrap items-center justify-between gap-y-2 text-xs text-slate-500">
-          <nav aria-label="Breadcrumb" className="flex items-center gap-1.5">
+          <nav
+            aria-label={t("samples:breadcrumbs.aria")}
+            className="flex items-center gap-1.5"
+          >
             <button
               type="button"
               onClick={onBack}
               className="text-slate-600 hover:text-teal-700 transition-colors flex items-center gap-1 font-medium"
             >
               <FlaskConical className="w-4 h-4 text-teal-600" />
-              <span>Samples</span>
+              <span>{t("common:nav.samples")}</span>
             </button>
             <span className="text-slate-400">/</span>
             <span className="font-mono text-slate-900 font-semibold tracking-tight">
@@ -318,13 +334,7 @@ export function SampleDetailScreen({
           <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-100 font-medium text-slate-600">
             <Clock className="w-3.5 h-3.5 text-slate-400" />
             <span>
-              {new Date(s.collected_at).toLocaleDateString("en-GB", {
-                day: "2-digit",
-                month: "short",
-                year: "numeric",
-                timeZone: "Asia/Karachi",
-              })}{" "}
-              · times are PKT
+              {formatDate(s.collected_at)} · {t("common:time.pkt")}
             </span>
           </div>
         </div>
@@ -334,15 +344,15 @@ export function SampleDetailScreen({
           <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 flex-wrap">
             {/* Accession ID with Copy */}
             <div className="flex items-center gap-2">
-              <span className="text-2xl font-bold text-slate-900 tracking-tight font-mono select-all">
+              <span className="font-mono text-2xl font-bold text-slate-900 tracking-tight select-all">
                 {s.accession_id}
               </span>
               <button
                 type="button"
                 onClick={handleCopyAccession}
                 className="p-1.5 rounded-md text-slate-400 hover:text-teal-700 hover:bg-slate-100 transition-colors"
-                title="Copy Accession ID"
-                aria-label="Copy Accession ID"
+                title={t("samples:detail.copy_accession")}
+                aria-label={t("samples:detail.copy_accession")}
               >
                 {isCopied ? (
                   <Check className="w-4 h-4 text-emerald-600" />
@@ -353,7 +363,7 @@ export function SampleDetailScreen({
             </div>
 
             {/* Status Pill */}
-            {getStatusPill(s.status)}
+            {getStatusPill(s.status, t)}
 
             <span className="hidden sm:inline text-slate-300 font-light">
               |
@@ -363,7 +373,7 @@ export function SampleDetailScreen({
             <button
               type="button"
               onClick={() => onViewPatient?.(s.patient_id)}
-              className="inline-flex items-center gap-1.5 text-teal-700 hover:text-teal-800 text-sm font-semibold hover:underline transition-colors text-left"
+              className="inline-flex items-center gap-1.5 text-teal-700 hover:text-teal-800 text-sm font-semibold hover:underline transition-colors text-start"
             >
               <User className="w-4 h-4 text-slate-400" />
               <span>{s.patient_name}</span>
@@ -381,7 +391,7 @@ export function SampleDetailScreen({
               className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 text-sm font-medium transition-all shadow-sm"
             >
               <Printer className="w-4 h-4 text-slate-500" />
-              <span>Label</span>
+              <span>{t("samples:label.breadcrumb_label")}</span>
             </button>
 
             <button
@@ -389,8 +399,8 @@ export function SampleDetailScreen({
               onClick={() => setShowTransferModal(true)}
               className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 text-sm font-medium transition-all shadow-sm"
             >
-              <ArrowRightLeft className="w-4 h-4 text-slate-500" />
-              <span>Transfer</span>
+              <ArrowRightLeft className="w-4 h-4 text-slate-500 rtl:-scale-x-100" />
+              <span>{t("samples:detail.transfer_button")}</span>
             </button>
 
             <button
@@ -400,7 +410,7 @@ export function SampleDetailScreen({
               className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-white border border-red-200 text-red-600 hover:bg-red-50 text-sm font-medium transition-all shadow-sm disabled:opacity-50"
             >
               <Ban className="w-4 h-4 text-red-500" />
-              <span>Reject</span>
+              <span>{t("samples:detail.reject_button")}</span>
             </button>
 
             <button
@@ -412,7 +422,11 @@ export function SampleDetailScreen({
               className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-teal-600 hover:bg-teal-700 text-white text-sm font-medium shadow-sm transition-all active:scale-[0.98] disabled:opacity-50"
             >
               <Inbox className="w-4 h-4" />
-              <span>{isReceiving ? "Receiving..." : "Receive"}</span>
+              <span>
+                {isReceiving
+                  ? t("samples:detail.receiving")
+                  : t("samples:detail.receive")}
+              </span>
             </button>
           </div>
         </section>
@@ -423,12 +437,12 @@ export function SampleDetailScreen({
             <div className="flex items-center gap-2">
               <FlaskConical className="w-5 h-5 text-teal-700" />
               <h2 className="text-base font-semibold text-slate-900">
-                Sample information
+                {t("samples:detail.sample_information")}
               </h2>
             </div>
             <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-teal-50 border border-teal-200 text-teal-800 text-xs font-medium">
               <QrCode className="w-3.5 h-3.5 text-teal-600" />
-              <span>Accession Verified</span>
+              <span>{t("samples:detail.accession_verified")}</span>
             </span>
           </div>
 
@@ -436,25 +450,31 @@ export function SampleDetailScreen({
             {/* Patient Info */}
             <div className="flex flex-col gap-1">
               <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                Patient
+                {t("samples:detail.patient")}
               </span>
               <button
                 type="button"
                 onClick={() => onViewPatient?.(s.patient_id)}
-                className="text-base text-teal-700 hover:text-teal-800 font-semibold text-left hover:underline"
+                className="text-base text-teal-700 hover:text-teal-800 font-semibold text-start hover:underline"
               >
                 {s.patient_name}
               </button>
               <span className="text-xs text-slate-500">
-                {s.patient_mrn} · {s.patient_sex === "M" ? "Male" : "Female"},{" "}
-                {s.patient_age_years}y
+                {s.patient_mrn} ·{" "}
+                {s.patient_sex === "M"
+                  ? t("samples:detail.sex_male")
+                  : t("samples:detail.sex_female")}
+                ,{" "}
+                {t("samples:detail.age_years_short", {
+                  n: s.patient_age_years,
+                })}
               </span>
             </div>
 
             {/* Tests & Tubes Requested */}
             <div className="flex flex-col gap-1.5">
               <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                Tests Requested
+                {t("samples:detail.tests_requested")}
               </span>
               <div className="flex flex-wrap gap-2 pt-0.5">
                 {s.sample_tests && s.sample_tests.length > 0
@@ -471,16 +491,16 @@ export function SampleDetailScreen({
                         </span>
                       </div>
                     ))
-                  : s.tests.map((t, idx) => (
+                  : s.tests.map((testName, idx) => (
                       <div
                         key={idx}
                         className="inline-flex flex-col bg-slate-50 border border-slate-200 px-2.5 py-1 rounded-md"
                       >
                         <span className="text-xs font-semibold text-slate-900">
-                          {t}
+                          {testName}
                         </span>
                         <span className="text-[10px] text-slate-500 font-mono">
-                          Primary Specimen
+                          {t("samples:detail.primary_specimen")}
                         </span>
                       </div>
                     ))}
@@ -490,7 +510,7 @@ export function SampleDetailScreen({
             {/* Originating Branch */}
             <div className="flex flex-col gap-1">
               <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                Originating Branch
+                {t("samples:detail.originating_branch")}
               </span>
               <span className="text-base text-slate-900 font-semibold">
                 {s.branch_name}
@@ -499,54 +519,49 @@ export function SampleDetailScreen({
                 {originBranch
                   ? `${originBranch.code} · ${
                       originBranch.is_collection_centre
-                        ? "Collection Centre"
-                        : "Testing Facility"
+                        ? t("samples:detail.collection_centre")
+                        : t("samples:detail.testing_facility")
                     }`
-                  : "Branch facility"}
+                  : t("samples:detail.branch_facility")}
               </span>
             </div>
 
             {/* Collected Timestamp */}
             <div className="flex flex-col gap-1">
               <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                Collected
+                {t("samples:detail.collected")}
               </span>
               <span className="font-mono text-sm text-slate-800 font-medium">
                 {s.collected_at
-                  ? new Date(s.collected_at).toLocaleString("en-GB", {
-                      day: "2-digit",
-                      month: "short",
-                      year: "numeric",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                      hour12: false,
-                      timeZone: "Asia/Karachi",
-                    })
-                  : "Pending collection"}
+                  ? formatDateTime(s.collected_at)
+                  : t("samples:detail.pending_collection")}
               </span>
               <span className="text-xs text-slate-500 flex items-center gap-1">
                 <User className="w-3.5 h-3.5 text-slate-400" />
-                {s.collected_by || "Phlebotomy Station #01"}
+                {s.collected_by ||
+                  t("samples:detail.phlebotomy_station_default")}
               </span>
             </div>
 
             {/* Custody / Location */}
             <div className="flex flex-col gap-1 sm:col-span-2 md:col-span-2">
               <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                Current Physical Custody
+                {t("samples:detail.current_custody")}
               </span>
               <div className="flex items-center gap-2 flex-wrap pt-0.5">
                 <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-teal-50 border border-teal-100 text-teal-900 text-xs font-medium">
                   <MapPin className="w-3.5 h-3.5 text-teal-600" />
                   <span>
                     {s.custody_location ||
-                      `${s.branch_name} — Specimen Bench A`}
+                      t("samples:detail.custody_fallback", {
+                        branch: s.branch_name,
+                      })}
                   </span>
                 </span>
                 <span className="text-xs text-slate-500">
                   {s.bench_code
-                    ? `Station ${s.bench_code}`
-                    : "Rack 04 / Slot 12"}
+                    ? t("samples:detail.station_code", { code: s.bench_code })
+                    : t("samples:detail.rack_slot_fallback")}
                 </span>
               </div>
             </div>
@@ -560,21 +575,20 @@ export function SampleDetailScreen({
               <History className="w-5 h-5 text-teal-700" />
               <div>
                 <h2 className="text-base font-semibold text-slate-900">
-                  Event timeline
+                  {t("samples:detail.event_timeline")}
                 </h2>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Chronological chain of custody and status events (oldest
-                  first)
+                  {t("samples:detail.event_timeline_desc")}
                 </p>
               </div>
             </div>
             <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-              ISO 15189 Audit Trail
+              {t("samples:detail.audit_trail")}
             </span>
           </div>
 
           <div className="p-6">
-            <div className="relative pl-6 sm:pl-8 space-y-8 before:absolute before:left-[11px] sm:before:left-[15px] before:top-3 before:bottom-3 before:w-0.5 before:bg-slate-200">
+            <div className="relative ps-6 sm:ps-8 space-y-8 before:absolute before:start-[11px] sm:before:start-[15px] before:top-3 before:bottom-3 before:w-0.5 before:bg-slate-200">
               {s.events && s.events.length > 0 ? (
                 s.events.map((evt, idx) => (
                   <div
@@ -582,7 +596,7 @@ export function SampleDetailScreen({
                     className="relative flex flex-col gap-1.5"
                   >
                     {/* Node Dot */}
-                    <div className="absolute -left-6 sm:-left-8 top-1 w-6 h-6 rounded-full bg-white flex items-center justify-center">
+                    <div className="absolute -start-6 sm:-start-8 top-1 w-6 h-6 rounded-full bg-white flex items-center justify-center">
                       <span className="w-3 h-3 rounded-full bg-teal-600 ring-4 ring-teal-50" />
                     </div>
 
@@ -591,9 +605,11 @@ export function SampleDetailScreen({
                         <span className="text-sm font-semibold text-slate-900">
                           {evt.event.replace(/_/g, " ")}
                         </span>
-                        <span className="text-xs text-slate-400">by</span>
+                        <span className="text-xs text-slate-400">
+                          {t("samples:detail.event_by")}
+                        </span>
                         <span className="text-xs text-slate-700 font-medium">
-                          {evt.actor || "System Automated"}
+                          {evt.actor || t("samples:detail.system_automated")}
                         </span>
                         <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-100 text-slate-700">
                           {evt.branch?.name || s.branch_name}
@@ -606,21 +622,21 @@ export function SampleDetailScreen({
                           hour12: false,
                           timeZone: "Asia/Karachi",
                         })}{" "}
-                        PKT
+                        {t("samples:time.pkt_abbr")}
                       </time>
                     </div>
 
                     <p className="text-xs text-slate-600 leading-relaxed max-w-3xl">
                       {String(
                         evt.payload?.note ||
-                          "Event recorded in specimen custody system.",
+                          t("samples:detail.event_note_default"),
                       )}
                     </p>
 
                     <div className="flex items-center gap-3 text-xs text-slate-400 pt-0.5">
                       <span className="inline-flex items-center gap-1">
                         <Building2 className="w-3 h-3 text-slate-400" />
-                        {evt.branch?.name || "Main Lab"}
+                        {evt.branch?.name || t("samples:detail.main_lab")}
                       </span>
                       <span>•</span>
                       <span className="font-mono text-[10px]">
@@ -631,7 +647,7 @@ export function SampleDetailScreen({
                 ))
               ) : (
                 <div className="text-xs text-slate-500 py-4">
-                  No previous custody events logged for this accession.
+                  {t("samples:detail.no_events")}
                 </div>
               )}
             </div>
@@ -642,9 +658,7 @@ export function SampleDetailScreen({
         <div className="flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500 px-2 pt-2">
           <div className="flex items-center gap-2">
             <ShieldCheck className="w-4 h-4 text-emerald-600" />
-            <span>
-              Chain of custody digitally sealed under ISO 15189 compliance
-            </span>
+            <span>{t("samples:detail.custody_sealed")}</span>
           </div>
           <div className="font-mono text-[11px] text-slate-400">
             SHA-256: 7f83b165...041e
@@ -660,12 +674,13 @@ export function SampleDetailScreen({
               <div className="flex items-center gap-2 text-red-600">
                 <Ban className="w-5 h-5" />
                 <h3 className="font-bold text-slate-900 text-base">
-                  Reject Specimen
+                  {t("samples:detail.reject_title")}
                 </h3>
               </div>
               <button
                 type="button"
                 onClick={() => setShowRejectModal(false)}
+                aria-label={t("samples:detail.close_modal")}
                 className="text-slate-400 hover:text-slate-600 p-1 rounded-md"
               >
                 <X className="w-5 h-5" />
@@ -674,12 +689,11 @@ export function SampleDetailScreen({
 
             <div className="py-4 space-y-4">
               <p className="text-xs text-slate-600 leading-relaxed">
-                Rejection permanently stops testing on this specimen and prompts
-                a recollection request for patient{" "}
+                {t("samples:detail.reject_desc_pre")}{" "}
                 <span className="font-semibold text-slate-800">
                   {s.patient_name}
                 </span>
-                .
+                {t("samples:detail.reject_desc_post")}
               </p>
 
               <div>
@@ -687,7 +701,7 @@ export function SampleDetailScreen({
                   htmlFor={rejectCodeSelectId}
                   className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1"
                 >
-                  Quality Non-Conformance Reason *
+                  {t("samples:detail.reject_reason_label")}
                 </label>
                 <select
                   id={rejectCodeSelectId}
@@ -699,7 +713,7 @@ export function SampleDetailScreen({
                 >
                   {REJECTION_REASONS.map((r) => (
                     <option key={r.code} value={r.code}>
-                      {r.label}
+                      {t(r.key)}
                     </option>
                   ))}
                 </select>
@@ -710,14 +724,14 @@ export function SampleDetailScreen({
                   htmlFor={rejectNoteInputId}
                   className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1"
                 >
-                  Internal Laboratory Note (Optional)
+                  {t("samples:detail.reject_note_label")}
                 </label>
                 <textarea
                   id={rejectNoteInputId}
                   rows={3}
                   value={rejectReasonNote}
                   onChange={(e) => setRejectReasonNote(e.target.value)}
-                  placeholder="Detail visible specimen anomalies for supervisor review..."
+                  placeholder={t("samples:detail.reject_note_placeholder")}
                   className="w-full text-xs rounded-lg border border-slate-300 py-2 px-3 focus:outline-none focus:ring-2 focus:ring-red-500"
                 />
               </div>
@@ -729,7 +743,7 @@ export function SampleDetailScreen({
                 onClick={() => setShowRejectModal(false)}
                 className="px-4 py-2 text-xs font-medium text-slate-600 hover:text-slate-800 rounded-lg"
               >
-                Cancel
+                {t("common:actions.cancel")}
               </button>
               <button
                 type="button"
@@ -737,7 +751,9 @@ export function SampleDetailScreen({
                 disabled={isRejecting}
                 className="px-4 py-2 text-xs font-semibold text-white bg-red-600 hover:bg-red-700 rounded-lg shadow-sm disabled:opacity-50"
               >
-                {isRejecting ? "Rejecting..." : "Confirm Rejection"}
+                {isRejecting
+                  ? t("samples:detail.rejecting")
+                  : t("samples:detail.confirm_rejection")}
               </button>
             </div>
           </div>
@@ -750,14 +766,15 @@ export function SampleDetailScreen({
           <div className="bg-white rounded-xl shadow-xl border border-slate-200 max-w-md w-full p-6 animate-in fade-in zoom-in-95">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div className="flex items-center gap-2 text-teal-700">
-                <ArrowRightLeft className="w-5 h-5" />
+                <ArrowRightLeft className="w-5 h-5 rtl:-scale-x-100" />
                 <h3 className="font-bold text-slate-900 text-base">
-                  Transfer Specimen
+                  {t("samples:detail.transfer_title")}
                 </h3>
               </div>
               <button
                 type="button"
                 onClick={() => setShowTransferModal(false)}
+                aria-label={t("samples:detail.close_modal")}
                 className="text-slate-400 hover:text-slate-600 p-1 rounded-md"
               >
                 <X className="w-5 h-5" />
@@ -766,11 +783,11 @@ export function SampleDetailScreen({
 
             <div className="py-4 space-y-4">
               <p className="text-xs text-slate-600 leading-relaxed">
-                Dispatch accession{" "}
+                {t("samples:detail.transfer_desc_pre")}{" "}
                 <span className="font-mono font-semibold text-slate-800">
-                  {s.accession_id}
+                  <bdi dir="ltr">{s.accession_id}</bdi>
                 </span>{" "}
-                to another laboratory facility with cold-chain custody tracking.
+                {t("samples:detail.transfer_desc_post")}
               </p>
 
               <div>
@@ -778,7 +795,7 @@ export function SampleDetailScreen({
                   htmlFor={transferBranchSelectId}
                   className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1"
                 >
-                  Destination Branch / Lab *
+                  {t("samples:detail.transfer_branch_label")}
                 </label>
                 <select
                   id={transferBranchSelectId}
@@ -787,7 +804,11 @@ export function SampleDetailScreen({
                   className="w-full text-xs rounded-lg border border-slate-300 py-2 px-3 focus:outline-none focus:ring-2 focus:ring-teal-500"
                 >
                   {branches.filter((b) => b.id !== s.branch_id).length ===
-                    0 && <option value="">No other branch available</option>}
+                    0 && (
+                    <option value="">
+                      {t("samples:detail.transfer_no_branch")}
+                    </option>
+                  )}
                   {branches
                     .filter((b) => b.id !== s.branch_id)
                     .map((b) => (
@@ -803,14 +824,14 @@ export function SampleDetailScreen({
                   htmlFor={transferNoteInputId}
                   className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1"
                 >
-                  Courier / Transit Notes (Optional)
+                  {t("samples:detail.transfer_notes_label")}
                 </label>
                 <textarea
                   id={transferNoteInputId}
                   rows={3}
                   value={transferNotes}
                   onChange={(e) => setTransferNotes(e.target.value)}
-                  placeholder="e.g. Courier Box #04, cold pack temperature verified 4°C"
+                  placeholder={t("samples:detail.transfer_notes_placeholder")}
                   className="w-full text-xs rounded-lg border border-slate-300 py-2 px-3 focus:outline-none focus:ring-2 focus:ring-teal-500"
                 />
               </div>
@@ -822,7 +843,7 @@ export function SampleDetailScreen({
                 onClick={() => setShowTransferModal(false)}
                 className="px-4 py-2 text-xs font-medium text-slate-600 hover:text-slate-800 rounded-lg"
               >
-                Cancel
+                {t("common:actions.cancel")}
               </button>
               <button
                 type="button"
@@ -830,7 +851,9 @@ export function SampleDetailScreen({
                 disabled={isTransferring || !transferBranchId}
                 className="px-4 py-2 text-xs font-semibold text-white bg-teal-600 hover:bg-teal-700 rounded-lg shadow-sm disabled:opacity-50"
               >
-                {isTransferring ? "Dispatching..." : "Initiate Transfer"}
+                {isTransferring
+                  ? t("samples:detail.dispatching")
+                  : t("samples:detail.initiate_transfer")}
               </button>
             </div>
           </div>
@@ -842,7 +865,7 @@ export function SampleDetailScreen({
         <aside
           role="status"
           aria-live="polite"
-          className="fixed bottom-4 right-4 z-50 bg-white rounded-lg shadow-lg border border-slate-200 p-4 max-w-sm w-80 flex items-start gap-3 animate-in fade-in slide-in-from-bottom-2"
+          className="fixed bottom-4 end-4 z-50 bg-white rounded-lg shadow-lg border border-slate-200 p-4 max-w-sm w-80 flex items-start gap-3 animate-in fade-in slide-in-from-bottom-2"
         >
           <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
           <div className="flex-1 min-w-0">
@@ -853,14 +876,14 @@ export function SampleDetailScreen({
               {toastMessage.description}
             </p>
             <span className="block text-[10px] text-slate-400 mt-1 font-mono">
-              Auto-dismiss in 5s
+              {t("samples:detail.auto_dismiss")}
             </span>
           </div>
           <button
             type="button"
             onClick={() => setToastMessage(null)}
             className="text-slate-400 hover:text-slate-600 p-1"
-            aria-label="Close notification"
+            aria-label={t("samples:detail.close_notification")}
           >
             <X className="w-4 h-4" />
           </button>

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useId, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Calendar,
   CheckCircle2,
@@ -9,6 +10,8 @@ import {
   User,
   X,
 } from "lucide-react";
+import { messageForError } from "../../lib/errors";
+import { formatMoney } from "../../lib/format";
 import { useAuthStore } from "../auth/authStore";
 import { billingService } from "../billing/billingService";
 import type { InvoiceDetail } from "../billing/types";
@@ -27,6 +30,8 @@ export function CollectSampleStep1Screen({
   onContinue,
   billingServiceInstance = billingService,
 }: CollectSampleStep1ScreenProps): JSX.Element {
+  const { t, i18n } = useTranslation(["samples", "common"]);
+  const lang = i18n.resolvedLanguage === "ur" ? "ur" : "en";
   const user = useAuthStore((s) => s.user);
 
   const [invoiceQuery, setInvoiceQuery] = useState(preselectedInvoiceId || "");
@@ -78,14 +83,12 @@ export function CollectSampleStep1Screen({
       } catch (err) {
         setInvoice(null);
         setSelectedItemIds(new Set());
-        setErrorMessage(
-          err instanceof Error ? err.message : "Invoice not found.",
-        );
+        setErrorMessage(messageForError(err, t));
       } finally {
         setIsLoading(false);
       }
     },
-    [billingServiceInstance],
+    [billingServiceInstance, t],
   );
 
   useEffect(() => {
@@ -108,11 +111,11 @@ export function CollectSampleStep1Screen({
 
   const handleContinue = () => {
     if (!invoice) {
-      setErrorMessage("Please select a valid invoice first.");
+      setErrorMessage(t("samples:errors.select_invoice"));
       return;
     }
     if (selectedItemIds.size === 0) {
-      setErrorMessage("Please select at least one test item to collect.");
+      setErrorMessage(t("samples:errors.select_item"));
       return;
     }
 
@@ -132,7 +135,7 @@ export function CollectSampleStep1Screen({
       branch_name: invoice.branch_name || "",
       selected_item_ids: Array.from(selectedItemIds),
       test_labels: selectedItems.map(
-        (i) => i.name || i.description || "Diagnostic Test",
+        (i) => i.name || i.description || t("samples:collect.diagnostic_test"),
       ),
       tubes_required: [],
       collected_at: collectedAt,
@@ -148,7 +151,7 @@ export function CollectSampleStep1Screen({
       {/* Breadcrumb & Header */}
       <div className="mb-6">
         <nav
-          aria-label="Breadcrumb"
+          aria-label={t("samples:breadcrumbs.aria")}
           className="flex items-center gap-2 text-xs text-slate-500 mb-1.5"
         >
           <button
@@ -156,21 +159,25 @@ export function CollectSampleStep1Screen({
             onClick={onCancel}
             className="hover:text-slate-800 transition-colors cursor-pointer"
           >
-            Samples
+            {t("common:nav.samples")}
           </button>
           <span className="text-slate-300">/</span>
-          <span className="text-slate-900 font-medium">New</span>
-          <span className="text-slate-300 ml-1">·</span>
+          <span className="text-slate-900 font-medium">
+            {t("samples:breadcrumbs.new")}
+          </span>
+          <span className="text-slate-300 ms-1">·</span>
           <span className="text-slate-500 font-normal">
-            Times in PKT (UTC+5)
+            {t("samples:time.pkt_in")}
           </span>
         </nav>
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-            Collect sample
+            {t("samples:actions.collect_sample")}
           </h1>
           <div className="flex items-center gap-2 text-xs font-mono text-slate-500 bg-white border border-slate-200 px-2.5 py-1 rounded-md shadow-xs">
-            <span className="text-slate-400">BRANCH:</span>
+            <span className="text-slate-400">
+              {t("samples:collect.branch_label")}
+            </span>
             <span className="font-semibold text-slate-700">
               {invoice?.branch_name || "—"}
             </span>
@@ -188,7 +195,7 @@ export function CollectSampleStep1Screen({
           <button
             type="button"
             onClick={() => setErrorMessage(null)}
-            aria-label="Dismiss error"
+            aria-label={t("samples:list.dismiss_error")}
             className="text-red-500 hover:text-red-700"
           >
             <X className="w-4 h-4" />
@@ -204,11 +211,11 @@ export function CollectSampleStep1Screen({
             htmlFor={searchInputId}
             className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2"
           >
-            Invoice
+            {t("samples:collect.invoice")}
           </label>
           <div className="space-y-2.5">
             <div className="relative">
-              <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+              <Search className="w-4 h-4 absolute start-3 top-2.5 text-slate-400" />
               <input
                 id={searchInputId}
                 type="text"
@@ -220,16 +227,18 @@ export function CollectSampleStep1Screen({
                     handleSearchInvoice(invoiceQuery);
                   }
                 }}
-                placeholder="Search invoice number, patient name or MRN..."
-                className="w-full pl-9 pr-24 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 font-mono placeholder:font-sans placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-600/20 focus:border-teal-600"
+                placeholder={t("samples:collect.invoice_search_placeholder")}
+                className="w-full ps-9 pe-24 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 font-mono placeholder:font-sans placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-600/20 focus:border-teal-600"
               />
               <button
                 type="button"
                 onClick={() => handleSearchInvoice(invoiceQuery)}
                 disabled={isLoading}
-                className="absolute right-2 top-2 px-2.5 py-0.5 text-xs font-medium text-slate-600 hover:text-slate-800 bg-slate-100 hover:bg-slate-200 rounded transition-colors"
+                className="absolute end-2 top-2 px-2.5 py-0.5 text-xs font-medium text-slate-600 hover:text-slate-800 bg-slate-100 hover:bg-slate-200 rounded transition-colors"
               >
-                {isLoading ? "Searching..." : "Lookup"}
+                {isLoading
+                  ? t("samples:actions.searching")
+                  : t("samples:actions.lookup")}
               </button>
             </div>
 
@@ -237,16 +246,27 @@ export function CollectSampleStep1Screen({
             {invoice && (
               <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
-                <span className="font-mono font-medium text-slate-900">
+                <span
+                  className="font-mono font-medium text-slate-900"
+                  dir="ltr"
+                >
                   {invoice.invoice_number || invoice.id}
                 </span>
                 <span className="text-slate-300">—</span>
                 <span className="font-medium text-slate-800">
                   {invoice.patient_name || "—"}
                 </span>
-                <span className="text-slate-400 ml-1">
-                  · Status: {invoice.status.toUpperCase()} (PKR{" "}
-                  {parseFloat(invoice.total || "0").toFixed(2)})
+                <span className="text-slate-400 ms-1">
+                  · {t("samples:collect.status_prefix")}{" "}
+                  <bdi dir="ltr">{invoice.status.toUpperCase()}</bdi>{" "}
+                  <bdi dir="ltr">
+                    (
+                    {formatMoney(
+                      parseFloat(invoice.total || "0").toFixed(2),
+                      lang,
+                    )}
+                    )
+                  </bdi>
                 </span>
               </div>
             )}
@@ -257,7 +277,7 @@ export function CollectSampleStep1Screen({
         {invoice && (
           <div className="pt-4 border-t border-slate-100">
             <span className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">
-              Patient
+              {t("samples:collect.patient")}
             </span>
             <div className="bg-slate-50 border border-slate-200/80 rounded-lg px-3.5 py-2.5 flex items-center justify-between text-sm flex-wrap gap-2">
               <div className="flex items-center gap-2 flex-wrap">
@@ -265,7 +285,10 @@ export function CollectSampleStep1Screen({
                   {invoice.patient_name || "—"}
                 </span>
                 <span className="text-slate-300">·</span>
-                <span className="font-mono text-xs text-slate-700 bg-white border border-slate-200 px-1.5 py-0.5 rounded">
+                <span
+                  className="font-mono text-xs text-slate-700 bg-white border border-slate-200 px-1.5 py-0.5 rounded"
+                  dir="ltr"
+                >
                   {invoice.patient_mrn || "—"}
                 </span>
                 {invoice.patient_sex && (
@@ -280,7 +303,7 @@ export function CollectSampleStep1Screen({
               </div>
               <div className="flex items-center gap-1.5 text-xs text-emerald-700 font-medium bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md shrink-0">
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                <span>Invoice selected</span>
+                <span>{t("samples:collect.invoice_selected")}</span>
               </div>
             </div>
           </div>
@@ -291,10 +314,12 @@ export function CollectSampleStep1Screen({
           <div className="pt-4 border-t border-slate-100">
             <div className="flex items-center justify-between mb-2.5">
               <span className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                Tests from invoice
+                {t("samples:collect.tests_from_invoice")}
               </span>
               <span className="text-xs text-slate-500 font-normal">
-                {invoice.items.length} items · Select samples to collect
+                {t("samples:collect.items_hint", {
+                  n: invoice.items.length,
+                })}
               </span>
             </div>
 
@@ -302,7 +327,9 @@ export function CollectSampleStep1Screen({
               {invoice.items.map((item) => {
                 const isSelected = selectedItemIds.has(item.id);
                 const itemName =
-                  item.name || item.description || "Diagnostic Test";
+                  item.name ||
+                  item.description ||
+                  t("samples:collect.diagnostic_test");
                 return (
                   <label
                     key={item.id}
@@ -326,21 +353,26 @@ export function CollectSampleStep1Screen({
                           </span>
                           <span className="text-[11px] font-mono text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
                             {item.panel_id
-                              ? "PANEL"
+                              ? t("samples:collect.kinds.panel")
                               : item.test_id
-                                ? "TEST"
-                                : "ITEM"}
+                                ? t("samples:collect.kinds.test")
+                                : t("samples:collect.kinds.item")}
                           </span>
                         </div>
                         <p className="text-xs text-slate-500 mt-0.5">
-                          Qty {item.quantity} · PKR{" "}
-                          {parseFloat(item.unit_price || "0").toFixed(2)} each
+                          {t("samples:collect.qty_each", {
+                            qty: item.quantity,
+                            price: formatMoney(
+                              parseFloat(item.unit_price || "0").toFixed(2),
+                              lang,
+                            ),
+                          })}
                         </p>
                       </div>
-                      <div className="text-right">
+                      <div className="text-end">
                         <span className="inline-flex items-center gap-1.5 text-xs text-slate-600 font-medium bg-slate-50 border border-slate-200 px-2 py-0.5 rounded">
                           <Clock className="w-3 h-3 text-slate-400" />
-                          Pending collection
+                          {t("samples:collect.pending_collection")}
                         </span>
                       </div>
                     </div>
@@ -354,7 +386,7 @@ export function CollectSampleStep1Screen({
         {/* SECTION 4: COLLECTION DETAILS */}
         <div className="pt-4 border-t border-slate-100 space-y-4">
           <span className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
-            Collection details
+            {t("samples:collect.collection_details")}
           </span>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -363,21 +395,23 @@ export function CollectSampleStep1Screen({
                 htmlFor={collectedAtInputId}
                 className="block text-xs font-medium text-slate-700 mb-1.5"
               >
-                Collected at{" "}
-                <span className="text-slate-400 font-normal">(PKT)</span>
+                {t("samples:collect.collected_at")}{" "}
+                <span className="text-slate-400 font-normal">
+                  {t("samples:time.pkt_paren")}
+                </span>
               </label>
               <div className="relative">
-                <Calendar className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+                <Calendar className="w-4 h-4 absolute start-3 top-2.5 text-slate-400" />
                 <input
                   id={collectedAtInputId}
                   type="text"
                   value={collectedAt}
                   onChange={(e) => setCollectedAt(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 font-mono focus:outline-none focus:ring-2 focus:ring-teal-600/20 focus:border-teal-600"
+                  className="w-full ps-9 pe-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 font-mono focus:outline-none focus:ring-2 focus:ring-teal-600/20 focus:border-teal-600"
                 />
               </div>
               <p className="text-[11px] text-slate-500 mt-1">
-                Current phlebotomy timestamp
+                {t("samples:collect.collected_at_hint")}
               </p>
             </div>
 
@@ -386,20 +420,20 @@ export function CollectSampleStep1Screen({
                 htmlFor={collectedByInputId}
                 className="block text-xs font-medium text-slate-700 mb-1.5"
               >
-                Collected by
+                {t("samples:collect.collected_by")}
               </label>
               <div className="relative">
-                <User className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+                <User className="w-4 h-4 absolute start-3 top-2.5 text-slate-400" />
                 <input
                   id={collectedByInputId}
                   type="text"
                   value={user?.email || ""}
                   readOnly
-                  className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-900 cursor-not-allowed"
+                  className="w-full ps-9 pe-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-900 cursor-not-allowed"
                 />
               </div>
               <p className="text-[11px] text-slate-500 mt-1">
-                Authenticated intake operator
+                {t("samples:collect.collected_by_hint")}
               </p>
             </div>
           </div>
@@ -410,11 +444,13 @@ export function CollectSampleStep1Screen({
                 htmlFor={notesInputId}
                 className="block text-xs font-medium text-slate-700"
               >
-                Notes{" "}
-                <span className="text-slate-400 font-normal">(optional)</span>
+                {t("common:labels.notes")}{" "}
+                <span className="text-slate-400 font-normal">
+                  {t("samples:collect.optional_paren")}
+                </span>
               </label>
               <span className="text-[11px] text-slate-400">
-                Specimen integrity & phlebotomy observations
+                {t("samples:collect.notes_hint")}
               </span>
             </div>
             <textarea
@@ -422,7 +458,7 @@ export function CollectSampleStep1Screen({
               rows={3}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="e.g. Venipuncture completed on right antecubital fossa without hemolysis. Patient tolerated well."
+              placeholder={t("samples:collect.notes_placeholder")}
               className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-600/20 focus:border-teal-600 resize-none"
             />
           </div>
@@ -433,10 +469,9 @@ export function CollectSampleStep1Screen({
           <Info className="w-4 h-4 text-slate-500 shrink-0 mt-0.5" />
           <div className="text-xs text-slate-600 leading-relaxed">
             <span className="font-medium text-slate-700">
-              Next workflow step:
+              {t("samples:collect.next_step_label")}
             </span>{" "}
-            Verification stepper and label printer readiness will be confirmed
-            in Step 2.
+            {t("samples:collect.next_step_body")}
           </div>
         </div>
 
@@ -447,7 +482,7 @@ export function CollectSampleStep1Screen({
             onClick={onCancel}
             className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 hover:border-slate-300 transition-colors"
           >
-            Cancel
+            {t("common:actions.cancel")}
           </button>
           <button
             type="button"
@@ -455,7 +490,7 @@ export function CollectSampleStep1Screen({
             className="px-5 py-2 text-sm font-semibold text-white bg-teal-600 hover:bg-teal-700 rounded-lg shadow-sm transition-colors flex items-center gap-2"
           >
             <FlaskConical className="w-4 h-4" />
-            <span>Continue to verification</span>
+            <span>{t("samples:actions.continue_to_verification")}</span>
           </button>
         </div>
       </div>
