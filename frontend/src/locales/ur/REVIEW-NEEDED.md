@@ -41,4 +41,3 @@ Every area keeps its own honest uncertainty register next to the locale files:
   wants to repeat them.
 - **CSV ledger export** stays English by design: the `data:text/csv` download has
   no UTF-8 BOM, so Urdu headers would be mojibake in Excel.
-
