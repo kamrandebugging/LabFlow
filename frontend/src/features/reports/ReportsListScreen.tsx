@@ -6,6 +6,7 @@
 
 import { useEffect, useId, useState } from "react";
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import {
   FileText,
   Search,
@@ -19,6 +20,8 @@ import {
 } from "lucide-react";
 import { useAuthStore } from "../auth/authStore";
 import { reportsService } from "./reportsService";
+import { formatDate, statusLabel } from "../../lib/format";
+import { messageForError } from "../../lib/errors";
 import type {
   DeliveryChannel,
   ReportPatientContact,
@@ -27,6 +30,7 @@ import type {
 } from "./types";
 
 export function ReportsListScreen(): JSX.Element {
+  const { t } = useTranslation(["reports", "common"]);
   const searchInputId = useId();
   const statusSelectId = useId();
 
@@ -85,9 +89,7 @@ export function ReportsListScreen(): JSX.Element {
       }
       setNextCursor(res.next_cursor);
     } catch (err) {
-      setErrorMessage(
-        err instanceof Error ? err.message : "Failed to load clinical reports.",
-      );
+      setErrorMessage(messageForError(err, (key) => t(`common:${key}`)));
     } finally {
       setLoading(false);
       setLoadingMore(false);
@@ -118,15 +120,11 @@ export function ReportsListScreen(): JSX.Element {
       setRegeneratingId(reportId);
       setErrorMessage(null);
       await reportsService.regenerateReport(reportId);
-      setSuccessMessage(
-        "PDF generation queued. A new version will be ready momentarily.",
-      );
+      setSuccessMessage(t("reports:list.regenerated"));
       setTimeout(() => setSuccessMessage(null), 4000);
       fetchReports(true);
     } catch (err) {
-      setErrorMessage(
-        err instanceof Error ? err.message : "Failed to regenerate report PDF.",
-      );
+      setErrorMessage(messageForError(err, (key) => t(`common:${key}`)));
     } finally {
       setRegeneratingId(null);
     }
@@ -152,7 +150,12 @@ export function ReportsListScreen(): JSX.Element {
     const contact = deliveryContacts?.find((c) => c.kind === deliveryChannel);
     if (!contact) {
       setDeliveryError(
-        `No ${deliveryChannel === "whatsapp" ? "WhatsApp" : "email"} contact is stored for this patient.`,
+        t("reports:list.no_contact_channel", {
+          channel:
+            deliveryChannel === "whatsapp"
+              ? t("reports:list.whatsapp")
+              : t("reports:list.email"),
+        }),
       );
       return;
     }
@@ -167,15 +170,15 @@ export function ReportsListScreen(): JSX.Element {
       });
 
       setSuccessMessage(
-        `Report dispatched via ${deliveryChannel.toUpperCase()}.`,
+        t("reports:list.dispatched", {
+          channel: deliveryChannel.toUpperCase(),
+        }),
       );
       setDeliveringReport(null);
       setTimeout(() => setSuccessMessage(null), 4000);
       fetchReports(true);
     } catch (err) {
-      setDeliveryError(
-        err instanceof Error ? err.message : "Failed to deliver report.",
-      );
+      setDeliveryError(messageForError(err, (key) => t(`common:${key}`)));
     } finally {
       setIsDelivering(false);
     }
@@ -187,33 +190,34 @@ export function ReportsListScreen(): JSX.Element {
     deliveryContacts?.some((c) => c.kind === "email") ?? false;
 
   const getStatusBadge = (status: ReportStatus) => {
+    const label = statusLabel("report", status, (key) => t(`common:${key}`));
     switch (status) {
       case "final":
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
-            Final
+            {label}
           </span>
         );
       case "amended":
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200">
             <span className="w-1.5 h-1.5 rounded-full bg-amber-600"></span>
-            Amended
+            {label}
           </span>
         );
       case "void":
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-50 text-rose-800 border border-rose-200">
             <span className="w-1.5 h-1.5 rounded-full bg-rose-600"></span>
-            Void
+            {label}
           </span>
         );
       default:
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200">
             <span className="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
-            Draft
+            {label}
           </span>
         );
     }
@@ -223,7 +227,7 @@ export function ReportsListScreen(): JSX.Element {
     if (!report.latest_delivery) {
       return (
         <span className="inline-flex items-center gap-1 text-xs text-slate-400">
-          Not sent
+          {t("reports:list.not_sent")}
         </span>
       );
     }
@@ -242,7 +246,9 @@ export function ReportsListScreen(): JSX.Element {
         }`}
       >
         <span className="capitalize">{channel}:</span>
-        <span className="capitalize font-semibold">{status}</span>
+        <span className="capitalize font-semibold">
+          {t(`reports:list.delivery.${status}`, { defaultValue: status })}
+        </span>
       </span>
     );
   };
@@ -254,14 +260,14 @@ export function ReportsListScreen(): JSX.Element {
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-              Reports
+              {t("reports:list.title")}
             </h1>
             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-teal-50 text-teal-800 border border-teal-200">
-              LIS Active
+              {t("reports:list.active")}
             </span>
           </div>
           <p className="text-sm text-slate-500 mt-1">
-            Clinical reports distribution and delivery records.
+            {t("reports:list.subtitle")}
           </p>
         </div>
 
@@ -271,17 +277,17 @@ export function ReportsListScreen(): JSX.Element {
             className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors"
           >
             <AlertCircle className="w-4 h-4 text-amber-600" />
-            Exceptions Queue
+            {t("reports:list.exceptions_queue")}
           </Link>
           <button
             onClick={() => fetchReports(true)}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-teal-50 text-teal-700 hover:bg-teal-100 transition-colors"
-            title="Refresh reports list"
+            title={t("reports:list.refresh_title")}
           >
             <RefreshCw
               className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`}
             />
-            Refresh
+            {t("reports:list.refresh")}
           </button>
         </div>
       </div>
@@ -318,15 +324,15 @@ export function ReportsListScreen(): JSX.Element {
         <div className="flex flex-wrap items-center gap-3 flex-1">
           {/* Search Box */}
           <div className="relative w-full sm:w-80">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <Search className="w-4 h-4 text-slate-400 absolute start-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               id={searchInputId}
               type="text"
-              aria-label="Search patient, MRN, or accession ID"
+              aria-label={t("reports:list.search_aria")}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search patient, MRN, or accession ID…"
-              className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-teal-600 focus:border-transparent transition-all"
+              placeholder={t("reports:list.search_placeholder")}
+              className="w-full ps-9 pe-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-teal-600 focus:border-transparent transition-all"
             />
           </div>
 
@@ -334,23 +340,25 @@ export function ReportsListScreen(): JSX.Element {
           <div className="relative min-w-[150px]">
             <select
               id={statusSelectId}
-              aria-label="Filter by report status"
+              aria-label={t("reports:list.filter_aria")}
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="w-full appearance-none pl-3 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-900 focus:outline-none focus:bg-white focus:ring-2 focus:ring-teal-600 focus:border-transparent cursor-pointer"
+              className="w-full appearance-none ps-3 pe-8 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-900 focus:outline-none focus:bg-white focus:ring-2 focus:ring-teal-600 focus:border-transparent cursor-pointer"
             >
-              <option value="all">All statuses</option>
-              <option value="draft">Draft</option>
-              <option value="final">Final</option>
-              <option value="amended">Amended</option>
-              <option value="void">Void</option>
+              <option value="all">{t("reports:list.all_statuses")}</option>
+              <option value="draft">{t("common:status.report.draft")}</option>
+              <option value="final">{t("common:status.report.final")}</option>
+              <option value="amended">
+                {t("common:status.report.amended")}
+              </option>
+              <option value="void">{t("common:status.report.void")}</option>
             </select>
-            <Filter className="w-3.5 h-3.5 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <Filter className="w-3.5 h-3.5 text-slate-400 absolute end-3 top-1/2 -translate-y-1/2 pointer-events-none" />
           </div>
         </div>
 
         <div className="flex items-center gap-2 text-xs text-slate-500 self-end md:self-auto">
-          <span>Channels: WhatsApp & Email</span>
+          <span>{t("reports:list.channels")}</span>
         </div>
       </div>
 
@@ -360,7 +368,7 @@ export function ReportsListScreen(): JSX.Element {
           <div className="flex flex-col items-center justify-center py-20 gap-3 text-slate-400">
             <RefreshCw className="w-8 h-8 animate-spin text-teal-600" />
             <span className="text-sm font-medium">
-              Loading clinical reports…
+              {t("reports:list.loading")}
             </span>
           </div>
         ) : reports.length === 0 ? (
@@ -370,12 +378,12 @@ export function ReportsListScreen(): JSX.Element {
               <FileText className="w-6 h-6" />
             </div>
             <h3 className="text-base font-semibold text-slate-900">
-              No reports found
+              {t("reports:list.empty_title")}
             </h3>
             <p className="text-sm text-slate-500 mt-1 max-w-sm">
               {searchQuery || statusFilter !== "all"
-                ? "No reports match the selected filters. Try clearing your search query or status filter."
-                : "No clinical reports have been generated yet."}
+                ? t("reports:list.empty_filtered")
+                : t("reports:list.empty_none")}
             </p>
             {(searchQuery || statusFilter !== "all") && (
               <button
@@ -385,38 +393,35 @@ export function ReportsListScreen(): JSX.Element {
                 }}
                 className="mt-4 px-3 py-1.5 text-xs font-semibold rounded-lg bg-teal-50 text-teal-700 hover:bg-teal-100 transition-colors"
               >
-                Clear all filters
+                {t("reports:list.clear_filters")}
               </button>
             )}
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+            <table className="w-full text-start border-collapse">
               <thead>
                 <tr className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider border-b border-slate-200">
                   <th className="py-3 px-4 font-semibold" scope="col">
-                    Report / Accession
+                    {t("reports:list.th_report")}
                   </th>
                   <th className="py-3 px-4 font-semibold" scope="col">
-                    Patient
+                    {t("reports:list.th_patient")}
                   </th>
                   <th className="py-3 px-4 font-semibold" scope="col">
-                    Tests
+                    {t("reports:list.th_tests")}
                   </th>
                   <th className="py-3 px-4 font-semibold" scope="col">
-                    Status
+                    {t("reports:list.th_status")}
                   </th>
                   <th className="py-3 px-4 font-semibold" scope="col">
-                    Delivery
+                    {t("reports:list.th_delivery")}
                   </th>
                   <th className="py-3 px-4 font-semibold" scope="col">
-                    Created
+                    {t("reports:list.th_created")}
                   </th>
-                  <th
-                    className="py-3 px-4 font-semibold text-right"
-                    scope="col"
-                  >
-                    Actions
+                  <th className="py-3 px-4 font-semibold text-end" scope="col">
+                    {t("reports:list.th_actions")}
                   </th>
                 </tr>
               </thead>
@@ -449,7 +454,7 @@ export function ReportsListScreen(): JSX.Element {
                     <td className="py-3.5 px-4 text-slate-600">
                       <span className="truncate max-w-[200px] block">
                         {report.sample.tests.map((t) => t.code).join(", ") ||
-                          "Clinical tests"}
+                          t("reports:list.clinical_tests")}
                       </span>
                     </td>
                     <td className="py-3.5 px-4">
@@ -457,20 +462,16 @@ export function ReportsListScreen(): JSX.Element {
                     </td>
                     <td className="py-3.5 px-4">{getDeliveryBadge(report)}</td>
                     <td className="py-3.5 px-4 text-xs font-mono text-slate-500">
-                      {new Date(report.created_at).toLocaleDateString("en-GB", {
-                        day: "2-digit",
-                        month: "short",
-                        year: "numeric",
-                      })}
+                      {formatDate(report.created_at)}
                     </td>
-                    <td className="py-3.5 px-4 text-right">
+                    <td className="py-3.5 px-4 text-end">
                       <div className="flex items-center justify-end gap-2">
                         {canRegenerate && (
                           <button
                             onClick={() => handleRegenerate(report.id)}
                             disabled={regeneratingId === report.id}
                             className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors disabled:opacity-50"
-                            title="Regenerate PDF"
+                            title={t("reports:list.regenerate_title")}
                           >
                             <RefreshCw
                               className={`w-3.5 h-3.5 ${
@@ -479,24 +480,28 @@ export function ReportsListScreen(): JSX.Element {
                                   : ""
                               }`}
                             />
-                            <span className="hidden sm:inline">Regenerate</span>
+                            <span className="hidden sm:inline">
+                              {t("reports:list.regenerate")}
+                            </span>
                           </button>
                         )}
                         {canDeliver && (
                           <button
                             onClick={() => openDeliveryModal(report)}
                             className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded text-teal-700 hover:text-teal-900 hover:bg-teal-50 transition-colors"
-                            title="Deliver report"
+                            title={t("reports:list.deliver_title")}
                           >
                             <Send className="w-3.5 h-3.5" />
-                            <span className="hidden sm:inline">Deliver</span>
+                            <span className="hidden sm:inline">
+                              {t("reports:list.deliver")}
+                            </span>
                           </button>
                         )}
                         <Link
                           to={`/reports/${report.id}`}
-                          className="inline-flex items-center gap-1 font-semibold text-xs text-teal-700 hover:text-teal-900 group-hover:translate-x-0.5 transition-all ml-1"
+                          className="inline-flex items-center gap-1 font-semibold text-xs text-teal-700 hover:text-teal-900 group-hover:translate-x-0.5 transition-all ms-1"
                         >
-                          <span>Open</span>
+                          <span>{t("reports:list.open")}</span>
                           <ArrowRight className="w-3.5 h-3.5" />
                         </Link>
                       </div>
@@ -519,10 +524,10 @@ export function ReportsListScreen(): JSX.Element {
               {loadingMore ? (
                 <>
                   <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                  Loading more reports…
+                  {t("reports:list.loading_more")}
                 </>
               ) : (
-                "Load more reports"
+                t("reports:list.load_more")
               )}
             </button>
           </div>
@@ -544,16 +549,18 @@ export function ReportsListScreen(): JSX.Element {
                   id="deliver-modal-title"
                   className="text-lg font-bold text-slate-900"
                 >
-                  Deliver Clinical Report
+                  {t("reports:list.deliver_modal_title")}
                 </h3>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Report for {deliveringReport.sample.patient.name} (
-                  {deliveringReport.sample.accession_id})
+                  {t("reports:list.deliver_for", {
+                    name: deliveringReport.sample.patient.name,
+                    accession: deliveringReport.sample.accession_id,
+                  })}
                 </p>
               </div>
               <button
                 onClick={() => setDeliveringReport(null)}
-                aria-label="Close dialog"
+                aria-label={t("reports:list.close_dialog")}
                 className="text-slate-400 hover:text-slate-600 transition-colors"
               >
                 <X className="w-5 h-5" />
@@ -572,7 +579,7 @@ export function ReportsListScreen(): JSX.Element {
 
               <div>
                 <label className="block text-xs font-semibold uppercase text-slate-600 mb-1.5">
-                  Delivery Channel
+                  {t("reports:list.delivery_channel")}
                 </label>
                 <div className="grid grid-cols-2 gap-3">
                   <button
@@ -587,7 +594,7 @@ export function ReportsListScreen(): JSX.Element {
                         : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
                     }`}
                   >
-                    <span>WhatsApp</span>
+                    <span>{t("reports:list.whatsapp")}</span>
                   </button>
                   <button
                     type="button"
@@ -595,7 +602,7 @@ export function ReportsListScreen(): JSX.Element {
                     title={
                       emailContactAvailable
                         ? undefined
-                        : "No email contact is stored for this patient"
+                        : t("reports:list.no_email_title")
                     }
                     onClick={() => {
                       setDeliveryChannel("email");
@@ -607,7 +614,7 @@ export function ReportsListScreen(): JSX.Element {
                         : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
                     }`}
                   >
-                    <span>Email</span>
+                    <span>{t("reports:list.email")}</span>
                   </button>
                 </div>
               </div>
@@ -617,7 +624,7 @@ export function ReportsListScreen(): JSX.Element {
                   htmlFor="destination-contact-input"
                   className="block text-xs font-semibold uppercase text-slate-600 mb-1.5"
                 >
-                  Destination Contact
+                  {t("reports:list.destination_contact")}
                 </label>
                 {activeContact ? (
                   <>
@@ -629,14 +636,18 @@ export function ReportsListScreen(): JSX.Element {
                       className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-900 font-mono"
                     />
                     <p className="mt-1 text-[11px] text-slate-400">
-                      Stored {deliveryChannel} contact for this patient.
+                      {t("reports:list.stored_contact", {
+                        channel: deliveryChannel,
+                      })}
                     </p>
                   </>
                 ) : (
                   <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-900">
                     {deliveryContacts === null
-                      ? "Loading the patient's stored contacts…"
-                      : `No stored ${deliveryChannel} contact for this patient. Update the patient record before delivering.`}
+                      ? t("reports:list.loading_contacts")
+                      : t("reports:list.no_stored_contact", {
+                          channel: deliveryChannel,
+                        })}
                   </div>
                 )}
               </div>
@@ -647,7 +658,7 @@ export function ReportsListScreen(): JSX.Element {
                   onClick={() => setDeliveringReport(null)}
                   className="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-800 transition-colors"
                 >
-                  Cancel
+                  {t("common:actions.cancel")}
                 </button>
                 <button
                   type="submit"
@@ -657,12 +668,12 @@ export function ReportsListScreen(): JSX.Element {
                   {isDelivering ? (
                     <>
                       <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                      Dispatching…
+                      {t("reports:list.dispatching")}
                     </>
                   ) : (
                     <>
                       <Send className="w-3.5 h-3.5" />
-                      Send Report
+                      {t("reports:list.send_report")}
                     </>
                   )}
                 </button>

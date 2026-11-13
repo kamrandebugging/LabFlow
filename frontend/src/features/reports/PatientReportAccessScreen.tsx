@@ -3,23 +3,37 @@
  * Spec: Doc 03 §5.6 RP-8/RP-9, §6.8, 28-patient-report-access.html.
  * PUBLIC route: NO auth guard, the token is the sole credential.
  * Icons: lucide-react exclusively. No emojis.
+ *
+ * Language: explicit choice → tenant report_default_language (when the public
+ * response exposes it) → browser language → English. The PDF itself is not
+ * re-rendered here; this only localises the access chrome.
  */
 
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { Download, Lock, Shield } from "lucide-react";
 import { reportsService } from "./reportsService";
+import { LanguageSwitcher } from "../../components/LanguageSwitcher";
+import { resolvePublicLanguage } from "../../i18n";
+
+type MessageKey =
+  | "reports:public.verifying"
+  | "reports:public.verifying_token"
+  | "reports:public.verified"
+  | "reports:public.failed"
+  | "reports:public.error";
 
 export function PatientReportAccessScreen(): JSX.Element {
   const { token } = useParams<{ token: string }>();
   const navigate = useNavigate();
+  const { t, i18n } = useTranslation(["reports", "common"]);
 
   const [checking, setChecking] = useState(true);
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
-  const [statusMessage, setStatusMessage] = useState(
-    "Verifying digital signature…",
+  const [statusKey, setStatusKey] = useState<MessageKey>(
+    "reports:public.verifying",
   );
-
   const [serverError, setServerError] = useState<string | null>(null);
 
   const verify = async () => {
@@ -30,7 +44,7 @@ export function PatientReportAccessScreen(): JSX.Element {
     try {
       setChecking(true);
       setServerError(null);
-      setStatusMessage("Verifying digital signature and security token…");
+      setStatusKey("reports:public.verifying_token");
       const res = await reportsService.checkPublicReportAccess(token);
 
       if (res.status === 410 || res.status === 404) {
@@ -45,25 +59,24 @@ export function PatientReportAccessScreen(): JSX.Element {
 
       if (res.status === 200) {
         setDownloadUrl(`/api/v1/report-access/${encodeURIComponent(token)}`);
-        setStatusMessage("Official medical report verified and ready.");
+        setStatusKey("reports:public.verified");
       } else {
-        setServerError(
-          res.error?.message ||
-            "Unable to connect to diagnostic server. Please try again.",
-        );
-        setStatusMessage("Verification failed.");
+        setServerError(t("reports:public.connect_error"));
+        setStatusKey("reports:public.failed");
       }
     } catch {
-      setServerError(
-        "Network error connecting to diagnostic portal. Please check connection.",
-      );
-      setStatusMessage("Verification error.");
+      setServerError(t("reports:public.network_error"));
+      setStatusKey("reports:public.error");
     } finally {
       setChecking(false);
     }
   };
 
   useEffect(() => {
+    const preferred = resolvePublicLanguage();
+    if (i18n.resolvedLanguage !== preferred) {
+      void i18n.changeLanguage(preferred);
+    }
     verify();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
@@ -78,17 +91,20 @@ export function PatientReportAccessScreen(): JSX.Element {
           </div>
           <div>
             <h1 className="text-base font-bold text-slate-900 leading-tight">
-              City Diagnostic Lab
+              {t("common:brand.labflow")}
             </h1>
             <p className="text-xs text-slate-500">
-              Central Pathology & Molecular Diagnostics
+              {t("reports:public.portal_subtitle")}
             </p>
           </div>
         </div>
 
-        <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-teal-50 border border-teal-200 text-teal-800 text-xs font-semibold">
-          <Lock className="w-3.5 h-3.5 text-teal-700" />
-          <span>Direct Token Access · Verified</span>
+        <div className="flex items-center gap-3">
+          <LanguageSwitcher compact />
+          <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-teal-50 border border-teal-200 text-teal-800 text-xs font-semibold">
+            <Lock className="w-3.5 h-3.5 text-teal-700" />
+            <span>{t("reports:public.token_access")}</span>
+          </div>
         </div>
       </header>
 
@@ -112,16 +128,16 @@ export function PatientReportAccessScreen(): JSX.Element {
               ></span>
               <span className="font-semibold text-slate-900 text-sm">
                 {checking
-                  ? "Opening your report…"
+                  ? t("reports:public.opening")
                   : serverError
-                    ? "Connection Issue"
-                    : "Diagnostic report ready"}
+                    ? t("reports:public.connection_issue")
+                    : t("reports:public.ready")}
               </span>
             </div>
             <span className="text-xs text-slate-600">
               {serverError
-                ? "Unable to complete digital signature check."
-                : "Your official diagnostic document is ready for viewing & download."}
+                ? t("reports:public.signature_check_failed")
+                : t("reports:public.ready_detail")}
             </span>
           </div>
 
@@ -136,7 +152,7 @@ export function PatientReportAccessScreen(): JSX.Element {
                 onClick={verify}
                 className="px-3 py-1 bg-white border border-rose-300 rounded font-semibold text-rose-800 hover:bg-rose-100 transition-colors shrink-0"
               >
-                Retry
+                {t("reports:public.retry")}
               </button>
             </div>
           )}
@@ -147,18 +163,18 @@ export function PatientReportAccessScreen(): JSX.Element {
                 className="w-3.5 h-3.5 text-teal-700"
                 aria-hidden="true"
               />
-              <span>{statusMessage}</span>
+              <span>{t(statusKey)}</span>
             </div>
             <span className="font-mono text-[11px] text-slate-600">
               {checking
-                ? "Checking…"
+                ? t("reports:public.checking")
                 : serverError
-                  ? "Error"
-                  : "Status: 200 OK"}
+                  ? t("reports:public.error_short")
+                  : t("reports:public.status_ok")}
             </span>
           </div>
           <div role="status" aria-live="polite" className="sr-only">
-            {statusMessage}
+            {t(statusKey)}
           </div>
         </section>
 
@@ -167,10 +183,10 @@ export function PatientReportAccessScreen(): JSX.Element {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b-2 border-slate-800">
             <div>
               <h2 className="text-xl font-bold uppercase tracking-tight text-slate-900">
-                Official Clinical Report
+                {t("reports:public.official_report")}
               </h2>
               <p className="text-xs text-slate-600 mt-0.5">
-                Official Clinical Report
+                {t("reports:public.official_report")}
               </p>
             </div>
 
@@ -179,12 +195,14 @@ export function PatientReportAccessScreen(): JSX.Element {
                 href={downloadUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                aria-label="Download Official PDF (opens in a new tab)"
+                aria-label={t("reports:public.download_pdf_aria")}
                 className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-xs font-semibold bg-teal-600 text-white hover:bg-teal-700 transition-colors shadow-sm focus-visible:ring-2 focus-visible:ring-teal-600 focus-visible:ring-offset-2"
               >
                 <Download className="w-4 h-4" aria-hidden="true" />
-                <span>Download Official PDF</span>
-                <span className="sr-only">(opens in a new tab)</span>
+                <span>{t("reports:public.download_pdf")}</span>
+                <span className="sr-only">
+                  {t("reports:public.opens_new_tab")}
+                </span>
               </a>
             )}
           </div>
@@ -193,40 +211,35 @@ export function PatientReportAccessScreen(): JSX.Element {
           <div className="p-5 bg-slate-50 rounded-xl border border-slate-200 text-xs flex flex-col sm:flex-row justify-between gap-4">
             <div>
               <span className="text-slate-400 font-medium uppercase block text-[10px]">
-                Authentication
+                {t("reports:public.authentication")}
               </span>
               <span className="font-semibold text-slate-800 text-sm block mt-0.5">
-                Authenticated Patient Token
+                {t("reports:public.authenticated_token")}
               </span>
               <span className="text-slate-500">
-                Expires after validity window for patient privacy.
+                {t("reports:public.expiry_note")}
               </span>
             </div>
-            <div className="sm:text-right">
+            <div className="sm:text-end">
               <span className="text-slate-400 font-medium uppercase block text-[10px]">
-                Support
+                {t("reports:public.support")}
               </span>
               <span className="text-slate-700 block mt-0.5 font-medium">
-                City Diagnostic Lab Helpdesk
+                {t("reports:public.helpdesk")}
               </span>
-              <span className="text-teal-700 font-mono">+92 42 35712345</span>
             </div>
           </div>
 
           {/* Guidance note */}
           <div className="text-xs text-slate-500 leading-relaxed border-t border-slate-100 pt-4">
-            <p>
-              Please review these diagnostic findings with your consulting
-              physician. If you suspect any discrepancies or require an updated
-              copy, contact the front desk at City Diagnostic Lab.
-            </p>
+            <p>{t("reports:public.guidance")}</p>
           </div>
         </article>
       </main>
 
       {/* Muted Footer */}
       <footer className="w-full max-w-3xl text-center text-xs text-slate-400 pt-4">
-        City Diagnostic Lab · End-to-End Encrypted Access
+        {t("reports:public.footer")}
       </footer>
     </div>
   );

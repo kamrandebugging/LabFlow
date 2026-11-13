@@ -465,7 +465,14 @@ describe("Screen 28: Patient Report Access (/report-access/:token)", () => {
 describe("Screen 29: Link Expired (/link-expired)", () => {
   it("renders calm card with guidance and lab phone", () => {
     render(
-      <MemoryRouter initialEntries={["/link-expired"]}>
+      <MemoryRouter
+        initialEntries={[
+          {
+            pathname: "/link-expired",
+            state: { phone: "+92 42 35712345", reason: "link_expired" },
+          },
+        ]}
+      >
         <LinkExpiredScreen />
       </MemoryRouter>,
     );

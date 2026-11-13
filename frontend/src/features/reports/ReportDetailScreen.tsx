@@ -6,6 +6,7 @@
 
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import {
   FileText,
   Download,
@@ -22,9 +23,12 @@ import {
 } from "lucide-react";
 import { useAuthStore } from "../auth/authStore";
 import { reportsService } from "./reportsService";
+import { formatDate, formatDateTime, statusLabel } from "../../lib/format";
+import { messageForError } from "../../lib/errors";
 import type { DeliveryChannel, ReportDetail } from "./types";
 
 export function ReportDetailScreen(): JSX.Element | null {
+  const { t } = useTranslation(["reports", "common"]);
   const { id } = useParams<{ id: string }>();
 
   const user = useAuthStore((state) => state.user);
@@ -65,9 +69,7 @@ export function ReportDetailScreen(): JSX.Element | null {
       const data = await reportsService.getReport(id);
       setReport(data);
     } catch (err) {
-      setErrorMessage(
-        err instanceof Error ? err.message : "Failed to load report detail.",
-      );
+      setErrorMessage(messageForError(err, (key) => t(`common:${key}`)));
     } finally {
       setLoading(false);
     }
@@ -106,15 +108,11 @@ export function ReportDetailScreen(): JSX.Element | null {
       setErrorMessage(null);
       const res = await reportsService.issueAccessToken(id);
       setActiveLink(res.link);
-      setSuccessMessage(
-        "New patient access link generated. It is valid for 7 days.",
-      );
+      setSuccessMessage(t("reports:detail.tokens_issued"));
       setTimeout(() => setSuccessMessage(null), 4000);
       fetchDetail();
     } catch (err) {
-      setErrorMessage(
-        err instanceof Error ? err.message : "Failed to issue access token.",
-      );
+      setErrorMessage(messageForError(err, (key) => t(`common:${key}`)));
     } finally {
       setIssuingToken(false);
     }
@@ -122,11 +120,7 @@ export function ReportDetailScreen(): JSX.Element | null {
 
   const handleRevokeTokens = async () => {
     if (!id || !canRevokeToken) return;
-    if (
-      !window.confirm(
-        "Are you sure you want to revoke all patient access links for this report?",
-      )
-    ) {
+    if (!window.confirm(t("reports:detail.revoke_confirm"))) {
       return;
     }
     try {
@@ -134,13 +128,11 @@ export function ReportDetailScreen(): JSX.Element | null {
       setErrorMessage(null);
       await reportsService.revokeAccessToken(id);
       setActiveLink(null);
-      setSuccessMessage("All patient access links have been revoked.");
+      setSuccessMessage(t("reports:detail.tokens_revoked"));
       setTimeout(() => setSuccessMessage(null), 4000);
       fetchDetail();
     } catch (err) {
-      setErrorMessage(
-        err instanceof Error ? err.message : "Failed to revoke tokens.",
-      );
+      setErrorMessage(messageForError(err, (key) => t(`common:${key}`)));
     } finally {
       setRevokingToken(false);
     }
@@ -152,15 +144,13 @@ export function ReportDetailScreen(): JSX.Element | null {
       setIsRegenerating(true);
       setErrorMessage(null);
       await reportsService.regenerateReport(id);
-      setSuccessMessage("New PDF rendering enqueued. Refreshing in a moment…");
+      setSuccessMessage(t("reports:detail.regenerate_success"));
       setTimeout(() => {
         setSuccessMessage(null);
         fetchDetail();
       }, 3000);
     } catch (err) {
-      setErrorMessage(
-        err instanceof Error ? err.message : "Failed to regenerate report PDF.",
-      );
+      setErrorMessage(messageForError(err, (key) => t(`common:${key}`)));
     } finally {
       setIsRegenerating(false);
     }
@@ -178,7 +168,12 @@ export function ReportDetailScreen(): JSX.Element | null {
     );
     if (!contact) {
       setDeliveryError(
-        `No ${deliveryChannel === "whatsapp" ? "WhatsApp" : "email"} contact is recorded for this patient. Add one on the patient record before delivering.`,
+        t("reports:detail.no_contact_channel", {
+          channel:
+            deliveryChannel === "whatsapp"
+              ? t("reports:list.whatsapp")
+              : t("reports:list.email"),
+        }),
       );
       return;
     }
@@ -197,15 +192,13 @@ export function ReportDetailScreen(): JSX.Element | null {
       }
 
       setSuccessMessage(
-        `Report dispatched successfully via ${deliveryChannel}.`,
+        t("reports:detail.deliver_success", { channel: deliveryChannel }),
       );
       setShowDeliveryModal(false);
       setTimeout(() => setSuccessMessage(null), 4000);
       fetchDetail();
     } catch (err) {
-      setDeliveryError(
-        err instanceof Error ? err.message : "Failed to dispatch delivery.",
-      );
+      setDeliveryError(messageForError(err, (key) => t(`common:${key}`)));
     } finally {
       setIsDelivering(false);
     }
@@ -215,7 +208,9 @@ export function ReportDetailScreen(): JSX.Element | null {
     return (
       <div className="flex flex-col items-center justify-center min-h-[50vh] gap-3 text-slate-400">
         <RefreshCw className="w-8 h-8 animate-spin text-teal-600" />
-        <span className="text-sm font-medium">Loading report…</span>
+        <span className="text-sm font-medium">
+          {t("reports:detail.loading")}
+        </span>
       </div>
     );
   }
@@ -226,14 +221,16 @@ export function ReportDetailScreen(): JSX.Element | null {
         <div className="w-12 h-12 rounded-full bg-rose-50 flex items-center justify-center text-rose-600">
           <AlertCircle className="w-6 h-6" />
         </div>
-        <h2 className="text-lg font-bold text-slate-900">Report Not Found</h2>
+        <h2 className="text-lg font-bold text-slate-900">
+          {t("reports:detail.not_found_title")}
+        </h2>
         <p className="text-sm text-slate-500 max-w-sm">{errorMessage}</p>
         <Link
           to="/reports"
           className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-lg bg-teal-600 text-white hover:bg-teal-700 transition-colors"
         >
-          <ArrowLeft className="w-4 h-4" />
-          Back to Reports
+          <ArrowLeft className="w-4 h-4 rtl:rotate-180" />
+          {t("reports:detail.back_to_reports")}
         </Link>
       </div>
     );
@@ -258,7 +255,7 @@ export function ReportDetailScreen(): JSX.Element | null {
               className="hover:text-teal-700 transition-colors flex items-center gap-1"
             >
               <FileText className="w-3.5 h-3.5" />
-              Reports
+              {t("reports:list.title")}
             </Link>
             <span>/</span>
             <span className="font-mono text-slate-700 font-medium">
@@ -299,7 +296,9 @@ export function ReportDetailScreen(): JSX.Element | null {
                       : "bg-slate-400"
                 }`}
               ></span>
-              {report.status}
+              {statusLabel("report", report.status, (key) =>
+                t(`common:${key}`),
+              )}
             </span>
           </div>
         </div>
@@ -315,7 +314,7 @@ export function ReportDetailScreen(): JSX.Element | null {
               <RefreshCw
                 className={`w-3.5 h-3.5 ${isRegenerating ? "animate-spin" : ""}`}
               />
-              <span>Regenerate</span>
+              <span>{t("reports:detail.regenerate")}</span>
             </button>
           )}
 
@@ -328,7 +327,7 @@ export function ReportDetailScreen(): JSX.Element | null {
               className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold bg-teal-600 text-white hover:bg-teal-700 transition-colors shadow-xs"
             >
               <Send className="w-3.5 h-3.5" />
-              <span>Deliver</span>
+              <span>{t("reports:detail.deliver")}</span>
             </button>
           )}
 
@@ -338,7 +337,7 @@ export function ReportDetailScreen(): JSX.Element | null {
             className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors shadow-xs"
           >
             <Download className="w-3.5 h-3.5" />
-            <span>Print PDF</span>
+            <span>{t("reports:detail.print_pdf")}</span>
           </button>
         </div>
       </div>
@@ -374,10 +373,11 @@ export function ReportDetailScreen(): JSX.Element | null {
         <div className="flex flex-col sm:flex-row sm:items-center gap-3 p-4 text-sm text-rose-800 bg-rose-50 border border-rose-200 rounded-xl">
           <AlertCircle className="w-5 h-5 shrink-0" />
           <div className="flex-1">
-            <span className="font-semibold">PDF generation failed.</span>{" "}
+            <span className="font-semibold">
+              {t("reports:detail.gen_failed")}
+            </span>{" "}
             <span className="text-rose-700">
-              {report.generation_error ||
-                "The renderer could not produce this report version."}
+              {report.generation_error || t("reports:detail.gen_failed_body")}
             </span>
           </div>
           {canRegenerate && (
@@ -389,7 +389,7 @@ export function ReportDetailScreen(): JSX.Element | null {
               <RefreshCw
                 className={`w-3.5 h-3.5 ${isRegenerating ? "animate-spin" : ""}`}
               />
-              <span>Regenerate PDF</span>
+              <span>{t("reports:detail.regenerate_pdf")}</span>
             </button>
           )}
         </div>
@@ -398,15 +398,12 @@ export function ReportDetailScreen(): JSX.Element | null {
       {report.generation_status === "running" && (
         <div className="flex items-center gap-2 p-4 text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded-xl">
           <RefreshCw className="w-5 h-5 shrink-0 animate-spin text-teal-600" />
-          <span className="flex-1">
-            Rendering the report PDF. This page will update when the version is
-            finalised.
-          </span>
+          <span className="flex-1">{t("reports:detail.rendering")}</span>
           <button
             onClick={fetchDetail}
             className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-white border border-slate-200 hover:bg-slate-50 transition-colors"
           >
-            Refresh
+            {t("common:actions.refresh")}
           </button>
         </div>
       )}
@@ -424,16 +421,18 @@ export function ReportDetailScreen(): JSX.Element | null {
                 </div>
                 <div>
                   <h2 className="text-lg font-bold uppercase tracking-tight text-slate-900 leading-tight">
-                    {report.branding?.display_name || "Diagnostic Laboratory"}
+                    {report.branding?.display_name ||
+                      t("reports:detail.brand_fallback")}
                   </h2>
                   <p className="text-xs text-slate-500">
-                    {report.sample.branch?.name || "Clinical Laboratory Report"}
+                    {report.sample.branch?.name ||
+                      t("reports:detail.lab_report_fallback")}
                   </p>
                 </div>
               </div>
-              <div className="text-right">
+              <div className="text-end">
                 <span className="inline-block px-2.5 py-0.5 bg-slate-100 text-slate-700 font-mono text-[11px] font-semibold rounded uppercase">
-                  Confidential Medical Record
+                  {t("reports:detail.confidential")}
                 </span>
                 <p className="text-[11px] font-mono text-slate-400 mt-1">
                   {report.sample.accession_id}
@@ -445,7 +444,7 @@ export function ReportDetailScreen(): JSX.Element | null {
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-4 bg-slate-50 rounded-lg text-xs">
               <div>
                 <span className="text-slate-400 font-medium uppercase block text-[10px]">
-                  Patient
+                  {t("reports:detail.patient")}
                 </span>
                 <span className="font-semibold text-slate-900 block truncate text-sm">
                   {report.patient.full_name}
@@ -454,7 +453,7 @@ export function ReportDetailScreen(): JSX.Element | null {
                   {report.patient.gender || "U"} ·{" "}
                   {report.patient.age_years != null
                     ? `${report.patient.age_years}Y`
-                    : "Age not recorded"}
+                    : t("reports:detail.age_not_recorded")}
                 </span>
               </div>
               <div>
@@ -465,35 +464,35 @@ export function ReportDetailScreen(): JSX.Element | null {
                   {report.patient.mrn}
                 </span>
                 <span className="text-slate-500">
-                  {report.patient.phone || "No phone"}
+                  {report.patient.phone || t("reports:detail.no_phone")}
                 </span>
               </div>
               <div>
                 <span className="text-slate-400 font-medium uppercase block text-[10px]">
-                  Accession ID
+                  {t("reports:detail.accession_id")}
                 </span>
                 <span className="font-mono font-semibold text-teal-800 block text-sm">
                   {report.sample.accession_id}
                 </span>
                 <span className="text-slate-500">
-                  Branch: {report.sample.branch?.name || "Main Reference"}
+                  {t("reports:detail.branch")}:{" "}
+                  {report.sample.branch?.name ||
+                    t("reports:detail.main_reference")}
                 </span>
               </div>
               <div>
                 <span className="text-slate-400 font-medium uppercase block text-[10px]">
-                  Reported Date
+                  {t("reports:detail.reported_date")}
                 </span>
                 <span className="font-mono text-slate-800 block text-sm">
-                  {new Date(report.created_at).toLocaleDateString("en-GB", {
-                    day: "2-digit",
-                    month: "short",
-                    year: "numeric",
-                  })}
+                  {formatDate(report.created_at)}
                 </span>
                 <span className="text-slate-500">
                   {report.current_version > 0
-                    ? `Version ${report.current_version}`
-                    : "PDF not generated yet"}
+                    ? t("reports:detail.version_n", {
+                        version: report.current_version,
+                      })
+                    : t("reports:detail.pdf_not_generated")}
                 </span>
               </div>
             </div>
@@ -501,26 +500,26 @@ export function ReportDetailScreen(): JSX.Element | null {
             {/* Results Table */}
             <div>
               <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-3">
-                Laboratory Test Results
+                {t("reports:detail.results_title")}
               </h3>
               <div className="border border-slate-200 rounded-lg overflow-hidden">
-                <table className="w-full text-left text-xs">
+                <table className="w-full text-start text-xs">
                   <thead className="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200">
                     <tr>
                       <th className="py-2.5 px-3" scope="col">
-                        Investigation
+                        {t("reports:detail.th_investigation")}
                       </th>
                       <th className="py-2.5 px-3" scope="col">
-                        Result
+                        {t("reports:detail.th_result")}
                       </th>
                       <th className="py-2.5 px-3" scope="col">
-                        Unit
+                        {t("reports:detail.th_unit")}
                       </th>
                       <th className="py-2.5 px-3" scope="col">
-                        Flag
+                        {t("reports:detail.th_flag")}
                       </th>
                       <th className="py-2.5 px-3" scope="col">
-                        Status
+                        {t("reports:detail.th_status")}
                       </th>
                     </tr>
                   </thead>
@@ -531,7 +530,7 @@ export function ReportDetailScreen(): JSX.Element | null {
                           colSpan={5}
                           className="py-6 text-center text-slate-400"
                         >
-                          No results recorded for this report.
+                          {t("reports:detail.no_results")}
                         </td>
                       </tr>
                     ) : (
@@ -559,11 +558,15 @@ export function ReportDetailScreen(): JSX.Element | null {
                                 ABNORMAL
                               </span>
                             ) : (
-                              <span className="text-slate-400">Normal</span>
+                              <span className="text-slate-400">
+                                {t("common:status.flag.normal")}
+                              </span>
                             )}
                           </td>
                           <td className="py-3 px-3 text-slate-600 capitalize">
-                            {res.status}
+                            {statusLabel("result", res.status, (key) =>
+                              t(`common:${key}`),
+                            )}
                           </td>
                         </tr>
                       ))
@@ -575,8 +578,10 @@ export function ReportDetailScreen(): JSX.Element | null {
 
             {/* Specimen Footer */}
             <div className="pt-4 border-t border-slate-200 flex flex-col sm:flex-row justify-between items-center text-xs text-slate-400 gap-2">
-              <span>Electronic report verified.</span>
-              <span className="font-mono">End of Report</span>
+              <span>{t("reports:detail.verified")}</span>
+              <span className="font-mono">
+                {t("reports:detail.end_of_report")}
+              </span>
             </div>
           </div>
         </div>
@@ -587,10 +592,10 @@ export function ReportDetailScreen(): JSX.Element | null {
           <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm flex flex-col gap-3">
             <div>
               <h3 className="text-sm font-bold text-slate-900">
-                Patient Access Link
+                {t("reports:detail.access_title")}
               </h3>
               <p className="text-xs text-slate-500 mt-0.5">
-                Public redemption link for the patient — no password needed.
+                {t("reports:detail.access_subtitle")}
               </p>
             </div>
 
@@ -609,24 +614,25 @@ export function ReportDetailScreen(): JSX.Element | null {
                   {copiedLink ? (
                     <>
                       <Check className="w-3 h-3 text-emerald-600" />
-                      <span className="text-emerald-600">Copied</span>
+                      <span className="text-emerald-600">
+                        {t("common:toast.copied")}
+                      </span>
                     </>
                   ) : (
                     <>
                       <Copy className="w-3 h-3" />
-                      <span>Copy</span>
+                      <span>{t("common:actions.copy")}</span>
                     </>
                   )}
                 </button>
               </div>
             ) : hasActiveToken ? (
               <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-xs text-emerald-800">
-                An active token exists for this report. Generate a new link or
-                revoke existing tokens below.
+                {t("reports:detail.active_token_note")}
               </div>
             ) : (
               <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-500">
-                No active patient access links issued yet.
+                {t("reports:detail.no_active_links")}
               </div>
             )}
 
@@ -642,8 +648,8 @@ export function ReportDetailScreen(): JSX.Element | null {
                   />
                   <span>
                     {hasActiveToken || activeLink
-                      ? "Reissue link"
-                      : "Issue link"}
+                      ? t("reports:detail.reissue_link")
+                      : t("reports:detail.issue_link")}
                   </span>
                 </button>
               )}
@@ -655,7 +661,7 @@ export function ReportDetailScreen(): JSX.Element | null {
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-rose-50 text-rose-700 hover:bg-rose-100 transition-colors disabled:opacity-50"
                 >
                   <Ban className="w-3 h-3" />
-                  <span>Revoke links</span>
+                  <span>{t("reports:detail.revoke_links")}</span>
                 </button>
               )}
             </div>
@@ -664,12 +670,12 @@ export function ReportDetailScreen(): JSX.Element | null {
           {/* Delivery History Card */}
           <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm flex flex-col gap-3">
             <h3 className="text-sm font-bold text-slate-900">
-              Delivery Records
+              {t("reports:detail.deliveries_title")}
             </h3>
 
             {report.deliveries.length === 0 ? (
               <div className="py-4 text-center text-xs text-slate-400">
-                No deliveries attempted yet.
+                {t("reports:detail.no_deliveries")}
               </div>
             ) : (
               <div className="space-y-2.5">
@@ -696,7 +702,9 @@ export function ReportDetailScreen(): JSX.Element | null {
                                   : "bg-rose-100 text-rose-800"
                             }`}
                           >
-                            {d.status}
+                            {t(`reports:list.delivery.${d.status}`, {
+                              defaultValue: d.status,
+                            })}
                           </span>
                         </div>
                         <span className="text-slate-500 font-mono text-[11px] block mt-0.5 truncate max-w-[140px]">
@@ -704,11 +712,9 @@ export function ReportDetailScreen(): JSX.Element | null {
                         </span>
                       </div>
                     </div>
-                    <div className="text-right text-[11px] font-mono text-slate-400">
-                      {new Date(d.created_at).toLocaleTimeString("en-GB", {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
+                    <div className="text-end text-[11px] font-mono text-slate-400">
+                      {formatDateTime(d.created_at).split(", ")[1] ||
+                        formatDateTime(d.created_at)}
                     </div>
                   </div>
                 ))}
@@ -719,24 +725,26 @@ export function ReportDetailScreen(): JSX.Element | null {
           {/* Audit & Compliance Metadata */}
           <div className="bg-slate-50 rounded-xl border border-slate-200 p-4 text-xs flex flex-col gap-2 text-slate-600">
             <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">
-              Audit & Compliance
+              {t("reports:detail.audit_title")}
             </div>
             <div className="flex justify-between items-center py-0.5">
-              <span>Accession ID</span>
+              <span>{t("reports:detail.accession_id")}</span>
               <span className="font-mono text-slate-900 font-medium">
                 {report.sample.accession_id}
               </span>
             </div>
             <div className="flex justify-between items-center py-0.5">
-              <span>Report Versions</span>
+              <span>{t("reports:detail.report_versions")}</span>
               <span className="font-mono text-slate-900 font-medium">
                 {report.versions.length > 0
-                  ? `${report.versions.length} generated`
-                  : "Not generated yet"}
+                  ? t("reports:detail.generated_count", {
+                      count: report.versions.length,
+                    })
+                  : t("reports:detail.not_generated")}
               </span>
             </div>
             <div className="flex justify-between items-center py-0.5">
-              <span>Encryption</span>
+              <span>{t("reports:detail.encryption")}</span>
               <span className="font-mono text-teal-700 font-semibold">
                 TLS 1.3 · AES-256
               </span>
@@ -760,15 +768,17 @@ export function ReportDetailScreen(): JSX.Element | null {
                   id="detail-deliver-modal-title"
                   className="text-lg font-bold text-slate-900"
                 >
-                  Deliver Report
+                  {t("reports:detail.deliver_modal_title")}
                 </h3>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Send to {report.patient.full_name}
+                  {t("reports:detail.send_to", {
+                    name: report.patient.full_name,
+                  })}
                 </p>
               </div>
               <button
                 onClick={() => setShowDeliveryModal(false)}
-                aria-label="Close dialog"
+                aria-label={t("reports:list.close_dialog")}
                 className="text-slate-400 hover:text-slate-600 transition-colors"
               >
                 <X className="w-5 h-5" />
@@ -787,7 +797,7 @@ export function ReportDetailScreen(): JSX.Element | null {
 
               <div>
                 <label className="block text-xs font-semibold uppercase text-slate-600 mb-1.5">
-                  Channel
+                  {t("reports:detail.channel")}
                 </label>
                 <div className="grid grid-cols-2 gap-3">
                   <button
@@ -802,7 +812,7 @@ export function ReportDetailScreen(): JSX.Element | null {
                         : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
                     }`}
                   >
-                    <span>WhatsApp</span>
+                    <span>{t("reports:list.whatsapp")}</span>
                   </button>
                   <button
                     type="button"
@@ -810,7 +820,7 @@ export function ReportDetailScreen(): JSX.Element | null {
                     title={
                       hasEmailContact
                         ? undefined
-                        : "No email contact is stored for this patient"
+                        : t("reports:list.no_email_title")
                     }
                     onClick={() => {
                       setDeliveryChannel("email");
@@ -822,7 +832,7 @@ export function ReportDetailScreen(): JSX.Element | null {
                         : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
                     }`}
                   >
-                    <span>Email</span>
+                    <span>{t("reports:list.email")}</span>
                   </button>
                 </div>
               </div>
@@ -832,7 +842,7 @@ export function ReportDetailScreen(): JSX.Element | null {
                   htmlFor="detail-delivery-contact-input"
                   className="block text-xs font-semibold uppercase text-slate-600 mb-1.5"
                 >
-                  Recipient Contact
+                  {t("reports:detail.recipient_contact")}
                 </label>
                 {deliveryContactRecord ? (
                   <>
@@ -844,17 +854,20 @@ export function ReportDetailScreen(): JSX.Element | null {
                       className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-900 font-mono"
                     />
                     <p className="mt-1 text-[11px] text-slate-400">
-                      Stored {deliveryChannel} contact on this patient record.
+                      {t("reports:detail.stored_contact", {
+                        channel: deliveryChannel,
+                      })}
                     </p>
                   </>
                 ) : (
                   <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-900">
-                    No stored {deliveryChannel} contact for this patient. Update
-                    the patient record with a{" "}
-                    {deliveryChannel === "whatsapp"
-                      ? "WhatsApp number"
-                      : "email address"}{" "}
-                    before delivering this report.
+                    {t("reports:detail.no_stored_contact", {
+                      channel: deliveryChannel,
+                      value:
+                        deliveryChannel === "whatsapp"
+                          ? t("reports:detail.whatsapp_number")
+                          : t("reports:detail.email_address"),
+                    })}
                   </div>
                 )}
               </div>
@@ -865,7 +878,7 @@ export function ReportDetailScreen(): JSX.Element | null {
                   onClick={() => setShowDeliveryModal(false)}
                   className="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-800 transition-colors"
                 >
-                  Cancel
+                  {t("common:actions.cancel")}
                 </button>
                 <button
                   type="submit"
@@ -875,12 +888,12 @@ export function ReportDetailScreen(): JSX.Element | null {
                   {isDelivering ? (
                     <>
                       <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                      Sending…
+                      {t("reports:detail.sending")}
                     </>
                   ) : (
                     <>
                       <Send className="w-3.5 h-3.5" />
-                      Send
+                      {t("reports:detail.send")}
                     </>
                   )}
                 </button>

@@ -6,6 +6,7 @@
 
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import {
   AlertCircle,
   Clock,
@@ -19,6 +20,7 @@ import {
   X,
 } from "lucide-react";
 import { reportsService } from "./reportsService";
+import { messageForError } from "../../lib/errors";
 import type { ExceptionsResponse } from "./types";
 
 function getDetail(
@@ -32,6 +34,7 @@ function getDetail(
 }
 
 export function ExceptionsScreen(): JSX.Element {
+  const { t } = useTranslation(["reports", "common"]);
   const [data, setData] = useState<ExceptionsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -43,11 +46,7 @@ export function ExceptionsScreen(): JSX.Element {
       const res = await reportsService.getExceptions();
       setData(res);
     } catch (err) {
-      setErrorMessage(
-        err instanceof Error
-          ? err.message
-          : "Failed to load clinical exceptions.",
-      );
+      setErrorMessage(messageForError(err, (key) => t(`common:${key}`)));
     } finally {
       setLoading(false);
     }
@@ -55,6 +54,7 @@ export function ExceptionsScreen(): JSX.Element {
 
   useEffect(() => {
     fetchExceptions();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const totalCount = data?.counts.total || 0;
@@ -78,7 +78,7 @@ export function ExceptionsScreen(): JSX.Element {
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-              Exceptions
+              {t("reports:exceptions.title")}
             </h1>
             <span
               className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
@@ -87,11 +87,11 @@ export function ExceptionsScreen(): JSX.Element {
                   : "bg-emerald-50 text-emerald-800 border border-emerald-200"
               }`}
             >
-              {totalCount} Actionable
+              {t("reports:exceptions.actionable", { count: totalCount })}
             </span>
           </div>
           <p className="text-sm text-slate-500 mt-1">
-            Clinical workflows requiring manual staff attention or triage.
+            {t("reports:exceptions.subtitle")}
           </p>
         </div>
 
@@ -103,7 +103,7 @@ export function ExceptionsScreen(): JSX.Element {
             <RefreshCw
               className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`}
             />
-            Refresh
+            {t("common:actions.refresh")}
           </button>
         </div>
       </div>
@@ -125,7 +125,9 @@ export function ExceptionsScreen(): JSX.Element {
       {loading ? (
         <div className="flex flex-col items-center justify-center py-20 gap-3 text-slate-400">
           <RefreshCw className="w-8 h-8 animate-spin text-teal-600" />
-          <span className="text-sm font-medium">Scanning for exceptions…</span>
+          <span className="text-sm font-medium">
+            {t("reports:exceptions.scanning")}
+          </span>
         </div>
       ) : totalCount === 0 ? (
         /* Honest Empty State */
@@ -134,11 +136,10 @@ export function ExceptionsScreen(): JSX.Element {
             <CheckCircle2 className="w-7 h-7" />
           </div>
           <h2 className="text-lg font-bold text-slate-900">
-            No active exceptions
+            {t("reports:exceptions.empty_title")}
           </h2>
           <p className="text-sm text-slate-500 mt-1 max-w-md">
-            All clinical transfers, report generations, deliveries, and critical
-            notifications are operating within target SLAs.
+            {t("reports:exceptions.empty_body")}
           </p>
         </div>
       ) : (
@@ -154,14 +155,14 @@ export function ExceptionsScreen(): JSX.Element {
                   <div>
                     <div className="flex items-center gap-2">
                       <h2 className="text-sm font-bold text-slate-900">
-                        Critical Results Unacknowledged
+                        {t("reports:exceptions.critical_title")}
                       </h2>
                       <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-rose-200 text-rose-900">
                         {criticalUnacknowledged.length}
                       </span>
                     </div>
                     <p className="text-xs text-slate-500">
-                      Approved critical results pending physician notification
+                      {t("reports:exceptions.critical_subtitle")}
                     </p>
                   </div>
                 </div>
@@ -183,19 +184,22 @@ export function ExceptionsScreen(): JSX.Element {
                         </span>
                       </div>
                       <div className="text-slate-500 mt-0.5">
-                        Patient:{" "}
+                        {t("reports:exceptions.patient")}:{" "}
                         <span className="font-medium text-slate-800">
-                          {item.patient_name || "Unknown"}
+                          {item.patient_name || t("common:labels.unknown")}
                         </span>{" "}
-                        · MRN: {getDetail(item.details, "patient_mrn")}
+                        · MRN:{" "}
+                        <bdi dir="ltr">
+                          {getDetail(item.details, "patient_mrn")}
+                        </bdi>
                       </div>
                     </div>
                     <Link
                       to={`/results/${getDetail(item.details, "result_id", item.reference_id)}`}
                       className="inline-flex items-center gap-1 font-semibold text-teal-700 hover:text-teal-900 shrink-0"
                     >
-                      <span>Review result</span>
-                      <ArrowRight className="w-3.5 h-3.5" />
+                      <span>{t("reports:exceptions.review_result")}</span>
+                      <ArrowRight className="w-3.5 h-3.5 rtl:rotate-180" />
                     </Link>
                   </div>
                 ))}
@@ -214,14 +218,14 @@ export function ExceptionsScreen(): JSX.Element {
                   <div>
                     <div className="flex items-center gap-2">
                       <h2 className="text-sm font-bold text-slate-900">
-                        Failed PDF Generations
+                        {t("reports:exceptions.failed_gen_title")}
                       </h2>
                       <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-rose-100 text-rose-800">
                         {failedGenerations.length}
                       </span>
                     </div>
                     <p className="text-xs text-slate-500">
-                      WeasyPrint or rendering task errors requiring regeneration
+                      {t("reports:exceptions.failed_gen_subtitle")}
                     </p>
                   </div>
                 </div>
@@ -242,21 +246,23 @@ export function ExceptionsScreen(): JSX.Element {
                           {getDetail(
                             item.details,
                             "generation_error",
-                            "Generation error",
+                            t("reports:exceptions.generation_error"),
                           )}
                         </span>
                       </div>
                       <div className="text-slate-500 mt-0.5">
-                        Patient: {item.patient_name || "—"} · Branch:{" "}
-                        {item.branch_name || "Main Lab"}
+                        {t("reports:exceptions.patient")}:{" "}
+                        {item.patient_name || "—"} ·{" "}
+                        {t("reports:exceptions.branch")}:{" "}
+                        {item.branch_name || t("reports:exceptions.main_lab")}
                       </div>
                     </div>
                     <Link
                       to={`/reports/${item.reference_id}`}
                       className="inline-flex items-center gap-1 font-semibold text-teal-700 hover:text-teal-900 shrink-0"
                     >
-                      <span>Open report</span>
-                      <ArrowRight className="w-3.5 h-3.5" />
+                      <span>{t("reports:exceptions.open_report")}</span>
+                      <ArrowRight className="w-3.5 h-3.5 rtl:rotate-180" />
                     </Link>
                   </div>
                 ))}
@@ -275,14 +281,14 @@ export function ExceptionsScreen(): JSX.Element {
                   <div>
                     <div className="flex items-center gap-2">
                       <h2 className="text-sm font-bold text-slate-900">
-                        Failed Deliveries
+                        {t("reports:exceptions.failed_del_title")}
                       </h2>
                       <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-100 text-amber-800">
                         {failedDeliveries.length}
                       </span>
                     </div>
                     <p className="text-xs text-slate-500">
-                      WhatsApp or Email dispatches bounced or unroutable
+                      {t("reports:exceptions.failed_del_subtitle")}
                     </p>
                   </div>
                 </div>
@@ -301,17 +307,23 @@ export function ExceptionsScreen(): JSX.Element {
                         </span>
                         <span className="font-mono text-slate-500">
                           (
-                          {getDetail(item.details, "contact", "No destination")}
+                          {getDetail(
+                            item.details,
+                            "contact",
+                            t("reports:exceptions.no_destination"),
+                          )}
                           )
                         </span>
                       </div>
                       <div className="text-slate-500 mt-0.5">
-                        Patient: {item.patient_name || "—"} · Error:{" "}
+                        {t("reports:exceptions.patient")}:{" "}
+                        {item.patient_name || "—"} ·{" "}
+                        {t("reports:exceptions.error_label")}:{" "}
                         <span className="text-rose-600 font-medium">
                           {getDetail(
                             item.details,
                             "last_error",
-                            "Dispatch failed",
+                            t("reports:exceptions.dispatch_failed"),
                           )}
                         </span>
                       </div>
@@ -320,8 +332,8 @@ export function ExceptionsScreen(): JSX.Element {
                       to={`/reports/${item.reference_id}`}
                       className="inline-flex items-center gap-1 font-semibold text-teal-700 hover:text-teal-900 shrink-0"
                     >
-                      <span>Retry delivery</span>
-                      <ArrowRight className="w-3.5 h-3.5" />
+                      <span>{t("reports:exceptions.retry_delivery")}</span>
+                      <ArrowRight className="w-3.5 h-3.5 rtl:rotate-180" />
                     </Link>
                   </div>
                 ))}
@@ -340,14 +352,14 @@ export function ExceptionsScreen(): JSX.Element {
                   <div>
                     <div className="flex items-center gap-2">
                       <h2 className="text-sm font-bold text-slate-900">
-                        Late Specimen Transfers
+                        {t("reports:exceptions.late_title")}
                       </h2>
                       <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-100 text-amber-800">
                         {lateTransfers.length}
                       </span>
                     </div>
                     <p className="text-xs text-slate-500">
-                      Inter-branch transit exceeding 2 hour SLA threshold
+                      {t("reports:exceptions.late_subtitle")}
                     </p>
                   </div>
                 </div>
@@ -369,19 +381,22 @@ export function ExceptionsScreen(): JSX.Element {
                         </span>
                       </div>
                       <div className="text-slate-500 mt-0.5">
-                        Delay:{" "}
+                        {t("reports:exceptions.delay")}:{" "}
                         <span className="text-rose-600 font-semibold">
-                          {getDetail(item.details, "hours_late", "0")}h overdue
+                          {t("reports:exceptions.hours_overdue", {
+                            hours: getDetail(item.details, "hours_late", "0"),
+                          })}
                         </span>{" "}
-                        · Patient: {item.patient_name || "—"}
+                        · {t("reports:exceptions.patient")}:{" "}
+                        {item.patient_name || "—"}
                       </div>
                     </div>
                     <Link
                       to={`/samples/${item.reference_id}`}
                       className="inline-flex items-center gap-1 font-semibold text-teal-700 hover:text-teal-900 shrink-0"
                     >
-                      <span>Track sample</span>
-                      <ArrowRight className="w-3.5 h-3.5" />
+                      <span>{t("reports:exceptions.track_sample")}</span>
+                      <ArrowRight className="w-3.5 h-3.5 rtl:rotate-180" />
                     </Link>
                   </div>
                 ))}
@@ -400,14 +415,14 @@ export function ExceptionsScreen(): JSX.Element {
                   <div>
                     <div className="flex items-center gap-2">
                       <h2 className="text-sm font-bold text-slate-900">
-                        Stuck Samples
+                        {t("reports:exceptions.stuck_title")}
                       </h2>
                       <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-slate-200 text-slate-800">
                         {stuckSamples.length}
                       </span>
                     </div>
                     <p className="text-xs text-slate-500">
-                      Samples without movement or results for &gt; 4 hours
+                      {t("reports:exceptions.stuck_subtitle")}
                     </p>
                   </div>
                 </div>
@@ -425,21 +440,23 @@ export function ExceptionsScreen(): JSX.Element {
                           {item.reference_code}
                         </span>
                         <span className="text-slate-600 capitalize">
-                          Status:{" "}
+                          {t("common:labels.status")}:{" "}
                           {getDetail(item.details, "sample_status", "pending")}
                         </span>
                       </div>
                       <div className="text-slate-500 mt-0.5">
-                        Patient: {item.patient_name || "—"} · Branch:{" "}
-                        {item.branch_name || "Main Lab"}
+                        {t("reports:exceptions.patient")}:{" "}
+                        {item.patient_name || "—"} ·{" "}
+                        {t("reports:exceptions.branch")}:{" "}
+                        {item.branch_name || t("reports:exceptions.main_lab")}
                       </div>
                     </div>
                     <Link
                       to={`/samples/${item.reference_id}`}
                       className="inline-flex items-center gap-1 font-semibold text-teal-700 hover:text-teal-900 shrink-0"
                     >
-                      <span>Open sample</span>
-                      <ArrowRight className="w-3.5 h-3.5" />
+                      <span>{t("reports:exceptions.open_sample")}</span>
+                      <ArrowRight className="w-3.5 h-3.5 rtl:rotate-180" />
                     </Link>
                   </div>
                 ))}
