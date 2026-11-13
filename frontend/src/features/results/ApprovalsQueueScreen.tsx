@@ -11,7 +11,6 @@ import {
   CheckCircle2,
   AlertTriangle,
   Clock,
-  ArrowRight,
   RefreshCw,
   AlertCircle,
   X,
@@ -68,33 +67,6 @@ export function ApprovalsQueueScreen(): JSX.Element {
   useEffect(() => {
     loadData();
   }, []);
-
-  const handleQuickApprove = async (item: ApprovalQueueItem) => {
-    try {
-      setProcessingAction(true);
-      setErrorMessage(null);
-      await resultsService.approveResult(item.result_id, {
-        decision: "approved",
-      });
-
-      // Update UI state only after 2xx response
-      setQueue((prev) => prev.filter((q) => q.result_id !== item.result_id));
-      setActionSuccessMessage(
-        `Result for ${item.patient_name} (${item.test_name}) approved.`,
-      );
-      if (successTimerRef.current) clearTimeout(successTimerRef.current);
-      successTimerRef.current = setTimeout(
-        () => setActionSuccessMessage(null),
-        4000,
-      );
-    } catch (err) {
-      setErrorMessage(
-        err instanceof Error ? err.message : "Failed to approve result.",
-      );
-    } finally {
-      setProcessingAction(false);
-    }
-  };
 
   const handleConfirmReject = async () => {
     if (!rejectingItem) return;
@@ -406,14 +378,13 @@ export function ApprovalsQueueScreen(): JSX.Element {
                     </td>
                     <td className="py-4 px-6 text-right whitespace-nowrap">
                       <div className="flex items-center justify-end gap-2">
-                        <button
-                          type="button"
-                          onClick={() => handleQuickApprove(item)}
-                          disabled={processingAction}
-                          className="px-2.5 py-1.5 bg-teal-50 hover:bg-teal-100 text-teal-800 rounded-lg text-xs font-semibold transition-colors disabled:opacity-50 cursor-pointer"
+                        <Link
+                          to={`/results/${item.result_id}`}
+                          aria-label={`Review and approve ${item.test_name} for ${item.patient_name}`}
+                          className="px-2.5 py-1.5 bg-teal-50 hover:bg-teal-100 text-teal-800 rounded-lg text-xs font-semibold transition-colors"
                         >
-                          Quick Approve
-                        </button>
+                          Review &amp; approve
+                        </Link>
                         <button
                           type="button"
                           onClick={() => {
@@ -426,13 +397,6 @@ export function ApprovalsQueueScreen(): JSX.Element {
                         >
                           Reject
                         </button>
-                        <Link
-                          to={`/results/${item.result_id}`}
-                          className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
-                          title="Full diagnostic review"
-                        >
-                          <ArrowRight className="w-4 h-4" />
-                        </Link>
                       </div>
                     </td>
                   </tr>

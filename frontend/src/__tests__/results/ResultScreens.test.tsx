@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { useAuthStore } from "../../features/auth/authStore";
@@ -456,7 +456,7 @@ describe("Screen 23: Approvals Queue (/results/approvals)", () => {
     expect(screen.getByText("Ahmed Raza")).toBeInTheDocument();
   });
 
-  it("handles verification approval action and updates table", async () => {
+  it("queue exposes no one-click approval and links to the range-review detail page", async () => {
     const user = userEvent.setup();
     vi.mocked(resultsService.getApprovalsQueue).mockResolvedValueOnce([
       {
@@ -479,32 +479,38 @@ describe("Screen 23: Approvals Queue (/results/approvals)", () => {
       },
     ]);
 
-    vi.mocked(resultsService.approveResult).mockResolvedValueOnce({
-      id: "res-002",
-      status: "approved",
-      decision: "approved",
-      note: null,
-      range_override: false,
-      approved_by: "usr-path-01",
-    });
-
     render(
       <MemoryRouter initialEntries={["/results/approvals"]}>
         <Routes>
           <Route path="/results/approvals" element={<ApprovalsQueueScreen />} />
+          <Route
+            path="/results/:id"
+            element={<div>Result detail with reference range</div>}
+          />
         </Routes>
       </MemoryRouter>,
     );
 
-    await screen.findByText("Ahmed Raza");
-    const approveBtn = screen.getByRole("button", { name: /Quick Approve/i });
-    await user.click(approveBtn);
+    const patientCell = await screen.findByText("Ahmed Raza");
+    const row = patientCell.closest("tr");
+    expect(row).not.toBeNull();
 
-    await waitFor(() => {
-      expect(resultsService.approveResult).toHaveBeenCalledWith("res-002", {
-        decision: "approved",
-      });
+    // The row exposes only the Reject action; approval is a navigation step.
+    expect(within(row as HTMLElement).getAllByRole("button")).toHaveLength(1);
+    expect(
+      within(row as HTMLElement).getByRole("button", { name: /Reject/i }),
+    ).toBeInTheDocument();
+    expect(resultsService.approveResult).not.toHaveBeenCalled();
+
+    const reviewLink = within(row as HTMLElement).getByRole("link", {
+      name: /Review and approve/i,
     });
+    expect(reviewLink).toHaveAttribute("href", "/results/res-002");
+    await user.click(reviewLink);
+
+    expect(
+      await screen.findByText("Result detail with reference range"),
+    ).toBeInTheDocument();
   });
 
   it("enforces mandatory note when rejecting a result", async () => {

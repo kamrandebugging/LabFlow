@@ -356,6 +356,99 @@ class TestInvoiceDetail:
             assert resp.status_code == 404
 
 
+@pytest.mark.django_db
+class TestA1TechnicianInvoiceReadOnly:
+    """Owner decision 2026-11-13: Technician = invoice read-only, no writes."""
+
+    def test_technician_can_read_invoice_list(
+        self, tenant_a: Any, billing_setup: dict[str, Any], auth_headers: Any
+    ) -> None:
+        with tenant_context(tenant_a):
+            _make_invoice(billing_setup, billing_setup["manager"])
+            headers = auth_headers(billing_setup["technician"])
+            resp = Client().get(INVOICES_URL, headers=headers)
+            assert resp.status_code == 200
+            assert len(resp.json()["results"]) == 1
+
+    def test_technician_can_read_invoice_detail(
+        self, tenant_a: Any, billing_setup: dict[str, Any], auth_headers: Any
+    ) -> None:
+        with tenant_context(tenant_a):
+            invoice = _make_invoice(billing_setup, billing_setup["manager"])
+            headers = auth_headers(billing_setup["technician"])
+            resp = Client().get(f"{INVOICES_URL}/{invoice.id}", headers=headers)
+            assert resp.status_code == 200
+            assert resp.json()["id"] == str(invoice.id)
+
+    def test_technician_cannot_create_invoice(
+        self, tenant_a: Any, billing_setup: dict[str, Any], auth_headers: Any
+    ) -> None:
+        with tenant_context(tenant_a):
+            headers = auth_headers(billing_setup["technician"])
+            resp = Client().post(
+                INVOICES_URL,
+                data=json.dumps({}),
+                content_type="application/json",
+                headers=headers,
+            )
+            assert resp.status_code == 403
+
+    def test_technician_cannot_record_payment(
+        self, tenant_a: Any, billing_setup: dict[str, Any], auth_headers: Any
+    ) -> None:
+        with tenant_context(tenant_a):
+            invoice = _make_invoice(billing_setup, billing_setup["manager"])
+            headers = auth_headers(billing_setup["technician"])
+            resp = Client().post(
+                f"{INVOICES_URL}/{invoice.id}/payments",
+                data=json.dumps(
+                    {"kind": "payment", "method": "cash", "amount": "1.00"}
+                ),
+                content_type="application/json",
+                headers=headers,
+            )
+            assert resp.status_code == 403
+
+    def test_technician_cannot_cancel_invoice(
+        self, tenant_a: Any, billing_setup: dict[str, Any], auth_headers: Any
+    ) -> None:
+        with tenant_context(tenant_a):
+            invoice = _make_invoice(billing_setup, billing_setup["manager"])
+            headers = auth_headers(billing_setup["technician"])
+            resp = _cancel(Client(), headers, invoice.id, {"reason": "not allowed"})
+            assert resp.status_code == 403
+
+    def test_technician_cannot_read_settlements(
+        self, tenant_a: Any, billing_setup: dict[str, Any], auth_headers: Any
+    ) -> None:
+        with tenant_context(tenant_a):
+            headers = auth_headers(billing_setup["technician"])
+            resp = Client().get("/api/v1/settlements", headers=headers)
+            assert resp.status_code == 403
+
+    def test_technician_cannot_read_partner_ledger(
+        self, tenant_a: Any, billing_setup: dict[str, Any], auth_headers: Any
+    ) -> None:
+        with tenant_context(tenant_a):
+            headers = auth_headers(billing_setup["technician"])
+            resp = Client().get("/api/v1/referral-partners/ledger", headers=headers)
+            assert resp.status_code == 403
+
+    def test_reception_and_manager_reads_still_pass(
+        self, tenant_a: Any, billing_setup: dict[str, Any], auth_headers: Any
+    ) -> None:
+        with tenant_context(tenant_a):
+            invoice = _make_invoice(billing_setup, billing_setup["manager"])
+            for role in ("receptionist", "manager"):
+                headers = auth_headers(billing_setup[role])
+                list_resp = Client().get(INVOICES_URL, headers=headers)
+                detail_resp = Client().get(
+                    f"{INVOICES_URL}/{invoice.id}", headers=headers
+                )
+                assert list_resp.status_code == 200
+                assert detail_resp.status_code == 200
+
+
 def _decode_cursor(cursor: str) -> dict[str, Any]:
     raw = base64.urlsafe_b64decode(cursor.encode("ascii")).decode("ascii")
     return json.loads(raw)
