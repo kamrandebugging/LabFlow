@@ -218,6 +218,7 @@ class ResultApproveView(APIView):
                 decision=data["decision"],
                 note=data.get("note"),
                 range_override=data.get("range_override", False),
+                attestation=data.get("attestation", False),
                 actor=user,
                 ip=_get_client_ip(request),
                 user_agent=request.META.get("HTTP_USER_AGENT", ""),

@@ -39,11 +39,12 @@ export interface TenantListItem {
   province?: string;
   branch_count?: number;
   staff_count?: number;
-  plan_name?: string;
-  plan_price?: string;
+  plan_name?: string | null;
+  plan_price?: string | null;
   plan_status?: string | null;
   is_demo?: boolean;
   mrr_contribution?: string;
+  domain?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -308,30 +309,52 @@ export type SubscriptionBillingCycle = "monthly" | "annual" | "lifetime";
 export type SubscriptionStatus =
   "active" | "past_due" | "canceled" | "trialing" | "founding";
 
+export interface SubscriptionTenantRef {
+  id: string;
+  name: string;
+  slug: string;
+  city: string;
+  province?: string;
+  owner_name?: string;
+  owner_email?: string;
+  owner_phone?: string;
+  status?: string;
+}
+
+export interface SubscriptionPlanRef {
+  id: string;
+  name: string;
+  price: string;
+  max_branches?: number | null;
+  max_staff?: number | null;
+}
+
+export interface SubscriptionLastPayment {
+  paid_date: string;
+  amount: string;
+  method: string;
+  reference: string;
+}
+
 export interface SubscriptionListItem {
   id: string;
-  tenant_id: string;
-  tenant_name: string;
-  tenant_slug: string;
-  city: string;
-  province: string;
-  plan_id: string;
-  plan_name: string;
+  tenant: SubscriptionTenantRef;
+  plan: SubscriptionPlanRef;
   billing_cycle: SubscriptionBillingCycle;
   amount: string;
   status: SubscriptionStatus;
-  next_due: string | null;
-  started_at: string | null;
+  starts_at: string | null;
   ends_at: string | null;
-  is_founding: boolean;
-  is_lifetime: boolean;
+  next_due: string | null;
+  last_payment: SubscriptionLastPayment | null;
 }
 
 export interface SubscriptionListSummary {
-  mrr_pkr: string;
+  mrr: string;
   overdue_count: number;
-  overdue_amount_pkr: string;
+  overdue_amount: string;
   lifetime_sold_count: number;
+  lifetime_revenue: string;
   founding_slots_used: number;
   founding_slots_total: number;
 }
@@ -348,30 +371,23 @@ export interface SubscriptionPaymentRecord {
   reference: string;
   notes: string;
   paid_date: string;
-  recorded_by: string;
+  recorded_by_email: string | null;
   created_at: string;
 }
 
 export interface SubscriptionDetailData {
   id: string;
-  tenant_id: string;
-  tenant_name: string;
-  tenant_slug: string;
-  plan_id: string;
-  plan_name: string;
-  plan_price: string;
+  tenant: SubscriptionTenantRef;
+  plan: SubscriptionPlanRef;
   billing_cycle: SubscriptionBillingCycle;
   status: SubscriptionStatus;
-  next_due: string | null;
-  started_at: string | null;
+  starts_at: string | null;
   ends_at: string | null;
-  is_founding: boolean;
-  is_lifetime: boolean;
+  next_due: string | null;
+  payments: SubscriptionPaymentRecord[];
 }
 
-export interface SubscriptionDetailResponse {
-  subscription: SubscriptionDetailData;
-  payments: SubscriptionPaymentRecord[];
+export interface SubscriptionDetailResponse extends SubscriptionDetailData {
   available_plans: TenantPlan[];
 }
 
@@ -416,15 +432,15 @@ export interface AccessControlPayload {
 
 export interface LabOwnerUserItem {
   id: string;
-  name: string;
-  email: string;
-  phone: string;
-  whatsapp: string;
+  owner_name: string;
+  owner_email: string;
+  owner_phone: string;
   lab_name: string;
   lab_slug: string;
+  city: string;
   status: string;
-  last_login: string | null;
   created_at: string;
+  last_active: string | null;
 }
 
 export interface PlatformTeamMember {
@@ -433,7 +449,7 @@ export interface PlatformTeamMember {
   role: string;
   totp_enabled: boolean;
   is_active: boolean;
-  date_joined: string;
+  created_at: string;
 }
 
 export interface PlatformUserInviteItem {

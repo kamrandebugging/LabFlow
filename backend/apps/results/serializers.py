@@ -57,6 +57,8 @@ class ResultApproveSerializer(serializers.Serializer):
         required=False, allow_null=True, allow_blank=True, max_length=2000
     )
     range_override = serializers.BooleanField(required=False, default=False)
+    # D8: explicit reviewer attestation recorded on approval.
+    attestation = serializers.BooleanField(required=False, default=False)
 
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
         return _reject_unknown_fields(self, attrs)

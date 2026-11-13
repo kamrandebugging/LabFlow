@@ -165,15 +165,15 @@ class TestSamplesListEndpoint:
         assert data_ready["total"] == 1
         assert data_ready["results"][0]["id"] == str(s_ready.id)
 
-    def test_awaiting_collection_is_rejected_because_no_such_status_exists(
+    def test_unknown_status_is_rejected(
         self, tenant_a: Tenant, api_client: APIClient
     ) -> None:
-        """A2 cannot invent a status: Sample.Status has no awaiting_collection."""
+        """A2 derives awaiting_collection; other unknown statuses stay a 422."""
         with tenant_context(tenant_a):
             staff = _staff_user(role=Role.OWNER, branch=None)
             _authenticate_client(api_client, staff, tenant_a, Role.OWNER)
 
-        response = api_client.get("/api/v1/samples?status=awaiting_collection")
+        response = api_client.get("/api/v1/samples?status=not_a_status")
         assert response.status_code == 422
         assert response.json()["error"]["code"] == "validation_error"
 

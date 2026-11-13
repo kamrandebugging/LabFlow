@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { Plus, RefreshCw, AlertCircle, X, Archive } from "lucide-react";
+import { Plus, RefreshCw, AlertCircle, X, Archive, Pencil } from "lucide-react";
 import { catalogService } from "./catalogService";
 import type {
   RangeSex,
@@ -57,6 +57,16 @@ export function ReferenceRangesManager({
   const [form, setForm] = useState<ReferenceRangeCreateInput>(emptyForm());
   const [isSaving, setIsSaving] = useState(false);
   const [retiringId, setRetiringId] = useState<string | null>(null);
+  // D7: per-row critical threshold editing, using only the critical_low /
+  // critical_high values already stored on the range.
+  const [editingCriticalId, setEditingCriticalId] = useState<string | null>(
+    null,
+  );
+  const [criticalDraft, setCriticalDraft] = useState<{
+    low: string;
+    high: string;
+  }>({ low: "", high: "" });
+  const [savingCriticalId, setSavingCriticalId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setIsLoading(true);
@@ -112,6 +122,44 @@ export function ReferenceRangesManager({
       );
     } finally {
       setIsSaving(false);
+    }
+  }
+
+  function startCriticalEdit(range: ReferenceRange): void {
+    setEditingCriticalId(range.id);
+    setCriticalDraft({
+      low: range.critical_low ?? "",
+      high: range.critical_high ?? "",
+    });
+  }
+
+  async function handleSaveCritical(rangeId: string): Promise<void> {
+    setSavingCriticalId(rangeId);
+    setError(null);
+    try {
+      const updated = await service.updateTestRange(testId, rangeId, {
+        critical_low: criticalDraft.low.trim()
+          ? criticalDraft.low.trim()
+          : null,
+        critical_high: criticalDraft.high.trim()
+          ? criticalDraft.high.trim()
+          : null,
+      });
+      // PATCH supersedes the row: the backend closes the old range and returns
+      // its successor with a NEW id, so replace rather than map by old id.
+      setRanges((prev) => [updated, ...prev.filter((r) => r.id !== rangeId)]);
+      setEditingCriticalId(null);
+    } catch (err) {
+      const coded = err as Error & { code?: string };
+      setError(
+        coded.code === "overlapping_range"
+          ? "This change overlaps another range for the same sex, age band and effective dates."
+          : err instanceof Error
+            ? err.message
+            : "Failed to update critical thresholds.",
+      );
+    } finally {
+      setSavingCriticalId(null);
     }
   }
 
@@ -331,23 +379,89 @@ export function ReferenceRangesManager({
                   <td className="px-3 py-2">{formatBand(range)}</td>
                   <td className="px-3 py-2">{formatBounds(range)}</td>
                   <td className="px-3 py-2 text-slate-500">
-                    {range.critical_low ?? "–"} – {range.critical_high ?? "–"}
+                    {editingCriticalId === range.id ? (
+                      <div className="flex items-center gap-1">
+                        <input
+                          aria-label={`Critical low for ${range.id}`}
+                          inputMode="decimal"
+                          value={criticalDraft.low}
+                          onChange={(e) =>
+                            setCriticalDraft((prev) => ({
+                              ...prev,
+                              low: e.target.value,
+                            }))
+                          }
+                          placeholder="low"
+                          className="w-16 px-1.5 py-1 bg-white text-slate-900 text-xs rounded border border-slate-300"
+                        />
+                        <span>–</span>
+                        <input
+                          aria-label={`Critical high for ${range.id}`}
+                          inputMode="decimal"
+                          value={criticalDraft.high}
+                          onChange={(e) =>
+                            setCriticalDraft((prev) => ({
+                              ...prev,
+                              high: e.target.value,
+                            }))
+                          }
+                          placeholder="high"
+                          className="w-16 px-1.5 py-1 bg-white text-slate-900 text-xs rounded border border-slate-300"
+                        />
+                      </div>
+                    ) : (
+                      <>
+                        {range.critical_low ?? "–"} –{" "}
+                        {range.critical_high ?? "–"}
+                      </>
+                    )}
                   </td>
                   <td className="px-3 py-2 text-slate-500">
                     {range.effective_from} → {range.effective_to ?? "∞"}
                   </td>
                   <td className="px-3 py-2 text-right">
-                    {!range.effective_to && (
-                      <button
-                        type="button"
-                        onClick={() => void handleRetire(range.id)}
-                        disabled={retiringId === range.id}
-                        title="Retire this range"
-                        className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors disabled:opacity-50"
-                      >
-                        <Archive className="w-4 h-4" />
-                      </button>
-                    )}
+                    <div className="inline-flex items-center gap-1">
+                      {editingCriticalId === range.id ? (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => void handleSaveCritical(range.id)}
+                            disabled={savingCriticalId === range.id}
+                            className="px-2 py-1 text-xs font-semibold text-white bg-[#005c55] hover:bg-[#0f766e] rounded disabled:opacity-50"
+                          >
+                            {savingCriticalId === range.id ? "Saving…" : "Save"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setEditingCriticalId(null)}
+                            className="px-2 py-1 text-xs font-semibold text-slate-600 border border-slate-200 rounded"
+                          >
+                            Cancel
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => startCriticalEdit(range)}
+                          title="Edit critical thresholds"
+                          aria-label="Edit critical thresholds"
+                          className="p-1.5 text-slate-400 hover:text-[#005c55] hover:bg-teal-50 rounded-md transition-colors"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </button>
+                      )}
+                      {!range.effective_to && (
+                        <button
+                          type="button"
+                          onClick={() => void handleRetire(range.id)}
+                          disabled={retiringId === range.id}
+                          title="Retire this range"
+                          className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors disabled:opacity-50"
+                        >
+                          <Archive className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}

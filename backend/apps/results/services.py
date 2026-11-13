@@ -144,6 +144,13 @@ class OverrideNoteRequiredError(ResultError):
     error_code = "override_note_required"
 
 
+class AttestationRequiredError(ResultError):
+    """D8: approval requires explicit reference-range/critical attestation."""
+
+    status_code = 422
+    error_code = "attestation_required"
+
+
 class NoteRequiredForUnparseableError(ResultError):
     """RS-10: numeric test with unparseable value requires a note to approve."""
 
@@ -758,6 +765,7 @@ class ResultService:
         note: str | None,
         range_override: bool,
         actor: StaffUser,
+        attestation: bool = False,
         ip: str | None = None,
         user_agent: str | None = None,
     ) -> dict[str, Any]:
@@ -777,6 +785,14 @@ class ResultService:
         if range_override and not clean_note:
             raise OverrideNoteRequiredError(
                 "A range override requires a non-empty note."
+            )
+        # D8: an approval must carry the reviewer's explicit attestation that
+        # the reference range and critical thresholds were reviewed. A
+        # rejection is not gated (the reviewer is declining the result).
+        if decision == ResultApproval.Decision.APPROVED and not attestation:
+            raise AttestationRequiredError(
+                "Approval requires attestation that the reference range and "
+                "critical thresholds were reviewed."
             )
 
         with transaction.atomic():
@@ -848,10 +864,14 @@ class ResultService:
                 if decision == ResultApproval.Decision.APPROVED
                 else "result.rejected"
             )
+            attested_at = timezone.now().isoformat() if attestation else None
             after: dict[str, Any] = {
                 "decision": decision,
                 "note": clean_note or None,
                 "range_override": range_override,
+                "range_attestation": attestation,
+                "attested_by": str(actor.id) if attestation else None,
+                "attested_at": attested_at,
                 "pathologist_id": str(actor.id),
                 "approval_id": str(approval.id),
                 "event": action,
@@ -924,6 +944,8 @@ class ResultService:
             "decision": decision,
             "note": clean_note or None,
             "range_override": range_override,
+            "range_attestation": attestation,
+            "attested_at": attested_at,
             "approved_by": str(actor.id),
             "sample_ready": sample_ready,
         }

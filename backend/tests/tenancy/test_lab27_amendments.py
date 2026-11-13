@@ -109,6 +109,9 @@ def lab27_setup(tenant_a: Any) -> dict[str, Any]:
 
 
 def _post(auth_headers: Any, user: Any, url: str, body: dict[str, Any]) -> Any:
+    # D8: approvals now require explicit reviewer attestation.
+    if body.get("decision") == "approved":
+        body = {**body, "attestation": body.get("attestation", True)}
     return Client().post(
         url,
         data=json.dumps(body),

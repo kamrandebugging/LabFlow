@@ -5,7 +5,7 @@ import { useAuthStore } from "../auth/authStore";
 import { patientService } from "../patients/patientService";
 import type { PatientSummary } from "../patients/types";
 import { sampleService } from "../samples/sampleService";
-import type { SampleSummary } from "../samples/types";
+import type { AwaitingCollectionItem, SampleSummary } from "../samples/types";
 import {
   formatPkr,
   isTodayInPkt,
@@ -30,6 +30,8 @@ interface ReceptionData {
   outstanding: number | null;
   collectedCount: number | null;
   collectedSamples: SampleSummary[] | null;
+  awaitingCollectionCount: number | null;
+  awaitingCollection: AwaitingCollectionItem[] | null;
 }
 
 export function ReceptionistDashboardScreen(): ReactElement {
@@ -49,11 +51,12 @@ export function ReceptionistDashboardScreen(): ReactElement {
         return;
       }
 
-      const [patientsResult, invoicesResult, samplesResult] =
+      const [patientsResult, invoicesResult, samplesResult, awaitingResult] =
         await Promise.allSettled([
           patientService.listPatients({ signal: controller.signal }),
           listOpenInvoices(controller.signal),
           sampleService.listSamples({ status: "collected" }, controller.signal),
+          sampleService.listAwaitingCollection(controller.signal),
         ]);
 
       if (!active) return;
@@ -93,6 +96,14 @@ export function ReceptionistDashboardScreen(): ReactElement {
         collectedSamples:
           samplesResult.status === "fulfilled"
             ? samplesResult.value.results
+            : null,
+        awaitingCollectionCount:
+          awaitingResult.status === "fulfilled"
+            ? awaitingResult.value.total
+            : null,
+        awaitingCollection:
+          awaitingResult.status === "fulfilled"
+            ? awaitingResult.value.results
             : null,
       });
       setLoading(false);
@@ -153,8 +164,10 @@ export function ReceptionistDashboardScreen(): ReactElement {
           <StatCard
             testId="stat-awaiting-collection"
             label="Awaiting collection"
-            value="—"
-            hint="No backend endpoint returns uncollected sample requests."
+            value={
+              loading ? "—" : (data?.awaitingCollectionCount?.toString() ?? "—")
+            }
+            hint="Ordered tests with no accession yet (branch scope)."
             icon="pending_actions"
           />
         </div>
@@ -299,8 +312,43 @@ export function ReceptionistDashboardScreen(): ReactElement {
           <Panel
             title="Awaiting collection"
             subtitle="Requested tests with no accession yet"
+            testId="panel-awaiting-collection"
           >
-            <EmptyState message="Not tracked — no backend endpoint returns uncollected sample requests. This dashboard does not invent that count." />
+            {loading ? (
+              <EmptyState message="Loading collection queue…" />
+            ) : data?.awaitingCollection === null ? (
+              <EmptyState message="Unavailable — the samples API did not respond." />
+            ) : data?.awaitingCollection.length ? (
+              <ul className="divide-y divide-slate-100">
+                {data.awaitingCollection.slice(0, 6).map((item) => (
+                  <li
+                    key={item.invoice_item_id}
+                    className="py-2.5 flex items-center justify-between gap-3 text-sm"
+                  >
+                    <div>
+                      <p className="font-medium text-slate-900">
+                        {item.patient_name}
+                      </p>
+                      <p className="font-mono text-xs text-slate-500">
+                        {item.patient_mrn} ·{" "}
+                        {item.test_name ?? item.panel_name ?? item.description}
+                      </p>
+                    </div>
+                    <span className="text-xs font-medium text-amber-700 bg-amber-50 px-2 py-0.5 rounded whitespace-nowrap">
+                      {new Date(item.ordered_at).toLocaleDateString("en-PK", {
+                        day: "numeric",
+                        month: "short",
+                      })}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <EmptyState message="No ordered tests are awaiting collection." />
+            )}
+            <div className="mt-4">
+              <DashboardLink to="/samples">Open samples</DashboardLink>
+            </div>
           </Panel>
         </div>
       </div>

@@ -16,7 +16,7 @@ vi.mock("../../features/billing/billingService", () => ({
   billingService: { listInvoices: vi.fn() },
 }));
 vi.mock("../../features/samples/sampleService", () => ({
-  sampleService: { listSamples: vi.fn() },
+  sampleService: { listSamples: vi.fn(), listAwaitingCollection: vi.fn() },
 }));
 
 const reception = {
@@ -80,6 +80,28 @@ describe("Receptionist dashboard", () => {
         return { results: [unpaid, partial], next_cursor: null };
       },
     );
+    vi.mocked(sampleService.listAwaitingCollection).mockResolvedValue({
+      total: 1,
+      results: [
+        {
+          invoice_id: "inv-1",
+          invoice_item_id: "item-1",
+          patient_id: "p1",
+          patient_name: "Ali Raza",
+          patient_mrn: "MRN-1",
+          branch_id: "b1",
+          branch_name: "Main Branch",
+          ordered_at: new Date().toISOString(),
+          test_id: "t1",
+          test_name: "CBC",
+          test_code: "CBC",
+          panel_id: null,
+          panel_name: null,
+          description: "Complete Blood Count",
+          status: "awaiting_collection",
+        },
+      ],
+    });
     vi.mocked(sampleService.listSamples).mockResolvedValue({
       results: [
         {
@@ -141,7 +163,12 @@ describe("Receptionist dashboard", () => {
       within(screen.getByTestId("stat-awaiting-receipt")).getByText("2"),
     ).toBeInTheDocument();
     expect(
-      within(screen.getByTestId("stat-awaiting-collection")).getByText("—"),
+      within(screen.getByTestId("stat-awaiting-collection")).getByText("1"),
+    ).toBeInTheDocument();
+    expect(
+      within(screen.getByTestId("panel-awaiting-collection")).getByText(
+        /Complete Blood Count|CBC/,
+      ),
     ).toBeInTheDocument();
 
     expect(screen.getAllByText("Ali Raza").length).toBeGreaterThan(0);
@@ -154,6 +181,9 @@ describe("Receptionist dashboard", () => {
       new Error("offline"),
     );
     vi.mocked(sampleService.listSamples).mockRejectedValue(
+      new Error("offline"),
+    );
+    vi.mocked(sampleService.listAwaitingCollection).mockRejectedValue(
       new Error("offline"),
     );
 

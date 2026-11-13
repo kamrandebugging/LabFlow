@@ -125,6 +125,22 @@ class SampleCollectionView(BranchScopedAPIView):
             )
 
         limit_param = request.query_params.get("limit")
+        status_param = request.query_params.get("status")
+        if (status_param or "").strip().lower() == "awaiting_collection":
+            try:
+                rows, total = SampleService.list_awaiting_collection(
+                    actor=user,
+                    branch_id=branch_id_param,
+                    q=request.query_params.get("q"),
+                    limit=limit_param,
+                )
+            except ValueError:
+                return Response(
+                    _format_error("validation_error", "Invalid query parameters"),
+                    status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                )
+            return Response({"results": rows, "total": total})
+
         try:
             samples, total = SampleService.list_samples(
                 actor=user,

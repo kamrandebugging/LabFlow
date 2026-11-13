@@ -89,6 +89,7 @@ describe("resultsService unit tests", () => {
       decision: "approved",
       note: "Clinically correlated.",
       range_override: false,
+      attestation: true,
     });
 
     expect(global.fetch).toHaveBeenCalledWith(
@@ -99,6 +100,7 @@ describe("resultsService unit tests", () => {
           decision: "approved",
           note: "Clinically correlated.",
           range_override: false,
+          attestation: true,
         }),
       }),
     );

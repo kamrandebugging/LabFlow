@@ -115,6 +115,9 @@ def _approve(
     result_id: uuid.UUID,
     body: dict[str, Any],
 ) -> Any:
+    # D8: approvals now require explicit reviewer attestation.
+    if body.get("decision") == "approved":
+        body = {**body, "attestation": body.get("attestation", True)}
     return Client().post(
         APPROVE_URL.format(result_id=result_id),
         data=json.dumps(body),
@@ -433,7 +436,7 @@ def test_concurrent_approvals_single_winner(
 ) -> None:
     setup = lab26_setup
     url = APPROVE_URL.format(result_id=setup["result_a"].id)
-    payload = json.dumps({"decision": "approved"})
+    payload = json.dumps({"decision": "approved", "attestation": True})
     barrier = threading.Barrier(2)
     outcomes: dict[int, Any] = {}
     thread_errors: dict[int, str] = {}

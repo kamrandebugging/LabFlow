@@ -13,8 +13,8 @@ export function ProvisionScreen(): JSX.Element {
   // Form Fields
   const [labName, setLabName] = useState("");
   const [slug, setSlug] = useState("");
-  const [city, setCity] = useState("Lahore");
-  const [province, setProvince] = useState("Punjab");
+  const [city, setCity] = useState("");
+  const [province, setProvince] = useState("");
   const [ownerName, setOwnerName] = useState("");
   const [ownerEmail, setOwnerEmail] = useState("");
   const [ownerPhone, setOwnerPhone] = useState("");
@@ -231,8 +231,8 @@ export function ProvisionScreen(): JSX.Element {
       owner_email: ownerEmail.trim().toLowerCase(),
       city: city.trim(),
       province: province.trim(),
-      phone: ownerPhone.trim() || "+92 300 0000000",
-      whatsapp: ownerPhone.trim() || "+92 300 0000000",
+      phone: ownerPhone.trim() || undefined,
+      whatsapp: ownerPhone.trim() || undefined,
       staff_seats: staffSeats,
       branch_count: 1 + extraBranches.length,
       branches: extraBranches.map((branch) => ({
@@ -368,6 +368,7 @@ export function ProvisionScreen(): JSX.Element {
                   value={city}
                   onChange={(e) => setCity(e.target.value)}
                 >
+                  <option value="">Select a city</option>
                   <option value="Lahore">Lahore (Punjab Zone A)</option>
                   <option value="Islamabad">Islamabad (Capital Hub)</option>
                   <option value="Rawalpindi">Rawalpindi (Punjab North)</option>
@@ -390,6 +391,7 @@ export function ProvisionScreen(): JSX.Element {
                   value={province}
                   onChange={(e) => setProvince(e.target.value)}
                 >
+                  <option value="">Select a province</option>
                   <option value="Punjab">Punjab</option>
                   <option value="Sindh">Sindh</option>
                   <option value="ICT">Islamabad Capital Territory</option>
@@ -410,9 +412,11 @@ export function ProvisionScreen(): JSX.Element {
                     onChange={(e) => handleSlugChange(e.target.value)}
                     placeholder="e.g. alrazi"
                   />
-                  <span className="px-space-sm font-code-sm text-code-sm text-on-surface-variant font-semibold select-none bg-surface-container">
-                    .labflow.app
-                  </span>
+                  {import.meta.env.VITE_PLATFORM_BASE_DOMAIN ? (
+                    <span className="px-space-sm font-code-sm text-code-sm text-on-surface-variant font-semibold select-none bg-surface-container">
+                      .{import.meta.env.VITE_PLATFORM_BASE_DOMAIN}
+                    </span>
+                  ) : null}
                 </div>
                 {fieldErrors.slug && (
                   <span className="text-xs text-error block">
@@ -980,7 +984,12 @@ export function ProvisionScreen(): JSX.Element {
                   <span className="material-symbols-outlined text-[14px]">
                     link
                   </span>
-                  <span>{slug || "slug"}.labflow.app</span>
+                  <span>
+                    {slug || "slug"}
+                    {import.meta.env.VITE_PLATFORM_BASE_DOMAIN
+                      ? `.${import.meta.env.VITE_PLATFORM_BASE_DOMAIN}`
+                      : ""}
+                  </span>
                 </div>
               </div>
             </div>
@@ -1000,7 +1009,9 @@ export function ProvisionScreen(): JSX.Element {
                   Location
                 </span>
                 <span className="text-on-surface font-medium truncate max-w-[170px]">
-                  {city}, {province}
+                  {city || province
+                    ? [city, province].filter(Boolean).join(", ")
+                    : "Not configured"}
                 </span>
               </div>
               <div className="flex items-center justify-between py-space-2xs">
@@ -1016,8 +1027,9 @@ export function ProvisionScreen(): JSX.Element {
                   Target Tier
                 </span>
                 <span className="text-primary font-bold">
-                  {selectedPlan?.name || "Growth"} (PKR{" "}
-                  {selectedPlan?.price || "5,999"}/mo)
+                  {selectedPlan
+                    ? `${selectedPlan.name} (PKR ${selectedPlan.price}/mo)`
+                    : "Select a plan"}
                 </span>
               </div>
               <div className="flex items-center justify-between py-space-2xs">

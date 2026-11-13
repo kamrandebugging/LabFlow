@@ -728,6 +728,15 @@ describe("Screen 24: Result Detail (/results/:id)", () => {
     );
 
     const submitBtn = screen.getByRole("button", { name: /Submit decision/i });
+    expect(submitBtn).toBeDisabled();
+    expect(resultsService.approveResult).not.toHaveBeenCalled();
+
+    await user.click(
+      screen.getByRole("checkbox", {
+        name: /I reviewed the reference range and critical thresholds/i,
+      }),
+    );
+    expect(submitBtn).toBeEnabled();
     await user.click(submitBtn);
 
     await waitFor(() => {
@@ -735,6 +744,7 @@ describe("Screen 24: Result Detail (/results/:id)", () => {
         decision: "approved",
         note: "Panic value verified with ward on-duty consultant.",
         range_override: false,
+        attestation: true,
       });
     });
   });

@@ -16,6 +16,7 @@ import type {
   PlatformSettingsResponse,
   ProvisionTenantPayload,
   ProvisionTenantResult,
+  SubscriptionDetailData,
   SubscriptionDetailResponse,
   SubscriptionListResponse,
   TenantDetail,
@@ -51,9 +52,11 @@ export const platformService = {
   },
 
   getTenantAudit(id: string): Promise<AuditListResponse> {
+    // D2: the audit endpoint rejects unknown filters such as `limit` with a
+    // 422, so only contract-defined parameters are sent.
     return apiRequest<AuditListResponse>("/platform/audit", {
       session: "platform",
-      query: { entity_type: "tenant", entity_id: id, limit: 20 },
+      query: { entity_type: "tenant", tenant_id: id },
     });
   },
 
@@ -130,13 +133,26 @@ export const platformService = {
     });
   },
 
-  getSubscription(id: string): Promise<SubscriptionDetailResponse> {
-    return apiRequest<SubscriptionDetailResponse>(
+  async getSubscription(id: string): Promise<SubscriptionDetailResponse> {
+    // The detail endpoint returns one flat object: { id, tenant, plan,
+    // billing_cycle, status, ..., payments }. Available plans come from the
+    // plan catalogue, never from the detail payload.
+    const detail = await apiRequest<SubscriptionDetailData>(
       `/platform/subscriptions/${id}`,
-      {
-        session: "platform",
-      },
+      { session: "platform" },
     );
+    // A plan-catalogue failure must not hide the subscription itself.
+    let plans: TenantPlan[] = [];
+    try {
+      const catalogue = await apiRequest<{ plans: TenantPlan[] }>(
+        "/platform/plans",
+        { session: "platform", query: { include_inactive: "true" } },
+      );
+      plans = catalogue.plans ?? [];
+    } catch {
+      plans = [];
+    }
+    return { ...detail, available_plans: plans };
   },
 
   markSubscriptionPaid(
@@ -301,7 +317,6 @@ export const platformService = {
     entity_type?: string;
     start_date?: string;
     end_date?: string;
-    limit?: number;
   }): Promise<AuditListResponse> {
     return apiRequest<AuditListResponse>("/platform/audit", {
       session: "platform",

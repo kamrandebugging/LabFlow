@@ -49,11 +49,15 @@ export function ResultDetailScreen(): JSX.Element {
   // Decision Form State
   const [decision, setDecision] = useState<"approved" | "rejected">("approved");
   const [decisionNote, setDecisionNote] = useState("");
+  const [attestation, setAttestation] = useState(false);
   const [submittingDecision, setSubmittingDecision] = useState(false);
   const [withdrawing, setWithdrawing] = useState(false);
 
   useEffect(() => {
     if (!id) return;
+    // A reused route must never carry the previous result's attestation.
+    setAttestation(false);
+    setDecisionNote("");
     async function loadData() {
       try {
         setLoading(true);
@@ -85,6 +89,12 @@ export function ResultDetailScreen(): JSX.Element {
       setErrorMessage("A rejection note is mandatory.");
       return;
     }
+    if (decision === "approved" && !attestation) {
+      setErrorMessage(
+        "Confirm that you reviewed the reference range and critical thresholds.",
+      );
+      return;
+    }
 
     try {
       setSubmittingDecision(true);
@@ -93,6 +103,7 @@ export function ResultDetailScreen(): JSX.Element {
         decision,
         note: decisionNote.trim() || undefined,
         range_override: false,
+        attestation: decision === "approved" ? attestation : false,
       });
 
       setSuccessMessage(`Result ${decision} successfully.`);
@@ -578,6 +589,21 @@ export function ResultDetailScreen(): JSX.Element {
                   />
                 </div>
 
+                {decision === "approved" && (
+                  <label className="flex items-start gap-2 text-xs text-slate-700 bg-teal-50/50 p-3 rounded-lg border border-teal-100 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={attestation}
+                      onChange={(e) => setAttestation(e.target.checked)}
+                      className="mt-0.5 accent-teal-700"
+                    />
+                    <span>
+                      I reviewed the reference range and critical thresholds for
+                      this result.
+                    </span>
+                  </label>
+                )}
+
                 {/* Policy note */}
                 <div className="flex items-center gap-2 text-xs text-slate-500 bg-slate-50 p-2.5 rounded-lg border border-slate-100">
                   <Info className="w-3.5 h-3.5 text-slate-400 shrink-0" />
@@ -587,7 +613,10 @@ export function ResultDetailScreen(): JSX.Element {
                 {/* Submit button */}
                 <button
                   type="submit"
-                  disabled={submittingDecision}
+                  disabled={
+                    submittingDecision ||
+                    (decision === "approved" && !attestation)
+                  }
                   className="w-full py-2.5 px-4 bg-teal-700 hover:bg-teal-800 text-white rounded-lg text-xs font-semibold shadow-xs transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                 >
                   {submittingDecision ? (

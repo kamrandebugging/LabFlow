@@ -240,6 +240,7 @@ export const resultsService = {
         decision: input.decision,
         note: input.note?.trim() || undefined,
         range_override: Boolean(input.range_override),
+        attestation: Boolean(input.attestation),
       },
     });
   },

@@ -4,6 +4,7 @@
 
 import { apiRequest, ApiError } from "../../lib/apiClient";
 import type {
+  AwaitingCollectionResponse,
   SampleCancelInput,
   SampleCreatedResponse,
   SampleCreateInput,
@@ -63,6 +64,18 @@ export const sampleService = {
       }
       throw err;
     }
+  },
+
+  /**
+   * A2: ordered tests with no live sample yet (derived server-side).
+   */
+  async listAwaitingCollection(
+    signal?: AbortSignal,
+  ): Promise<AwaitingCollectionResponse> {
+    return apiRequest<AwaitingCollectionResponse>("/samples", {
+      query: { status: "awaiting_collection" },
+      signal,
+    });
   },
 
   /**

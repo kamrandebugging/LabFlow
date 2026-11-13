@@ -47,10 +47,10 @@ export function SubscriptionsScreen() {
       if (search.trim()) {
         const q = search.toLowerCase();
         const matches =
-          sub.tenant_name.toLowerCase().includes(q) ||
-          sub.tenant_slug.toLowerCase().includes(q) ||
-          sub.city?.toLowerCase().includes(q) ||
-          sub.plan_name.toLowerCase().includes(q);
+          sub.tenant.name.toLowerCase().includes(q) ||
+          sub.tenant.slug.toLowerCase().includes(q) ||
+          sub.tenant.city?.toLowerCase().includes(q) ||
+          sub.plan.name.toLowerCase().includes(q);
         if (!matches) return false;
       }
 
@@ -66,16 +66,24 @@ export function SubscriptionsScreen() {
 
       // Dropdown filters
       if (statusFilter !== "ALL") {
-        if (statusFilter === "PAID" && sub.status !== "active") return false;
+        if (
+          statusFilter === "PAID" &&
+          (sub.status !== "active" || sub.last_payment === null)
+        )
+          return false;
         if (statusFilter === "OVERDUE" && sub.status !== "past_due")
           return false;
         if (statusFilter === "TRIAL" && sub.status !== "trialing") return false;
-        if (statusFilter === "FOUNDING" && !sub.is_founding) return false;
+        if (
+          statusFilter === "FOUNDING" &&
+          !sub.plan.name.toLowerCase().includes("founding")
+        )
+          return false;
       }
 
       if (
         planFilter !== "ALL" &&
-        !sub.plan_name.toLowerCase().includes(planFilter.toLowerCase())
+        !sub.plan.name.toLowerCase().includes(planFilter.toLowerCase())
       ) {
         return false;
       }
@@ -114,10 +122,10 @@ export function SubscriptionsScreen() {
       "Next Due Date",
     ];
     const rows = filtered.map((s) => [
-      s.tenant_name,
-      s.tenant_slug,
-      s.city || "",
-      s.plan_name,
+      s.tenant.name,
+      s.tenant.slug,
+      s.tenant.city || "",
+      s.plan.name,
       s.billing_cycle,
       s.amount,
       s.status,
@@ -198,18 +206,12 @@ export function SubscriptionsScreen() {
           </div>
           <div className="my-space-xs">
             <span className="font-headline-xl text-headline-xl text-inverse-surface tracking-tight tabular-nums font-bold">
-              {summary ? formatPKR(summary.mrr_pkr) : "PKR 0"}
+              {summary ? formatPKR(summary.mrr) : "PKR 0"}
             </span>
           </div>
           <div className="flex items-center gap-space-xs">
-            <span className="inline-flex items-center gap-0.5 bg-surface-container-low text-primary px-space-xs py-space-2xs font-code-sm text-code-sm font-bold rounded">
-              <span className="material-symbols-outlined text-[14px]">
-                trending_up
-              </span>
-              +8.4%
-            </span>
             <span className="font-body-xs text-body-xs text-outline">
-              vs last billing cycle
+              Active subscription plan prices only
             </span>
           </div>
         </div>
@@ -226,7 +228,7 @@ export function SubscriptionsScreen() {
           </div>
           <div className="my-space-xs flex items-baseline gap-space-sm">
             <span className="font-headline-xl text-headline-xl text-error tracking-tight tabular-nums font-bold">
-              {summary ? formatPKR(summary.overdue_amount_pkr) : "PKR 0"}
+              {summary ? formatPKR(summary.overdue_amount) : "PKR 0"}
             </span>
             <span className="bg-error-container text-on-error-container font-label-sm text-label-sm px-space-xs py-space-2xs font-bold uppercase rounded">
               {summary?.overdue_count ?? 0} Labs
@@ -234,10 +236,10 @@ export function SubscriptionsScreen() {
           </div>
           <div
             className="font-body-xs text-body-xs text-outline truncate"
-            title={overdueLabs.map((l) => l.tenant_name).join(", ")}
+            title={overdueLabs.map((l) => l.tenant.name).join(", ")}
           >
             {overdueLabs.length > 0
-              ? overdueLabs.map((l) => l.tenant_name).join(", ")
+              ? overdueLabs.map((l) => l.tenant.name).join(", ")
               : "All accounts current in good standing"}
           </div>
         </div>
@@ -493,7 +495,10 @@ export function SubscriptionsScreen() {
               <tbody className="divide-y divide-surface-container-high font-body-sm text-body-sm text-on-surface">
                 {filtered.map((sub) => {
                   const isOverdue = sub.status === "past_due";
-                  const isFounding = sub.is_founding;
+                  const isUnpaid = sub.last_payment === null;
+                  const isFounding = sub.plan.name
+                    .toLowerCase()
+                    .includes("founding");
 
                   return (
                     <tr
@@ -507,10 +512,10 @@ export function SubscriptionsScreen() {
                               to={`/platform/subscriptions/${sub.id}`}
                               className="font-title-sm text-title-sm text-inverse-surface font-bold hover:text-primary transition-colors"
                             >
-                              {sub.tenant_name}
+                              {sub.tenant.name}
                             </Link>
                             <span className="font-code-sm text-code-sm bg-surface-container-high text-on-surface-variant px-1 rounded">
-                              {sub.tenant_slug}
+                              {sub.tenant.slug}
                             </span>
                             {isFounding && (
                               <span className="bg-secondary-container text-on-secondary-fixed font-code-sm text-[10px] px-1 py-0.5 rounded font-extrabold uppercase">
@@ -519,15 +524,17 @@ export function SubscriptionsScreen() {
                             )}
                           </div>
                           <span className="font-body-xs text-body-xs text-outline">
-                            {sub.city
-                              ? `${sub.city}, ${sub.province || "PK"}`
-                              : "Pakistan"}
+                            {sub.tenant.city
+                              ? sub.tenant.province
+                                ? `${sub.tenant.city}, ${sub.tenant.province}`
+                                : sub.tenant.city
+                              : "Not configured"}
                           </span>
                         </div>
                       </td>
                       <td className="px-3 py-2 font-medium">
                         <span className="font-title-sm text-title-sm">
-                          {sub.plan_name}
+                          {sub.plan.name}
                         </span>
                       </td>
                       <td className="px-3 py-2 text-on-surface-variant font-code-sm capitalize">
@@ -545,9 +552,13 @@ export function SubscriptionsScreen() {
                           <span className="inline-flex items-center px-1.5 py-0.5 bg-blue-100 text-blue-800 font-label-sm text-label-sm font-bold uppercase rounded">
                             TRIAL
                           </span>
-                        ) : sub.status === "active" ? (
+                        ) : sub.status === "active" && !isUnpaid ? (
                           <span className="inline-flex items-center px-1.5 py-0.5 bg-primary-fixed text-on-primary-fixed font-label-sm text-label-sm font-bold uppercase rounded">
                             PAID
+                          </span>
+                        ) : sub.status === "active" && isUnpaid ? (
+                          <span className="inline-flex items-center px-1.5 py-0.5 bg-amber-100 text-amber-800 font-label-sm text-label-sm font-bold uppercase rounded">
+                            UNPAID
                           </span>
                         ) : (
                           <span className="inline-flex items-center px-1.5 py-0.5 bg-surface-container-high text-outline font-label-sm text-label-sm font-bold uppercase rounded">
@@ -573,7 +584,7 @@ export function SubscriptionsScreen() {
                               },
                             )}
                           </span>
-                        ) : sub.is_lifetime ? (
+                        ) : sub.plan.name.toLowerCase().includes("lifetime") ? (
                           <span className="text-secondary font-semibold">
                             Perpetual License
                           </span>

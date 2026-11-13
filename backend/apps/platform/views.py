@@ -238,9 +238,16 @@ class PlatformTenantCreateView(APIView):
         )
 
         tenant_ids = [t.id for t in page]
+        from apps.core.models import Domain as DomainModel
         from apps.core.models import Subscription as SubModel
 
         from .plan_snapshot import tenant_plan_snapshot
+
+        primary_domains = dict(
+            DomainModel.objects.filter(
+                tenant_id__in=tenant_ids, is_primary=True
+            ).values_list("tenant_id", "domain")
+        )
 
         # Same helper the Lab Detail screen uses, so list and detail can never
         # disagree on plan name or price.
@@ -249,8 +256,8 @@ class PlatformTenantCreateView(APIView):
         tenants_data = []
         for t in page:
             snapshot = snapshots.get(t.id)
-            plan_name = snapshot["name"] if snapshot else "Starter"
-            plan_price = snapshot["price"] if snapshot else "0.00"
+            plan_name = snapshot["name"] if snapshot else ""
+            plan_price = snapshot["price"] if snapshot else ""
             mrr_contribution = (
                 plan_price
                 if snapshot and snapshot["status"] == SubModel.Status.ACTIVE
@@ -263,8 +270,9 @@ class PlatformTenantCreateView(APIView):
                     "name": t.name,
                     "schema_name": t.schema_name,
                     "status": t.status,
-                    "city": t.city or "Lahore",
-                    "province": t.province or "Punjab",
+                    "city": t.city,
+                    "province": t.province,
+                    "domain": primary_domains.get(t.id),
                     "branch_count": t.branch_count,
                     "staff_count": t.staff_count,
                     "plan_name": plan_name,
