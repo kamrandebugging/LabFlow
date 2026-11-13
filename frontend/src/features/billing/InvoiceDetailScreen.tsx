@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useId, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   CheckCircle2,
   AlertCircle,
@@ -9,6 +10,8 @@ import {
   Ban,
 } from "lucide-react";
 import { billingService } from "./billingService";
+import { formatMoney, statusLabel } from "../../lib/format";
+import { messageForError } from "../../lib/errors";
 import type { InvoiceDetail, InvoiceStatus, PaymentMethod } from "./types";
 
 export interface InvoiceDetailScreenProps {
@@ -17,47 +20,50 @@ export interface InvoiceDetailScreenProps {
   onProceedToSamples?: (invoice: InvoiceDetail) => void;
 }
 
-function getStatusBadge(status: InvoiceStatus): JSX.Element {
+function getStatusBadge(
+  status: InvoiceStatus,
+  t: (key: string) => string,
+): JSX.Element {
   switch (status) {
     case "paid":
       return (
         <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
-          Paid
+          {statusLabel("invoice", "paid", t)}
         </span>
       );
     case "partial":
       return (
         <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
           <span className="w-1.5 h-1.5 rounded-full bg-amber-600" />
-          Partial
+          {statusLabel("invoice", "partial", t)}
         </span>
       );
     case "unpaid":
       return (
         <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-50 text-red-700 border border-red-200">
           <span className="w-1.5 h-1.5 rounded-full bg-red-600" />
-          Unpaid
+          {statusLabel("invoice", "unpaid", t)}
         </span>
       );
     case "refunded":
       return (
         <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-purple-50 text-purple-700 border border-purple-200">
           <span className="w-1.5 h-1.5 rounded-full bg-purple-600" />
-          Refunded
+          {statusLabel("invoice", "refunded", t)}
         </span>
       );
     case "cancelled":
       return (
         <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-300">
           <span className="w-1.5 h-1.5 rounded-full bg-slate-500" />
-          Cancelled
+          {statusLabel("invoice", "cancelled", t)}
         </span>
       );
     default:
       return (
         <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-600 border border-slate-200">
-          {status}
+          {t("common:labels.unknown")}
         </span>
       );
   }
@@ -93,6 +99,8 @@ export function InvoiceDetailScreen({
   onBack,
   onProceedToSamples,
 }: InvoiceDetailScreenProps): JSX.Element {
+  const { t, i18n } = useTranslation(["billing", "common"]);
+  const lang: "en" | "ur" = i18n.resolvedLanguage === "ur" ? "ur" : "en";
   const payAmountId = useId();
   const payMethodId = useId();
   const payRefId = useId();
@@ -134,13 +142,11 @@ export function InvoiceDetailScreen({
       const balance = Math.max(0, totalNum - netPaidNum);
       setPayAmount(balance > 0 ? balance.toFixed(2) : "");
     } catch (err) {
-      setErrorMessage(
-        err instanceof Error ? err.message : "Failed to load invoice.",
-      );
+      setErrorMessage(messageForError(err, t));
     } finally {
       setLoading(false);
     }
-  }, [invoiceId]);
+  }, [invoiceId, t]);
 
   useEffect(() => {
     fetchInvoice();
@@ -160,14 +166,12 @@ export function InvoiceDetailScreen({
 
     const amt = parseFloat(payAmount);
     if (isNaN(amt) || amt <= 0) {
-      setErrorMessage("Please enter a valid positive payment amount.");
+      setErrorMessage(t("billing:detail.error_invalid_payment"));
       return;
     }
 
     if (payMethod !== "cash" && !payReference.trim()) {
-      setErrorMessage(
-        "Reference / Transaction note is required for non-cash payments.",
-      );
+      setErrorMessage(t("billing:detail.error_reference_required"));
       return;
     }
 
@@ -179,13 +183,15 @@ export function InvoiceDetailScreen({
         amount: amt.toFixed(2),
         reference: payReference.trim() || undefined,
       });
-      showToast(`Payment of PKR ${amt.toFixed(2)} recorded successfully.`);
+      showToast(
+        t("billing:detail.toast_payment", {
+          amount: formatMoney(amt.toFixed(2), lang),
+        }),
+      );
       setPayReference("");
       await fetchInvoice();
     } catch (err) {
-      setErrorMessage(
-        err instanceof Error ? err.message : "Failed to record payment.",
-      );
+      setErrorMessage(messageForError(err, t));
     } finally {
       setSubmittingPayment(false);
     }
@@ -198,20 +204,22 @@ export function InvoiceDetailScreen({
 
     const amt = parseFloat(refundAmount);
     if (isNaN(amt) || amt <= 0) {
-      setErrorMessage("Please enter a valid positive refund amount.");
+      setErrorMessage(t("billing:detail.error_invalid_refund"));
       return;
     }
 
     const netPaidNum = parseFloat(invoice.net_paid || "0") || 0;
     if (amt > netPaidNum) {
       setErrorMessage(
-        `Refund amount cannot exceed total settled funds (PKR ${netPaidNum.toFixed(2)}).`,
+        t("billing:detail.error_refund_exceeds", {
+          amount: formatMoney(netPaidNum.toFixed(2), lang),
+        }),
       );
       return;
     }
 
     if (!refundReason.trim()) {
-      setErrorMessage("A refund reason note is required.");
+      setErrorMessage(t("billing:detail.error_refund_reason"));
       return;
     }
 
@@ -223,14 +231,16 @@ export function InvoiceDetailScreen({
         amount: amt.toFixed(2),
         reference: refundReason.trim(),
       });
-      showToast(`Refund of PKR ${amt.toFixed(2)} recorded successfully.`);
+      showToast(
+        t("billing:detail.toast_refund", {
+          amount: formatMoney(amt.toFixed(2), lang),
+        }),
+      );
       setRefundAmount("");
       setRefundReason("");
       await fetchInvoice();
     } catch (err) {
-      setErrorMessage(
-        err instanceof Error ? err.message : "Failed to record refund.",
-      );
+      setErrorMessage(messageForError(err, t));
     } finally {
       setSubmittingRefund(false);
     }
@@ -239,20 +249,18 @@ export function InvoiceDetailScreen({
   const handleConfirmCancel = async () => {
     if (!invoice) return;
     if (!cancelReason.trim()) {
-      setErrorMessage("Cancellation reason is required.");
+      setErrorMessage(t("billing:detail.error_cancel_reason"));
       return;
     }
 
     try {
       setSubmittingCancel(true);
       await billingService.cancelInvoice(invoice.id, cancelReason.trim());
-      showToast("Invoice has been successfully cancelled.");
+      showToast(t("billing:detail.toast_cancelled"));
       setShowCancelModal(false);
       await fetchInvoice();
     } catch (err) {
-      setErrorMessage(
-        err instanceof Error ? err.message : "Failed to cancel invoice.",
-      );
+      setErrorMessage(messageForError(err, t));
     } finally {
       setSubmittingCancel(false);
     }
@@ -267,7 +275,7 @@ export function InvoiceDetailScreen({
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="flex flex-col items-center gap-3 text-slate-500 text-sm">
           <div className="w-8 h-8 border-4 border-teal-600 border-t-transparent rounded-full animate-spin" />
-          <span>Loading invoice statement...</span>
+          <span>{t("billing:detail.loading")}</span>
         </div>
       </div>
     );
@@ -277,9 +285,11 @@ export function InvoiceDetailScreen({
     return (
       <div className="max-w-4xl mx-auto px-4 py-8">
         <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
-          <p className="text-red-800 font-semibold mb-2">Invoice Not Found</p>
+          <p className="text-red-800 font-semibold mb-2">
+            {t("billing:detail.not_found_title")}
+          </p>
           <p className="text-xs text-red-600 mb-4">
-            {errorMessage || "The requested invoice could not be loaded."}
+            {errorMessage || t("billing:detail.not_found_body")}
           </p>
           {onBack && (
             <button
@@ -287,7 +297,7 @@ export function InvoiceDetailScreen({
               onClick={onBack}
               className="px-4 py-2 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50"
             >
-              Back to Invoices
+              {t("billing:detail.back_to_invoices")}
             </button>
           )}
         </div>
@@ -308,7 +318,7 @@ export function InvoiceDetailScreen({
       {toastMessage && (
         <div
           role="status"
-          className="fixed bottom-6 right-6 z-50 bg-slate-900 text-white text-xs px-4 py-3 rounded-lg shadow-lg flex items-center gap-2"
+          className="fixed bottom-6 end-6 z-50 bg-slate-900 text-white text-xs px-4 py-3 rounded-lg shadow-lg flex items-center gap-2"
         >
           <CheckCircle2 className="w-4 h-4 text-teal-400" />
           <span>{toastMessage}</span>
@@ -323,15 +333,15 @@ export function InvoiceDetailScreen({
             onClick={onBack}
             className="hover:text-slate-700 transition-colors cursor-pointer"
           >
-            Invoices
+            {t("billing:shared.invoices")}
           </button>
           <span>/</span>
-          <span className="font-mono text-slate-900 font-medium">
+          <span className="font-mono text-slate-900 font-medium" dir="ltr">
             {invoice.invoice_number || invoice.id}
           </span>
         </div>
         <div className="text-xs font-mono text-slate-500">
-          {formatPkt(invoice.created_at)}
+          <bdi dir="ltr">{formatPkt(invoice.created_at)}</bdi>
         </div>
       </div>
 
@@ -347,7 +357,7 @@ export function InvoiceDetailScreen({
             type="button"
             onClick={() => setErrorMessage(null)}
             className="text-red-500 hover:text-red-700 font-bold"
-            aria-label="Dismiss error"
+            aria-label={t("billing:shared.dismiss_error_aria")}
           >
             ×
           </button>
@@ -359,37 +369,44 @@ export function InvoiceDetailScreen({
         <div className="flex flex-col lg:flex-row justify-between lg:items-start gap-4">
           <div>
             <div className="flex flex-wrap items-center gap-3 mb-2">
-              <h1 className="text-2xl font-bold font-mono text-slate-900 tracking-tight">
+              <h1
+                className="text-2xl font-bold font-mono text-slate-900 tracking-tight"
+                dir="ltr"
+              >
                 {invoice.invoice_number || invoice.id}
               </h1>
-              {getStatusBadge(invoice.status)}
+              {getStatusBadge(invoice.status, t)}
               <span className="text-xs bg-slate-100 text-slate-600 px-2.5 py-0.5 rounded font-medium border border-slate-200">
-                Invoice
+                {t("billing:detail.type_badge")}
               </span>
             </div>
             <div className="text-sm text-slate-600 flex flex-wrap items-center gap-x-4 gap-y-1">
               <span className="font-medium text-slate-900">
-                {invoice.patient_name || "—"}
+                <bdi dir="ltr">{invoice.patient_name || "—"}</bdi>
               </span>
               <span className="text-slate-300 hidden sm:inline">|</span>
               <span className="font-mono text-slate-500">
-                {invoice.patient_mrn ? `MRN: ${invoice.patient_mrn}` : "MRN: —"}
+                <bdi dir="ltr">
+                  {t("billing:detail.mrn_value", {
+                    mrn: invoice.patient_mrn || "—",
+                  })}
+                </bdi>
               </span>
               {invoice.patient_phone && (
                 <>
                   <span className="text-slate-300 hidden sm:inline">|</span>
                   <span className="font-mono text-slate-500">
-                    {invoice.patient_phone}
+                    <bdi dir="ltr">{invoice.patient_phone}</bdi>
                   </span>
                 </>
               )}
               <span className="text-slate-300 hidden sm:inline">|</span>
               <span className="text-slate-600 font-medium">
-                {invoice.branch_name || "—"}
+                <bdi dir="ltr">{invoice.branch_name || "—"}</bdi>
               </span>
               <span className="text-slate-300 hidden sm:inline">|</span>
               <span className="font-mono text-slate-500">
-                {formatPkt(invoice.created_at)}
+                <bdi dir="ltr">{formatPkt(invoice.created_at)}</bdi>
               </span>
             </div>
           </div>
@@ -400,7 +417,7 @@ export function InvoiceDetailScreen({
               className="inline-flex items-center gap-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-800 text-xs font-semibold px-3 py-2 rounded-lg shadow-sm transition-colors cursor-pointer"
             >
               <Printer className="w-3.5 h-3.5" />
-              <span>Print Receipt</span>
+              <span>{t("billing:detail.print_receipt")}</span>
             </button>
             {onProceedToSamples && (
               <button
@@ -409,7 +426,7 @@ export function InvoiceDetailScreen({
                 className="inline-flex items-center gap-1.5 bg-teal-700 hover:bg-teal-800 text-white text-xs font-semibold px-3.5 py-2 rounded-lg shadow-sm transition-colors cursor-pointer"
               >
                 <FlaskConical className="w-3.5 h-3.5" />
-                <span>Collect Samples</span>
+                <span>{t("billing:detail.collect_samples")}</span>
               </button>
             )}
           </div>
@@ -424,19 +441,25 @@ export function InvoiceDetailScreen({
           <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
             <div className="flex justify-between items-center pb-4 border-b border-slate-100">
               <h2 className="text-base font-semibold text-slate-900">
-                Lines &amp; Pricing
+                {t("billing:detail.lines_title")}
               </h2>
               <span className="text-xs text-slate-500 font-medium">
                 {invoice.items?.length || 0}{" "}
-                {invoice.items?.length === 1 ? "item" : "items"} included
+                {invoice.items?.length === 1
+                  ? t("billing:detail.items_included_one")
+                  : t("billing:detail.items_included_other")}
               </span>
             </div>
 
             {/* Table Header */}
             <div className="grid grid-cols-12 text-xs uppercase font-medium text-slate-400 py-2.5 border-b border-slate-100 mt-2">
-              <div className="col-span-7">Item / Description</div>
-              <div className="col-span-2 text-center">Qty</div>
-              <div className="col-span-3 text-right">Line Total</div>
+              <div className="col-span-7">{t("billing:detail.col_item")}</div>
+              <div className="col-span-2 text-center">
+                {t("billing:detail.col_qty")}
+              </div>
+              <div className="col-span-3 text-end">
+                {t("billing:detail.col_line_total")}
+              </div>
             </div>
 
             {/* Rows */}
@@ -447,25 +470,27 @@ export function InvoiceDetailScreen({
                     key={it.id}
                     className="grid grid-cols-12 py-3 items-center"
                   >
-                    <div className="col-span-7 pr-2">
+                    <div className="col-span-7 pe-2">
                       <div className="font-medium text-slate-900 text-sm">
-                        {it.description}
+                        <bdi dir="ltr">{it.description}</bdi>
                       </div>
                     </div>
                     <div className="col-span-2 text-center text-xs font-mono text-slate-600">
                       {it.quantity}
                     </div>
-                    <div className="col-span-3 text-right font-mono text-xs font-medium text-slate-900">
-                      PKR{" "}
-                      {parseFloat(
-                        it.line_total || it.unit_price || "0",
-                      ).toFixed(2)}
+                    <div className="col-span-3 text-end font-mono text-xs font-medium text-slate-900">
+                      {formatMoney(
+                        parseFloat(
+                          it.line_total || it.unit_price || "0",
+                        ).toFixed(2),
+                        lang,
+                      )}
                     </div>
                   </div>
                 ))
               ) : (
                 <div className="py-4 text-center text-xs text-slate-400">
-                  No items on this invoice.
+                  {t("billing:detail.no_items")}
                 </div>
               )}
             </div>
@@ -473,40 +498,46 @@ export function InvoiceDetailScreen({
             {/* Calculation Stack */}
             <div className="pt-4 mt-2 border-t border-slate-100 space-y-2.5">
               <div className="flex justify-between items-center text-sm">
-                <span className="text-slate-600">Gross Subtotal</span>
+                <span className="text-slate-600">
+                  {t("billing:detail.gross_subtotal")}
+                </span>
                 <span className="bg-slate-50 border border-slate-200 px-2.5 py-1 rounded text-xs font-mono text-slate-900 font-medium">
-                  PKR {subtotalNum.toFixed(2)}
+                  {formatMoney(subtotalNum.toFixed(2), lang)}
                 </span>
               </div>
               {discountNum > 0 && (
                 <div className="flex justify-between items-center text-sm bg-slate-50 p-2.5 rounded-lg border border-slate-100">
                   <div>
                     <div className="font-medium text-slate-900 text-xs">
-                      Discount Applied
+                      {t("billing:detail.discount_applied")}
                     </div>
                     {invoice.discount_reason && (
                       <div className="text-[11px] text-slate-500">
-                        Reason: {invoice.discount_reason}
+                        {t("billing:detail.discount_reason", {
+                          reason: invoice.discount_reason,
+                        })}
                       </div>
                     )}
                   </div>
                   <span className="bg-slate-100 border border-slate-200 px-2.5 py-1 rounded text-xs font-mono text-slate-900 font-medium">
-                    - PKR {discountNum.toFixed(2)}
+                    - {formatMoney(discountNum.toFixed(2), lang)}
                   </span>
                 </div>
               )}
               <div className="flex justify-between items-center text-sm pt-1">
                 <span className="text-slate-700 font-semibold">
-                  Net Payable
+                  {t("billing:detail.net_payable")}
                 </span>
                 <span className="bg-slate-50 border border-slate-200 px-2.5 py-1 rounded text-xs font-mono text-slate-900 font-bold">
-                  PKR {totalNum.toFixed(2)}
+                  {formatMoney(totalNum.toFixed(2), lang)}
                 </span>
               </div>
               <div className="flex justify-between items-center text-sm">
-                <span className="text-slate-600">Total Settled Funds</span>
+                <span className="text-slate-600">
+                  {t("billing:detail.total_settled")}
+                </span>
                 <span className="bg-slate-50 border border-slate-200 px-2.5 py-1 rounded text-xs font-mono text-slate-900 font-medium">
-                  PKR {netPaidNum.toFixed(2)}
+                  {formatMoney(netPaidNum.toFixed(2), lang)}
                 </span>
               </div>
               <div className="border-t border-slate-200 my-2" />
@@ -515,15 +546,15 @@ export function InvoiceDetailScreen({
               <div className="flex justify-between items-center pt-1">
                 <div>
                   <div className="text-base font-bold text-slate-900">
-                    Balance Due
+                    {t("billing:detail.balance_due")}
                   </div>
                   <div className="text-xs text-amber-600 font-medium">
                     {balanceDue > 0
-                      ? "Payment outstanding at counter"
-                      : "Fully settled"}
+                      ? t("billing:detail.outstanding")
+                      : t("billing:detail.fully_settled")}
                   </div>
                 </div>
-                <div className="text-right">
+                <div className="text-end">
                   <div
                     className={`text-xl font-bold font-mono px-4 py-2 rounded-lg inline-block border ${
                       balanceDue > 0
@@ -531,7 +562,7 @@ export function InvoiceDetailScreen({
                         : "bg-emerald-50 text-emerald-900 border-emerald-200"
                     }`}
                   >
-                    PKR {balanceDue.toFixed(2)}
+                    {formatMoney(balanceDue.toFixed(2), lang)}
                   </div>
                 </div>
               </div>
@@ -542,11 +573,13 @@ export function InvoiceDetailScreen({
           <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
             <div className="flex justify-between items-center pb-4 border-b border-slate-100">
               <h2 className="text-base font-semibold text-slate-900">
-                Payments Ledger
+                {t("billing:detail.ledger_title")}
               </h2>
               <span className="text-xs text-slate-500 font-medium">
                 {invoice.payments?.length || 0}{" "}
-                {invoice.payments?.length === 1 ? "entry" : "entries"} recorded
+                {invoice.payments?.length === 1
+                  ? t("billing:detail.entries_recorded_one")
+                  : t("billing:detail.entries_recorded_other")}
               </span>
             </div>
 
@@ -566,7 +599,7 @@ export function InvoiceDetailScreen({
                       <div>
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="font-mono text-xs font-medium text-slate-700">
-                            {formatPkt(p.created_at)}
+                            <bdi dir="ltr">{formatPkt(p.created_at)}</bdi>
                           </span>
                           <span className="text-slate-400">·</span>
                           <span
@@ -576,22 +609,26 @@ export function InvoiceDetailScreen({
                                 : "bg-slate-100 text-slate-800"
                             }`}
                           >
-                            {p.kind}: {p.method.replace("_", " ")}
+                            {t(`billing:detail.kind.${p.kind}`)}:{" "}
+                            {t(`billing:detail.method.${p.method}`)}
                           </span>
                         </div>
                         {p.reference && (
                           <div className="text-xs text-slate-500 mt-1">
-                            Ref:{" "}
-                            <span className="font-mono">{p.reference}</span>
+                            {t("billing:detail.reference_label")}{" "}
+                            <span className="font-mono">
+                              <bdi dir="ltr">{p.reference}</bdi>
+                            </span>
                           </div>
                         )}
                         {p.received_by && (
                           <div className="text-[11px] text-slate-400 mt-0.5">
-                            Cashier / Operator: {p.received_by}
+                            {t("billing:detail.cashier_label")}{" "}
+                            <bdi dir="ltr">{p.received_by}</bdi>
                           </div>
                         )}
                       </div>
-                      <div className="text-right shrink-0">
+                      <div className="text-end shrink-0">
                         <span
                           className={`font-mono font-bold text-sm px-2.5 py-1 rounded inline-block border ${
                             isRefund
@@ -599,15 +636,20 @@ export function InvoiceDetailScreen({
                               : "bg-slate-50 text-slate-900 border-slate-200"
                           }`}
                         >
-                          {isRefund ? "-" : "+"} PKR{" "}
-                          {parseFloat(p.amount || "0").toFixed(2)}
+                          {isRefund ? "-" : "+"}{" "}
+                          {formatMoney(
+                            parseFloat(p.amount || "0").toFixed(2),
+                            lang,
+                          )}
                         </span>
                         <div
                           className={`text-[11px] font-medium mt-1 ${
                             isRefund ? "text-red-600" : "text-teal-700"
                           }`}
                         >
-                          {isRefund ? "● Refunded" : "● Settled"}
+                          {isRefund
+                            ? `● ${t("billing:detail.entry_refunded")}`
+                            : `● ${t("billing:detail.entry_settled")}`}
                         </div>
                       </div>
                     </div>
@@ -615,7 +657,7 @@ export function InvoiceDetailScreen({
                 })
               ) : (
                 <div className="py-6 text-center text-xs text-slate-400 border border-dashed border-slate-200 rounded-lg">
-                  No payments have been recorded for this invoice yet.
+                  {t("billing:detail.no_payments")}
                 </div>
               )}
             </div>
@@ -629,10 +671,10 @@ export function InvoiceDetailScreen({
             <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
               <div className="pb-3 border-b border-slate-100 mb-4">
                 <h2 className="text-base font-semibold text-slate-900">
-                  Record payment
+                  {t("billing:detail.record_payment_title")}
                 </h2>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Apply cash, card, or digital payment towards balance
+                  {t("billing:detail.record_payment_hint")}
                 </p>
               </div>
 
@@ -642,7 +684,8 @@ export function InvoiceDetailScreen({
                     htmlFor={payAmountId}
                     className="block text-xs font-semibold text-slate-700 mb-1"
                   >
-                    Amount (PKR) <span className="text-red-600">*</span>
+                    {t("billing:detail.amount_label")}{" "}
+                    <span className="text-red-600">*</span>
                   </label>
                   <input
                     id={payAmountId}
@@ -656,7 +699,9 @@ export function InvoiceDetailScreen({
                     className="font-mono text-sm border border-slate-300 rounded-lg px-3 py-2 w-full focus:ring-2 focus:ring-teal-600 focus:outline-none"
                   />
                   <span className="block text-xs text-slate-500 mt-1">
-                    Maximum balance payable: PKR {balanceDue.toFixed(2)}
+                    {t("billing:detail.max_payable", {
+                      amount: formatMoney(balanceDue.toFixed(2), lang),
+                    })}
                   </span>
                 </div>
 
@@ -665,7 +710,8 @@ export function InvoiceDetailScreen({
                     htmlFor={payMethodId}
                     className="block text-xs font-semibold text-slate-700 mb-1"
                   >
-                    Payment Method <span className="text-red-600">*</span>
+                    {t("billing:detail.payment_method_label")}{" "}
+                    <span className="text-red-600">*</span>
                   </label>
                   <select
                     id={payMethodId}
@@ -675,12 +721,24 @@ export function InvoiceDetailScreen({
                     }
                     className="border border-slate-300 rounded-lg px-3 py-2 w-full text-sm bg-white text-slate-900 focus:ring-2 focus:ring-teal-600 focus:outline-none"
                   >
-                    <option value="cash">Cash</option>
-                    <option value="card">Credit / Debit Card</option>
-                    <option value="bank_transfer">Bank Transfer</option>
-                    <option value="easypaisa">Easypaisa</option>
-                    <option value="jazzcash">JazzCash</option>
-                    <option value="other">Other</option>
+                    <option value="cash">
+                      {t("billing:detail.method.cash")}
+                    </option>
+                    <option value="card">
+                      {t("billing:detail.method.card")}
+                    </option>
+                    <option value="bank_transfer">
+                      {t("billing:detail.method.bank_transfer")}
+                    </option>
+                    <option value="easypaisa">
+                      {t("billing:detail.method.easypaisa")}
+                    </option>
+                    <option value="jazzcash">
+                      {t("billing:detail.method.jazzcash")}
+                    </option>
+                    <option value="other">
+                      {t("billing:detail.method.other")}
+                    </option>
                   </select>
                 </div>
 
@@ -689,7 +747,7 @@ export function InvoiceDetailScreen({
                     htmlFor={payRefId}
                     className="block text-xs font-semibold text-slate-700 mb-1"
                   >
-                    Reference / Transaction Note{" "}
+                    {t("billing:detail.reference_field_label")}{" "}
                     {payMethod !== "cash" && (
                       <span className="text-red-600">*</span>
                     )}
@@ -699,11 +757,11 @@ export function InvoiceDetailScreen({
                     type="text"
                     value={payReference}
                     onChange={(e) => setPayReference(e.target.value)}
-                    placeholder="e.g. TRX-98214 or Approval Code"
+                    placeholder={t("billing:detail.reference_placeholder")}
                     className="text-sm border border-slate-300 rounded-lg px-3 py-2 w-full focus:ring-2 focus:ring-teal-600 focus:outline-none placeholder:text-slate-400"
                   />
                   <span className="block text-xs text-slate-500 mt-1">
-                    Required for non-cash settlement records
+                    {t("billing:detail.reference_help")}
                   </span>
                 </div>
 
@@ -713,11 +771,11 @@ export function InvoiceDetailScreen({
                   className="bg-teal-700 hover:bg-teal-800 text-white font-medium text-sm py-2.5 px-4 rounded-lg w-full flex items-center justify-center gap-2 shadow-sm transition-colors cursor-pointer disabled:opacity-50"
                 >
                   {submittingPayment ? (
-                    <span>Recording payment...</span>
+                    <span>{t("billing:detail.recording_payment")}</span>
                   ) : (
                     <>
                       <CreditCard className="w-4 h-4" />
-                      <span>Record payment</span>
+                      <span>{t("billing:detail.record_payment_title")}</span>
                     </>
                   )}
                 </button>
@@ -730,10 +788,10 @@ export function InvoiceDetailScreen({
             <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
               <div className="pb-3 border-b border-slate-100 mb-4">
                 <h2 className="text-base font-semibold text-slate-900">
-                  Record refund
+                  {t("billing:detail.record_refund_title")}
                 </h2>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Reverse settled funds to patient
+                  {t("billing:detail.record_refund_hint")}
                 </p>
               </div>
 
@@ -743,7 +801,8 @@ export function InvoiceDetailScreen({
                     htmlFor={refundAmountId}
                     className="block text-xs font-semibold text-slate-700 mb-1"
                   >
-                    Refund Amount (PKR) <span className="text-red-600">*</span>
+                    {t("billing:detail.refund_amount_label")}{" "}
+                    <span className="text-red-600">*</span>
                   </label>
                   <input
                     id={refundAmountId}
@@ -753,12 +812,14 @@ export function InvoiceDetailScreen({
                     max={netPaidNum}
                     value={refundAmount}
                     onChange={(e) => setRefundAmount(e.target.value)}
-                    placeholder="0.00"
+                    placeholder={t("billing:new.amount_placeholder")}
                     required
                     className="font-mono text-sm border border-slate-300 rounded-lg px-3 py-2 w-full focus:ring-2 focus:ring-teal-600 focus:outline-none"
                   />
                   <span className="block text-xs text-slate-500 mt-1">
-                    Cannot exceed settled funds: PKR {netPaidNum.toFixed(2)}
+                    {t("billing:detail.refund_max", {
+                      amount: formatMoney(netPaidNum.toFixed(2), lang),
+                    })}
                   </span>
                 </div>
 
@@ -767,7 +828,8 @@ export function InvoiceDetailScreen({
                     htmlFor={refundMethodId}
                     className="block text-xs font-semibold text-slate-700 mb-1"
                   >
-                    Refund Method <span className="text-red-600">*</span>
+                    {t("billing:detail.refund_method_label")}{" "}
+                    <span className="text-red-600">*</span>
                   </label>
                   <select
                     id={refundMethodId}
@@ -777,10 +839,18 @@ export function InvoiceDetailScreen({
                     }
                     className="border border-slate-300 rounded-lg px-3 py-2 w-full text-sm bg-white text-slate-900 focus:ring-2 focus:ring-teal-600 focus:outline-none"
                   >
-                    <option value="cash">Cash Reversal</option>
-                    <option value="bank_transfer">Bank Reversal</option>
-                    <option value="easypaisa">Easypaisa</option>
-                    <option value="jazzcash">JazzCash</option>
+                    <option value="cash">
+                      {t("billing:detail.refund_method.cash")}
+                    </option>
+                    <option value="bank_transfer">
+                      {t("billing:detail.refund_method.bank_transfer")}
+                    </option>
+                    <option value="easypaisa">
+                      {t("billing:detail.refund_method.easypaisa")}
+                    </option>
+                    <option value="jazzcash">
+                      {t("billing:detail.refund_method.jazzcash")}
+                    </option>
                   </select>
                 </div>
 
@@ -789,14 +859,15 @@ export function InvoiceDetailScreen({
                     htmlFor={refundReasonId}
                     className="block text-xs font-semibold text-slate-700 mb-1"
                   >
-                    Reason note <span className="text-red-600">*</span>
+                    {t("billing:detail.reason_note_label")}{" "}
+                    <span className="text-red-600">*</span>
                   </label>
                   <input
                     id={refundReasonId}
                     type="text"
                     value={refundReason}
                     onChange={(e) => setRefundReason(e.target.value)}
-                    placeholder="Clinical or billing justification (e.g. test cancelled)"
+                    placeholder={t("billing:detail.reason_placeholder")}
                     required
                     className="text-sm border border-slate-300 rounded-lg px-3 py-2 w-full focus:ring-2 focus:ring-teal-600 focus:outline-none placeholder:text-slate-400"
                   />
@@ -808,11 +879,11 @@ export function InvoiceDetailScreen({
                   className="border border-slate-300 hover:bg-slate-50 text-slate-700 font-medium text-sm py-2 px-4 rounded-lg w-full flex items-center justify-center gap-2 transition-colors cursor-pointer disabled:opacity-50"
                 >
                   {submittingRefund ? (
-                    <span>Recording refund...</span>
+                    <span>{t("billing:detail.recording_refund")}</span>
                   ) : (
                     <>
                       <RotateCcw className="w-4 h-4" />
-                      <span>Record refund</span>
+                      <span>{t("billing:detail.record_refund_title")}</span>
                     </>
                   )}
                 </button>
@@ -824,16 +895,14 @@ export function InvoiceDetailScreen({
           <div className="bg-red-50/20 rounded-xl border border-red-200 p-5">
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm font-semibold text-red-700">
-                Cancel invoice
+                {t("billing:detail.cancel_title")}
               </span>
               <span className="text-xs font-medium text-slate-500">
-                (unpaid invoices only)
+                {t("billing:detail.cancel_hint")}
               </span>
             </div>
             <p className="text-xs text-slate-600 mb-3 leading-relaxed">
-              Cancellation is strictly restricted to invoices with zero settled
-              payments. To cancel this invoice, all payments must first be fully
-              refunded.
+              {t("billing:detail.cancel_description")}
             </p>
             <button
               type="button"
@@ -846,7 +915,7 @@ export function InvoiceDetailScreen({
               }`}
             >
               <Ban className="w-4 h-4" />
-              <span>Cancel invoice</span>
+              <span>{t("billing:detail.cancel_title")}</span>
             </button>
           </div>
         </div>
@@ -865,25 +934,25 @@ export function InvoiceDetailScreen({
               id="cancel-dialog-title"
               className="text-lg font-bold text-slate-900 mb-2"
             >
-              Cancel Invoice?
+              {t("billing:detail.cancel_modal_title")}
             </h3>
             <p className="text-xs text-slate-600 mb-4">
-              This action cannot be undone. Please provide a mandatory
-              cancellation reason for the audit log.
+              {t("billing:detail.cancel_modal_body")}
             </p>
             <div className="mb-4">
               <label
                 htmlFor={cancelReasonId}
                 className="block text-xs font-semibold text-slate-700 mb-1"
               >
-                Cancellation Reason <span className="text-red-600">*</span>
+                {t("billing:detail.cancel_reason_label")}{" "}
+                <span className="text-red-600">*</span>
               </label>
               <textarea
                 id={cancelReasonId}
                 rows={3}
                 value={cancelReason}
                 onChange={(e) => setCancelReason(e.target.value)}
-                placeholder="e.g. Patient did not arrive, test ordered in error..."
+                placeholder={t("billing:detail.cancel_reason_placeholder")}
                 className="w-full text-sm border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-red-600 focus:outline-none"
               />
             </div>
@@ -894,7 +963,7 @@ export function InvoiceDetailScreen({
                 disabled={submittingCancel}
                 className="px-4 py-2 border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50"
               >
-                Keep Invoice
+                {t("billing:detail.keep_invoice")}
               </button>
               <button
                 type="button"
@@ -902,7 +971,9 @@ export function InvoiceDetailScreen({
                 disabled={submittingCancel || !cancelReason.trim()}
                 className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-semibold disabled:opacity-50 flex items-center gap-1.5"
               >
-                {submittingCancel ? "Cancelling..." : "Confirm Cancellation"}
+                {submittingCancel
+                  ? t("billing:detail.cancelling")
+                  : t("billing:detail.confirm_cancel")}
               </button>
             </div>
           </div>

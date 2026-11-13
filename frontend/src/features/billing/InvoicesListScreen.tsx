@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   AlertCircle,
   Calendar,
@@ -11,6 +12,8 @@ import {
   X,
 } from "lucide-react";
 import { billingService } from "./billingService";
+import { formatMoney, statusLabel } from "../../lib/format";
+import { messageForError } from "../../lib/errors";
 import type { InvoiceStatus, InvoiceSummary } from "./types";
 
 interface InvoicesListScreenProps {
@@ -24,6 +27,8 @@ export function InvoicesListScreen({
   onSelectInvoice,
   service = billingService,
 }: InvoicesListScreenProps): JSX.Element {
+  const { t, i18n } = useTranslation(["billing", "common"]);
+  const lang: "en" | "ur" = i18n.resolvedLanguage === "ur" ? "ur" : "en";
   const [invoices, setInvoices] = useState<InvoiceSummary[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
@@ -43,13 +48,11 @@ export function InvoicesListScreen({
       // statuses. Absence is shown as unavailable.
       setDailyTotal(data.daily_total ?? null);
     } catch (err: unknown) {
-      setError(
-        err instanceof Error ? err.message : "Failed to load invoices list",
-      );
+      setError(messageForError(err, t));
     } finally {
       setIsLoading(false);
     }
-  }, [selectedStatus, service]);
+  }, [selectedStatus, service, t]);
 
   useEffect(() => {
     fetchInvoices();
@@ -73,40 +76,40 @@ export function InvoicesListScreen({
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
-            Paid
+            {statusLabel("invoice", "paid", t)}
           </span>
         );
       case "unpaid":
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200">
             <span className="w-1.5 h-1.5 rounded-full bg-rose-600" />
-            Unpaid
+            {statusLabel("invoice", "unpaid", t)}
           </span>
         );
       case "partial":
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
             <span className="w-1.5 h-1.5 rounded-full bg-amber-600" />
-            Partial
+            {statusLabel("invoice", "partial", t)}
           </span>
         );
       case "refunded":
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-300">
             <span className="w-1.5 h-1.5 rounded-full bg-slate-500" />
-            Refunded
+            {statusLabel("invoice", "refunded", t)}
           </span>
         );
       case "cancelled":
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-500 line-through border border-slate-200">
-            Cancelled
+            {statusLabel("invoice", "cancelled", t)}
           </span>
         );
       default:
         return (
           <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-600">
-            {status}
+            {t("common:labels.unknown")}
           </span>
         );
     }
@@ -139,11 +142,10 @@ export function InvoicesListScreen({
             </span>
             <div>
               <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-                Invoices & Billing
+                {t("billing:list.title")}
               </h1>
               <p className="text-xs text-slate-500 mt-0.5">
-                Manage patient billing, revenue receipts, and live collection
-                status · times are PKT
+                {t("billing:list.subtitle")} · {t("common:time.pkt")}
               </p>
             </div>
           </div>
@@ -154,10 +156,10 @@ export function InvoicesListScreen({
           <div className="bg-white border border-slate-200 rounded-xl px-4 py-2 flex items-center gap-2.5 shadow-xs">
             <Calendar className="w-4 h-4 text-slate-400" />
             <span className="text-xs uppercase tracking-wider text-slate-500 font-semibold">
-              Daily Total:
+              {t("billing:list.daily_total")}
             </span>
             <span className="font-mono text-sm font-bold text-slate-900">
-              {dailyTotal === null ? "—" : `PKR ${dailyTotal}`}
+              {formatMoney(dailyTotal, lang)}
             </span>
           </div>
 
@@ -168,7 +170,7 @@ export function InvoicesListScreen({
               className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-teal-600 rounded-lg hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-500 shadow-sm transition-all"
             >
               <Plus className="w-4 h-4" />
-              New invoice
+              {t("billing:list.new_invoice")}
             </button>
           ) : null}
         </div>
@@ -180,7 +182,7 @@ export function InvoicesListScreen({
           {/* Status Dropdown */}
           <div className="relative min-w-[150px]">
             <label htmlFor="invoiceStatusFilter" className="sr-only">
-              Filter by status
+              {t("billing:list.status_filter_aria")}
             </label>
             <select
               id="invoiceStatusFilter"
@@ -188,28 +190,36 @@ export function InvoicesListScreen({
               onChange={(e) => setSelectedStatus(e.target.value)}
               className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-600 cursor-pointer"
             >
-              <option value="all">All statuses</option>
-              <option value="paid">Paid</option>
-              <option value="unpaid">Unpaid</option>
-              <option value="partial">Partial</option>
-              <option value="refunded">Refunded</option>
-              <option value="cancelled">Cancelled</option>
+              <option value="all">{t("billing:list.all_statuses")}</option>
+              <option value="paid">{statusLabel("invoice", "paid", t)}</option>
+              <option value="unpaid">
+                {statusLabel("invoice", "unpaid", t)}
+              </option>
+              <option value="partial">
+                {statusLabel("invoice", "partial", t)}
+              </option>
+              <option value="refunded">
+                {statusLabel("invoice", "refunded", t)}
+              </option>
+              <option value="cancelled">
+                {statusLabel("invoice", "cancelled", t)}
+              </option>
             </select>
           </div>
 
           {/* Search Input */}
           <div className="relative flex-1 min-w-[220px]">
-            <Search className="absolute left-3 top-2.5 text-slate-400 w-4 h-4" />
+            <Search className="absolute start-3 top-2.5 text-slate-400 w-4 h-4" />
             <label htmlFor="invoiceSearchInput" className="sr-only">
-              Search Invoice or MRN
+              {t("billing:list.search_aria")}
             </label>
             <input
               id="invoiceSearchInput"
               type="text"
-              placeholder="Search Invoice # or MRN..."
+              placeholder={t("billing:list.search_placeholder")}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-600"
+              className="w-full ps-9 pe-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-600"
             />
           </div>
         </div>
@@ -219,7 +229,7 @@ export function InvoicesListScreen({
           onClick={fetchInvoices}
           disabled={isLoading}
           className="p-2 border border-slate-200 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-50 transition"
-          title="Refresh invoices"
+          title={t("billing:list.refresh_title")}
         >
           <RefreshCw
             className={`w-4 h-4 ${isLoading ? "animate-spin text-teal-600" : ""}`}
@@ -237,6 +247,7 @@ export function InvoicesListScreen({
           <button
             type="button"
             onClick={() => setError(null)}
+            aria-label={t("billing:shared.dismiss_error_aria")}
             className="text-rose-500 hover:text-rose-700"
           >
             <X className="w-4 h-4" />
@@ -247,29 +258,29 @@ export function InvoicesListScreen({
       {/* 3. Invoices Table Card */}
       <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-xs">
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+          <table className="w-full text-start border-collapse">
             <thead className="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase tracking-wider">
               <tr>
                 <th className="py-3 px-4" scope="col">
-                  Invoice #
+                  {t("billing:list.col_invoice")}
                 </th>
                 <th className="py-3 px-4" scope="col">
-                  Patient
+                  {t("billing:list.col_patient")}
                 </th>
                 <th className="py-3 px-4" scope="col">
-                  Date
+                  {t("common:labels.date")}
                 </th>
                 <th className="py-3 px-4" scope="col">
-                  Tests & Investigations
+                  {t("billing:list.col_tests")}
                 </th>
                 <th className="py-3 px-4" scope="col">
-                  Total (PKR)
+                  {t("billing:list.col_total")}
                 </th>
                 <th className="py-3 px-4" scope="col">
-                  Status
+                  {t("common:labels.status")}
                 </th>
-                <th className="py-3 px-4 text-right" scope="col">
-                  Action
+                <th className="py-3 px-4 text-end" scope="col">
+                  {t("billing:list.col_action")}
                 </th>
               </tr>
             </thead>
@@ -278,13 +289,13 @@ export function InvoicesListScreen({
                 <tr>
                   <td colSpan={7} className="py-12 text-center text-slate-400">
                     <RefreshCw className="w-6 h-6 animate-spin mx-auto text-teal-600 mb-2" />
-                    Loading invoices...
+                    {t("billing:list.loading")}
                   </td>
                 </tr>
               ) : filteredInvoices.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="py-12 text-center text-slate-400">
-                    No invoices found matching your criteria.
+                    {t("billing:list.empty")}
                   </td>
                 </tr>
               ) : (
@@ -300,37 +311,45 @@ export function InvoicesListScreen({
                     </td>
                     <td className="py-3.5 px-4">
                       <div className="font-medium text-slate-900">
-                        {inv.patient_name || "Patient Record"}
+                        {inv.patient_name || t("billing:list.patient_fallback")}
                       </div>
                       <div className="font-mono text-xs text-slate-400">
                         {inv.patient_mrn ||
-                          `MRN: ${inv.patient_id.slice(0, 8)}`}
+                          `${t("billing:list.mrn_label")} ${inv.patient_id.slice(0, 8)}`}
                       </div>
                     </td>
                     <td className="py-3.5 px-4 text-slate-600 text-xs">
-                      {formatDate(inv.created_at)}
+                      <bdi dir="ltr">{formatDate(inv.created_at)}</bdi>
                     </td>
                     <td
                       className="py-3.5 px-4 text-slate-700 max-w-xs truncate"
-                      title={inv.items_summary || "Diagnostic Investigations"}
+                      title={
+                        inv.items_summary || t("billing:list.tests_fallback")
+                      }
                     >
-                      {inv.items_summary || "Diagnostic Investigations"}
+                      {inv.items_summary || t("billing:list.tests_fallback")}
                     </td>
                     <td className="py-3.5 px-4">
                       <span className="bg-slate-50 border border-slate-200 rounded px-2.5 py-1 font-mono text-xs font-semibold text-slate-900 inline-block">
-                        PKR {inv.total}
+                        {formatMoney(inv.total, lang)}
                       </span>
                     </td>
                     <td className="py-3.5 px-4">
                       {getStatusBadge(inv.status)}
                     </td>
-                    <td className="py-3.5 px-4 text-right">
+                    <td className="py-3.5 px-4 text-end">
                       <button
                         type="button"
                         onClick={() => onSelectInvoice?.(inv.id)}
                         className="text-teal-600 font-semibold hover:text-teal-800 text-xs transition-colors"
                       >
-                        View →
+                        {t("billing:list.view")}{" "}
+                        <span
+                          aria-hidden="true"
+                          className="inline-block rtl:-scale-x-100"
+                        >
+                          →
+                        </span>
                       </button>
                     </td>
                   </tr>
@@ -343,11 +362,7 @@ export function InvoicesListScreen({
         {/* Table Footer */}
         <div className="border-t border-slate-200 px-4 py-3 flex items-center justify-between bg-white text-xs text-slate-500">
           <div>
-            Showing{" "}
-            <span className="font-semibold text-slate-700">
-              {filteredInvoices.length}
-            </span>{" "}
-            invoices
+            {t("billing:list.showing", { total: filteredInvoices.length })}
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -355,14 +370,14 @@ export function InvoicesListScreen({
               disabled
               className="p-1.5 border border-slate-200 rounded-lg text-slate-300 cursor-not-allowed"
             >
-              <ChevronLeft className="w-4 h-4" />
+              <ChevronLeft className="w-4 h-4 rtl:rotate-180" />
             </button>
             <button
               type="button"
               disabled
               className="p-1.5 border border-slate-200 rounded-lg text-slate-300 cursor-not-allowed"
             >
-              <ChevronRight className="w-4 h-4" />
+              <ChevronRight className="w-4 h-4 rtl:rotate-180" />
             </button>
           </div>
         </div>
