@@ -95,9 +95,9 @@ html[lang="ur"] body {
   line-height: var(--lf-line-height);
 }
 /* Display only: headings/titles at >=18-20px. Never tables, buttons,
-   inputs, labels or toasts (Doc 07 §9.2 / font research). h2 is deliberately
-   excluded because panel headings are often 16px; opt in with .font-display. */
-html[lang="ur"] h1,
+   inputs, labels or toasts (Doc 07 §9.2 / font research). The size selector is
+   deliberate: a small h1 (e.g. the login tenant banner) must NOT get Nastaliq. */
+html[lang="ur"] h1:is(.text-lg, .text-xl, .text-2xl, .text-3xl, .text-4xl),
 html[lang="ur"] .font-display {
   font-family:
     "Noto Nastaliq Urdu", "Noto Naskh Arabic", "Noto Sans Arabic", serif;
