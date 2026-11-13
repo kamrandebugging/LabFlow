@@ -369,6 +369,8 @@ class SampleService:
         for item in qs:
             invoice = item.invoice
             patient = invoice.patient
+            test = item.test
+            panel = item.panel
             rows.append(
                 {
                     "invoice_id": str(invoice.id),
@@ -379,11 +381,11 @@ class SampleService:
                     "branch_id": str(invoice.branch_id),
                     "branch_name": invoice.branch.name,
                     "ordered_at": invoice.created_at.isoformat(),
-                    "test_id": str(item.test_id) if item.test_id else None,
-                    "test_name": item.test.name if item.test_id else None,
-                    "test_code": item.test.code if item.test_id else None,
-                    "panel_id": str(item.panel_id) if item.panel_id else None,
-                    "panel_name": item.panel.name if item.panel_id else None,
+                    "test_id": str(test.id) if test is not None else None,
+                    "test_name": test.name if test is not None else None,
+                    "test_code": test.code if test is not None else None,
+                    "panel_id": str(panel.id) if panel is not None else None,
+                    "panel_name": panel.name if panel is not None else None,
                     "description": item.description,
                     "status": "awaiting_collection",
                 }

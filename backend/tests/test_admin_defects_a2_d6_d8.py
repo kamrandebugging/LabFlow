@@ -12,11 +12,10 @@ from __future__ import annotations
 import importlib
 import uuid
 from decimal import Decimal
-from typing import cast
+from typing import Any, cast
 
 import jwt
 import pytest
-from django.apps import apps as django_apps
 from django.conf import settings
 from django.core.cache import cache
 from django.db import connection
@@ -39,9 +38,9 @@ from tests.factories.patients import PatientFactory
 from tests.factories.results import ResultFactory
 from tests.factories.samples import SampleFactory, SampleTestFactory
 
-scrub_temp_passwords = importlib.import_module(
+_scrub_rows = importlib.import_module(
     "apps.core.migrations.0008_scrub_platform_audit_temp_password"
-).scrub_temp_passwords
+)._scrub_rows
 
 
 # ---------------------------------------------------------------------------
@@ -201,7 +200,7 @@ def test_provisioning_audit_never_contains_temp_password() -> None:
     assert resp.status_code == 202, resp.content[:300]
     tenant = Tenant.objects.get(slug=payload["slug"])
     audit = PlatformAudit.objects.get(action="tenant.created", entity_id=tenant.id)
-    assert "temp_password" not in audit.after_jsonb
+    assert "temp_password" not in cast(dict[str, Any], audit.after_jsonb)
     # The credential still exists on the tenant for the one-time delivery.
     assert tenant.temp_password
 
@@ -223,14 +222,15 @@ def test_scrub_migration_removes_temp_password_from_existing_rows() -> None:
     )
 
     with connection.schema_editor() as editor:
-        scrubbed = scrub_temp_passwords(django_apps, editor)
+        scrubbed = _scrub_rows(editor)
 
     assert scrubbed == 1
     with_temp.refresh_from_db()
     without.refresh_from_db()
-    assert "temp_password" not in with_temp.after_jsonb
-    assert with_temp.after_jsonb["slug"] == tenant.slug
-    assert without.after_jsonb == {"status": "suspended"}
+    with_after = cast(dict[str, Any], with_temp.after_jsonb)
+    assert "temp_password" not in with_after
+    assert with_after["slug"] == tenant.slug
+    assert cast(dict[str, Any], without.after_jsonb) == {"status": "suspended"}
 
 
 # ---------------------------------------------------------------------------
@@ -289,9 +289,10 @@ def test_approval_with_attestation_records_actor_and_timestamp(
         assert payload["attested_at"]
 
         audit = AuditLog.objects.get(action="result.approved", entity_id=result.id)
-        assert audit.after_jsonb["range_attestation"] is True
-        assert audit.after_jsonb["attested_by"] == str(pathologist.id)
-        assert audit.after_jsonb["attested_at"]
+        audit_after = cast(dict[str, Any], audit.after_jsonb)
+        assert audit_after["range_attestation"] is True
+        assert audit_after["attested_by"] == str(pathologist.id)
+        assert audit_after["attested_at"]
 
 
 @pytest.mark.django_db

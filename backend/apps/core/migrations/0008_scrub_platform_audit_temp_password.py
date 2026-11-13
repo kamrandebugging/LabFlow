@@ -15,7 +15,7 @@ from django.conf import settings
 from django.db import migrations
 
 
-def scrub_temp_passwords(apps: Any, schema_editor: Any) -> int:
+def _scrub_rows(schema_editor: Any) -> int:
     """Remove ``temp_password`` keys and return the number of rows scrubbed."""
     connection = schema_editor.connection
     # 0004 revoked UPDATE from the configured application role, so the scrub
@@ -61,6 +61,11 @@ def scrub_temp_passwords(apps: Any, schema_editor: Any) -> int:
         schema_editor.execute(f"REVOKE UPDATE ON platform_audit FROM {quoted_user};")
     print(f"D6: scrubbed temp_password from {scrubbed} platform_audit row(s)")
     return scrubbed
+
+
+def scrub_temp_passwords(apps: Any, schema_editor: Any) -> None:
+    """RunPython entry point (returns None by contract)."""
+    _scrub_rows(schema_editor)
 
 
 def noop_reverse(apps: Any, schema_editor: Any) -> None:

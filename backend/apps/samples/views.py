@@ -132,7 +132,7 @@ class SampleCollectionView(BranchScopedAPIView):
                     actor=user,
                     branch_id=branch_id_param,
                     q=request.query_params.get("q"),
-                    limit=limit_param,
+                    limit=int(limit_param) if limit_param else None,
                 )
             except ValueError:
                 return Response(

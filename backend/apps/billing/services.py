@@ -44,7 +44,7 @@ import json
 import uuid
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
-from typing import Any
+from typing import Any, cast
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -796,7 +796,7 @@ class InvoiceQueryService:
                 Q(created_at__lt=c_created) | Q(created_at=c_created, id__lt=c_id)
             )
         limit = max(1, min(limit, LIST_MAX_LIMIT))
-        rows = list(qs[: limit + 1])
+        rows = cast(list[Invoice], list(qs[: limit + 1]))
         next_cursor: str | None = None
         if len(rows) > limit:
             last = rows[limit - 1]
