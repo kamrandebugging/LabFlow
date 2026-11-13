@@ -85,3 +85,6 @@ backend/mediafiles/
 
 # Local-only dev server config (host-preserving proxy for *.localhost)
 frontend/vite.config.local.ts
+
+# Local verification artifacts (screenshots, rendered proofs)
+artifacts/

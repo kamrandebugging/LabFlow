@@ -11,6 +11,12 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 # WeasyPrint (report PDFs) needs pango/cairo; psycopg needs libpq.
+# Urdu fonts are NOT taken from the distro: apps/reports/pdf/fonts ships the
+# exact static TTFs the render test verified (Noto Naskh Arabic Regular/Bold,
+# Noto Nastaliq Urdu Regular), all SIL OFL 1.1. For the record, the Debian
+# package that provides the same families is `fonts-noto-core` (verified in
+# python:3.12-slim with apt-cache/fc-match on 2026-11-13); bundling pins the
+# exact files so a distro update cannot change report rendering.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         build-essential \
