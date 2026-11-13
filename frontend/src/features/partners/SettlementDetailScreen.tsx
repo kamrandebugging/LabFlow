@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link, useParams } from "react-router-dom";
 import {
   AlertCircle,
@@ -13,10 +14,14 @@ import {
   XCircle,
 } from "lucide-react";
 import { useAuthStore } from "../auth/authStore";
+import { messageForError } from "../../lib/errors";
+import { formatMoney, statusLabel } from "../../lib/format";
 import { PartnerApiError, partnersService } from "./partnersService";
 import type { ReferralPartner, Settlement, SettlementStatus } from "./types";
 
 export const SettlementDetailScreen: React.FC = () => {
+  const { t, i18n } = useTranslation(["settlements", "common"]);
+  const lang = i18n.resolvedLanguage === "ur" ? "ur" : "en";
   const { id } = useParams<{ id: string }>();
   const user = useAuthStore((s) => s.user);
   const isOwner = user?.role === "owner";
@@ -34,6 +39,15 @@ export const SettlementDetailScreen: React.FC = () => {
   const [isMarkPaidModalOpen, setIsMarkPaidModalOpen] =
     useState<boolean>(false);
   const [paymentReference, setPaymentReference] = useState<string>("");
+
+  /** Server codes become translated text; a raw `detail` is never rendered. */
+  const translateError = useCallback(
+    (err: unknown): string =>
+      messageForError(err, (key) =>
+        key.includes(":") ? t(key) : t(`common:${key}`),
+      ),
+    [t],
+  );
 
   const fetchData = useCallback(async (): Promise<void> => {
     if (!id || !isAuthorized) return;
@@ -56,16 +70,16 @@ export const SettlementDetailScreen: React.FC = () => {
       }
     } catch (err: unknown) {
       if (err instanceof PartnerApiError) {
-        setErrorMsg(err.message);
+        setErrorMsg(translateError(err));
       } else if (err instanceof Error) {
-        setErrorMsg(err.message);
+        setErrorMsg(t("settlements:errors.load_detail_failed"));
       } else {
-        setErrorMsg("Failed to load settlement detail.");
+        setErrorMsg(t("settlements:errors.load_detail_failed"));
       }
     } finally {
       setIsLoading(false);
     }
-  }, [id, isAuthorized]);
+  }, [id, isAuthorized, translateError, t]);
 
   useEffect(() => {
     fetchData();
@@ -89,16 +103,14 @@ export const SettlementDetailScreen: React.FC = () => {
       if (err instanceof PartnerApiError) {
         if (err.code === "version_conflict") {
           await fetchData();
-          setErrorMsg(
-            "Version conflict: This settlement was modified in another session. Refreshed with latest state.",
-          );
+          setErrorMsg(t("settlements:errors.version_conflict"));
         } else {
-          setErrorMsg(err.message);
+          setErrorMsg(translateError(err));
         }
       } else if (err instanceof Error) {
-        setErrorMsg(err.message);
+        setErrorMsg(t("settlements:errors.action_failed"));
       } else {
-        setErrorMsg("Action failed.");
+        setErrorMsg(t("settlements:errors.action_failed"));
       }
     } finally {
       setIsSubmitting(false);
@@ -108,17 +120,17 @@ export const SettlementDetailScreen: React.FC = () => {
   const handleApprove = () => {
     executeMutation(
       (version) => partnersService.approveSettlement(id!, version),
-      "Settlement approved successfully.",
+      t("settlements:toast.approved"),
     );
   };
 
   const handleCancel = () => {
-    if (!confirm("Are you sure you want to cancel this settlement batch?")) {
+    if (!confirm(t("settlements:confirm.cancel"))) {
       return;
     }
     executeMutation(
       (version) => partnersService.cancelSettlement(id!, version),
-      "Settlement cancelled.",
+      t("settlements:toast.cancelled"),
     );
   };
 
@@ -134,7 +146,11 @@ export const SettlementDetailScreen: React.FC = () => {
           version,
           paymentReference.trim() || undefined,
         ),
-      `Settlement marked paid.${paymentReference ? ` Ref: ${paymentReference}` : ""}`,
+      paymentReference
+        ? t("settlements:toast.marked_paid_ref", {
+            reference: paymentReference,
+          })
+        : t("settlements:toast.marked_paid"),
     );
   };
 
@@ -146,15 +162,15 @@ export const SettlementDetailScreen: React.FC = () => {
 
     try {
       await partnersService.sendSettlement(id!);
-      setActionSuccess("Statement dispatch queued for delivery.");
+      setActionSuccess(t("settlements:toast.statement_queued"));
       await fetchData();
     } catch (err: unknown) {
       if (err instanceof PartnerApiError) {
-        setErrorMsg(err.message);
+        setErrorMsg(translateError(err));
       } else if (err instanceof Error) {
-        setErrorMsg(err.message);
+        setErrorMsg(t("settlements:errors.send_statement_failed"));
       } else {
-        setErrorMsg("Failed to send statement.");
+        setErrorMsg(t("settlements:errors.send_statement_failed"));
       }
     } finally {
       setIsSubmitting(false);
@@ -167,16 +183,16 @@ export const SettlementDetailScreen: React.FC = () => {
         <div className="bg-white border border-slate-200 rounded-xl p-8 max-w-md text-center shadow-xs">
           <AlertTriangle className="w-8 h-8 text-amber-600 mx-auto mb-3" />
           <h2 className="text-sm font-bold text-slate-900 mb-1">
-            Access Restricted
+            {t("settlements:access.title")}
           </h2>
           <p className="text-slate-600 mb-4">
-            Only the Lab Owner and Manager can view settlement details.
+            {t("settlements:access.body_detail")}
           </p>
           <Link
             to="/settlements"
             className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-teal-600 text-white rounded-lg font-semibold hover:bg-teal-700 transition-colors"
           >
-            <span>Back to Settlements</span>
+            <span>{t("settlements:access.back_to_settlements")}</span>
           </Link>
         </div>
       </div>
@@ -212,21 +228,30 @@ export const SettlementDetailScreen: React.FC = () => {
       <main className="flex-1 p-6 md:p-8 max-w-6xl mx-auto w-full space-y-6">
         {/* BREADCRUMBS */}
         <div className="flex items-center justify-between text-xs text-slate-500">
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center gap-x-2">
             <Link
               to="/settlements"
               className="hover:text-slate-800 transition-colors flex items-center gap-1 font-medium"
             >
-              <ArrowLeft className="w-3.5 h-3.5" />
-              <span>Settlements</span>
+              <ArrowLeft className="w-3.5 h-3.5 rtl:rotate-180" />
+              <span>{t("common:nav.settlements")}</span>
             </Link>
-            <ChevronRight className="w-3.5 h-3.5 text-slate-300" />
+            <ChevronRight className="w-3.5 h-3.5 text-slate-300 rtl:rotate-180" />
             <span className="font-mono text-slate-700">
-              {settlement ? settlement.id.slice(0, 8) : "..."}
+              <bdi dir="ltr">
+                {settlement ? settlement.id.slice(0, 8) : "..."}
+              </bdi>
             </span>
           </div>
           <div className="text-slate-400 text-[11px] font-mono">
-            {settlement ? `Version: ${settlement.version}` : ""}
+            {settlement ? (
+              <>
+                {t("settlements:detail.version")}{" "}
+                <bdi dir="ltr">{settlement.version}</bdi>
+              </>
+            ) : (
+              ""
+            )}
           </div>
         </div>
 
@@ -247,7 +272,7 @@ export const SettlementDetailScreen: React.FC = () => {
 
         {isLoading ? (
           <div className="p-12 text-center text-xs text-slate-500 bg-white rounded-xl border border-slate-200">
-            Loading settlement details...
+            {t("settlements:states.loading_detail")}
           </div>
         ) : settlement ? (
           <>
@@ -257,12 +282,15 @@ export const SettlementDetailScreen: React.FC = () => {
                 <div>
                   <div className="flex flex-wrap items-center gap-3 mb-2">
                     <h1 className="text-xl font-bold text-slate-900 tracking-tight">
-                      Settlement —{" "}
-                      {partner?.name || settlement.referral_partner_id} —{" "}
-                      {settlement.period}
+                      {t("settlements:detail.heading")}
+                      {" — "}
+                      <bdi dir="ltr">
+                        {partner?.name || settlement.referral_partner_id}
+                      </bdi>{" "}
+                      — <bdi dir="ltr">{settlement.period}</bdi>
                     </h1>
                     <span className="font-mono px-2.5 py-0.5 rounded bg-slate-100 border border-slate-300 text-slate-700 text-xs font-semibold">
-                      {settlement.id.slice(0, 13)}
+                      <bdi dir="ltr">{settlement.id.slice(0, 13)}</bdi>
                     </span>
                     <span
                       className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
@@ -271,12 +299,19 @@ export const SettlementDetailScreen: React.FC = () => {
                       }`}
                     >
                       <span
-                        className={`w-1.5 h-1.5 rounded-full mr-1.5 ${
+                        className={`w-1.5 h-1.5 rounded-full me-1.5 ${
                           statusStyles[settlement.status]?.dot ||
                           statusStyles.DRAFT.dot
                         }`}
                       ></span>
-                      {settlement.status}
+                      {/* Raw status code: shared with the ledger badge. */}
+                      <bdi>
+                        {statusLabel(
+                          "settlement",
+                          settlement.status.toLowerCase(),
+                          (key) => t(`common:${key}`),
+                        )}
+                      </bdi>
                     </span>
                   </div>
 
@@ -284,35 +319,41 @@ export const SettlementDetailScreen: React.FC = () => {
                   <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-y-1.5 gap-x-6 text-slate-600 text-xs">
                     <div>
                       <span className="font-semibold text-slate-700">
-                        Period:
+                        {t("settlements:detail.period")}
                       </span>{" "}
-                      <span className="font-mono">{settlement.period}</span>
+                      <bdi className="font-mono" dir="ltr">
+                        {settlement.period}
+                      </bdi>
                     </div>
                     <div>
                       <span className="font-semibold text-slate-700">
-                        Partner:
+                        {t("settlements:detail.partner")}
                       </span>{" "}
                       <Link
                         to={`/partners/${settlement.referral_partner_id}`}
                         className="text-teal-700 hover:text-teal-900 font-medium"
                       >
-                        {partner?.name || settlement.referral_partner_id}
+                        <bdi dir="ltr">
+                          {partner?.name || settlement.referral_partner_id}
+                        </bdi>
                       </Link>
                     </div>
                     {partner?.phone && (
                       <div>
                         <span className="font-semibold text-slate-700">
-                          Contact:
+                          {t("settlements:detail.contact")}
                         </span>{" "}
-                        <span className="font-mono">{partner.phone}</span>
+                        <bdi className="font-mono" dir="ltr">
+                          {partner.phone}
+                        </bdi>
                       </div>
                     )}
                     {partner?.email && (
                       <div>
                         <span className="font-semibold text-slate-700">
-                          Email:
+                          {t("common:labels.email")}:
                         </span>{" "}
-                        <span>{partner.email}</span>
+                        <bdi dir="ltr">{partner.email}</bdi>
                       </div>
                     )}
                   </div>
@@ -326,7 +367,7 @@ export const SettlementDetailScreen: React.FC = () => {
                     className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-800 text-xs font-semibold shadow-xs transition-colors"
                   >
                     <ArrowDownToLine className="w-4 h-4 text-slate-600" />
-                    <span>Download statement PDF</span>
+                    <span>{t("settlements:actions.download_statement")}</span>
                   </a>
                 </div>
               </div>
@@ -336,39 +377,51 @@ export const SettlementDetailScreen: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs">
                 <span className="text-xs uppercase tracking-wider text-slate-500 font-semibold">
-                  Total Settlement Amount
+                  {t("settlements:kpi.total_amount")}
                 </span>
                 <div className="mt-2 text-2xl font-bold font-mono text-slate-900">
-                  PKR {settlement.total}
+                  {formatMoney(settlement.total, lang)}
                 </div>
                 <div className="mt-1 text-xs text-slate-500">
-                  Net commission payable for cycle
+                  {t("settlements:kpi.total_hint")}
                 </div>
               </div>
 
               <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs">
                 <span className="text-xs uppercase tracking-wider text-slate-500 font-semibold">
-                  Line Items Count
+                  {t("settlements:kpi.line_items")}
                 </span>
                 <div className="mt-2 text-2xl font-bold font-mono text-slate-900">
                   {settlement.lines ? settlement.lines.length : 0}
                 </div>
                 <div className="mt-1 text-xs text-slate-500">
-                  Referred invoice payment shares
+                  {t("settlements:kpi.line_items_hint")}
                 </div>
               </div>
 
               <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs">
                 <span className="text-xs uppercase tracking-wider text-slate-500 font-semibold">
-                  Sign-off Status
+                  {t("settlements:kpi.sign_off")}
                 </span>
                 <div className="mt-2 text-2xl font-bold text-slate-900">
-                  {settlement.status}
+                  {/* Raw status code, matching the header badge. */}
+                  <bdi>
+                    {statusLabel(
+                      "settlement",
+                      settlement.status.toLowerCase(),
+                      (key) => t(`common:${key}`),
+                    )}
+                  </bdi>
                 </div>
                 <div className="mt-1 text-xs text-slate-500 font-mono text-[11px]">
-                  {settlement.approved_at
-                    ? `Approved on ${settlement.approved_at.slice(0, 10)}`
-                    : "Awaiting owner authorization"}
+                  {settlement.approved_at ? (
+                    <>
+                      {t("settlements:kpi.approved_on")}{" "}
+                      <bdi dir="ltr">{settlement.approved_at.slice(0, 10)}</bdi>
+                    </>
+                  ) : (
+                    t("settlements:kpi.awaiting_owner")
+                  )}
                 </div>
               </div>
             </div>
@@ -377,7 +430,7 @@ export const SettlementDetailScreen: React.FC = () => {
             {isOwner && settlement.status !== "CANCELLED" && (
               <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs space-y-3">
                 <h3 className="text-xs font-bold uppercase tracking-wider text-slate-600">
-                  Settlement Workflow Actions (Owner Only)
+                  {t("settlements:workflow.title")}
                 </h3>
                 <div className="flex flex-wrap items-center gap-3">
                   {/* Approve Action */}
@@ -388,7 +441,9 @@ export const SettlementDetailScreen: React.FC = () => {
                       onClick={handleApprove}
                       className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white text-xs font-semibold rounded-lg shadow-xs transition-colors disabled:opacity-50"
                     >
-                      {isSubmitting ? "Approving..." : "Approve settlement"}
+                      {isSubmitting
+                        ? t("settlements:actions.approving")
+                        : t("settlements:actions.approve")}
                     </button>
                   )}
 
@@ -403,7 +458,9 @@ export const SettlementDetailScreen: React.FC = () => {
                     >
                       <Send className="w-3.5 h-3.5" />
                       <span>
-                        {isSubmitting ? "Sending..." : "Send statement"}
+                        {isSubmitting
+                          ? t("settlements:actions.sending")
+                          : t("settlements:actions.send_statement")}
                       </span>
                     </button>
                   )}
@@ -421,7 +478,7 @@ export const SettlementDetailScreen: React.FC = () => {
                       className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg shadow-xs transition-colors disabled:opacity-50"
                     >
                       <Wallet className="w-3.5 h-3.5" />
-                      <span>Mark paid</span>
+                      <span>{t("settlements:actions.mark_paid")}</span>
                     </button>
                   )}
 
@@ -434,7 +491,7 @@ export const SettlementDetailScreen: React.FC = () => {
                       className="inline-flex items-center gap-1.5 px-3.5 py-2 border border-red-200 text-red-700 hover:bg-red-50 text-xs font-semibold rounded-lg shadow-xs transition-colors disabled:opacity-50"
                     >
                       <XCircle className="w-3.5 h-3.5" />
-                      <span>Cancel settlement</span>
+                      <span>{t("settlements:actions.cancel_settlement")}</span>
                     </button>
                   )}
                 </div>
@@ -446,41 +503,41 @@ export const SettlementDetailScreen: React.FC = () => {
               <div className="p-4 border-b border-slate-200 flex items-center justify-between">
                 <div>
                   <h2 className="text-sm font-bold text-slate-900">
-                    Included Ledger Line Items
+                    {t("settlements:lines.title")}
                   </h2>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    Individual revenue shares bundled into this settlement
+                    {t("settlements:lines.subtitle")}
                   </p>
                 </div>
                 <Link
                   to={`/partners/ledger?partner_id=${settlement.referral_partner_id}`}
                   className="text-xs font-medium text-teal-700 hover:text-teal-800 flex items-center gap-1"
                 >
-                  <span>Open full ledger</span>
+                  <span>{t("settlements:lines.open_ledger")}</span>
                   <ExternalLink className="w-3.5 h-3.5" />
                 </Link>
               </div>
 
               {!settlement.lines || settlement.lines.length === 0 ? (
                 <div className="p-8 text-center text-xs text-slate-500">
-                  No line items included in this settlement.
+                  {t("settlements:lines.empty")}
                 </div>
               ) : (
                 <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse text-xs">
+                  <table className="w-full text-start border-collapse text-xs">
                     <thead>
                       <tr className="bg-slate-50/80 border-b border-slate-200 text-[11px] font-semibold text-slate-600 uppercase tracking-wider">
                         <th className="py-3 px-4 w-44 font-mono">
-                          Line Item ID
+                          {t("settlements:lines.id")}
                         </th>
                         <th className="py-3 px-4 w-48 font-mono">
-                          Ledger Entry
+                          {t("settlements:lines.ledger_entry")}
                         </th>
                         <th className="py-3 px-4 w-32 font-mono">
-                          Entry Period
+                          {t("settlements:lines.entry_period")}
                         </th>
-                        <th className="py-3 px-4 text-right font-mono w-40">
-                          Amount
+                        <th className="py-3 px-4 text-end font-mono w-40">
+                          {t("common:labels.amount")}
                         </th>
                       </tr>
                     </thead>
@@ -492,21 +549,23 @@ export const SettlementDetailScreen: React.FC = () => {
                           data-testid={`line-row-${line.id}`}
                         >
                           <td className="py-3.5 px-4 font-mono text-slate-900">
-                            {line.id.slice(0, 13)}...
+                            <bdi dir="ltr">{line.id.slice(0, 13)}...</bdi>
                           </td>
                           <td className="py-3.5 px-4 font-mono text-teal-700">
                             <Link
                               to={`/partners/ledger?partner_id=${settlement.referral_partner_id}`}
                               className="hover:underline"
                             >
-                              {line.share_ledger_entry_id.slice(0, 13)}...
+                              <bdi dir="ltr">
+                                {line.share_ledger_entry_id.slice(0, 13)}...
+                              </bdi>
                             </Link>
                           </td>
                           <td className="py-3.5 px-4 font-mono text-slate-800">
-                            {line.entry_period}
+                            <bdi dir="ltr">{line.entry_period}</bdi>
                           </td>
-                          <td className="py-3.5 px-4 text-right font-mono font-semibold text-slate-900">
-                            PKR {line.amount}
+                          <td className="py-3.5 px-4 text-end font-mono font-semibold text-slate-900">
+                            {formatMoney(line.amount, lang)}
                           </td>
                         </tr>
                       ))}
@@ -514,11 +573,12 @@ export const SettlementDetailScreen: React.FC = () => {
                     <tfoot>
                       <tr className="bg-slate-50/90 border-t-2 border-slate-300 font-semibold text-slate-900">
                         <td className="py-3.5 px-4" colSpan={3}>
-                          Total settlement share ({settlement.lines.length}{" "}
-                          items)
+                          {t("settlements:lines.total", {
+                            items: settlement.lines.length,
+                          })}
                         </td>
-                        <td className="py-3.5 px-4 text-right font-mono text-sm font-bold text-slate-900">
-                          PKR {settlement.total}
+                        <td className="py-3.5 px-4 text-end font-mono text-sm font-bold text-slate-900">
+                          {formatMoney(settlement.total, lang)}
                         </td>
                       </tr>
                     </tfoot>
@@ -536,13 +596,13 @@ export const SettlementDetailScreen: React.FC = () => {
           <div className="bg-white rounded-xl shadow-xl border border-slate-200 w-full max-w-md overflow-hidden">
             <div className="p-5 border-b border-slate-200 flex items-center justify-between">
               <h3 className="text-base font-bold text-slate-900">
-                Mark Settlement Paid
+                {t("settlements:modal.title")}
               </h3>
               <button
                 type="button"
                 onClick={() => setIsMarkPaidModalOpen(false)}
                 className="text-slate-400 hover:text-slate-600 text-lg p-1"
-                aria-label="Close"
+                aria-label={t("common:actions.close")}
               >
                 ✕
               </button>
@@ -553,20 +613,22 @@ export const SettlementDetailScreen: React.FC = () => {
               className="p-5 space-y-4 text-xs"
             >
               <p className="text-slate-600">
-                Record bank transfer or disbursement details for settlement of{" "}
-                <strong className="font-mono text-slate-900">
-                  PKR {settlement?.total}
+                {t("settlements:modal.body_prefix")}{" "}
+                <strong className="font-mono text-slate-900" dir="ltr">
+                  {formatMoney(settlement?.total, lang)}
                 </strong>
-                .
+                {t("settlements:modal.body_suffix")}
               </p>
 
               <div>
                 <label className="block font-semibold text-slate-700 mb-1">
-                  Payment Reference (optional)
+                  {t("settlements:modal.payment_reference")}
                 </label>
                 <input
                   type="text"
-                  placeholder="e.g. Cheque #49129, Bank Ref TRF-8910"
+                  placeholder={t(
+                    "settlements:modal.payment_reference_placeholder",
+                  )}
                   value={paymentReference}
                   onChange={(e) => setPaymentReference(e.target.value)}
                   className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-900 focus:bg-white focus:ring-1 focus:ring-teal-600 focus:border-teal-600"
@@ -579,14 +641,16 @@ export const SettlementDetailScreen: React.FC = () => {
                   onClick={() => setIsMarkPaidModalOpen(false)}
                   className="px-4 py-2 border border-slate-200 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors"
                 >
-                  Cancel
+                  {t("common:actions.cancel")}
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting}
                   className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg shadow-xs transition-colors disabled:opacity-50"
                 >
-                  {isSubmitting ? "Confirming..." : "Confirm payment"}
+                  {isSubmitting
+                    ? t("settlements:actions.confirming")
+                    : t("settlements:actions.confirm_payment")}
                 </button>
               </div>
             </form>

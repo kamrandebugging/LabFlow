@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link, useSearchParams } from "react-router-dom";
 import {
   AlertTriangle,
@@ -11,6 +12,8 @@ import {
   X,
 } from "lucide-react";
 import { useAuthStore } from "../auth/authStore";
+import { messageForError } from "../../lib/errors";
+import { formatMoney, statusLabel } from "../../lib/format";
 import { PartnerApiError, partnersService } from "./partnersService";
 import type {
   ReferralPartner,
@@ -21,6 +24,8 @@ import type {
 } from "./types";
 
 export const SettlementsScreen: React.FC = () => {
+  const { t, i18n } = useTranslation(["settlements", "common"]);
+  const lang = i18n.resolvedLanguage === "ur" ? "ur" : "en";
   const [searchParams, setSearchParams] = useSearchParams();
   const user = useAuthStore((s) => s.user);
   const isAuthorized = user?.role === "owner" || user?.role === "manager";
@@ -54,6 +59,15 @@ export const SettlementsScreen: React.FC = () => {
     partners.forEach((p) => map.set(p.id, p.name));
     return map;
   }, [partners]);
+
+  /** Server codes become translated text; a raw `detail` is never rendered. */
+  const translateError = useCallback(
+    (err: unknown): string =>
+      messageForError(err, (key) =>
+        key.includes(":") ? t(key) : t(`common:${key}`),
+      ),
+    [t],
+  );
 
   // Load partners and exceptions
   useEffect(() => {
@@ -110,18 +124,25 @@ export const SettlementsScreen: React.FC = () => {
         setNextCursor(response.next_cursor);
       } catch (err: unknown) {
         if (err instanceof PartnerApiError) {
-          setErrorMsg(err.message);
+          setErrorMsg(translateError(err));
         } else if (err instanceof Error) {
-          setErrorMsg(err.message);
+          setErrorMsg(t("settlements:errors.load_failed"));
         } else {
-          setErrorMsg("Failed to load settlements.");
+          setErrorMsg(t("settlements:errors.load_failed"));
         }
       } finally {
         setIsLoading(false);
         setIsLoadingMore(false);
       }
     },
-    [activeTab, selectedPartnerId, selectedPeriod, isAuthorized],
+    [
+      activeTab,
+      selectedPartnerId,
+      selectedPeriod,
+      isAuthorized,
+      translateError,
+      t,
+    ],
   );
 
   useEffect(() => {
@@ -171,6 +192,8 @@ export const SettlementsScreen: React.FC = () => {
 
   const handleExportCsv = () => {
     if (settlements.length === 0) return;
+    // The exported file keeps its stable English column names: it is a data
+    // artefact consumed by spreadsheets, not on-screen text.
     const headers = [
       "Settlement ID",
       "Partner Name",
@@ -233,22 +256,30 @@ export const SettlementsScreen: React.FC = () => {
     return sum.toFixed(2);
   }, [settlements]);
 
+  // Status tabs read from the shared settlement status words.
+  const statusTabLabel = (tab: string): string =>
+    tab === "ALL"
+      ? t("common:labels.all")
+      : t(`common:status.settlement.${tab.toLowerCase()}`);
+
+  const selectedPartnerName = selectedPartnerId
+    ? partnerMap.get(selectedPartnerId)
+    : undefined;
+
   if (!isAuthorized) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6 text-xs text-slate-600">
         <div className="bg-white border border-slate-200 rounded-xl p-8 max-w-md text-center shadow-xs">
           <AlertTriangle className="w-8 h-8 text-amber-600 mx-auto mb-3" />
           <h2 className="text-sm font-bold text-slate-900 mb-1">
-            Access Restricted
+            {t("settlements:access.title")}
           </h2>
-          <p className="text-slate-600 mb-4">
-            Only the Lab Owner and Manager can view monthly settlements.
-          </p>
+          <p className="text-slate-600 mb-4">{t("settlements:access.body")}</p>
           <Link
             to="/partners"
             className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-teal-600 text-white rounded-lg font-semibold hover:bg-teal-700 transition-colors"
           >
-            <span>Back to Partners</span>
+            <span>{t("settlements:access.back_to_partners")}</span>
           </Link>
         </div>
       </div>
@@ -261,25 +292,27 @@ export const SettlementsScreen: React.FC = () => {
         {/* BREADCRUMB & HEADER */}
         <div>
           <nav className="flex items-center gap-1.5 text-xs text-slate-500 mb-1.5">
-            <span>Management</span>
-            <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
+            <span>{t("common:nav.management")}</span>
+            <ChevronRight className="w-3.5 h-3.5 text-slate-400 rtl:rotate-180" />
             <Link
               to="/partners"
               className="hover:text-slate-800 transition-colors"
             >
-              Partners
+              {t("settlements:page.partners_breadcrumb")}
             </Link>
-            <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
-            <span className="text-slate-900 font-semibold">Settlements</span>
+            <ChevronRight className="w-3.5 h-3.5 text-slate-400 rtl:rotate-180" />
+            <span className="text-slate-900 font-semibold">
+              {t("common:nav.settlements")}
+            </span>
           </nav>
 
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <h1 className="text-xl font-bold text-slate-900 tracking-tight">
-                Settlements
+                {t("common:nav.settlements")}
               </h1>
               <p className="text-xs text-slate-600 mt-0.5">
-                Monthly revenue-share settlements with referral partners
+                {t("settlements:page.subtitle")}
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -290,7 +323,7 @@ export const SettlementsScreen: React.FC = () => {
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-semibold rounded-lg shadow-xs transition-colors disabled:opacity-50"
               >
                 <ArrowDownToLine className="w-3.5 h-3.5 text-slate-500" />
-                <span>Export CSV</span>
+                <span>{t("settlements:actions.export_csv")}</span>
               </button>
             </div>
           </div>
@@ -305,7 +338,7 @@ export const SettlementsScreen: React.FC = () => {
               <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
               <div className="text-xs space-y-1">
                 <p className="font-semibold text-slate-900">
-                  Settlement Exceptions Detected
+                  {t("settlements:exceptions.title")}
                 </p>
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-slate-700">
                   {exceptions.drafts_awaiting_approval > 0 && (
@@ -314,19 +347,19 @@ export const SettlementsScreen: React.FC = () => {
                       <strong className="font-semibold">
                         {exceptions.drafts_awaiting_approval}
                       </strong>{" "}
-                      draft(s) awaiting approval
+                      {t("settlements:exceptions.drafts_awaiting")}
                     </span>
                   )}
                   {exceptions.drafts_older_than_7_days > 0 && (
                     <span className="text-amber-800 font-medium">
                       • <strong>{exceptions.drafts_older_than_7_days}</strong>{" "}
-                      draft(s) older than 7 days
+                      {t("settlements:exceptions.drafts_older")}
                     </span>
                   )}
                   {exceptions.failed_deliveries > 0 && (
                     <span className="text-red-700 font-medium">
-                      • <strong>{exceptions.failed_deliveries}</strong> failed
-                      delivery notification(s)
+                      • <strong>{exceptions.failed_deliveries}</strong>{" "}
+                      {t("settlements:exceptions.failed")}
                     </span>
                   )}
                 </div>
@@ -345,43 +378,60 @@ export const SettlementsScreen: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs">
             <div className="flex items-center justify-between text-slate-500 mb-2">
-              <span className="text-xs font-medium">Loaded Total</span>
+              <span className="text-xs font-medium">
+                {t("settlements:summary.loaded_total")}
+              </span>
               <Wallet className="w-4 h-4 text-teal-600" />
             </div>
             <div className="text-2xl font-bold font-mono text-slate-900 tracking-tight">
-              PKR {totalSettlementAmount}
+              {formatMoney(totalSettlementAmount, lang)}
             </div>
             <div className="text-xs text-slate-500 mt-1">
-              Across {settlements.length} settlement batches
+              {t("settlements:summary.batches", {
+                batches: settlements.length,
+              })}
             </div>
           </div>
 
           <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs">
             <div className="flex items-center justify-between text-slate-500 mb-2">
-              <span className="text-xs font-medium">Selected Filter</span>
+              <span className="text-xs font-medium">
+                {t("settlements:summary.selected_filter")}
+              </span>
               <Filter className="w-4 h-4 text-slate-400" />
             </div>
             <div className="text-2xl font-bold font-mono text-slate-900 tracking-tight">
-              {activeTab}
+              {statusTabLabel(activeTab)}
             </div>
             <div className="text-xs text-slate-500 mt-1">
-              {selectedPeriod || "All periods"} ·{" "}
-              {selectedPartnerId
-                ? partnerMap.get(selectedPartnerId) || "Selected partner"
-                : "All partners"}
+              {selectedPeriod ? (
+                <bdi dir="ltr">{selectedPeriod}</bdi>
+              ) : (
+                t("settlements:summary.all_periods")
+              )}{" "}
+              ·{" "}
+              {selectedPartnerName ? (
+                <bdi dir="ltr">{selectedPartnerName}</bdi>
+              ) : selectedPartnerId ? (
+                t("settlements:summary.selected_partner")
+              ) : (
+                t("settlements:summary.all_partners")
+              )}
             </div>
           </div>
 
           <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs">
             <div className="flex items-center justify-between text-slate-500 mb-2">
-              <span className="text-xs font-medium">Pending Approvals</span>
+              <span className="text-xs font-medium">
+                {t("settlements:summary.pending_approvals")}
+              </span>
               <Clock className="w-4 h-4 text-amber-500" />
             </div>
             <div className="text-2xl font-bold font-mono text-slate-900 tracking-tight">
               {exceptions?.drafts_awaiting_approval ?? 0}
             </div>
             <div className="text-xs text-slate-500 mt-1">
-              Draft settlements awaiting sign-off
+              {t("settlements:summary.pending_approvals_hint")}
             </div>
           </div>
         </div>
@@ -411,9 +461,7 @@ export const SettlementsScreen: React.FC = () => {
                       : "text-slate-600 hover:text-slate-900"
                   }`}
                 >
-                  {tab === "ALL"
-                    ? "All"
-                    : tab.charAt(0) + tab.slice(1).toLowerCase()}
+                  {statusTabLabel(tab)}
                 </button>
               ))}
             </div>
@@ -422,25 +470,27 @@ export const SettlementsScreen: React.FC = () => {
             <div className="flex flex-wrap items-center gap-2.5">
               {/* Search */}
               <div className="relative min-w-[200px]">
-                <Search className="absolute left-2.5 top-2.5 text-slate-400 w-4 h-4 pointer-events-none" />
+                <Search className="absolute start-2.5 top-2.5 text-slate-400 w-4 h-4 pointer-events-none" />
                 <input
                   type="text"
-                  placeholder="Search partner or settlement..."
+                  placeholder={t("settlements:filters.search_placeholder")}
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-9 pr-3 py-1.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-teal-600 focus:border-teal-600 focus:bg-white transition-all"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-lg ps-9 pe-3 py-1.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-teal-600 focus:border-teal-600 focus:bg-white transition-all"
                 />
               </div>
 
               {/* Partner filter */}
               <div className="relative min-w-[160px]">
                 <select
-                  aria-label="Filter by Partner"
+                  aria-label={t("settlements:filters.partner_aria")}
                   value={selectedPartnerId}
                   onChange={(e) => handlePartnerChange(e.target.value)}
                   className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-700 focus:bg-white focus:outline-none focus:ring-1 focus:ring-teal-600 focus:border-teal-600"
                 >
-                  <option value="">All partners</option>
+                  <option value="">
+                    {t("settlements:filters.all_partners")}
+                  </option>
                   {partners.map((p) => (
                     <option key={p.id} value={p.id}>
                       {p.name}
@@ -453,7 +503,7 @@ export const SettlementsScreen: React.FC = () => {
               <div className="relative w-32">
                 <input
                   type="text"
-                  placeholder="YYYY-MM"
+                  placeholder={t("settlements:filters.period_placeholder")}
                   value={selectedPeriod}
                   onChange={(e) => handlePeriodChange(e.target.value)}
                   className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-mono text-slate-700 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-1 focus:ring-teal-600 focus:border-teal-600"
@@ -469,7 +519,7 @@ export const SettlementsScreen: React.FC = () => {
                   type="button"
                   onClick={resetFilters}
                   className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors"
-                  title="Reset filters"
+                  title={t("settlements:filters.reset")}
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -482,35 +532,45 @@ export const SettlementsScreen: React.FC = () => {
         <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
           {isLoading ? (
             <div className="p-12 text-center text-xs text-slate-500">
-              Loading settlements...
+              {t("settlements:states.loading")}
             </div>
           ) : filteredSettlements.length === 0 ? (
             <div className="p-12 text-center text-xs text-slate-500">
-              No settlements found matching the criteria.
+              {t("settlements:states.empty")}
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse text-xs">
+              <table className="w-full text-start border-collapse text-xs">
                 <thead>
                   <tr className="bg-slate-50/80 border-b border-slate-200 text-[11px] font-semibold text-slate-600 uppercase tracking-wider">
-                    <th className="py-3 px-4 w-44 font-mono">Settlement ID</th>
-                    <th className="py-3 px-4 w-52">Partner</th>
-                    <th className="py-3 px-4 w-28 font-mono">Period</th>
-                    <th className="py-3 px-4 w-36 text-right font-mono">
-                      Total
+                    <th className="py-3 px-4 w-44 font-mono">
+                      {t("settlements:table.id")}
                     </th>
-                    <th className="py-3 px-4 w-32 text-center">Status</th>
+                    <th className="py-3 px-4 w-52">
+                      {t("settlements:table.partner")}
+                    </th>
+                    <th className="py-3 px-4 w-28 font-mono">
+                      {t("settlements:table.period")}
+                    </th>
+                    <th className="py-3 px-4 w-36 text-end font-mono">
+                      {t("common:labels.total")}
+                    </th>
+                    <th className="py-3 px-4 w-32 text-center">
+                      {t("common:labels.status")}
+                    </th>
                     <th className="py-3 px-4 w-40 text-slate-500">
-                      Created At
+                      {t("settlements:table.created_at")}
                     </th>
-                    <th className="py-3 px-4 text-right w-28">Actions</th>
+                    <th className="py-3 px-4 text-end w-28">
+                      {t("common:labels.actions")}
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-slate-700">
                   {filteredSettlements.map((settlement) => {
-                    const partnerName =
-                      partnerMap.get(settlement.referral_partner_id) ||
-                      `Partner ${settlement.referral_partner_id.slice(0, 8)}`;
+                    const partnerName = partnerMap.get(
+                      settlement.referral_partner_id,
+                    );
 
                     const statusStyles: Record<
                       SettlementStatus,
@@ -549,21 +609,30 @@ export const SettlementsScreen: React.FC = () => {
                         data-testid={`settlement-row-${settlement.id}`}
                       >
                         <td className="py-3.5 px-4 font-mono font-medium text-slate-900 whitespace-nowrap">
-                          {settlement.id.slice(0, 13)}...
+                          <bdi dir="ltr">{settlement.id.slice(0, 13)}...</bdi>
                         </td>
                         <td className="py-3.5 px-4 font-medium text-slate-900">
                           <Link
                             to={`/partners/${settlement.referral_partner_id}`}
                             className="hover:text-teal-700 transition-colors"
                           >
-                            {partnerName}
+                            {partnerName ? (
+                              partnerName
+                            ) : (
+                              <>
+                                {t("settlements:table.partner")}{" "}
+                                <bdi dir="ltr">
+                                  {settlement.referral_partner_id.slice(0, 8)}
+                                </bdi>
+                              </>
+                            )}
                           </Link>
                         </td>
                         <td className="py-3.5 px-4 font-mono text-slate-800 whitespace-nowrap">
-                          {settlement.period}
+                          <bdi dir="ltr">{settlement.period}</bdi>
                         </td>
-                        <td className="py-3.5 px-4 text-right font-mono font-semibold text-slate-900 whitespace-nowrap">
-                          PKR {settlement.total}
+                        <td className="py-3.5 px-4 text-end font-mono font-semibold text-slate-900 whitespace-nowrap">
+                          {formatMoney(settlement.total, lang)}
                         </td>
                         <td className="py-3.5 px-4 text-center whitespace-nowrap">
                           <span
@@ -572,19 +641,28 @@ export const SettlementsScreen: React.FC = () => {
                             <span
                               className={`w-1.5 h-1.5 rounded-full ${style.dot}`}
                             ></span>
-                            <span>{settlement.status}</span>
+                            {/* Raw status code: shared with the ledger badge. */}
+                            <bdi>
+                              {statusLabel(
+                                "settlement",
+                                settlement.status.toLowerCase(),
+                                (key) => t(`common:${key}`),
+                              )}
+                            </bdi>
                           </span>
                         </td>
                         <td className="py-3.5 px-4 text-slate-500 font-mono text-[11px] whitespace-nowrap">
-                          {settlement.created_at.slice(0, 10)}
+                          <bdi dir="ltr">
+                            {settlement.created_at.slice(0, 10)}
+                          </bdi>
                         </td>
-                        <td className="py-3.5 px-4 text-right">
+                        <td className="py-3.5 px-4 text-end">
                           <Link
                             to={`/settlements/${settlement.id}`}
                             className="inline-flex items-center gap-1 text-teal-700 hover:text-teal-900 font-semibold"
                           >
-                            <span>Detail</span>
-                            <ChevronRight className="w-3.5 h-3.5" />
+                            <span>{t("settlements:actions.detail")}</span>
+                            <ChevronRight className="w-3.5 h-3.5 rtl:rotate-180" />
                           </Link>
                         </td>
                       </tr>
@@ -598,7 +676,9 @@ export const SettlementsScreen: React.FC = () => {
           {/* TABLE FOOTER / PAGINATION */}
           <div className="p-4 bg-slate-50/90 border-t border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
             <div className="text-slate-500 font-mono text-[11px]">
-              Showing {filteredSettlements.length} settlements
+              {t("settlements:states.showing", {
+                settlements: filteredSettlements.length,
+              })}
             </div>
 
             {nextCursor && (
@@ -608,7 +688,9 @@ export const SettlementsScreen: React.FC = () => {
                 onClick={() => fetchSettlements(nextCursor)}
                 className="px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg text-xs font-medium shadow-xs transition-colors disabled:opacity-50"
               >
-                {isLoadingMore ? "Loading..." : "Load next 50 settlements"}
+                {isLoadingMore
+                  ? t("settlements:actions.loading")
+                  : t("settlements:actions.load_next")}
               </button>
             )}
           </div>
