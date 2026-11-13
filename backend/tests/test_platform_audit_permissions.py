@@ -52,20 +52,22 @@ def test_sql_generation_uses_configured_database_role() -> None:
 def test_platform_audit_migration_is_reversible() -> None:
     """Latest core migration applies forwards and reverses cleanly."""
     connection.set_schema_to_public()
-    executor = MigrationExecutor(connection)
     app_config = apps.get_app_config("core")
     assert app_config is not None
 
-    # Migrate forward to the head
-    executor.migrate([("core", "0007_platform_dashboard_phase2")])
-    current_migration = executor.loader.get_migration(
+    # A fresh executor per step: a reused instance keeps a stale
+    # applied-migrations snapshot and would replay the 0009 reverse, dropping
+    # temp_password_hash twice.
+    MigrationExecutor(connection).migrate([("core", "0007_platform_dashboard_phase2")])
+    current_migration = MigrationExecutor(connection).loader.get_migration(
         "core", "0007_platform_dashboard_phase2"
     )
     assert current_migration is not None
 
     # Rollback to the previous head
-    executor.migrate([("core", "0006_platform_dashboard_phase1_rebuild")])
-    executor.loader.build_graph()
+    MigrationExecutor(connection).migrate(
+        [("core", "0006_platform_dashboard_phase1_rebuild")]
+    )
 
     # Re-apply forward to leave the schema in target state
-    executor.migrate([("core", "0007_platform_dashboard_phase2")])
+    MigrationExecutor(connection).migrate([("core", "0007_platform_dashboard_phase2")])

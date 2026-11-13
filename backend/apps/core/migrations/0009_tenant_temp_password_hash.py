@@ -70,9 +70,14 @@ def noop_reverse(apps: Any, schema_editor: Any) -> None:
 
 
 class Migration(migrations.Migration):
+    # ``core`` is a SHARED_APP and ``accounts`` is a TENANT_APP: a shared
+    # migration must not depend on a tenant migration (django-tenants applies
+    # them to different schemas, and the test harness purges tenant-app rows
+    # from the public recorder, which makes the graph inconsistent). The
+    # backfill below tolerates a tenant schema whose accounts tables are not
+    # migrated yet by keeping the hash for the owner-creation step.
     dependencies = [
         ("core", "0008_scrub_platform_audit_temp_password"),
-        ("accounts", "0008_staff_identity_and_ci_email"),
     ]
 
     operations = [

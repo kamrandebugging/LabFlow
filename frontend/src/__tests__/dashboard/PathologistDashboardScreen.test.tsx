@@ -130,7 +130,9 @@ describe("Pathologist dashboard", () => {
     );
 
     const panel = await screen.findByTestId("panel-recent-approvals");
-    const rows = within(panel).getAllByRole("row");
+    // The panel mounts while its table is still loading; wait for the rows
+    // instead of reading them synchronously and racing the fetch.
+    const rows = await within(panel).findAllByRole("row");
     expect(rows[1]).toHaveTextContent("Newest Patient");
     expect(rows[2]).toHaveTextContent("Older Patient");
   });
