@@ -1,0 +1,398 @@
+{
+  "app_name": "LabFlow",
+  "welcome": "Welcome to LabFlow",
+  "language": {
+    "label": "Language",
+    "select": "Select Language",
+    "english": "English",
+    "urdu": "اردو",
+    "switcher_aria": "Language selection"
+  },
+  "nav": {
+    "home": "Home",
+    "patients": "Patients",
+    "invoices": "Invoices & Payments",
+    "samples": "Samples",
+    "worklist": "Worklist",
+    "approvals": "Approvals",
+    "exceptions": "Critical Notifications",
+    "reports": "Reports",
+    "partners": "Partners & Share Ledger",
+    "settlements": "Settlements",
+    "catalog": "Catalog",
+    "staff": "Staff",
+    "account": "Account & Security",
+    "settings": "Settings",
+    "branches": "Branches",
+    "operations": "Lab Operations",
+    "management": "Management"
+  },
+  "role": {
+    "owner": "Lab Owner",
+    "manager": "Branch Manager",
+    "reception": "Receptionist",
+    "technician": "Lab Technician",
+    "pathologist": "Pathologist",
+    "staff": "Staff"
+  },
+  "actions": {
+    "save": "Save",
+    "saving": "Saving...",
+    "cancel": "Cancel",
+    "back": "Back",
+    "next": "Next",
+    "previous": "Previous",
+    "submit": "Submit",
+    "edit": "Edit",
+    "delete": "Delete",
+    "view": "View",
+    "close": "Close",
+    "dismiss": "Dismiss",
+    "search": "Search",
+    "filter": "Filter",
+    "clear": "Clear",
+    "reset": "Reset",
+    "print": "Print",
+    "download": "Download",
+    "refresh": "Refresh",
+    "retry": "Try again",
+    "confirm": "Confirm",
+    "select": "Select",
+    "add": "Add",
+    "remove": "Remove",
+    "upload": "Upload",
+    "export": "Export",
+    "apply": "Apply",
+    "continue": "Continue",
+    "create": "Create",
+    "update": "Update",
+    "open": "Open",
+    "copy": "Copy",
+    "change": "Change"
+  },
+  "status": {
+    "sample": {
+      "collected": "Collected",
+      "received": "Received",
+      "in_process": "In process",
+      "ready": "Ready",
+      "rejected": "Rejected",
+      "cancelled": "Cancelled"
+    },
+    "result": {
+      "entered": "Entered",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "amended": "Amended",
+      "withdrawn": "Withdrawn"
+    },
+    "invoice": {
+      "unpaid": "Unpaid",
+      "partial": "Partial",
+      "paid": "Paid",
+      "refunded": "Refunded",
+      "cancelled": "Cancelled"
+    },
+    "report": {
+      "draft": "Draft",
+      "final": "Final",
+      "amended": "Amended",
+      "void": "Void"
+    },
+    "settlement": {
+      "draft": "Draft",
+      "approved": "Approved",
+      "sent": "Sent",
+      "paid": "Paid",
+      "cancelled": "Cancelled"
+    },
+    "delivery": {
+      "PENDING": "Pending",
+      "SENT": "Sent",
+      "FAILED": "Failed",
+      "BOUNCED": "Bounced",
+      "OPENED": "Opened"
+    },
+    "transfer": {
+      "open": "Open",
+      "received": "Received",
+      "cancelled": "Cancelled",
+      "lost": "Lost"
+    },
+    "flag": {
+      "high": "High",
+      "low": "Low",
+      "critical": "Critical",
+      "normal": "Normal"
+    },
+    "active": "Active",
+    "inactive": "Inactive",
+    "pending": "Pending",
+    "completed": "Completed"
+  },
+  "time": {
+    "pkt": "times are PKT"
+  },
+  "labels": {
+    "age": "Age",
+    "sex": "Sex",
+    "dob": "Date of birth",
+    "name": "Name",
+    "phone": "Phone",
+    "email": "Email",
+    "address": "Address",
+    "city": "City",
+    "notes": "Notes",
+    "date": "Date",
+    "time": "Time",
+    "total": "Total",
+    "amount": "Amount",
+    "status": "Status",
+    "actions": "Actions",
+    "type": "Type",
+    "reason": "Reason",
+    "details": "Details",
+    "summary": "Summary",
+    "none": "None",
+    "all": "All",
+    "yes": "Yes",
+    "no": "No",
+    "not_recorded": "Not recorded",
+    "unknown": "Unknown",
+    "optional": "Optional",
+    "required": "Required"
+  },
+  "empty": {
+    "no_results": "No results found.",
+    "no_data": "No data yet.",
+    "loading": "Loading…"
+  },
+  "errors": {
+    "title": "Error",
+    "generic": "Something went wrong. Please try again.",
+    "network": "Could not reach the server. Check your connection and try again.",
+    "unauthorized": "Your session has expired. Please sign in again.",
+    "forbidden": "You do not have permission to do this.",
+    "not_found": "The requested record was not found.",
+    "validation": "Please check the form and try again.",
+    "conflict": "This record changed since you opened it. Reload and try again.",
+    "server": "The server could not complete the request. Please try again.",
+    "account_locked": "This account is locked. Contact your lab administrator.",
+    "owner_approval": "This action needs Lab Owner approval.",
+    "read_only": "This lab is in read-only mode. This action is paused until the subscription is active.",
+    "billing_hold": "Billing is temporarily held for this lab.",
+    "rate_limited": "Too many requests. Please wait a moment and try again.",
+    "already_exists": "A record with these details already exists.",
+    "limit": "Your plan limit has been reached. Contact the platform administrator.",
+    "not_available": "This feature is not available for this lab right now."
+  },
+  "toast": {
+    "saved": "Saved.",
+    "created": "Created.",
+    "updated": "Updated.",
+    "deleted": "Deleted.",
+    "copied": "Copied."
+  },
+  "pagination": {
+    "page": "Page {{page}}",
+    "of": "of {{pages}}",
+    "showing": "Showing {{count}}",
+    "load_more": "Load more",
+    "rows_per_page": "Rows per page"
+  },
+  "confirm": {
+    "title": "Are you sure?",
+    "delete": "This cannot be undone."
+  },
+  "brand": {
+    "labflow": "LabFlow",
+    "powered_by": "Powered by LabFlow"
+  },
+  "topbar": {
+    "dashboard_title": "LabFlow Dashboard",
+    "all_branches": "All branches",
+    "branch_workspace": "Branch workspace",
+    "logout": "Log out",
+    "restoring_session": "Restoring session…"
+  },
+  "dashboard": {
+    "pkt_label": "times are PKT",
+    "live_data": "Live tenant data",
+    "samples_by_status": "Samples by status",
+    "exceptions": "Exceptions",
+    "requires_action": "Requires action",
+    "requires_action_inline": "requires action",
+    "critical_badge": "critical",
+    "view_all": "View all",
+    "unavailable": {
+      "samples": "Unavailable — the samples API did not respond.",
+      "exceptions": "Unavailable — the exceptions API did not respond.",
+      "patients": "Unavailable — the patient API did not respond.",
+      "invoices": "Unavailable — the invoice API did not respond.",
+      "worklist": "Unavailable — the worklist API did not respond.",
+      "results": "Unavailable — the results API did not respond.",
+      "approvals": "Unavailable — the approvals API did not respond."
+    },
+    "loading": {
+      "registrations": "Loading registrations…",
+      "invoices": "Loading invoices…",
+      "sample_handoff": "Loading sample handoff…",
+      "collection_queue": "Loading collection queue…",
+      "sample_counts": "Loading sample counts…",
+      "exception_counts": "Loading exception counts…",
+      "worklist": "Loading worklist…",
+      "critical_results": "Loading critical results…",
+      "approvals": "Loading approvals…",
+      "recent_approvals": "Loading recent approvals…"
+    },
+    "links": {
+      "open_samples": "Open samples",
+      "open_patients": "Open patients",
+      "open_invoices": "Open invoices",
+      "open_exceptions": "Open exceptions",
+      "open_worklist": "Open worklist",
+      "open_approvals": "Open approvals",
+      "review_settlements": "Review settlements"
+    },
+    "table": {
+      "patient": "Patient",
+      "mrn": "MRN",
+      "branch": "Branch",
+      "balance": "Balance",
+      "accession": "Accession",
+      "tests": "Tests",
+      "test": "Test",
+      "value": "Value",
+      "entered_by": "Entered by",
+      "waiting": "Waiting"
+    },
+    "panel": {
+      "today_registrations": "Today's registrations",
+      "today_registrations_subtitle": "Real patient rows created today (PKT)"
+    },
+    "empty": {
+      "no_patients_today": "No patients were registered today.",
+      "no_unpaid_invoices": "No unpaid invoices in your branch scope.",
+      "no_collected_waiting": "No collected samples are waiting for receipt.",
+      "no_awaiting_collection": "No ordered tests are awaiting collection.",
+      "no_bench_samples": "No samples are waiting on the bench.",
+      "no_critical_pending": "No critical results are awaiting verification.",
+      "no_awaiting_verification": "No results are awaiting verification.",
+      "no_recent_approvals": "No approved results are available yet."
+    },
+    "counts": {
+      "late_transfers": "{{count}} late sample transfers",
+      "failed_deliveries": "{{count}} failed report deliveries",
+      "critical_unacknowledged": "{{count}} critical result unacknowledged",
+      "critical_results_unacknowledged": "{{count}} critical results unacknowledged",
+      "failed_generations": "{{count}} failed report generations",
+      "stuck_samples": "{{count}} stuck samples",
+      "late_transfers_unknown": "— late sample transfers",
+      "failed_deliveries_unknown": "— failed report deliveries",
+      "critical_unacknowledged_unknown": "— critical result unacknowledged"
+    },
+    "samples": {
+      "accessions_in_scope": "{{total}} accessions in scope",
+      "live_accession_counts": "Live accession counts",
+      "total_accessions_scope": "{{total}} total accessions in scope",
+      "totals_unavailable": "Sample totals unavailable"
+    },
+    "stat": {
+      "registrations_today": "Registrations today",
+      "revenue_today": "Invoiced today",
+      "pending_approvals": "Pending approvals",
+      "unpaid_invoices": "Unpaid invoices",
+      "collected_awaiting_receipt": "Collected, awaiting receipt",
+      "awaiting_receipt": "Awaiting receipt",
+      "awaiting_collection": "Awaiting collection",
+      "results_awaiting_verification": "Results awaiting verification",
+      "critical_pending": "Critical results pending",
+      "awaiting_result_entry": "Awaiting result entry",
+      "routine": "Routine",
+      "approved_today": "Approved today",
+      "outstanding": "{{amount}} outstanding",
+      "outstanding_unavailable": "Outstanding balance unavailable"
+    },
+    "hint": {
+      "registrations_manager": "Patients registered in your branches today (PKT).",
+      "registrations_reception": "Patients registered at your desk today (PKT).",
+      "revenue_today": "Server total of today's non-cancelled invoices; not cash collected.",
+      "pending_approvals": "Results awaiting a Pathologist or Owner decision.",
+      "exceptions": "Open operational exceptions across the lab.",
+      "collected_awaiting_receipt": "Samples collected at the desk and not yet received by the lab.",
+      "awaiting_collection": "Ordered tests with no accession yet (branch scope).",
+      "worklist": "Collected, received, in-process and rejected accessions.",
+      "awaiting_receipt": "Collected samples not yet received into the lab.",
+      "awaiting_result_entry": "Status count of received and in-process samples on the bench.",
+      "critical_pending": "Entered results flagged critical and awaiting verification.",
+      "awaiting_verification": "Entered result rows waiting for a clinical decision.",
+      "critical": "Critical panic values in the queue.",
+      "routine": "Non-critical result rows in the queue.",
+      "approved_today": "Approved result rows whose approval timestamp is today (PKT)."
+    },
+    "owner": {
+      "title": "Business overview",
+      "today_business": "Today's business",
+      "day_to_date_batch": "Day-to-date batch",
+      "invoices_label": "Invoices",
+      "invoiced_total": "Invoiced total",
+      "collections_today": "Collections (on today's invoices)",
+      "business_footer": "Server rows for the current Asia/Karachi day. A failed read shows an em dash, never a zero.",
+      "pending_hint": "results awaiting your decision, critical first",
+      "review_badge": "review",
+      "settlements": "Settlements",
+      "draft_settlements": "DRAFT settlements awaiting approval",
+      "counts_only": "Counts only — no partner names or partner figures on this screen."
+    },
+    "manager": {
+      "title": "Branch operations",
+      "badge": "Manager view",
+      "subtitle_suffix": "read-only overview",
+      "triage_subtitle": "Read-only operational triage",
+      "scope_title": "Manager scope",
+      "scope_subtitle": "Summaries only — clinical and financial decisions stay with their roles"
+    },
+    "reception": {
+      "title": "Front desk",
+      "badge": "Reception",
+      "subtitle_suffix": "registrations, billing and sample handoff",
+      "unpaid_subtitle": "Unpaid and partially paid invoices in your branch scope",
+      "awaiting_receipt_title": "Samples awaiting lab receipt",
+      "awaiting_receipt_subtitle": "Collected specimens currently held at the desk",
+      "awaiting_collection_subtitle": "Requested tests with no accession yet",
+      "showing_first": "Showing the first {{shown}} of {{total}} collected samples.",
+      "collected_badge": "collected"
+    },
+    "technician": {
+      "title": "Bench worklist",
+      "badge": "Technician",
+      "subtitle_suffix": "samples awaiting receipt or result entry",
+      "worklist_subtitle": "Oldest accession first — real rows from the worklist API",
+      "critical_title": "Critical results awaiting verification",
+      "critical_subtitle": "Entered rows flagged critical by the reference-range engine",
+      "scope_title": "Bench scope"
+    },
+    "pathologist": {
+      "title": "Clinical approvals",
+      "subtitle_suffix": "results awaiting your verification",
+      "priority_queue": "Priority approvals queue",
+      "priority_subtitle": "Critical first, then longest waiting — real result rows",
+      "recent_title": "Recent approvals",
+      "recent_subtitle": "Newest approval first — real rows from the results API",
+      "scope_title": "Clinical scope"
+    },
+    "scope": {
+      "subtitle": "What this role can and cannot do",
+      "manager_restricted": "Result approval is restricted to Pathologists and the Owner.",
+      "manager_catalog_owner": "Catalog and price edits are Owner-only; this dashboard never exposes an edit action.",
+      "manager_partner_ledger": "Partner registry and share-ledger writes stay with the Owner.",
+      "technician_receive": "Receive samples, enter results, and flag/reject bench specimens.",
+      "technician_billing_hidden": "Billing, payments, settlements and the partner ledger are hidden and refused by the API.",
+      "technician_approval_owner": "Clinical approval remains with the Pathologist or Owner.",
+      "pathologist_approve": "Approve or reject entered results, amend results, and record critical notifications.",
+      "pathologist_reference": "Review each result against its reference range before approving.",
+      "pathologist_billing": "Invoicing, payments and partner settlements are not part of this role."
+    }
+  },
+  "timezone_pill": "Asia/Karachi (PKT, UTC+5)"
+}

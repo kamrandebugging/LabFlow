@@ -1,0 +1,129 @@
+{
+  "mrn": "MRN",
+  "sex": {
+    "male": "مرد",
+    "female": "خاتون",
+    "other": "دیگر",
+    "unknown": "نامعلوم"
+  },
+  "breadcrumb_aria": "بریڈ کرمب",
+  "demographics": "مریض کی بنیادی معلومات",
+  "main_branch": "مرکزی برانچ",
+  "not_found": "مریض نہیں ملا۔",
+  "return_to_patients": "مریضوں کی فہرست پر واپس جائیں",
+  "edit_demographics": "بنیادی معلومات میں ترمیم",
+  "field_full_name": "پورا نام",
+  "validation": {
+    "phone": "فون نمبر میں 10 سے 15 ہندسے ہونے چاہئیں۔"
+  },
+  "list": {
+    "subtitle": "accession، بنیادی معلومات اور طبی ریکارڈ",
+    "branch_sync_active": "برانچ سنک فعال",
+    "search_placeholder": "نام، فون یا MRN سے تلاش کریں…",
+    "refresh_aria": "فہرست تازہ کریں",
+    "new_patient": "نیا مریض",
+    "retry": "دوبارہ کوشش کریں",
+    "col_patient": "مریض",
+    "col_branch": "برانچ",
+    "col_last_visit": "آخری وزٹ",
+    "loading": "مریض لوڈ ہو رہے ہیں...",
+    "empty_title": "کوئی مریض نہیں ملا",
+    "empty_search": "تلاش کے معیار میں تبدیلی آزمائیں",
+    "empty_first": "اوپر دیے گئے بٹن سے اپنا پہلا مریض رجسٹر کریں",
+    "empty_scope": "آپ کی برانچ کے دائرہ کار میں کوئی مریض ریکارڈ موجود نہیں",
+    "cross_branch": "دوسری برانچ",
+    "age_years": "{{age}} سال",
+    "errors": {
+      "load": "مریضوں کی فہرست لوڈ نہیں ہو سکی"
+    }
+  },
+  "register": {
+    "breadcrumb_new": "نئی رجسٹریشن",
+    "title": "مریض رجسٹر کریں",
+    "iso_badge": "ISO 15189 مریض کی معلومات",
+    "duplicate": {
+      "title": "ممکنہ دہرے مریض کی نشاندہی",
+      "body": "اسی نام اور فون نمبر والا مریض پہلے ہی لیب کے ریکارڈ میں رجسٹرڈ ہے:",
+      "yob": "YOB {{year}}",
+      "confirm": "تصدیق کریں اور پھر بھی رجسٹر کریں"
+    },
+    "full_name_placeholder": "مثلاً محمد عمران",
+    "phone_placeholder": "03001234567",
+    "phone_hint": "10-15 ہندسے",
+    "dob_hint": "اگر معلوم نہ ہو تو خالی چھوڑ دیں",
+    "section_delivery": "ڈیجیٹل ترسیل اور رضامندی",
+    "whatsapp": "WhatsApp نمبر",
+    "whatsapp_placeholder": "+92 300 1234567",
+    "whatsapp_hint": "فوری ڈیجیٹل لیب رپورٹ کی ترسیل کے لیے",
+    "consent": "مریض WhatsApp / SMS کے ذریعے رپورٹس اور نازک نتائج کی اطلاعات وصول کرنے پر رضامند ہے",
+    "registering": "رجسٹر ہو رہا ہے...",
+    "validation": {
+      "name": "پورا نام 2 سے 120 حروف کے درمیان ہونا چاہیے۔"
+    },
+    "errors": {
+      "failed": "مریض رجسٹر نہیں ہو سکا۔"
+    }
+  },
+  "details": {
+    "active": "فعال",
+    "registered": "رجسٹرڈ",
+    "id": "ID",
+    "audit_history": "آڈٹ ہسٹری",
+    "new_accession": "+ نیا accession",
+    "delete_patient_aria": "مریض حذف کریں",
+    "confirm_delete": "کیا آپ واقعی اس مریض کا ریکارڈ حذف کرنا چاہتے ہیں؟",
+    "loading": "کلینیکل ریکارڈ لوڈ ہو رہا ہے...",
+    "unavailable_title": "مریض کا ریکارڈ دستیاب نہیں",
+    "field_full_name": "پورا نام",
+    "field_sex": "حیاتیاتی جنس",
+    "field_dob": "تاریخ پیدائش",
+    "field_phone": "بنیادی فون نمبر",
+    "consent_title": "رضامندی اور اطلاعات",
+    "digital_delivery": "ڈیجیٹل رپورٹ کی ترسیل",
+    "consent_granted": "رضامندی دی گئی",
+    "consent_none": "کوئی رضامندی درج نہیں",
+    "whatsapp_channel": "WhatsApp چینل",
+    "compliance_note": "ISO 15189 کی تعمیل کی تصدیق ہو چکی ہے۔ رضامندی ضابطہ جاتی تقاضوں کے مطابق آڈٹ کے قابل ہے۔",
+    "errors": {
+      "load": "مریض لوڈ نہیں ہو سکا",
+      "delete": "مریض حذف نہیں ہو سکا"
+    }
+  },
+  "edit": {
+    "title": "مریض کی بنیادی معلومات میں ترمیم",
+    "breadcrumb_record": "مریض کا ریکارڈ",
+    "loading": "مریض کی تفصیلات لوڈ ہو رہی ہیں...",
+    "save_failed": "تبدیلیاں محفوظ نہیں ہو سکیں",
+    "field_phone": "فون نمبر",
+    "field_sex": "حیاتیاتی جنس",
+    "save": "تبدیلیاں محفوظ کریں",
+    "validation": {
+      "name": "نام 2 سے 120 حروف کے درمیان ہونا چاہیے۔"
+    },
+    "errors": {
+      "load": "مریض لوڈ نہیں ہو سکا",
+      "save": "مریض کا ریکارڈ اپ ڈیٹ نہیں ہو سکا۔"
+    }
+  },
+  "history": {
+    "breadcrumb": "کلینیکل ہسٹری",
+    "title": "مریض کی طبی ہسٹری —",
+    "no_phone": "فون درج نہیں",
+    "audit_active": "آڈٹ لیجر فعال",
+    "ledger_scope_label": "لیجر کا دائرہ کار:",
+    "ledger_scope_body": "<strong>{{mrn}}</strong> کے لیے سابقہ وزٹ، نمونوں کے accession ریکارڈز اور تصدیق شدہ تشخیصی رپورٹس دکھائی جا رہی ہیں۔ مریض کی معلومات میں ہر تبدیلی ٹیننٹ آڈٹ والٹ میں ناقابلِ تبدیل طور پر درج ہوتی ہے۔",
+    "event_registration": "مریض کی رجسٹریشن اور بنیادی معلومات کا اندراج",
+    "system_mrn": "سسٹم MRN",
+    "home_branch": "ہوم برانچ",
+    "iso_status": "ISO 15189 کی حیثیت",
+    "verified_active": "تصدیق شدہ اور فعال",
+    "event_visit": "تشخیصی وزٹ",
+    "recent_visit": "حالیہ وزٹ",
+    "visit_note": "اس وزٹ کے دوران accession کیے گئے نمونے اور رپورٹس کلینیکل ورک لسٹ لیجر میں درج ہوتے ہیں۔",
+    "loading": "طویل المدتی کلینیکل ہسٹری لوڈ ہو رہی ہے...",
+    "unavailable_title": "ہسٹری لوڈ نہیں ہو سکی",
+    "errors": {
+      "load": "ہسٹری لوڈ نہیں ہو سکی"
+    }
+  }
+}

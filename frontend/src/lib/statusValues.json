@@ -1,0 +1,16 @@
+{
+  "sample": [
+    "collected",
+    "received",
+    "in_process",
+    "ready",
+    "rejected",
+    "cancelled"
+  ],
+  "result": ["entered", "approved", "rejected", "amended", "withdrawn"],
+  "invoice": ["unpaid", "partial", "paid", "refunded", "cancelled"],
+  "report": ["draft", "final", "amended", "void"],
+  "settlement": ["draft", "approved", "sent", "paid", "cancelled"],
+  "delivery": ["PENDING", "SENT", "FAILED", "BOUNCED", "OPENED"],
+  "transfer": ["open", "received", "cancelled", "lost"]
+}

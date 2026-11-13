@@ -1,0 +1,116 @@
+{
+  "access": {
+    "title": "Access Restricted",
+    "body": "Only the Lab Owner and Manager can view monthly settlements.",
+    "body_detail": "Only the Lab Owner and Manager can view settlement details.",
+    "back_to_partners": "Back to Partners",
+    "back_to_settlements": "Back to Settlements"
+  },
+  "page": {
+    "subtitle": "Monthly revenue-share settlements with referral partners",
+    "partners_breadcrumb": "Partners"
+  },
+  "actions": {
+    "export_csv": "Export CSV",
+    "detail": "Detail",
+    "loading": "Loading...",
+    "load_next": "Load next 50 settlements",
+    "approving": "Approving...",
+    "approve": "Approve settlement",
+    "sending": "Sending...",
+    "send_statement": "Send statement",
+    "mark_paid": "Mark paid",
+    "cancel_settlement": "Cancel settlement",
+    "confirming": "Confirming...",
+    "confirm_payment": "Confirm payment",
+    "download_statement": "Download statement PDF"
+  },
+  "exceptions": {
+    "title": "Settlement Exceptions Detected",
+    "drafts_awaiting": "draft(s) awaiting approval",
+    "drafts_older": "draft(s) older than 7 days",
+    "failed": "failed delivery notification(s)"
+  },
+  "summary": {
+    "loaded_total": "Loaded Total",
+    "batches": "Across {{batches}} settlement batches",
+    "selected_filter": "Selected Filter",
+    "all_periods": "All periods",
+    "selected_partner": "Selected partner",
+    "all_partners": "All partners",
+    "pending_approvals": "Pending Approvals",
+    "pending_approvals_hint": "Draft settlements awaiting sign-off"
+  },
+  "filters": {
+    "search_placeholder": "Search partner or settlement...",
+    "partner_aria": "Filter by Partner",
+    "all_partners": "All partners",
+    "period_placeholder": "YYYY-MM",
+    "reset": "Reset filters"
+  },
+  "table": {
+    "id": "Settlement ID",
+    "partner": "Partner",
+    "period": "Period",
+    "created_at": "Created At"
+  },
+  "states": {
+    "loading": "Loading settlements...",
+    "empty": "No settlements found matching the criteria.",
+    "showing": "Showing {{settlements}} settlements",
+    "loading_detail": "Loading settlement details..."
+  },
+  "detail": {
+    "heading": "Settlement",
+    "version": "Version:",
+    "period": "Period:",
+    "partner": "Partner:",
+    "contact": "Contact:"
+  },
+  "kpi": {
+    "total_amount": "Total Settlement Amount",
+    "total_hint": "Net commission payable for cycle",
+    "line_items": "Line Items Count",
+    "line_items_hint": "Referred invoice payment shares",
+    "sign_off": "Sign-off Status",
+    "approved_on": "Approved on",
+    "awaiting_owner": "Awaiting owner authorization"
+  },
+  "workflow": {
+    "title": "Settlement Workflow Actions (Owner Only)"
+  },
+  "lines": {
+    "title": "Included Ledger Line Items",
+    "subtitle": "Individual revenue shares bundled into this settlement",
+    "open_ledger": "Open full ledger",
+    "empty": "No line items included in this settlement.",
+    "id": "Line Item ID",
+    "ledger_entry": "Ledger Entry",
+    "entry_period": "Entry Period",
+    "total": "Total settlement share ({{items}} items)"
+  },
+  "modal": {
+    "title": "Mark Settlement Paid",
+    "body_prefix": "Record bank transfer or disbursement details for settlement of",
+    "body_suffix": ".",
+    "payment_reference": "Payment Reference (optional)",
+    "payment_reference_placeholder": "e.g. Cheque #49129, Bank Ref TRF-8910"
+  },
+  "confirm": {
+    "cancel": "Are you sure you want to cancel this settlement batch?"
+  },
+  "toast": {
+    "approved": "Settlement approved successfully.",
+    "cancelled": "Settlement cancelled.",
+    "marked_paid": "Settlement marked paid.",
+    "marked_paid_ref": "Settlement marked paid. Ref: {{reference}}",
+    "statement_queued": "Statement dispatch queued for delivery."
+  },
+  "errors": {
+    "load_failed": "Failed to load settlements.",
+    "load_detail_failed": "Failed to load settlement detail.",
+    "action_failed": "Action failed.",
+    "send_statement_failed": "Failed to send statement.",
+    "version_conflict": "Version conflict: This settlement was modified in another session. Refreshed with latest state."
+  }
+}

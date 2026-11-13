@@ -144,6 +144,13 @@ const config: Config = {
         "code-sm": ["Inter", "monospace"],
         heading: ["'Plus Jakarta Sans'", "sans-serif"],
         body: ["'Inter'", "sans-serif"],
+        urdu: ["'Noto Sans Arabic'", "'Segoe UI'", "system-ui", "sans-serif"],
+        "urdu-reading": ["'Noto Naskh Arabic'", "'Noto Sans Arabic'", "serif"],
+        "urdu-display": [
+          "'Noto Nastaliq Urdu'",
+          "'Noto Naskh Arabic'",
+          "serif",
+        ],
       },
       fontSize: {
         "headline-xl": [

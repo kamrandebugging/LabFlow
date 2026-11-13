@@ -1,6 +1,8 @@
 import React, { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Check, Copy } from "lucide-react";
 import { useAuthStore } from "../auth/authStore";
+import { messageForError } from "../../lib/errors";
 import { accountService, AccountApiError } from "./accountService";
 
 /**
@@ -14,9 +16,11 @@ import { accountService, AccountApiError } from "./accountService";
  * slate surface, white cards, teal accent, material-symbols icons.
  */
 export const AccountSecurityScreen: React.FC = () => {
+  const { t, i18n } = useTranslation(["settings", "common"]);
   const user = useAuthStore((s) => s.user);
   const setSession = useAuthStore((s) => s.setSession);
   const logout = useAuthStore((s) => s.logout);
+  const currentLanguage = i18n.resolvedLanguage?.startsWith("ur") ? "ur" : "en";
 
   // --------------------------------------------------------------------------
   // Change password state
@@ -66,18 +70,18 @@ export const AccountSecurityScreen: React.FC = () => {
     setPasswordSuccess(null);
 
     if (newPassword.length < 12) {
-      setPasswordError("New password must be at least 12 characters.");
+      setPasswordError(t("settings:account.error_short"));
       return;
     }
     if (newPassword !== confirmPassword) {
-      setPasswordError("New password and confirmation do not match.");
+      setPasswordError(t("settings:account.error_mismatch"));
       return;
     }
 
     setPasswordBusy(true);
     try {
       await accountService.changePassword(currentPassword, newPassword);
-      setPasswordSuccess("Password changed successfully.");
+      setPasswordSuccess(t("settings:account.password_changed"));
 
       // Clear the temporary-credential flag on the in-memory session so the
       // "change your password" warning disappears everywhere.
@@ -92,8 +96,8 @@ export const AccountSecurityScreen: React.FC = () => {
     } catch (err: unknown) {
       setPasswordError(
         err instanceof AccountApiError
-          ? err.message
-          : "Failed to change password.",
+          ? messageForError(err, (key, options) => t(`common:${key}`, options))
+          : t("settings:account.error_change_failed"),
       );
     } finally {
       setPasswordBusy(false);
@@ -118,8 +122,8 @@ export const AccountSecurityScreen: React.FC = () => {
     } catch (err: unknown) {
       setTotpError(
         err instanceof AccountApiError
-          ? err.message
-          : "Could not start enrolment.",
+          ? messageForError(err, (key, options) => t(`common:${key}`, options))
+          : t("settings:account.error_enrol_start"),
       );
       setEnrollOpen(false);
     } finally {
@@ -135,12 +139,12 @@ export const AccountSecurityScreen: React.FC = () => {
       const data = await accountService.confirmTotpEnroll(totpCode);
       setBackupCodes(data.backup_codes);
       setTotpEnabled(true);
-      setTotpNotice("Two-factor authentication enabled.");
+      setTotpNotice(t("settings:account.enabled_notice"));
     } catch (err: unknown) {
       setTotpError(
         err instanceof AccountApiError
-          ? err.message
-          : "That code did not match. Check the device clock and try again.",
+          ? messageForError(err, (key, options) => t(`common:${key}`, options))
+          : t("settings:account.error_code_mismatch"),
       );
     } finally {
       setEnrollBusy(false);
@@ -182,12 +186,12 @@ export const AccountSecurityScreen: React.FC = () => {
       setTotpEnabled(false);
       setDisableOpen(false);
       setDisablePassword("");
-      setTotpNotice("Two-factor authentication disabled.");
+      setTotpNotice(t("settings:account.disabled_notice"));
     } catch (err: unknown) {
       setTotpError(
         err instanceof AccountApiError
-          ? err.message
-          : "Could not disable two-factor authentication.",
+          ? messageForError(err, (key, options) => t(`common:${key}`, options))
+          : t("settings:account.error_disable"),
       );
     } finally {
       setDisableBusy(false);
@@ -208,19 +212,19 @@ export const AccountSecurityScreen: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-3 border-b border-slate-200">
         <div>
           <div className="flex items-center gap-2 text-xs text-slate-500 mb-1">
-            <span>Settings</span>
-            <span className="material-symbols-outlined text-[14px]">
+            <span>{t("common:nav.settings")}</span>
+            <span className="material-symbols-outlined text-[14px] rtl:rotate-180">
               chevron_right
             </span>
             <span className="text-teal-700 font-medium">
-              Account &amp; Security
+              {t("settings:account.title")}
             </span>
           </div>
           <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-            Account &amp; Security
+            {t("settings:account.title")}
           </h1>
           <p className="text-sm text-slate-600 mt-0.5">
-            Manage your password and two-factor authentication
+            {t("settings:account.subtitle")}
           </p>
         </div>
       </div>
@@ -232,10 +236,9 @@ export const AccountSecurityScreen: React.FC = () => {
             warning
           </span>
           <div>
-            <p className="font-semibold">You are using a temporary password</p>
+            <p className="font-semibold">{t("settings:account.temp_title")}</p>
             <p className="text-amber-800 mt-0.5">
-              Change it now to keep your lab account secure. Your temporary
-              credential will be invalidated automatically.
+              {t("settings:account.temp_body")}
             </p>
           </div>
         </div>
@@ -259,6 +262,60 @@ export const AccountSecurityScreen: React.FC = () => {
         </div>
       )}
 
+      {/* CARD 0: Staff app language (client preference only — same preference
+          as the header switcher, available to every role) */}
+      <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+        <div className="p-6 border-b border-slate-100">
+          <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
+            <span className="material-symbols-outlined text-teal-700">
+              translate
+            </span>
+            <span>{t("settings:language.title")}</span>
+          </h2>
+          <p className="text-xs text-slate-500 mt-1">
+            {t("settings:language.description")}
+          </p>
+        </div>
+        <div className="p-6 space-y-6 text-sm">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-start">
+            <div>
+              <label
+                htmlFor="app_language"
+                className="block font-semibold text-slate-900"
+              >
+                {t("settings:language.field")}
+              </label>
+              <p className="text-xs text-slate-500 mt-0.5">
+                {t("settings:language.help")}
+              </p>
+            </div>
+            <div className="md:col-span-2">
+              <select
+                id="app_language"
+                value={currentLanguage}
+                onChange={(e) =>
+                  void i18n.changeLanguage(
+                    e.target.value === "ur" ? "ur" : "en",
+                  )
+                }
+                className="w-full md:w-64 rounded-lg border border-slate-300 text-slate-900 text-sm px-3 py-2 bg-white focus:ring-2 focus:ring-teal-600 focus:outline-none font-medium"
+              >
+                <option value="en">{t("settings:language.english")}</option>
+                <option value="ur" lang="ur" dir="rtl">
+                  {t("settings:language.urdu")}
+                </option>
+              </select>
+              <p className="text-[11px] text-slate-500 mt-1">
+                {t("settings:language.saved")}
+              </p>
+              <p className="text-[11px] text-slate-500 mt-0.5">
+                {t("settings:language.same_as_switcher")}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* CARD 1: Change Password */}
       <form
         data-testid="account-change-password-form"
@@ -270,10 +327,10 @@ export const AccountSecurityScreen: React.FC = () => {
             <span className="material-symbols-outlined text-teal-700">
               password
             </span>
-            <span>Change Password</span>
+            <span>{t("settings:account.change_title")}</span>
           </h2>
           <p className="text-xs text-slate-500 mt-1">
-            Set a personal password to replace any temporary credential.
+            {t("settings:account.change_desc")}
           </p>
         </div>
 
@@ -283,7 +340,7 @@ export const AccountSecurityScreen: React.FC = () => {
               htmlFor="current_password"
               className="block font-semibold text-slate-900"
             >
-              Current Password
+              {t("settings:account.current_label")}
             </label>
             <div className="md:col-span-2">
               <input
@@ -304,10 +361,10 @@ export const AccountSecurityScreen: React.FC = () => {
                 htmlFor="new_password"
                 className="block font-semibold text-slate-900"
               >
-                New Password
+                {t("settings:account.new_label")}
               </label>
               <p className="text-xs text-slate-500 mt-0.5">
-                At least 12 characters.
+                {t("settings:account.new_help")}
               </p>
             </div>
             <div className="md:col-span-2">
@@ -328,7 +385,7 @@ export const AccountSecurityScreen: React.FC = () => {
               htmlFor="confirm_password"
               className="block font-semibold text-slate-900"
             >
-              Confirm New Password
+              {t("settings:account.confirm_label")}
             </label>
             <div className="md:col-span-2">
               <input
@@ -369,7 +426,11 @@ export const AccountSecurityScreen: React.FC = () => {
               <span className="material-symbols-outlined text-[18px]">
                 check
               </span>
-              <span>{passwordBusy ? "Updating..." : "Update Password"}</span>
+              <span>
+                {passwordBusy
+                  ? t("settings:account.updating")
+                  : t("settings:account.update")}
+              </span>
             </button>
           </div>
         </div>
@@ -382,10 +443,10 @@ export const AccountSecurityScreen: React.FC = () => {
             <span className="material-symbols-outlined text-teal-700">
               verified_user
             </span>
-            <span>Two-Factor Authentication</span>
+            <span>{t("settings:account.totp_title")}</span>
           </h2>
           <p className="text-xs text-slate-500 mt-1">
-            Add an extra layer of security using an authenticator app.
+            {t("settings:account.totp_desc")}
           </p>
         </div>
 
@@ -394,9 +455,11 @@ export const AccountSecurityScreen: React.FC = () => {
           {!totpEnabled && !enrollOpen && (
             <div className="flex items-center justify-between gap-4">
               <div>
-                <p className="font-semibold text-slate-900">Status: Off</p>
+                <p className="font-semibold text-slate-900">
+                  {t("settings:account.status_off")}
+                </p>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Your account is protected by password only.
+                  {t("settings:account.status_off_hint")}
                 </p>
               </div>
               <button
@@ -407,7 +470,7 @@ export const AccountSecurityScreen: React.FC = () => {
                 <span className="material-symbols-outlined text-[18px]">
                   shield
                 </span>
-                <span>Enable</span>
+                <span>{t("settings:account.enable")}</span>
               </button>
             </div>
           )}
@@ -422,9 +485,11 @@ export const AccountSecurityScreen: React.FC = () => {
                   </span>
                 </span>
                 <div>
-                  <p className="font-semibold text-slate-900">Status: On</p>
+                  <p className="font-semibold text-slate-900">
+                    {t("settings:account.status_on")}
+                  </p>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    Two-factor authentication is active.
+                    {t("settings:account.status_on_hint")}
                   </p>
                 </div>
               </div>
@@ -436,7 +501,7 @@ export const AccountSecurityScreen: React.FC = () => {
                 <span className="material-symbols-outlined text-[18px]">
                   lock
                 </span>
-                <span>Disable</span>
+                <span>{t("settings:account.disable")}</span>
               </button>
             </div>
           )}
@@ -448,15 +513,14 @@ export const AccountSecurityScreen: React.FC = () => {
               className="rounded-lg border border-red-200 bg-red-50 p-4 space-y-3"
             >
               <p className="text-xs font-semibold text-red-900">
-                Enter your current password to disable two-factor
-                authentication.
+                {t("settings:account.disable_help")}
               </p>
               <div className="flex flex-col sm:flex-row gap-2">
                 <input
                   type="password"
                   autoComplete="current-password"
                   required
-                  placeholder="Current password"
+                  placeholder={t("settings:account.current_placeholder")}
                   value={disablePassword}
                   onChange={(e) => setDisablePassword(e.target.value)}
                   className="flex-1 rounded-lg border border-red-300 text-slate-900 text-sm px-3.5 py-2 focus:ring-2 focus:ring-red-500 focus:outline-none"
@@ -467,14 +531,16 @@ export const AccountSecurityScreen: React.FC = () => {
                     disabled={disableBusy}
                     className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-semibold transition-colors disabled:opacity-60"
                   >
-                    {disableBusy ? "Disabling..." : "Confirm Disable"}
+                    {disableBusy
+                      ? t("settings:account.disabling")
+                      : t("settings:account.confirm_disable")}
                   </button>
                   <button
                     type="button"
                     onClick={() => setDisableOpen(false)}
                     className="px-4 py-2 border border-red-300 text-red-700 hover:bg-red-100 rounded-lg text-sm font-medium transition-colors"
                   >
-                    Cancel
+                    {t("common:actions.cancel")}
                   </button>
                 </div>
               </div>
@@ -486,20 +552,28 @@ export const AccountSecurityScreen: React.FC = () => {
             <form onSubmit={handleConfirmEnroll} className="space-y-4">
               <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">
-                  Add this account to your authenticator
+                  {t("settings:account.enroll_title")}
                 </p>
                 {otpauthUri ? (
-                  <p className="mt-2 break-all font-mono text-[11px] text-slate-700">
+                  <p
+                    dir="ltr"
+                    className="mt-2 break-all font-mono text-[11px] text-slate-700"
+                  >
                     {otpauthUri}
                   </p>
                 ) : (
-                  <p className="mt-2 text-xs text-slate-500">Preparing…</p>
+                  <p className="mt-2 text-xs text-slate-500">
+                    {t("settings:account.preparing")}
+                  </p>
                 )}
                 {secret ? (
                   <div className="mt-2 flex items-center justify-between gap-2">
                     <p className="text-[11px] text-slate-500">
-                      Manual key:{" "}
-                      <span className="font-mono text-slate-800 font-medium select-all">
+                      {t("settings:account.manual_key")}{" "}
+                      <span
+                        dir="ltr"
+                        className="font-mono text-slate-800 font-medium select-all"
+                      >
                         {secret}
                       </span>
                     </p>
@@ -507,19 +581,19 @@ export const AccountSecurityScreen: React.FC = () => {
                       type="button"
                       onClick={handleCopyKey}
                       className="inline-flex items-center gap-1 rounded border border-slate-300 bg-white px-2 py-0.5 text-xs font-medium text-slate-700 hover:bg-slate-100 transition-colors"
-                      title="Copy manual key"
+                      title={t("settings:account.copy_manual_title")}
                     >
                       {copiedKey ? (
                         <>
                           <Check className="h-3.5 w-3.5 text-emerald-600" />
                           <span className="text-emerald-700 font-bold">
-                            Copied
+                            {t("settings:account.copied")}
                           </span>
                         </>
                       ) : (
                         <>
                           <Copy className="h-3.5 w-3.5 text-slate-500" />
-                          <span>Copy key</span>
+                          <span>{t("settings:account.copy_key")}</span>
                         </>
                       )}
                     </button>
@@ -532,7 +606,7 @@ export const AccountSecurityScreen: React.FC = () => {
                   htmlFor="totp-code"
                   className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-600"
                 >
-                  Code from the app
+                  {t("settings:account.code_label")}
                 </label>
                 <input
                   id="totp-code"
@@ -551,7 +625,7 @@ export const AccountSecurityScreen: React.FC = () => {
                   onClick={finishEnroll}
                   className="px-4 py-2 border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 text-sm font-medium"
                 >
-                  Cancel
+                  {t("common:actions.cancel")}
                 </button>
                 <button
                   type="submit"
@@ -561,7 +635,11 @@ export const AccountSecurityScreen: React.FC = () => {
                   <span className="material-symbols-outlined text-[18px]">
                     shield
                   </span>
-                  <span>{enrollBusy ? "Activating..." : "Activate"}</span>
+                  <span>
+                    {enrollBusy
+                      ? t("settings:account.activating")
+                      : t("settings:account.activate")}
+                  </span>
                 </button>
               </div>
             </form>
@@ -573,35 +651,37 @@ export const AccountSecurityScreen: React.FC = () => {
               <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
                 <div className="flex items-center justify-between gap-2">
                   <p className="text-sm font-semibold text-amber-900">
-                    Save these backup codes now
+                    {t("settings:account.backup_save")}
                   </p>
                   <button
                     type="button"
                     onClick={handleCopyCodes}
                     className="inline-flex items-center gap-1.5 rounded-md border border-amber-300 bg-white px-2.5 py-1 text-xs font-semibold text-amber-950 hover:bg-amber-100/70 transition-colors"
-                    title="Copy all backup codes"
+                    title={t("settings:account.copy_codes_title")}
                   >
                     {copiedCodes ? (
                       <>
                         <Check className="h-3.5 w-3.5 text-emerald-600" />
                         <span className="text-emerald-700 font-bold">
-                          Copied
+                          {t("settings:account.copied")}
                         </span>
                       </>
                     ) : (
                       <>
                         <Copy className="h-3.5 w-3.5 text-amber-800" />
-                        <span>Copy codes</span>
+                        <span>{t("settings:account.copy_codes")}</span>
                       </>
                     )}
                   </button>
                 </div>
                 <p className="mt-1 text-xs text-amber-800">
-                  Each code works once. They are shown only here.
+                  {t("settings:account.backup_hint")}
                 </p>
                 <div className="mt-3 grid grid-cols-2 gap-1 font-mono text-xs text-amber-950">
                   {backupCodes.map((code) => (
-                    <span key={code}>{code}</span>
+                    <span key={code} dir="ltr">
+                      {code}
+                    </span>
                   ))}
                 </div>
               </div>
@@ -610,7 +690,7 @@ export const AccountSecurityScreen: React.FC = () => {
                 onClick={finishEnroll}
                 className="w-full rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-700"
               >
-                I have saved my codes — done
+                {t("settings:account.backup_done")}
               </button>
             </div>
           )}

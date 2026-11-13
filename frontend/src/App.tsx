@@ -10,6 +10,7 @@ import {
 } from "react-router-dom";
 import { useAuthStore } from "./features/auth/authStore";
 import { refreshSession } from "./lib/apiClient";
+import i18n, { applyDocumentLanguage, isPlatformRoute } from "./i18n";
 import { StaffLoginScreen } from "./features/auth/StaffLoginScreen";
 import { TenantEnrollScreen } from "./features/auth/TenantEnrollScreen";
 import { TwoFactorAuthScreen } from "./features/auth/TwoFactorAuthScreen";
@@ -653,6 +654,21 @@ function PlatformShell({ children }: { children: JSX.Element }): JSX.Element {
   );
 }
 
+/**
+ * Keeps <html lang/dir> correct as the user moves between the tenant SPA and
+ * the apex Platform console. The platform console is English-only forever and
+ * must never inherit a tenant's RTL preference.
+ */
+function DirectionSync(): null {
+  const location = useLocation();
+  useEffect(() => {
+    applyDocumentLanguage(
+      isPlatformRoute(location.pathname) ? "en" : i18n.language,
+    );
+  }, [location.pathname]);
+  return null;
+}
+
 function App(): JSX.Element {
   // Boot gate: the access token is memory-only, so a reload must silently
   // rebuild the session from the httpOnly refresh cookie *before* any
@@ -710,6 +726,7 @@ function App(): JSX.Element {
 
   return (
     <BrowserRouter>
+      <DirectionSync />
       <Routes>
         {/* Unauthenticated Auth & Public Access Routes */}
         <Route path="/login" element={<StaffLoginWrapper />} />

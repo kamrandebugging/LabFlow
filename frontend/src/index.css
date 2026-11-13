@@ -8,6 +8,121 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ============================================================
+   Self-hosted Urdu webfonts — SIL OFL 1.1, subset woff2 instances.
+   No CDN in production, no raw variable TTF in the browser.
+   Build: scripts/fonts/build_fonts.py. Licences: public/fonts/OFL-*.txt.
+   ============================================================ */
+@font-face {
+  font-family: "Noto Sans Arabic";
+  src: url("/fonts/noto-sans-arabic-400.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Noto Sans Arabic";
+  src: url("/fonts/noto-sans-arabic-500.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Noto Sans Arabic";
+  src: url("/fonts/noto-sans-arabic-600.woff2") format("woff2");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Noto Sans Arabic";
+  src: url("/fonts/noto-sans-arabic-700.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Noto Sans Arabic";
+  src: url("/fonts/noto-sans-arabic-800.woff2") format("woff2");
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Noto Naskh Arabic";
+  src: url("/fonts/noto-naskh-arabic-400.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Noto Naskh Arabic";
+  src: url("/fonts/noto-naskh-arabic-700.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Noto Nastaliq Urdu";
+  src: url("/fonts/noto-nastaliq-urdu-400.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Noto Nastaliq Urdu";
+  src: url("/fonts/noto-nastaliq-urdu-700.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Per-locale line-height token (Doc 07 §9.2): Urdu is looser than English.
+   Set once here, never per screen. */
+html {
+  --lf-line-height: 1.5;
+}
+html[lang="ur"] {
+  --lf-line-height: 1.9;
+}
+html[lang="ur"] body {
+  font-family:
+    "Noto Sans Arabic",
+    "Segoe UI",
+    system-ui,
+    -apple-system,
+    sans-serif;
+  line-height: var(--lf-line-height);
+}
+/* Display only: headings/titles at >=18-20px. Never tables, buttons,
+   inputs, labels or toasts (Doc 07 §9.2 / font research). h2 is deliberately
+   excluded because panel headings are often 16px; opt in with .font-display. */
+html[lang="ur"] h1,
+html[lang="ur"] .font-display {
+  font-family:
+    "Noto Nastaliq Urdu", "Noto Naskh Arabic", "Noto Sans Arabic", serif;
+  line-height: 2;
+  padding-block: 0.12em;
+}
+/* Reading body (patient report page) uses Naskh. */
+html[lang="ur"] .urdu-reading {
+  font-family: "Noto Naskh Arabic", "Noto Sans Arabic", serif;
+  line-height: 1.85;
+}
+/* Muted Urdu text steps one contrast darker (Doc 07 §9.2 + §3.1 rule 3). */
+html[lang="ur"] .text-slate-500 {
+  color: #475569;
+}
+html[lang="ur"] .text-slate-400 {
+  color: #64748b;
+}
+/* Identifiers, money, dates and digits stay LTR in both languages. */
+.lf-ltr {
+  direction: ltr;
+  unicode-bidi: isolate;
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
 @layer base {
   :root {
     --background: 0 0% 100%;

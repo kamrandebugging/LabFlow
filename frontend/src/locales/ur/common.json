@@ -1,0 +1,398 @@
+{
+  "app_name": "لیب فلو",
+  "welcome": "لیب فلو میں خوش آمدید",
+  "language": {
+    "label": "زبان",
+    "select": "زبان منتخب کریں",
+    "english": "English",
+    "urdu": "اردو",
+    "switcher_aria": "زبان کا انتخاب"
+  },
+  "nav": {
+    "home": "ہوم",
+    "patients": "مریض",
+    "invoices": "بل اور ادائیگیاں",
+    "samples": "نمونے",
+    "worklist": "ورک لسٹ",
+    "approvals": "منظوریاں",
+    "exceptions": "نازک نتائج کی اطلاعات",
+    "reports": "رپورٹس",
+    "partners": "پارٹنرز اور حصہ لیجر",
+    "settlements": "تصفیے",
+    "catalog": "کیٹلاگ",
+    "staff": "عملہ",
+    "account": "اکاؤنٹ اور سیکیورٹی",
+    "settings": "ترتیبات",
+    "branches": "برانچیں",
+    "operations": "لیب کے کام",
+    "management": "انتظام"
+  },
+  "role": {
+    "owner": "لیب مالک",
+    "manager": "برانچ مینیجر",
+    "reception": "ریسپشنسٹ",
+    "technician": "لیب ٹیکنیشن",
+    "pathologist": "پیتھالوجسٹ",
+    "staff": "عملہ"
+  },
+  "actions": {
+    "save": "محفوظ کریں",
+    "saving": "محفوظ ہو رہا ہے...",
+    "cancel": "منسوخ کریں",
+    "back": "واپس",
+    "next": "اگلا",
+    "previous": "پچھلا",
+    "submit": "جمع کریں",
+    "edit": "ترمیم",
+    "delete": "حذف کریں",
+    "view": "دیکھیں",
+    "close": "بند کریں",
+    "dismiss": "نظر انداز کریں",
+    "search": "تلاش",
+    "filter": "فلٹر",
+    "clear": "صاف کریں",
+    "reset": "ری سیٹ",
+    "print": "پرنٹ کریں",
+    "download": "ڈاؤن لوڈ",
+    "refresh": "تازہ کریں",
+    "retry": "دوبارہ کوشش کریں",
+    "confirm": "تصدیق کریں",
+    "select": "منتخب کریں",
+    "add": "شامل کریں",
+    "remove": "ہٹائیں",
+    "upload": "اپ لوڈ",
+    "export": "ایکسپورٹ",
+    "apply": "لاگو کریں",
+    "continue": "جاری رکھیں",
+    "create": "بنائیں",
+    "update": "اپ ڈیٹ",
+    "open": "کھولیں",
+    "copy": "کاپی کریں",
+    "change": "تبدیل کریں"
+  },
+  "status": {
+    "sample": {
+      "collected": "نمونہ لیا گیا",
+      "received": "موصول",
+      "in_process": "زیر عمل",
+      "ready": "تیار",
+      "rejected": "مسترد",
+      "cancelled": "منسوخ"
+    },
+    "result": {
+      "entered": "درج",
+      "approved": "منظور شدہ",
+      "rejected": "مسترد",
+      "amended": "ترمیم شدہ",
+      "withdrawn": "واپس لیا گیا"
+    },
+    "invoice": {
+      "unpaid": "غیر ادا شدہ",
+      "partial": "جزوی",
+      "paid": "ادا شدہ",
+      "refunded": "رقم واپس",
+      "cancelled": "منسوخ"
+    },
+    "report": {
+      "draft": "ڈرافٹ",
+      "final": "حتمی",
+      "amended": "ترمیم شدہ",
+      "void": "منسوخ"
+    },
+    "settlement": {
+      "draft": "ڈرافٹ",
+      "approved": "منظور شدہ",
+      "sent": "بھیجا گیا",
+      "paid": "ادا شدہ",
+      "cancelled": "منسوخ"
+    },
+    "delivery": {
+      "PENDING": "زیر التوا",
+      "SENT": "بھیجا گیا",
+      "FAILED": "ناکام",
+      "BOUNCED": "واپس آیا",
+      "OPENED": "کھولا گیا"
+    },
+    "transfer": {
+      "open": "کھلا",
+      "received": "موصول",
+      "cancelled": "منسوخ",
+      "lost": "گمشدہ"
+    },
+    "flag": {
+      "high": "زیادہ",
+      "low": "کم",
+      "critical": "Critical",
+      "normal": "نارمل"
+    },
+    "active": "فعال",
+    "inactive": "غیر فعال",
+    "pending": "زیر التوا",
+    "completed": "مکمل"
+  },
+  "time": {
+    "pkt": "اوقات PKT میں ہیں"
+  },
+  "labels": {
+    "age": "عمر",
+    "sex": "جنس",
+    "dob": "تاریخ پیدائش",
+    "name": "نام",
+    "phone": "فون",
+    "email": "ای میل",
+    "address": "پتہ",
+    "city": "شہر",
+    "notes": "نوٹس",
+    "date": "تاریخ",
+    "time": "وقت",
+    "total": "کل",
+    "amount": "رقم",
+    "status": "حیثیت",
+    "actions": "کارروائیاں",
+    "type": "قسم",
+    "reason": "وجہ",
+    "details": "تفصیلات",
+    "summary": "خلاصہ",
+    "none": "کوئی نہیں",
+    "all": "سب",
+    "yes": "ہاں",
+    "no": "نہیں",
+    "not_recorded": "درج نہیں",
+    "unknown": "نامعلوم",
+    "optional": "اختیاری",
+    "required": "لازمی"
+  },
+  "empty": {
+    "no_results": "کوئی نتیجہ نہیں ملا۔",
+    "no_data": "ابھی کوئی ڈیٹا نہیں۔",
+    "loading": "لوڈ ہو رہا ہے…"
+  },
+  "errors": {
+    "title": "خرابی",
+    "generic": "کچھ غلط ہو گیا۔ براہ کرم دوبارہ کوشش کریں۔",
+    "network": "سرور تک رسائی نہیں ہو سکی۔ اپنا کنکشن چیک کریں اور دوبارہ کوشش کریں۔",
+    "unauthorized": "آپ کا سیشن ختم ہو گیا ہے۔ براہ کرم دوبارہ سائن ان کریں۔",
+    "forbidden": "آپ کو یہ کرنے کی اجازت نہیں ہے۔",
+    "not_found": "مطلوبہ ریکارڈ نہیں ملا۔",
+    "validation": "براہ کرم فارم چیک کریں اور دوبارہ کوشش کریں۔",
+    "conflict": "یہ ریکارڈ کھولنے کے بعد تبدیل ہو چکا ہے۔ دوبارہ لوڈ کریں اور کوشش کریں۔",
+    "server": "سرور درخواست مکمل نہیں کر سکا۔ براہ کرم دوبارہ کوشش کریں۔",
+    "account_locked": "یہ اکاؤنٹ مقفل ہے۔ اپنے لیب ایڈمن سے رابطہ کریں۔",
+    "owner_approval": "اس کارروائی کے لیے لیب مالک کی منظوری ضروری ہے۔",
+    "read_only": "یہ لیب read-only موڈ میں ہے۔ سبسکرپشن فعال ہونے تک یہ کارروائی روکی گئی ہے۔",
+    "billing_hold": "اس لیب میں بلنگ عارضی طور پر روکی گئی ہے۔",
+    "rate_limited": "بہت زیادہ درخواستیں ہو گئی ہیں۔ تھوڑی دیر بعد دوبارہ کوشش کریں۔",
+    "already_exists": "انہی تفصیلات والا ریکارڈ پہلے سے موجود ہے۔",
+    "limit": "آپ کے پلان کی حد پوری ہو گئی ہے۔ پلیٹ فارم ایڈمن سے رابطہ کریں۔",
+    "not_available": "یہ سہولت اس لیب کے لیے ابھی دستیاب نہیں ہے۔"
+  },
+  "toast": {
+    "saved": "محفوظ ہو گیا۔",
+    "created": "بنا دیا گیا۔",
+    "updated": "اپ ڈیٹ ہو گیا۔",
+    "deleted": "حذف ہو گیا۔",
+    "copied": "کاپی ہو گیا۔"
+  },
+  "pagination": {
+    "page": "صفحہ {{page}}",
+    "of": "{{pages}} میں سے",
+    "showing": "{{count}} دکھائے جا رہے ہیں",
+    "load_more": "مزید دکھائیں",
+    "rows_per_page": "فی صفحہ قطاریں"
+  },
+  "confirm": {
+    "title": "کیا آپ کو یقین ہے؟",
+    "delete": "یہ واپس نہیں ہو سکتا۔"
+  },
+  "brand": {
+    "labflow": "لیب فلو",
+    "powered_by": "لیب فلو سے چلایا جاتا ہے"
+  },
+  "topbar": {
+    "dashboard_title": "لیب فلو ڈیش بورڈ",
+    "all_branches": "تمام برانچیں",
+    "branch_workspace": "برانچ ورک اسپیس",
+    "logout": "لاگ آؤٹ",
+    "restoring_session": "سیشن بحال ہو رہا ہے…"
+  },
+  "dashboard": {
+    "pkt_label": "اوقات PKT میں ہیں",
+    "live_data": "لائیو ٹیننٹ ڈیٹا",
+    "samples_by_status": "حیثیت کے مطابق نمونے",
+    "exceptions": "استثناءات",
+    "requires_action": "کارروائی ضروری",
+    "requires_action_inline": "کارروائی ضروری",
+    "critical_badge": "critical",
+    "view_all": "سب دیکھیں",
+    "unavailable": {
+      "samples": "دستیاب نہیں — نمونوں کا ڈیٹا موصول نہیں ہو سکا۔",
+      "exceptions": "دستیاب نہیں — استثناءات کا ڈیٹا موصول نہیں ہو سکا۔",
+      "patients": "دستیاب نہیں — مریضوں کا ڈیٹا موصول نہیں ہو سکا۔",
+      "invoices": "دستیاب نہیں — بلوں کا ڈیٹا موصول نہیں ہو سکا۔",
+      "worklist": "دستیاب نہیں — ورک لسٹ کا ڈیٹا موصول نہیں ہو سکا۔",
+      "results": "دستیاب نہیں — نتائج کا ڈیٹا موصول نہیں ہو سکا۔",
+      "approvals": "دستیاب نہیں — منظوریوں کا ڈیٹا موصول نہیں ہو سکا۔"
+    },
+    "loading": {
+      "registrations": "رجسٹریشن لوڈ ہو رہی ہے…",
+      "invoices": "بل لوڈ ہو رہے ہیں…",
+      "sample_handoff": "نمونوں کی حوالگی لوڈ ہو رہی ہے…",
+      "collection_queue": "نمونے لینے کی قطار لوڈ ہو رہی ہے…",
+      "sample_counts": "نمونوں کی گنتی لوڈ ہو رہی ہے…",
+      "exception_counts": "استثناءات کی گنتی لوڈ ہو رہی ہے…",
+      "worklist": "ورک لسٹ لوڈ ہو رہی ہے…",
+      "critical_results": "critical نتائج لوڈ ہو رہے ہیں…",
+      "approvals": "منظوریاں لوڈ ہو رہی ہیں…",
+      "recent_approvals": "حالیہ منظوریاں لوڈ ہو رہی ہیں…"
+    },
+    "links": {
+      "open_samples": "نمونے کھولیں",
+      "open_patients": "مریض کھولیں",
+      "open_invoices": "بل کھولیں",
+      "open_exceptions": "استثناءات کھولیں",
+      "open_worklist": "ورک لسٹ کھولیں",
+      "open_approvals": "منظوریاں کھولیں",
+      "review_settlements": "تصفیوں کا جائزہ لیں"
+    },
+    "table": {
+      "patient": "مریض",
+      "mrn": "MRN",
+      "branch": "برانچ",
+      "balance": "بقایا",
+      "accession": "accession",
+      "tests": "ٹیسٹ",
+      "test": "ٹیسٹ",
+      "value": "نتیجہ",
+      "entered_by": "درج کرنے والا",
+      "waiting": "انتظار"
+    },
+    "panel": {
+      "today_registrations": "آج کی رجسٹریشن",
+      "today_registrations_subtitle": "آج بنائے گئے اصل مریض ریکارڈ (PKT)"
+    },
+    "empty": {
+      "no_patients_today": "آج کوئی مریض رجسٹرڈ نہیں ہوا۔",
+      "no_unpaid_invoices": "آپ کی برانچ کے دائرہ کار میں کوئی غیر ادا شدہ بل نہیں۔",
+      "no_collected_waiting": "موصولی کے منتظر کوئی لیے گئے نمونے نہیں۔",
+      "no_awaiting_collection": "نمونے لینے کے منتظر کوئی ٹیسٹ نہیں۔",
+      "no_bench_samples": "بینچ پر کوئی نمونہ منتظر نہیں۔",
+      "no_critical_pending": "تصدیق کے منتظر کوئی critical نتیجہ نہیں۔",
+      "no_awaiting_verification": "تصدیق کے منتظر کوئی نتیجہ نہیں۔",
+      "no_recent_approvals": "ابھی کوئی منظور شدہ نتیجہ دستیاب نہیں۔"
+    },
+    "counts": {
+      "late_transfers": "{{count}} نمونے دیر سے منتقل ہوئے",
+      "failed_deliveries": "{{count}} رپورٹس کی ترسیل ناکام ہوئی",
+      "critical_unacknowledged": "{{count}} critical نتیجہ غیر تصدیق شدہ",
+      "critical_results_unacknowledged": "{{count}} critical نتائج غیر تصدیق شدہ",
+      "failed_generations": "{{count}} رپورٹ تیار کرنے میں ناکامی",
+      "stuck_samples": "{{count}} نمونے اٹکے ہوئے",
+      "late_transfers_unknown": "— نمونے دیر سے منتقل ہوئے",
+      "failed_deliveries_unknown": "— رپورٹس کی ترسیل ناکام ہوئی",
+      "critical_unacknowledged_unknown": "— critical نتیجہ غیر تصدیق شدہ"
+    },
+    "samples": {
+      "accessions_in_scope": "دائرہ کار میں <acc>{{total}} accessions</acc>",
+      "live_accession_counts": "لائیو <acc>accession</acc> گنتی",
+      "total_accessions_scope": "دائرہ کار میں کل <acc>{{total}} accessions</acc>",
+      "totals_unavailable": "نمونوں کے کل اعداد دستیاب نہیں"
+    },
+    "stat": {
+      "registrations_today": "آج کی رجسٹریشن",
+      "revenue_today": "آج بل کی گئی رقم",
+      "pending_approvals": "زیر التوا منظوریاں",
+      "unpaid_invoices": "غیر ادا شدہ بل",
+      "collected_awaiting_receipt": "لیے گئے، موصولی کے منتظر",
+      "awaiting_receipt": "موصولی کے منتظر",
+      "awaiting_collection": "نمونے کے منتظر",
+      "results_awaiting_verification": "تصدیق کے منتظر نتائج",
+      "critical_pending": "زیر التوا critical نتائج",
+      "awaiting_result_entry": "نتیجہ درج ہونے کے منتظر",
+      "routine": "روٹین",
+      "approved_today": "آج منظور شدہ",
+      "outstanding": "<amt>{{amount}}</amt> بقایا",
+      "outstanding_unavailable": "بقایا رقم دستیاب نہیں"
+    },
+    "hint": {
+      "registrations_manager": "آج آپ کی برانچوں میں رجسٹرڈ مریض (PKT)۔",
+      "registrations_reception": "آج آپ کے ڈیسک پر رجسٹرڈ مریض (PKT)۔",
+      "revenue_today": "آج کے غیر منسوخ بلوں کا سرور کل مجموعہ؛ نقد وصولی نہیں۔",
+      "pending_approvals": "وہ نتائج جو پیتھالوجسٹ یا مالک کے فیصلے کے منتظر ہیں۔",
+      "exceptions": "پوری لیب میں کھلی استثناءات۔",
+      "collected_awaiting_receipt": "ڈیسک پر لیے گئے اور ابھی لیب میں موصول نہ ہوئے نمونے۔",
+      "awaiting_collection": "وہ ٹیسٹ جن کے نمونے ابھی نہیں لیے گئے (برانچ کے دائرہ کار میں)۔",
+      "worklist": "لیے گئے، موصول، زیر عمل اور مسترد <acc>accessions</acc> کی گنتی۔",
+      "awaiting_receipt": "لیے گئے وہ نمونے جو ابھی لیب میں موصول نہیں ہوئے۔",
+      "awaiting_result_entry": "بینچ پر موصول اور زیر عمل نمونوں کی گنتی۔",
+      "critical_pending": "درج شدہ نتائج جنہیں critical قرار دیا گیا اور وہ تصدیق کے منتظر ہیں۔",
+      "awaiting_verification": "درج شدہ نتائج جو کلینیکل فیصلے کے منتظر ہیں۔",
+      "critical": "قطار میں موجود انتہائی نازک critical نتائج۔",
+      "routine": "قطار میں موجود غیر critical نتائج۔",
+      "approved_today": "وہ منظور شدہ نتائج جن کی منظوری کا وقت آج (PKT) ہے۔"
+    },
+    "owner": {
+      "title": "کاروبار کا جائزہ",
+      "today_business": "آج کا کاروبار",
+      "day_to_date_batch": "آج کا بیچ",
+      "invoices_label": "بل",
+      "invoiced_total": "کل بل شدہ رقم",
+      "collections_today": "وصولی (آج کے بلوں پر)",
+      "business_footer": "موجودہ <zone>Asia/Karachi</zone> دن کے سرور ریکارڈ۔ ناکام ریڈ پر ڈیش (—) دکھایا جاتا ہے، صفر کبھی نہیں۔",
+      "pending_hint": "آپ کے فیصلے کے منتظر نتائج، critical پہلے",
+      "review_badge": "جائزہ",
+      "settlements": "تصفیے",
+      "draft_settlements": "منظوری کے منتظر ڈرافٹ تصفیے",
+      "counts_only": "صرف گنتی — اس اسکرین پر پارٹنر کے نام یا پارٹنر کے اعداد و شمار نہیں۔"
+    },
+    "manager": {
+      "title": "برانچ کے امور",
+      "badge": "مینیجر ویو",
+      "subtitle_suffix": "ریڈ اونلی جائزہ",
+      "triage_subtitle": "ریڈ اونلی آپریشنل ٹرائیج",
+      "scope_title": "مینیجر کا دائرہ کار",
+      "scope_subtitle": "صرف خلاصے — کلینیکل اور مالی فیصلے متعلقہ کرداروں کے پاس رہتے ہیں"
+    },
+    "reception": {
+      "title": "فرنٹ ڈیسک",
+      "badge": "ریسپشن",
+      "subtitle_suffix": "رجسٹریشن، بلنگ اور نمونوں کی حوالگی",
+      "unpaid_subtitle": "آپ کی برانچ کے دائرہ کار میں غیر ادا شدہ اور جزوی ادا شدہ بل",
+      "awaiting_receipt_title": "لیب میں موصولی کے منتظر نمونے",
+      "awaiting_receipt_subtitle": "فی الحال ڈیسک پر موجود لیے گئے نمونے",
+      "awaiting_collection_subtitle": "درخواست شدہ ٹیسٹ جن کے نمونے ابھی نہیں لیے گئے",
+      "showing_first": "لیے گئے {{total}} نمونوں میں سے پہلے {{shown}} دکھائے جا رہے ہیں۔",
+      "collected_badge": "لیا گیا"
+    },
+    "technician": {
+      "title": "بینچ ورک لسٹ",
+      "badge": "ٹیکنیشن",
+      "subtitle_suffix": "موصولی یا نتیجہ درج ہونے کے منتظر نمونے",
+      "worklist_subtitle": "سب سے پرانا <acc>accession</acc> پہلے — ورک لسٹ سے اصل ریکارڈ",
+      "critical_title": "تصدیق کے منتظر critical نتائج",
+      "critical_subtitle": "درج شدہ ریکارڈ جنہیں حوالہ رینج انجن نے critical قرار دیا",
+      "scope_title": "بینچ کا دائرہ کار"
+    },
+    "pathologist": {
+      "title": "کلینیکل منظوریاں",
+      "subtitle_suffix": "آپ کی تصدیق کے منتظر نتائج",
+      "priority_queue": "ترجیحی منظوریوں کی قطار",
+      "priority_subtitle": "پہلے critical، پھر سب سے زیادہ انتظار — اصل نتائج",
+      "recent_title": "حالیہ منظوریاں",
+      "recent_subtitle": "سب سے نئی منظوری پہلے — نتائج کے سسٹم سے اصل ریکارڈ",
+      "scope_title": "کلینیکل دائرہ کار"
+    },
+    "scope": {
+      "subtitle": "یہ کردار کیا کر سکتا ہے اور کیا نہیں",
+      "manager_restricted": "نتائج کی منظوری صرف پیتھالوجسٹ اور مالک کے لیے مخصوص ہے۔",
+      "manager_catalog_owner": "کیٹلاگ اور قیمتوں میں ترمیم صرف مالک کر سکتا ہے؛ یہ ڈیش بورڈ کبھی ترمیم کا آپشن نہیں دکھاتا۔",
+      "manager_partner_ledger": "پارٹنر رجسٹری اور حصہ لیجر میں اندراج صرف مالک کے پاس رہتا ہے۔",
+      "technician_receive": "نمونے موصول کریں، نتائج درج کریں، اور بینچ کے نمونوں کو نشان زد یا مسترد کریں۔",
+      "technician_billing_hidden": "بلنگ، ادائیگیاں، تصفیے اور پارٹنر لیجر چھپے ہوئے ہیں اور سسٹم ان کی اجازت نہیں دیتا۔",
+      "technician_approval_owner": "کلینیکل منظوری پیتھالوجسٹ یا مالک کے پاس رہتی ہے۔",
+      "pathologist_approve": "درج شدہ نتائج منظور یا مسترد کریں، نتائج میں ترمیم کریں، اور critical اطلاعات درج کریں۔",
+      "pathologist_reference": "منظوری سے پہلے ہر نتیجے کا حوالہ رینج سے موازنہ کریں۔",
+      "pathologist_billing": "بلنگ، ادائیگیاں اور پارٹنر تصفیے اس کردار کا حصہ نہیں۔"
+    }
+  },
+  "timezone_pill": "Asia/Karachi (PKT, UTC+5)"
+}
