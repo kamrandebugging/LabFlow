@@ -1,5 +1,6 @@
 import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
+import { Trans, useTranslation } from "react-i18next";
 
 import { useAuthStore } from "../auth/authStore";
 import { patientService } from "../patients/patientService";
@@ -11,10 +12,9 @@ import {
   isTodayInPkt,
   listOpenInvoices,
   outstandingBalance,
-  PKT_LABEL,
-  pktDateLabel,
 } from "./dashboardService";
 import {
+  DashboardDateLine,
   DashboardHeader,
   DashboardLink,
   EmptyState,
@@ -35,11 +35,11 @@ interface ReceptionData {
 }
 
 export function ReceptionistDashboardScreen(): ReactElement {
+  const { t, i18n } = useTranslation("common");
+  const lang = i18n.resolvedLanguage === "ur" ? "ur" : "en";
   const accessToken = useAuthStore((state) => state.accessToken);
   const [data, setData] = useState<ReceptionData | null>(null);
   const [loading, setLoading] = useState(true);
-
-  const dateLabel = `${pktDateLabel()} · ${PKT_LABEL}`;
 
   useEffect(() => {
     let active = true;
@@ -121,22 +121,26 @@ export function ReceptionistDashboardScreen(): ReactElement {
     <div className="p-8">
       <div className="flex flex-col w-full max-w-7xl mx-auto">
         <DashboardHeader
-          title="Front desk"
-          subtitle={`${dateLabel} · registrations, billing and sample handoff`}
-          badge="Reception"
+          title={t("dashboard.reception.title")}
+          subtitle={
+            <DashboardDateLine
+              suffix={t("dashboard.reception.subtitle_suffix")}
+            />
+          }
+          badge={t("dashboard.reception.badge")}
         />
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard
             testId="stat-registrations-today"
-            label="Registrations today"
+            label={t("dashboard.stat.registrations_today")}
             value={loading ? "—" : (data?.registrationsToday ?? "—")}
-            hint="Patients registered at your desk today (PKT)."
+            hint={t("dashboard.hint.registrations_reception")}
             icon="person_add"
           />
           <StatCard
             testId="stat-unpaid-invoices"
-            label="Unpaid invoices"
+            label={t("dashboard.stat.unpaid_invoices")}
             value={
               loading
                 ? "—"
@@ -145,60 +149,73 @@ export function ReceptionistDashboardScreen(): ReactElement {
                   : "—"
             }
             hint={
-              loading
-                ? "Outstanding balance unavailable"
-                : data?.outstanding === null || data?.outstanding === undefined
-                  ? "Outstanding balance unavailable"
-                  : `${formatPkr(data.outstanding)} outstanding`
+              loading ? (
+                t("dashboard.stat.outstanding_unavailable")
+              ) : data?.outstanding === null ||
+                data?.outstanding === undefined ? (
+                t("dashboard.stat.outstanding_unavailable")
+              ) : (
+                <Trans
+                  i18nKey="dashboard.stat.outstanding"
+                  values={{ amount: formatPkr(data.outstanding, lang) }}
+                  components={{ amt: <bdi dir="ltr" /> }}
+                />
+              )
             }
             icon="receipt_long"
             tone="warning"
           />
           <StatCard
             testId="stat-awaiting-receipt"
-            label="Collected, awaiting receipt"
+            label={t("dashboard.stat.collected_awaiting_receipt")}
             value={loading ? "—" : (data?.collectedCount?.toString() ?? "—")}
-            hint="Samples collected at the desk and not yet received by the lab."
+            hint={t("dashboard.hint.collected_awaiting_receipt")}
             icon="science"
           />
           <StatCard
             testId="stat-awaiting-collection"
-            label="Awaiting collection"
+            label={t("dashboard.stat.awaiting_collection")}
             value={
               loading ? "—" : (data?.awaitingCollectionCount?.toString() ?? "—")
             }
-            hint="Ordered tests with no accession yet (branch scope)."
+            hint={t("dashboard.hint.awaiting_collection")}
             icon="pending_actions"
           />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
           <Panel
-            title="Today's registrations"
-            subtitle="Real patient rows created today (PKT)"
+            title={t("dashboard.panel.today_registrations")}
+            subtitle={t("dashboard.panel.today_registrations_subtitle")}
             testId="panel-today-registrations"
           >
             {loading ? (
-              <EmptyState message="Loading registrations…" />
+              <EmptyState message={t("dashboard.loading.registrations")} />
             ) : data?.todayPatients === null ? (
-              <EmptyState message="Unavailable — the patient API did not respond." />
+              <EmptyState message={t("dashboard.unavailable.patients")} />
             ) : data?.todayPatients.length ? (
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm">
+                <table className="w-full text-start text-sm">
                   <thead>
                     <tr className="text-[11px] uppercase tracking-wider text-slate-500 border-b border-slate-100">
-                      <th className="py-2 pr-3 font-semibold">Patient</th>
-                      <th className="py-2 pr-3 font-semibold">MRN</th>
-                      <th className="py-2 font-semibold">Branch</th>
+                      <th className="py-2 pe-3 font-semibold">
+                        {t("dashboard.table.patient")}
+                      </th>
+                      <th className="py-2 pe-3 font-semibold">
+                        {t("dashboard.table.mrn")}
+                      </th>
+                      <th className="py-2 font-semibold">
+                        {t("dashboard.table.branch")}
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {data.todayPatients.slice(0, 6).map((patient) => (
                       <tr key={patient.id}>
-                        <td className="py-2.5 pr-3 font-medium text-slate-900">
+                        <td className="py-2.5 pe-3 font-medium text-slate-900">
                           {patient.name}
                         </td>
-                        <td className="py-2.5 pr-3 font-mono text-xs text-slate-600">
+                        <td className="py-2.5 pe-3 font-mono text-xs text-slate-600">
                           {patient.mrn}
                         </td>
                         <td className="py-2.5 text-slate-600">
@@ -210,43 +227,51 @@ export function ReceptionistDashboardScreen(): ReactElement {
                 </table>
               </div>
             ) : (
-              <EmptyState message="No patients were registered today." />
+              <EmptyState message={t("dashboard.empty.no_patients_today")} />
             )}
             <div className="mt-4">
-              <DashboardLink to="/patients">Open patients</DashboardLink>
+              <DashboardLink to="/patients">
+                {t("dashboard.links.open_patients")}
+              </DashboardLink>
             </div>
           </Panel>
 
           <Panel
-            title="Unpaid invoices"
-            subtitle="Unpaid and partially paid invoices in your branch scope"
+            title={t("dashboard.stat.unpaid_invoices")}
+            subtitle={t("dashboard.reception.unpaid_subtitle")}
             testId="panel-unpaid-invoices"
           >
             {loading ? (
-              <EmptyState message="Loading invoices…" />
+              <EmptyState message={t("dashboard.loading.invoices")} />
             ) : data?.openInvoices === null ? (
-              <EmptyState message="Unavailable — the invoice API did not respond." />
+              <EmptyState message={t("dashboard.unavailable.invoices")} />
             ) : data?.openInvoices.length ? (
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm">
+                <table className="w-full text-start text-sm">
                   <thead>
                     <tr className="text-[11px] uppercase tracking-wider text-slate-500 border-b border-slate-100">
-                      <th className="py-2 pr-3 font-semibold">Patient</th>
-                      <th className="py-2 pr-3 font-semibold">MRN</th>
-                      <th className="py-2 text-right font-semibold">Balance</th>
+                      <th className="py-2 pe-3 font-semibold">
+                        {t("dashboard.table.patient")}
+                      </th>
+                      <th className="py-2 pe-3 font-semibold">
+                        {t("dashboard.table.mrn")}
+                      </th>
+                      <th className="py-2 text-end font-semibold">
+                        {t("dashboard.table.balance")}
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {data.openInvoices.slice(0, 6).map((invoice) => (
                       <tr key={invoice.id}>
-                        <td className="py-2.5 pr-3 font-medium text-slate-900">
+                        <td className="py-2.5 pe-3 font-medium text-slate-900">
                           {invoice.patient_name ?? "—"}
                         </td>
-                        <td className="py-2.5 pr-3 font-mono text-xs text-slate-600">
+                        <td className="py-2.5 pe-3 font-mono text-xs text-slate-600">
                           {invoice.patient_mrn ?? "—"}
                         </td>
-                        <td className="py-2.5 text-right font-mono text-xs font-semibold text-slate-900">
-                          {formatPkr(outstandingBalance(invoice))}
+                        <td className="py-2.5 text-end font-mono text-xs font-semibold text-slate-900">
+                          {formatPkr(outstandingBalance(invoice), lang)}
                         </td>
                       </tr>
                     ))}
@@ -254,24 +279,26 @@ export function ReceptionistDashboardScreen(): ReactElement {
                 </table>
               </div>
             ) : (
-              <EmptyState message="No unpaid invoices in your branch scope." />
+              <EmptyState message={t("dashboard.empty.no_unpaid_invoices")} />
             )}
             <div className="mt-4">
-              <DashboardLink to="/invoices">Open invoices</DashboardLink>
+              <DashboardLink to="/invoices">
+                {t("dashboard.links.open_invoices")}
+              </DashboardLink>
             </div>
           </Panel>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
           <Panel
-            title="Samples awaiting lab receipt"
-            subtitle="Collected specimens currently held at the desk"
+            title={t("dashboard.reception.awaiting_receipt_title")}
+            subtitle={t("dashboard.reception.awaiting_receipt_subtitle")}
             testId="panel-awaiting-receipt"
           >
             {loading ? (
-              <EmptyState message="Loading sample handoff…" />
+              <EmptyState message={t("dashboard.loading.sample_handoff")} />
             ) : data?.collectedSamples === null ? (
-              <EmptyState message="Unavailable — the samples API did not respond." />
+              <EmptyState message={t("dashboard.unavailable.samples")} />
             ) : data?.collectedSamples.length ? (
               <ul className="divide-y divide-slate-100">
                 {data.collectedSamples.slice(0, 6).map((sample) => (
@@ -288,36 +315,40 @@ export function ReceptionistDashboardScreen(): ReactElement {
                       </p>
                     </div>
                     <span className="text-xs font-medium text-amber-700 bg-amber-50 px-2 py-0.5 rounded">
-                      collected
+                      {t("dashboard.reception.collected_badge")}
                     </span>
                   </li>
                 ))}
               </ul>
             ) : (
-              <EmptyState message="No collected samples are waiting for receipt." />
+              <EmptyState message={t("dashboard.empty.no_collected_waiting")} />
             )}
             {data?.collectedCount !== null &&
             data?.collectedCount !== undefined &&
             data.collectedCount > (data.collectedSamples?.length ?? 0) ? (
               <p className="text-xs text-slate-500 mt-3">
-                Showing the first {data.collectedSamples?.length ?? 0} of{" "}
-                {data.collectedCount} collected samples.
+                {t("dashboard.reception.showing_first", {
+                  shown: data.collectedSamples?.length ?? 0,
+                  total: data.collectedCount,
+                })}
               </p>
             ) : null}
             <div className="mt-4">
-              <DashboardLink to="/samples">Open samples</DashboardLink>
+              <DashboardLink to="/samples">
+                {t("dashboard.links.open_samples")}
+              </DashboardLink>
             </div>
           </Panel>
 
           <Panel
-            title="Awaiting collection"
-            subtitle="Requested tests with no accession yet"
+            title={t("dashboard.stat.awaiting_collection")}
+            subtitle={t("dashboard.reception.awaiting_collection_subtitle")}
             testId="panel-awaiting-collection"
           >
             {loading ? (
-              <EmptyState message="Loading collection queue…" />
+              <EmptyState message={t("dashboard.loading.collection_queue")} />
             ) : data?.awaitingCollection === null ? (
-              <EmptyState message="Unavailable — the samples API did not respond." />
+              <EmptyState message={t("dashboard.unavailable.samples")} />
             ) : data?.awaitingCollection.length ? (
               <ul className="divide-y divide-slate-100">
                 {data.awaitingCollection.slice(0, 6).map((item) => (
@@ -335,19 +366,25 @@ export function ReceptionistDashboardScreen(): ReactElement {
                       </p>
                     </div>
                     <span className="text-xs font-medium text-amber-700 bg-amber-50 px-2 py-0.5 rounded whitespace-nowrap">
-                      {new Date(item.ordered_at).toLocaleDateString("en-PK", {
-                        day: "numeric",
-                        month: "short",
-                      })}
+                      <bdi dir="ltr">
+                        {new Date(item.ordered_at).toLocaleDateString("en-PK", {
+                          day: "numeric",
+                          month: "short",
+                        })}
+                      </bdi>
                     </span>
                   </li>
                 ))}
               </ul>
             ) : (
-              <EmptyState message="No ordered tests are awaiting collection." />
+              <EmptyState
+                message={t("dashboard.empty.no_awaiting_collection")}
+              />
             )}
             <div className="mt-4">
-              <DashboardLink to="/samples">Open samples</DashboardLink>
+              <DashboardLink to="/samples">
+                {t("dashboard.links.open_samples")}
+              </DashboardLink>
             </div>
           </Panel>
         </div>

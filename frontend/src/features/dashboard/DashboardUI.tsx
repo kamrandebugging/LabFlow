@@ -1,10 +1,33 @@
 import type { ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
+
+import { pktDateLabel } from "./dashboardService";
 
 interface DashboardHeaderProps {
   title: string;
-  subtitle: string;
+  subtitle: ReactNode;
   badge?: string;
+}
+
+/**
+ * The dashboard date line: the PKT calendar date, the "times are PKT" notice
+ * and an optional screen scope. The date is isolated LTR so RTL never
+ * re-orders the day, month or year.
+ */
+export function DashboardDateLine({
+  suffix,
+}: {
+  suffix?: string;
+}): JSX.Element {
+  const { t } = useTranslation("common");
+  return (
+    <>
+      <bdi dir="ltr">{pktDateLabel()}</bdi>
+      {` · ${t("dashboard.pkt_label")}`}
+      {suffix ? ` · ${suffix}` : null}
+    </>
+  );
 }
 
 export function DashboardHeader({
@@ -37,7 +60,7 @@ interface StatCardProps {
   testId: string;
   label: string;
   value: string;
-  hint?: string;
+  hint?: ReactNode;
   icon?: string;
   tone?: "default" | "warning" | "danger" | "success";
 }
@@ -93,7 +116,7 @@ export function StatCard({
 
 interface PanelProps {
   title: string;
-  subtitle?: string;
+  subtitle?: ReactNode;
   action?: ReactNode;
   children: ReactNode;
   className?: string;
@@ -154,7 +177,7 @@ export function DashboardLink({
       <span>{children}</span>
       <span
         aria-hidden="true"
-        className="group-hover:translate-x-0.5 transition-transform"
+        className="group-hover:translate-x-0.5 transition-transform rtl:-scale-x-100"
       >
         →
       </span>
