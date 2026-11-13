@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { platformService } from "./platformService";
@@ -37,6 +37,7 @@ export function ProvisionScreen(): JSX.Element {
     tempPassword: string;
   } | null>(null);
   const [copiedPass, setCopiedPass] = useState<boolean>(false);
+  const credentialRef = useRef<HTMLDivElement | null>(null);
 
   // Field validation and API errors
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -116,6 +117,21 @@ export function ProvisionScreen(): JSX.Element {
     setCopiedPass(true);
     setTimeout(() => setCopiedPass(false), 2000);
   };
+
+  // The credential panel sits above the sticky action bar, so without this
+  // the operator can create a lab and never notice the one-time credential
+  // that just appeared off-screen.
+  const revealCredential = () => {
+    credentialRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "center",
+    });
+    credentialRef.current?.focus({ preventScroll: true });
+  };
+
+  useEffect(() => {
+    if (provisioned) revealCredential();
+  }, [provisioned]);
 
   // Branches: Main Branch always exists; extras are created during provisioning.
   const planBranchLimit =
@@ -507,7 +523,13 @@ export function ProvisionScreen(): JSX.Element {
             </div>
 
             {/* One-time credential: issued by the server, never client-made */}
-            <div className="flex flex-col gap-space-2xs bg-surface-container-low p-space-md rounded border border-outline-variant/60 mt-space-md">
+            <div
+              ref={credentialRef}
+              id="master-temp-credential"
+              tabIndex={-1}
+              aria-live="polite"
+              className="flex flex-col gap-space-2xs bg-surface-container-low p-space-md rounded border border-outline-variant/60 mt-space-md scroll-mt-24 outline-none focus:ring-2 focus:ring-primary/40"
+            >
               <div className="flex items-center justify-between">
                 <label className="font-label-sm text-label-sm text-on-surface font-bold uppercase tracking-wider">
                   Master Temporary Credential
@@ -519,13 +541,22 @@ export function ProvisionScreen(): JSX.Element {
               {provisioned ? (
                 <>
                   <div className="flex items-center justify-between gap-space-sm my-1">
-                    <span className="font-code-sm text-base text-primary font-bold tracking-widest">
-                      {provisioned.tempPassword}
-                    </span>
                     <button
                       type="button"
                       onClick={handleCopyPass}
-                      className="px-space-xs py-space-2xs bg-surface-container hover:bg-surface-container-high rounded text-xs text-on-surface flex items-center gap-1 transition-colors"
+                      disabled={!provisioned.tempPassword}
+                      aria-label="Copy one-time temporary credential"
+                      title="Click to copy the one-time credential"
+                      className="font-code-sm text-base text-primary font-bold tracking-widest text-left select-all cursor-pointer hover:underline disabled:cursor-default disabled:no-underline"
+                    >
+                      {provisioned.tempPassword ||
+                        "The server did not return a credential."}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleCopyPass}
+                      disabled={!provisioned.tempPassword}
+                      className="px-space-xs py-space-2xs bg-surface-container hover:bg-surface-container-high rounded text-xs text-on-surface flex items-center gap-1 transition-colors disabled:opacity-50"
                     >
                       <span className="material-symbols-outlined text-[14px]">
                         {copiedPass ? "done" : "content_copy"}
@@ -534,8 +565,9 @@ export function ProvisionScreen(): JSX.Element {
                     </button>
                   </div>
                   <span className="font-body-xs text-body-xs text-error">
-                    Copy this now. It cannot be retrieved again; use
-                    reset-password to issue a new one.
+                    {provisioned.tempPassword
+                      ? "Copy this now. It cannot be retrieved again; use reset-password to issue a new one."
+                      : "Provisioning succeeded, but no credential was returned. Issue a new one from the tenant's reset-password action."}
                   </span>
                   <button
                     type="button"
@@ -1088,6 +1120,18 @@ export function ProvisionScreen(): JSX.Element {
           </div>
 
           <div className="flex items-center gap-space-md w-full sm:w-auto justify-end">
+            {provisioned && (
+              <button
+                type="button"
+                onClick={revealCredential}
+                className="h-9 px-space-lg bg-error-container/30 hover:bg-error-container/50 text-error rounded font-label-sm text-label-sm transition-colors border border-error/30 flex items-center gap-space-xs font-bold"
+              >
+                <span className="material-symbols-outlined text-[18px]">
+                  key
+                </span>
+                <span>Show one-time credential</span>
+              </button>
+            )}
             <button
               type="button"
               onClick={() => navigate("/platform/tenants")}
