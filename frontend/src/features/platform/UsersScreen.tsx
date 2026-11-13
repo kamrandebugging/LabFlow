@@ -60,11 +60,11 @@ export function UsersScreen() {
     const q = search.toLowerCase();
     return labOwners.filter(
       (o) =>
-        o.name.toLowerCase().includes(q) ||
-        o.email.toLowerCase().includes(q) ||
+        o.owner_name.toLowerCase().includes(q) ||
+        o.owner_email.toLowerCase().includes(q) ||
         o.lab_name.toLowerCase().includes(q) ||
         o.lab_slug.toLowerCase().includes(q) ||
-        o.whatsapp.toLowerCase().includes(q),
+        o.owner_phone.toLowerCase().includes(q),
     );
   }, [labOwners, search]);
 
@@ -245,10 +245,10 @@ export function UsersScreen() {
                       <td className="px-3 py-2">
                         <div className="flex flex-col">
                           <span className="font-title-sm text-title-sm font-bold text-inverse-surface">
-                            {owner.name}
+                            {owner.owner_name || "Not configured"}
                           </span>
                           <span className="font-code-sm text-code-sm text-outline">
-                            {owner.email}
+                            {owner.owner_email || "Not configured"}
                           </span>
                         </div>
                       </td>
@@ -269,9 +269,9 @@ export function UsersScreen() {
                         </div>
                       </td>
                       <td className="px-3 py-2">
-                        {owner.whatsapp ? (
+                        {owner.owner_phone ? (
                           <a
-                            href={`https://wa.me/${owner.whatsapp.replace(/\D/g, "")}`}
+                            href={`https://wa.me/${owner.owner_phone.replace(/\D/g, "")}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="inline-flex items-center gap-1.5 text-primary hover:underline font-code-sm font-semibold"
@@ -279,7 +279,7 @@ export function UsersScreen() {
                             <span className="material-symbols-outlined text-[16px]">
                               chat
                             </span>
-                            <span>{owner.whatsapp}</span>
+                            <span>{owner.owner_phone}</span>
                           </a>
                         ) : (
                           <span className="text-outline font-code-sm">
@@ -299,13 +299,16 @@ export function UsersScreen() {
                         )}
                       </td>
                       <td className="px-3 py-2 font-code-sm text-outline">
-                        {owner.last_login
-                          ? new Date(owner.last_login).toLocaleString("en-PK", {
-                              day: "numeric",
-                              month: "short",
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })
+                        {owner.last_active
+                          ? new Date(owner.last_active).toLocaleString(
+                              "en-PK",
+                              {
+                                day: "numeric",
+                                month: "short",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              },
+                            )
                           : `Registered ${new Date(
                               owner.created_at,
                             ).toLocaleDateString("en-PK", {
@@ -437,7 +440,7 @@ export function UsersScreen() {
                       )}
                     </td>
                     <td className="px-3 py-2 font-code-sm text-outline">
-                      {new Date(u.date_joined).toLocaleDateString("en-PK", {
+                      {new Date(u.created_at).toLocaleDateString("en-PK", {
                         day: "numeric",
                         month: "short",
                         year: "numeric",

@@ -19,6 +19,10 @@ interface PatientDetailsScreenProps {
   onEdit?: (patientId: string) => void;
   onViewHistory?: (patientId: string) => void;
   onNewVisit?: (patientId: string) => void;
+  /** Front-desk roles only; bench/clinical roles get a read-only record. */
+  canManage?: boolean;
+  /** DELETE /patients/{id} is ADMIN (Owner/Manager) only. */
+  canDelete?: boolean;
   service?: typeof patientService;
 }
 
@@ -28,6 +32,8 @@ export const PatientDetailsScreen: React.FC<PatientDetailsScreenProps> = ({
   onEdit,
   onViewHistory,
   onNewVisit,
+  canManage = false,
+  canDelete = false,
   service = patientService,
 }) => {
   const [patient, setPatient] = useState<PatientDetail | null>(null);
@@ -161,14 +167,16 @@ export const PatientDetailsScreen: React.FC<PatientDetailsScreenProps> = ({
 
         {/* Action Buttons */}
         <div className="flex items-center flex-wrap gap-2.5">
-          <button
-            type="button"
-            onClick={() => onEdit?.(patient.id)}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 text-sm font-medium transition-colors shadow-sm"
-          >
-            <Edit className="w-4 h-4 text-slate-400" />
-            <span>Edit demographics</span>
-          </button>
+          {canManage && onEdit ? (
+            <button
+              type="button"
+              onClick={() => onEdit(patient.id)}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 text-sm font-medium transition-colors shadow-sm"
+            >
+              <Edit className="w-4 h-4 text-slate-400" />
+              <span>Edit demographics</span>
+            </button>
+          ) : null}
           <button
             type="button"
             onClick={() => onViewHistory?.(patient.id)}
@@ -184,16 +192,18 @@ export const PatientDetailsScreen: React.FC<PatientDetailsScreenProps> = ({
           >
             <span>+ New accession</span>
           </button>
-          <button
-            type="button"
-            onClick={handleDelete}
-            disabled={isDeleting}
-            title="Delete patient"
-            aria-label="Delete patient"
-            className="p-2 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
+          {canDelete ? (
+            <button
+              type="button"
+              onClick={handleDelete}
+              disabled={isDeleting}
+              title="Delete patient"
+              aria-label="Delete patient"
+              className="p-2 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          ) : null}
         </div>
       </div>
 

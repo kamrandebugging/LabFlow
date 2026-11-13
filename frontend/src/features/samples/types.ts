@@ -49,6 +49,30 @@ export interface SampleTestItem {
   required_volume_ml?: number;
 }
 
+/** A2: an ordered invoice item with no live sample yet. Derived, not stored. */
+export interface AwaitingCollectionItem {
+  invoice_id: string;
+  invoice_item_id: string;
+  patient_id: string;
+  patient_name: string;
+  patient_mrn: string;
+  branch_id: string;
+  branch_name: string;
+  ordered_at: string;
+  test_id: string | null;
+  test_name: string | null;
+  test_code: string | null;
+  panel_id: string | null;
+  panel_name: string | null;
+  description: string;
+  status: "awaiting_collection";
+}
+
+export interface AwaitingCollectionResponse {
+  results: AwaitingCollectionItem[];
+  total: number;
+}
+
 export interface SampleSummary {
   id: string;
   accession_id: string;
@@ -161,6 +185,7 @@ export interface SampleListFilter {
   branch_id?: string;
   page?: number;
   limit?: number;
+  order?: "newest" | "oldest";
 }
 
 export interface SampleListResponse {

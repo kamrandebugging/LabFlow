@@ -113,7 +113,7 @@ def lab30_setup(tenant_a: Any) -> dict[str, Any]:
 
 
 def _approve(auth_headers: Any, user: Any, result_id: uuid.UUID, note: str = "") -> Any:
-    body: dict[str, Any] = {"decision": "approved"}
+    body: dict[str, Any] = {"decision": "approved", "attestation": True}
     if note:
         body["note"] = note
     return Client().post(
@@ -445,7 +445,9 @@ def test_amendment_approval_enqueues_new_version(
     with TestCase.captureOnCommitCallbacks(execute=True):
         approve_resp = client.post(
             APPROVE_URL.format(result_id=new_result_id),
-            data=json.dumps({"decision": "approved", "note": "verified"}),
+            data=json.dumps(
+                {"decision": "approved", "note": "verified", "attestation": True}
+            ),
             content_type="application/json",
             headers=auth_headers(s["pathologist2"]),
         )

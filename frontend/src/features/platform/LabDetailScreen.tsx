@@ -3,6 +3,7 @@ import { useParams, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { platformService } from "./platformService";
 import type { TenantDetail } from "./types";
+import { tenantDomain } from "./domain";
 
 export function LabDetailScreen(): JSX.Element {
   const { id } = useParams<{ id: string }>();
@@ -89,18 +90,20 @@ export function LabDetailScreen(): JSX.Element {
     );
   }
 
-  const primaryDomain =
-    tenant.domains.find((d) => d.is_primary)?.domain ||
-    `${tenant.slug}.labflow.app`;
+  const primaryDomain = tenantDomain(
+    tenant.slug,
+    tenant.domains.find((d) => d.is_primary)?.domain,
+  );
   // Serve the console on the same scheme as the platform console: https in
   // production, plain http for local *.localhost testing.
-  const tenantOrigin =
-    typeof window !== "undefined"
+  const tenantOrigin = primaryDomain
+    ? typeof window !== "undefined"
       ? `${window.location.protocol}//${primaryDomain}`
-      : `https://${primaryDomain}`;
+      : `https://${primaryDomain}`
+    : null;
   const storageMb = tenant.schema_size_bytes
     ? (tenant.schema_size_bytes / (1024 * 1024)).toFixed(1)
-    : "14.2";
+    : null;
 
   const handleCopyPass = () => {
     if (tenant.temp_password) {
@@ -161,7 +164,7 @@ export function LabDetailScreen(): JSX.Element {
                 {tenant.name}
               </h1>
               <span className="px-space-xs py-space-2xs rounded bg-surface-container-highest text-on-surface font-label-sm text-xs font-semibold">
-                {(tenant.city || "Lahore").toUpperCase()}
+                {(tenant.city || "Not configured").toUpperCase()}
               </span>
               <span
                 className={`inline-flex items-center gap-space-xs px-space-xs py-space-2xs rounded font-label-sm text-xs uppercase tracking-wide font-bold ${
@@ -192,17 +195,21 @@ export function LabDetailScreen(): JSX.Element {
                 </strong>
               </span>
               <span>•</span>
-              <a
-                href={tenantOrigin}
-                target="_blank"
-                rel="noreferrer"
-                className="text-primary hover:underline flex items-center gap-0.5"
-              >
-                <span>{tenantOrigin}</span>
-                <span className="material-symbols-outlined text-[14px]">
-                  open_in_new
-                </span>
-              </a>
+              {tenantOrigin ? (
+                <a
+                  href={tenantOrigin}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-primary hover:underline flex items-center gap-0.5"
+                >
+                  <span>{tenantOrigin}</span>
+                  <span className="material-symbols-outlined text-[14px]">
+                    open_in_new
+                  </span>
+                </a>
+              ) : (
+                <span className="text-outline">Domain not configured</span>
+              )}
               <span>•</span>
               <span>
                 Provisioned {new Date(tenant.created_at).toLocaleDateString()}
@@ -237,9 +244,10 @@ export function LabDetailScreen(): JSX.Element {
           ) : null}
 
           <a
-            href={tenantOrigin}
+            href={tenantOrigin ?? undefined}
             target="_blank"
             rel="noreferrer"
+            aria-disabled={!tenantOrigin}
             className="px-space-md py-space-xs bg-surface-container-low hover:bg-surface-container text-on-surface border border-outline-variant/60 rounded font-label-sm text-label-sm flex items-center gap-1 transition-colors"
           >
             <span>Launch Console</span>
@@ -297,9 +305,9 @@ export function LabDetailScreen(): JSX.Element {
             Database Size
           </span>
           <div className="my-space-xs font-headline-md text-headline-md text-on-surface flex items-baseline gap-space-xs">
-            <span>{storageMb}</span>
+            <span>{storageMb ?? "—"}</span>
             <span className="font-body-xs text-body-xs text-outline font-normal">
-              MB
+              {storageMb ? "MB" : "Unavailable"}
             </span>
           </div>
           <span className="font-body-xs text-body-xs text-outline">
@@ -431,7 +439,7 @@ export function LabDetailScreen(): JSX.Element {
                   Director / Owner Name
                 </span>
                 <span className="font-semibold text-on-surface text-base">
-                  {tenant.owner?.name || "Dr. Tariq Mahmood"}
+                  {tenant.owner?.name || tenant.owner_name || "Not configured"}
                 </span>
               </div>
 
@@ -442,7 +450,7 @@ export function LabDetailScreen(): JSX.Element {
                 <span className="font-code-sm text-on-surface">
                   {tenant.owner?.email ||
                     tenant.owner_email ||
-                    "director@lab.pk"}
+                    "Not configured"}
                 </span>
               </div>
 
@@ -457,7 +465,7 @@ export function LabDetailScreen(): JSX.Element {
                   <span>
                     {tenant.owner?.phone ||
                       tenant.owner_phone ||
-                      "+92 300 4421890"}
+                      "Not configured"}
                   </span>
                 </div>
               </div>
@@ -467,7 +475,9 @@ export function LabDetailScreen(): JSX.Element {
                   Primary Location
                 </span>
                 <span>
-                  {tenant.city || "Lahore"}, {tenant.province || "Punjab"}
+                  {tenant.city || tenant.province
+                    ? [tenant.city, tenant.province].filter(Boolean).join(", ")
+                    : "Not configured"}
                 </span>
               </div>
             </div>
@@ -535,7 +545,7 @@ export function LabDetailScreen(): JSX.Element {
                 </h2>
               </div>
               <span className="font-code-sm text-code-sm px-space-xs py-space-2xs bg-surface-container rounded text-primary font-bold">
-                {tenant.billing_summary?.status || "ACTIVE"}
+                {tenant.billing_summary?.status || "Not configured"}
               </span>
             </div>
 

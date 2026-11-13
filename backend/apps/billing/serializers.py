@@ -194,15 +194,23 @@ class InvoiceCancelSerializer(serializers.Serializer):
 
 
 class InvoiceSummarySerializer(serializers.Serializer):
-    """List row for GET /invoices (cursor page)."""
+    """List row for GET /invoices (cursor page).
+
+    The dashboard and invoice list show a patient label and the open balance,
+    so the summary carries the same patient identity fields as the detail and
+    the server-computed ``net_paid`` annotation from InvoiceQueryService.
+    """
 
     id = serializers.UUIDField()
     patient_id = serializers.UUIDField()
+    patient_name = serializers.CharField(source="patient.name")
+    patient_mrn = serializers.CharField(source="patient.mrn")
     branch_id = serializers.UUIDField()
     status = serializers.CharField()
     subtotal = MoneyField()
     discount_amount = MoneyField()
     total = MoneyField()
+    net_paid = MoneyField()
     created_at = serializers.DateTimeField()
 
 

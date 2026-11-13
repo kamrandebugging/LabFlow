@@ -22,7 +22,6 @@ export function AuditLogScreen() {
         tenant_id: tenantFilter || undefined,
         start_date: startDate ? new Date(startDate).toISOString() : undefined,
         end_date: endDate ? new Date(endDate).toISOString() : undefined,
-        limit: 100,
       });
       setAudits(res.audit || []);
     } catch (e: unknown) {

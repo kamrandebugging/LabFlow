@@ -4,7 +4,13 @@
  */
 
 export type ResultFlag =
-  "normal" | "low" | "high" | "critical_low" | "critical_high" | "abnormal";
+  | "normal"
+  | "low"
+  | "high"
+  | "critical"
+  | "critical_low"
+  | "critical_high"
+  | "abnormal";
 export type ResultStatus =
   "entered" | "approved" | "rejected" | "withdrawn" | "amended";
 export type ApprovalDecision = "approved" | "rejected";
@@ -54,6 +60,8 @@ export interface ResultApprovalInput {
   decision: ApprovalDecision;
   note?: string;
   range_override?: boolean;
+  /** D8: reviewer confirms reference range + critical thresholds review. */
+  attestation?: boolean;
 }
 
 export interface ResultApprovalResponse {
@@ -62,6 +70,8 @@ export interface ResultApprovalResponse {
   decision: ApprovalDecision;
   note: string | null;
   range_override: boolean;
+  range_attestation?: boolean;
+  attested_at?: string | null;
   approved_by: string;
   sample_ready?: boolean;
   amended_result_id?: string;

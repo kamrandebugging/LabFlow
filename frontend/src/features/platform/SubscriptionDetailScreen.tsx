@@ -43,11 +43,11 @@ export function SubscriptionDetailScreen() {
       setLoading(true);
       setError(null);
       const res = await platformService.getSubscription(id);
-      setSub(res.subscription);
+      setSub(res);
       setPayments(res.payments);
       setAvailablePlans(res.available_plans);
-      setSelectedPlanId(res.subscription.plan_id);
-      setAmount(res.subscription.plan_price);
+      setSelectedPlanId(res.plan.id);
+      setAmount(res.plan.price);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Failed to load subscription.");
     } finally {
@@ -172,7 +172,7 @@ export function SubscriptionDetailScreen() {
               chevron_right
             </span>
             <span className="text-on-surface font-semibold">
-              {sub.tenant_name}
+              {sub.tenant.name}
             </span>
           </div>
 
@@ -187,7 +187,7 @@ export function SubscriptionDetailScreen() {
               Back to Subscriptions
             </button>
             <Link
-              to={`/platform/tenants/${sub.tenant_id}`}
+              to={`/platform/tenants/${sub.tenant.id}`}
               className="h-8 px-space-sm bg-surface-container-high hover:bg-surface-container-highest text-on-surface-variant rounded font-label-sm text-label-sm flex items-center gap-1 transition-colors"
             >
               <span className="material-symbols-outlined text-[16px]">
@@ -201,10 +201,10 @@ export function SubscriptionDetailScreen() {
         <div className="flex flex-wrap items-center justify-between gap-space-md pt-space-xs border-t border-surface-container">
           <div className="flex flex-wrap items-center gap-space-sm">
             <h1 className="font-headline-lg text-headline-lg text-on-surface font-extrabold tracking-tight">
-              Subscription Management — {sub.tenant_name}
+              Subscription Management — {sub.tenant.name}
             </h1>
             <span className="bg-surface-container-high text-primary font-label-sm text-label-sm uppercase px-space-sm py-space-2xs rounded font-bold">
-              {sub.plan_name}
+              {sub.plan.name}
             </span>
             {isOverdue ? (
               <span className="bg-error-container text-on-error-container font-label-sm text-label-sm uppercase px-space-sm py-space-2xs rounded font-bold flex items-center gap-space-2xs">
@@ -221,7 +221,7 @@ export function SubscriptionDetailScreen() {
                 {sub.status}
               </span>
             )}
-            {sub.is_founding && (
+            {sub.plan.name.toLowerCase().includes("founding") && (
               <span className="bg-secondary-container text-on-secondary-fixed font-code-sm text-xs px-2 py-0.5 rounded font-extrabold uppercase">
                 Founding Member 10
               </span>
@@ -271,14 +271,14 @@ export function SubscriptionDetailScreen() {
             </span>
             <div className="flex items-baseline gap-space-xs">
               <span className="font-headline-lg text-headline-lg text-on-surface font-extrabold tracking-tight">
-                PKR {parseFloat(sub.plan_price).toLocaleString()}
+                PKR {parseFloat(sub.plan.price).toLocaleString()}
               </span>
               <span className="font-body-sm text-body-sm text-outline capitalize">
                 / {sub.billing_cycle}
               </span>
             </div>
             <span className="font-body-xs text-body-xs text-primary font-semibold">
-              {sub.plan_name} Contract Rate
+              {sub.plan.name} Contract Rate
             </span>
           </div>
 
@@ -304,7 +304,7 @@ export function SubscriptionDetailScreen() {
                       month: "long",
                       year: "numeric",
                     })
-                  : sub.is_lifetime
+                  : sub.plan.name.toLowerCase().includes("lifetime")
                     ? "Perpetual License (No Renewal)"
                     : "N/A"}
               </span>
@@ -314,7 +314,7 @@ export function SubscriptionDetailScreen() {
                 Tenant Identifier
               </span>
               <span className="font-code-sm text-code-sm font-bold text-on-surface">
-                {sub.tenant_slug}
+                {sub.tenant.slug}
               </span>
             </div>
             <div className="flex flex-col gap-1 p-space-sm bg-surface-container-low/50 rounded">
@@ -403,7 +403,7 @@ export function SubscriptionDetailScreen() {
             <div className="flex flex-col gap-1">
               <label className="font-label-sm text-label-sm text-on-surface font-semibold flex items-center justify-between">
                 <span>Internal Notes</span>
-                {parseFloat(amount || "0") !== parseFloat(sub.plan_price) && (
+                {parseFloat(amount || "0") !== parseFloat(sub.plan.price) && (
                   <span className="text-error font-body-xs font-semibold">
                     * Required when amount differs from plan price
                   </span>
@@ -452,14 +452,14 @@ export function SubscriptionDetailScreen() {
           </div>
           <span className="font-code-sm text-code-sm text-outline">
             Current Tier:{" "}
-            <strong className="text-primary">{sub.plan_name}</strong>
+            <strong className="text-primary">{sub.plan.name}</strong>
           </span>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-space-md">
           {availablePlans.map((plan) => {
             const isSelected = selectedPlanId === plan.id;
-            const isCurrent = sub.plan_id === plan.id;
+            const isCurrent = sub.plan.id === plan.id;
 
             return (
               <label
@@ -507,7 +507,7 @@ export function SubscriptionDetailScreen() {
         <div className="flex justify-end pt-space-xs">
           <button
             type="button"
-            disabled={selectedPlanId === sub.plan_id}
+            disabled={selectedPlanId === sub.plan.id}
             onClick={() => {
               setChangePlanError(null);
               setChangePlanModalOpen(true);
@@ -573,7 +573,7 @@ export function SubscriptionDetailScreen() {
                       {parseFloat(p.amount).toLocaleString()}
                     </td>
                     <td className="px-3 py-1.5 font-code-sm text-outline">
-                      {p.recorded_by}
+                      {p.recorded_by_email}
                     </td>
                     <td className="px-3 py-1.5 text-outline text-body-xs">
                       {p.notes || "—"}
@@ -595,7 +595,7 @@ export function SubscriptionDetailScreen() {
       <TotpConfirmModal
         isOpen={markPaidModalOpen}
         title="Authorize Payment Recording"
-        description={`You are recording a manual payment of PKR ${parseFloat(amount || "0").toLocaleString()} for ${sub.tenant_name} via ${paymentMethod} (${reference}). Enter your 6-digit TOTP code to authorize.`}
+        description={`You are recording a manual payment of PKR ${parseFloat(amount || "0").toLocaleString()} for ${sub.tenant.name} via ${paymentMethod} (${reference}). Enter your 6-digit TOTP code to authorize.`}
         confirmLabel="Record Payment"
         isLoading={markPaidLoading}
         error={markPaidError}
@@ -606,7 +606,7 @@ export function SubscriptionDetailScreen() {
       <TotpConfirmModal
         isOpen={changePlanModalOpen}
         title="Authorize Plan Modification"
-        description={`You are changing the subscription tier of ${sub.tenant_name} to "${availablePlans.find((p) => p.id === selectedPlanId)?.name}". Enter your 6-digit TOTP code to authorize.`}
+        description={`You are changing the subscription tier of ${sub.tenant.name} to "${availablePlans.find((p) => p.id === selectedPlanId)?.name}". Enter your 6-digit TOTP code to authorize.`}
         confirmLabel="Confirm Plan Change"
         isLoading={changePlanLoading}
         error={changePlanError}

@@ -101,6 +101,21 @@ def enabled_roles_for_current_tenant() -> list[str]:
     return effective_enabled_roles(get_current_tenant())
 
 
+def session_enabled_roles() -> list[str] | None:
+    """Enabled roles for the auth payload, or None for legacy rows.
+
+    ``Tenant.enabled_roles`` was added with an empty-list default and no
+    backfill. Returning an empty list as "Owner only" would lock every
+    pre-existing non-Owner staff account out of the SPA. A tenant with no
+    explicit list therefore keeps the pre-feature behaviour; only an explicit
+    Platform choice is enforced as a session gate.
+    """
+    tenant = get_current_tenant()
+    if tenant is None or not tenant.enabled_roles:
+        return None
+    return effective_enabled_roles(tenant)
+
+
 def is_role_enabled_for_current_tenant(role: str) -> bool:
     normalized = normalize_role(role)
     return bool(normalized and normalized in enabled_roles_for_current_tenant())

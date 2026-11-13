@@ -12,6 +12,7 @@ import { useAuthStore } from "../auth/authStore";
 import { ForcedPasswordChangeScreen } from "../auth/ForcedPasswordChangeScreen";
 import {
   canAccessPath,
+  isRoleEnabled,
   navForRole,
   needsTotpEnrolment,
   ROLE_LABELS,
@@ -58,10 +59,14 @@ export function TenantLayout(): ReactElement {
     return ROLE_LABELS[user.role] ?? "Staff";
   }, [user?.role]);
 
-  const navigation = useMemo(() => navForRole(user?.role), [user?.role]);
+  const navigation = useMemo(
+    () => navForRole(user?.role, user?.enabled_roles),
+    [user?.role, user?.enabled_roles],
+  );
 
   useEffect(() => {
     let active = true;
+    const controller = new AbortController();
 
     void fetchTenantContext().then((info) => {
       if (!active) return;
@@ -71,17 +76,36 @@ export function TenantLayout(): ReactElement {
 
     const loadBadges = async () => {
       if (!accessToken) return;
+
+      // Do not probe routes the role policy denies; a hidden badge must not
+      // generate a stream of 403s in the background.
+      const roleEnabled = isRoleEnabled(user?.role, user?.enabled_roles);
+      const canReadApprovals =
+        roleEnabled && (user?.role === "owner" || user?.role === "pathologist");
+      const canReadSettlements =
+        roleEnabled && (user?.role === "owner" || user?.role === "manager");
+      const canReadExceptions = roleEnabled;
+
       try {
         const [approvalsRes, stRes, exRes] = await Promise.allSettled([
-          resultsService.getApprovalsQueue(),
-          partnersService.getSettlements({ status: "draft" }),
-          reportsService.getExceptions(),
+          canReadApprovals
+            ? resultsService.getApprovalsQueue(controller.signal)
+            : Promise.resolve(null),
+          canReadSettlements
+            ? partnersService.getSettlements({
+                status: "draft",
+                signal: controller.signal,
+              })
+            : Promise.resolve(null),
+          canReadExceptions
+            ? reportsService.getExceptions(controller.signal)
+            : Promise.resolve(null),
         ]);
 
         // The badge is the approvals queue itself — counting "ready" samples
         // left a stale number after every result had been approved.
         let pendingApprovals = 0;
-        if (approvalsRes.status === "fulfilled") {
+        if (approvalsRes.status === "fulfilled" && approvalsRes.value) {
           pendingApprovals = approvalsRes.value.length;
         }
 
@@ -107,10 +131,17 @@ export function TenantLayout(): ReactElement {
 
     return () => {
       active = false;
+      controller.abort();
     };
-  }, [location.pathname, accessToken]);
+  }, [location.pathname, accessToken, user?.role, user?.enabled_roles]);
 
   if (!accessToken || !user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  // A role the Platform has disabled for this lab is a dead end: the API
+  // refuses it, so never render a dashboard or sidebar for it.
+  if (!isRoleEnabled(user.role, user.enabled_roles)) {
     return <Navigate to="/login" replace />;
   }
 
@@ -167,7 +198,10 @@ export function TenantLayout(): ReactElement {
             className="w-9 h-9 rounded-lg bg-[#005c55] flex items-center justify-center text-white shadow-sm hover:opacity-90 transition-opacity"
             title="LabFlow Dashboard"
           >
-            <span className="material-symbols-outlined text-[20px]">
+            <span
+              aria-hidden="true"
+              className="material-symbols-outlined text-[20px]"
+            >
               science
             </span>
           </Link>
@@ -233,7 +267,10 @@ export function TenantLayout(): ReactElement {
               title="Log out"
               type="button"
             >
-              <span className="material-symbols-outlined text-[20px]">
+              <span
+                aria-hidden="true"
+                className="material-symbols-outlined text-[20px]"
+              >
                 logout
               </span>
             </button>
@@ -252,7 +289,10 @@ export function TenantLayout(): ReactElement {
               {navigation.operations.map((item) => (
                 <Link key={item.to} to={item.to} className={linkClass(item.to)}>
                   <div className="flex items-center gap-2.5">
-                    <span className="material-symbols-outlined text-[18px]">
+                    <span
+                      aria-hidden="true"
+                      className="material-symbols-outlined text-[18px]"
+                    >
                       {item.icon}
                     </span>
                     <span>{item.label}</span>
@@ -283,7 +323,10 @@ export function TenantLayout(): ReactElement {
               {navigation.management.map((item) => (
                 <Link key={item.to} to={item.to} className={linkClass(item.to)}>
                   <div className="flex items-center gap-2.5">
-                    <span className="material-symbols-outlined text-[18px]">
+                    <span
+                      aria-hidden="true"
+                      className="material-symbols-outlined text-[18px]"
+                    >
                       {item.icon}
                     </span>
                     <span>{item.label}</span>

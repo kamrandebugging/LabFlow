@@ -97,5 +97,6 @@ export interface InvoiceListResponse {
   results: InvoiceSummary[];
   next_cursor?: string | null;
   total_count?: number;
+  /** Present only when the server actually returned a daily aggregate. */
   daily_total?: string;
 }

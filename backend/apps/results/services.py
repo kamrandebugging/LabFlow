@@ -13,6 +13,7 @@ from datetime import date, datetime
 from typing import Any
 
 from django.db import IntegrityError, transaction
+from django.db.models import Prefetch
 from django.utils import timezone
 
 from apps.accounts.models import AuditLog, Role, StaffUser
@@ -141,6 +142,13 @@ class OverrideNoteRequiredError(ResultError):
 
     status_code = 422
     error_code = "override_note_required"
+
+
+class AttestationRequiredError(ResultError):
+    """D8: approval requires explicit reference-range/critical attestation."""
+
+    status_code = 422
+    error_code = "attestation_required"
 
 
 class NoteRequiredForUnparseableError(ResultError):
@@ -416,7 +424,7 @@ def _serialize_result(
         "value": result.value,
         "unit": result.unit or result.test.unit,
         "flag": result.flag,
-        "is_critical": result.flag in ("critical_low", "critical_high"),
+        "is_critical": result.flag == Result.Flag.CRITICAL,
         "status": result.status,
         "matched_range": _range_display(summary),
         "critical_threshold": _critical_display(summary),
@@ -426,22 +434,24 @@ def _serialize_result(
         "amend_reason": result.amend_reason,
         "supersedes": str(result.supersedes_id) if result.supersedes_id else None,
     }
+    approval = None
+    if include_detail or result.status == Result.Status.APPROVED:
+        # list_results() prefetches this ordered relation; the .all() form
+        # consumes the cache instead of issuing one query per row.
+        approvals = list(result.approvals.all())
+        approval = approvals[0] if approvals else None
+    payload["approved_by_name"] = (
+        approval.pathologist.email if approval is not None else None
+    )
+    payload["approved_at"] = (
+        approval.created_at.isoformat() if approval is not None else None
+    )
+
     if include_detail:
-        approval = (
-            result.approvals.select_related("pathologist")
-            .order_by("-created_at")
-            .first()
-        )
         notification = (
             result.critical_notifications.select_related("recorded_by")
             .order_by("-created_at")
             .first()
-        )
-        payload["approved_by_name"] = (
-            approval.pathologist.email if approval is not None else None
-        )
-        payload["approved_at"] = (
-            approval.created_at.isoformat() if approval is not None else None
         )
         payload["audit_history"] = _audit_history(result)
         payload["critical_notification"] = (
@@ -470,6 +480,13 @@ class ResultService:
             "sample__branch",
             "test",
             "entered_by",
+        ).prefetch_related(
+            Prefetch(
+                "approvals",
+                queryset=ResultApproval.objects.select_related("pathologist").order_by(
+                    "-created_at"
+                ),
+            )
         )
         if actor.branch_id:
             rows = rows.filter(sample__branch_id=actor.branch_id)
@@ -496,6 +513,14 @@ class ResultService:
                 "test",
                 "entered_by",
             )
+            .prefetch_related(
+                Prefetch(
+                    "approvals",
+                    queryset=ResultApproval.objects.select_related(
+                        "pathologist"
+                    ).order_by("-created_at"),
+                )
+            )
             .filter(sample_id=sample_id)
             .order_by("created_at")
         )
@@ -510,6 +535,13 @@ class ResultService:
                 "sample__branch",
                 "test",
                 "entered_by",
+            ).prefetch_related(
+                Prefetch(
+                    "approvals",
+                    queryset=ResultApproval.objects.select_related(
+                        "pathologist"
+                    ).order_by("-created_at"),
+                )
             )
             if not actor.is_tenant_wide:
                 results = results.filter(
@@ -733,6 +765,7 @@ class ResultService:
         note: str | None,
         range_override: bool,
         actor: StaffUser,
+        attestation: bool = False,
         ip: str | None = None,
         user_agent: str | None = None,
     ) -> dict[str, Any]:
@@ -752,6 +785,14 @@ class ResultService:
         if range_override and not clean_note:
             raise OverrideNoteRequiredError(
                 "A range override requires a non-empty note."
+            )
+        # D8: an approval must carry the reviewer's explicit attestation that
+        # the reference range and critical thresholds were reviewed. A
+        # rejection is not gated (the reviewer is declining the result).
+        if decision == ResultApproval.Decision.APPROVED and not attestation:
+            raise AttestationRequiredError(
+                "Approval requires attestation that the reference range and "
+                "critical thresholds were reviewed."
             )
 
         with transaction.atomic():
@@ -823,10 +864,14 @@ class ResultService:
                 if decision == ResultApproval.Decision.APPROVED
                 else "result.rejected"
             )
+            attested_at = timezone.now().isoformat() if attestation else None
             after: dict[str, Any] = {
                 "decision": decision,
                 "note": clean_note or None,
                 "range_override": range_override,
+                "range_attestation": attestation,
+                "attested_by": str(actor.id) if attestation else None,
+                "attested_at": attested_at,
                 "pathologist_id": str(actor.id),
                 "approval_id": str(approval.id),
                 "event": action,
@@ -899,6 +944,8 @@ class ResultService:
             "decision": decision,
             "note": clean_note or None,
             "range_override": range_override,
+            "range_attestation": attestation,
+            "attested_at": attested_at,
             "approved_by": str(actor.id),
             "sample_ready": sample_ready,
         }

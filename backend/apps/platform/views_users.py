@@ -63,28 +63,37 @@ class PlatformUsersListView(APIView):
             lab_owners.append(
                 {
                     "id": str(t.id),
-                    "owner_name": t.owner_name or "Primary Director",
-                    "owner_email": t.owner_email or f"director@{t.slug}.pk",
-                    "owner_phone": t.owner_phone or "N/A",
+                    "owner_name": t.owner_name,
+                    "owner_email": t.owner_email,
+                    "owner_phone": t.owner_phone,
                     "lab_name": t.name,
                     "lab_slug": t.slug,
                     "city": t.city,
                     "status": t.status,
                     "created_at": t.created_at.isoformat(),
-                    "last_active": t.updated_at.isoformat() if t.updated_at else None,
+                    # Public-schema data has no owner login timestamp; never
+                    # present a tenant-row edit as owner activity (D3).
+                    "last_active": None,
                 }
             )
 
         # 2. Platform Team
         team_qs = PlatformUser.objects.all().order_by("-created_at")
+        invitation_roles = {
+            inv.email: inv.role
+            for inv in PlatformUserInvitation.objects.filter(
+                email__in=[u.email for u in team_qs]
+            )
+        }
         platform_team: list[dict[str, Any]] = []
         for u in team_qs:
-            is_super = "admin" in u.email.lower() or "kamran" in u.email.lower()
             platform_team.append(
                 {
                     "id": str(u.id),
                     "email": u.email,
-                    "role": "Platform Owner" if is_super else "Platform Support",
+                    # Real invitation role when one exists; no role is
+                    # inferred from the email address (D3).
+                    "role": invitation_roles.get(u.email, "Platform Operator"),
                     "totp_enabled": u.totp_enabled,
                     "is_active": u.is_active,
                     "created_at": u.created_at.isoformat(),

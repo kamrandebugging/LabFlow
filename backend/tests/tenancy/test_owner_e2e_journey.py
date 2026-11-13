@@ -230,6 +230,7 @@ def test_full_owner_e2e_journey_fresh_tenant() -> None:
             # Step 6: Approve report/result as Owner (Self-approval superrole)
             approve_payload = {
                 "decision": "approved",
+                "attestation": True,
             }
             app_res = client.post(
                 f"/api/v1/results/{result_id}/approve",

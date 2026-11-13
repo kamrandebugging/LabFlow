@@ -32,6 +32,7 @@ from apps.accounts.jwt_engine import (
     mint_refresh_token,
 )
 from apps.accounts.models import AuditLog, LoginEvent, Role, StaffUser
+from apps.accounts.role_config import session_enabled_roles
 from apps.accounts.session_registry import (
     SessionRegistryUnavailable,
     claim_jti_once,
@@ -214,6 +215,7 @@ class AuthService:
 
         with schema_context(target_schema):
             branch_ids = [str(sb.branch_id) for sb in user.staff_branches.all()]
+            enabled_roles = session_enabled_roles()
         if user.branch_id and str(user.branch_id) not in branch_ids:
             branch_ids.append(str(user.branch_id))
 
@@ -240,6 +242,11 @@ class AuthService:
                 "display_name": user.display_name or "",
                 "role": user.role,
                 "branch_ids": branch_ids,
+                **(
+                    {"enabled_roles": enabled_roles}
+                    if enabled_roles is not None
+                    else {}
+                ),
                 "totp_enabled": bool(user.totp_enabled),
                 "must_change_password": bool(user.password_is_temporary),
                 "onboarding": onboarding,
@@ -396,6 +403,7 @@ class AuthService:
             new_refresh_jti=new_refresh_jti,
         )
 
+        session_roles = session_enabled_roles()
         return (
             True,
             {
@@ -409,6 +417,11 @@ class AuthService:
                     "email": user.email,
                     "display_name": user.display_name or "",
                     "role": user.role,
+                    **(
+                        {"enabled_roles": session_roles}
+                        if session_roles is not None
+                        else {}
+                    ),
                     "totp_enabled": bool(user.totp_enabled),
                     "must_change_password": bool(user.password_is_temporary),
                     "onboarding": onboarding,

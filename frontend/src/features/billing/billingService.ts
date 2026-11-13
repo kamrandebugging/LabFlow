@@ -28,6 +28,7 @@ export const billingService = {
       patientId?: string;
       cursor?: string;
       limit?: number;
+      signal?: AbortSignal;
     } = {},
   ): Promise<InvoiceListResponse> {
     const query: Record<string, string | number | boolean | null | undefined> =
@@ -55,12 +56,11 @@ export const billingService = {
             daily_total?: string;
           }
         | InvoiceDetail[]
-      >("/invoices", { query });
+      >("/invoices", { query, signal: params.signal });
 
       if (Array.isArray(data)) {
         return {
           results: data,
-          daily_total: "0.00",
           total_count: data.length,
         };
       }
@@ -69,7 +69,9 @@ export const billingService = {
         next_cursor: data.next_cursor || null,
         total_count:
           data.total_count ?? (data.results || data.items || []).length,
-        daily_total: data.daily_total || "0.00",
+        // Preserve absence: a missing server aggregate must render as
+        // unavailable, never as a fabricated PKR 0.00.
+        daily_total: data.daily_total,
       };
     } catch (err) {
       if (err instanceof ApiError) {

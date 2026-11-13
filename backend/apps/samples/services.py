@@ -55,7 +55,7 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 from django.db import connection, transaction
-from django.db.models import Q
+from django.db.models import Exists, OuterRef, Q
 
 from apps.accounts.models import AuditLog, Role, StaffUser, TenantSetting
 from apps.billing.models import Invoice, InvoiceItem
@@ -310,6 +310,89 @@ class SampleService:
     """Sample accessioning: collect + label."""
 
     @staticmethod
+    def list_awaiting_collection(
+        *,
+        actor: StaffUser,
+        branch_id: str | None = None,
+        q: str | None = None,
+        limit: int | None = None,
+    ) -> tuple[list[dict[str, Any]], int]:
+        """Ordered invoice items that have no live sample yet (A2).
+
+        "Awaiting collection" is derived, never a stored Sample status: an
+        invoice item is awaiting when a live (collected/received/in_process/
+        ready) sample_test does not link back to it. Cancelled invoices are
+        excluded. Branch-scoped exactly like the sample list.
+        """
+        live_link = SampleTest.objects.filter(
+            invoice_item_id=OuterRef("pk"),
+            sample__status__in=LIVE_SAMPLE_STATUSES,
+        )
+        qs = InvoiceItem.objects.select_related(
+            "invoice__patient", "invoice__branch", "test", "panel"
+        ).filter(
+            invoice__status__in=[
+                Invoice.Status.UNPAID,
+                Invoice.Status.PARTIAL,
+                Invoice.Status.PAID,
+            ]
+        )
+        if not actor.is_tenant_wide:
+            # Same source as Sample.objects.scoped_to(): never the home-branch
+            # display default (keeps both samples endpoints consistent).
+            qs = qs.filter(invoice__branch_id__in=actor.assigned_branch_ids())
+        if branch_id and branch_id != "all":
+            qs = qs.filter(invoice__branch_id=uuid.UUID(str(branch_id).strip()))
+        qs = (
+            qs.filter(Q(test__isnull=False) | Q(panel__isnull=False))
+            .annotate(has_live_sample=Exists(live_link))
+            .filter(has_live_sample=False)
+        )
+        if q:
+            term = q.strip()[:100]
+            if term:
+                qs = qs.filter(
+                    Q(invoice__patient__name__icontains=term)
+                    | Q(invoice__patient__mrn__icontains=term)
+                    | Q(test__name__icontains=term)
+                    | Q(panel__name__icontains=term)
+                )
+        qs = qs.order_by("-invoice__created_at", "created_at")
+        total = qs.count()
+        try:
+            bounded = max(1, min(int(limit if limit is not None else 100), 200))
+        except (TypeError, ValueError) as exc:
+            raise ValueError("limit must be an integer.") from exc
+        qs = qs[:bounded]
+
+        rows: list[dict[str, Any]] = []
+        for item in qs:
+            invoice = item.invoice
+            patient = invoice.patient
+            test = item.test
+            panel = item.panel
+            rows.append(
+                {
+                    "invoice_id": str(invoice.id),
+                    "invoice_item_id": str(item.id),
+                    "patient_id": str(patient.id),
+                    "patient_name": patient.name,
+                    "patient_mrn": patient.mrn,
+                    "branch_id": str(invoice.branch_id),
+                    "branch_name": invoice.branch.name,
+                    "ordered_at": invoice.created_at.isoformat(),
+                    "test_id": str(test.id) if test is not None else None,
+                    "test_name": test.name if test is not None else None,
+                    "test_code": test.code if test is not None else None,
+                    "panel_id": str(panel.id) if panel is not None else None,
+                    "panel_name": panel.name if panel is not None else None,
+                    "description": item.description,
+                    "status": "awaiting_collection",
+                }
+            )
+        return rows, total
+
+    @staticmethod
     def list_samples(
         *,
         actor: StaffUser,
@@ -317,17 +400,25 @@ class SampleService:
         branch_id: str | None = None,
         q: str | None = None,
         limit: int | None = None,
+        order: str | None = None,
     ) -> tuple[list[Sample], int]:
         """List samples with search and filters, bounded to prevent DoS."""
         qs = (
             Sample.objects.scoped_to(actor)
             .select_related("invoice__patient", "branch")
             .prefetch_related("sample_tests__test")
-            .order_by("-collected_at", "-created_at")
         )
+        if order == "oldest":
+            qs = qs.order_by("collected_at", "created_at")
+        else:
+            qs = qs.order_by("-collected_at", "-created_at")
 
         if status and status != "all":
-            qs = qs.filter(status=status.strip().lower())
+            clean_status = status.strip().lower()
+            # An unknown status must be a 422, never a plausible-looking zero.
+            if clean_status not in Sample.Status.values:
+                raise ValueError(f"Unknown sample status: {status}.")
+            qs = qs.filter(status=clean_status)
 
         if branch_id and branch_id != "all":
             b_uuid = uuid.UUID(str(branch_id).strip())

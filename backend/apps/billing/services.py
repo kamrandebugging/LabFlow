@@ -44,12 +44,13 @@ import json
 import uuid
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
-from typing import Any
+from typing import Any, cast
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
-from django.db.models import Q, Sum
+from django.db.models import DecimalField, Q, Sum, Value
+from django.db.models.functions import Coalesce
 from django.utils import timezone
 
 from apps.accounts.models import AuditLog, Role, StaffUser
@@ -753,7 +754,30 @@ class InvoiceQueryService:
         their assigned branches; an out-of-scope ``branch_id`` filter
         therefore yields no rows.
         """
-        qs = Invoice.objects.scoped_to(actor).order_by("-created_at", "-id")
+        money_field = DecimalField(max_digits=12, decimal_places=2)
+        qs = (
+            Invoice.objects.scoped_to(actor)
+            .select_related("patient")
+            .annotate(
+                net_paid=Coalesce(
+                    Sum(
+                        "payments__amount",
+                        filter=Q(payments__kind=Payment.Kind.PAYMENT),
+                    ),
+                    Value(Decimal("0.00")),
+                    output_field=money_field,
+                )
+                - Coalesce(
+                    Sum(
+                        "payments__amount",
+                        filter=Q(payments__kind=Payment.Kind.REFUND),
+                    ),
+                    Value(Decimal("0.00")),
+                    output_field=money_field,
+                )
+            )
+            .order_by("-created_at", "-id")
+        )
         if status is not None:
             if status not in Invoice.Status.values:
                 raise InvalidFilterError(f"Unknown status filter: {status}.")
@@ -772,7 +796,7 @@ class InvoiceQueryService:
                 Q(created_at__lt=c_created) | Q(created_at=c_created, id__lt=c_id)
             )
         limit = max(1, min(limit, LIST_MAX_LIMIT))
-        rows = list(qs[: limit + 1])
+        rows = cast(list[Invoice], list(qs[: limit + 1]))
         next_cursor: str | None = None
         if len(rows) > limit:
             last = rows[limit - 1]

@@ -23,7 +23,7 @@ export class DuplicatePatientError extends Error {
 
 export const patientService = {
   async listPatients(
-    params: { q?: string; branchId?: string } = {},
+    params: { q?: string; branchId?: string; signal?: AbortSignal } = {},
   ): Promise<PatientSummary[]> {
     const data = await apiRequest<
       PatientSummary[] | { results: PatientSummary[] }
@@ -32,6 +32,7 @@ export const patientService = {
         q: params.q,
         branch_id: params.branchId,
       },
+      signal: params.signal,
     });
 
     if (Array.isArray(data)) return data;

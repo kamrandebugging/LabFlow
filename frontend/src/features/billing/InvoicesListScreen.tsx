@@ -29,7 +29,7 @@ export function InvoicesListScreen({
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [dailyTotal, setDailyTotal] = useState<string>("0.00");
+  const [dailyTotal, setDailyTotal] = useState<string | null>(null);
 
   const fetchInvoices = useCallback(async () => {
     setIsLoading(true);
@@ -39,15 +39,9 @@ export function InvoicesListScreen({
         status: selectedStatus === "all" ? undefined : selectedStatus,
       });
       setInvoices(data.results);
-      if (data.daily_total) {
-        setDailyTotal(data.daily_total);
-      } else {
-        const sum = data.results.reduce(
-          (acc, inv) => acc + (parseFloat(inv.total) || 0),
-          0,
-        );
-        setDailyTotal(sum.toFixed(2));
-      }
+      // Never derive a "daily" total from the loaded page: it mixes dates and
+      // statuses. Absence is shown as unavailable.
+      setDailyTotal(data.daily_total ?? null);
     } catch (err: unknown) {
       setError(
         err instanceof Error ? err.message : "Failed to load invoices list",
@@ -163,18 +157,20 @@ export function InvoicesListScreen({
               Daily Total:
             </span>
             <span className="font-mono text-sm font-bold text-slate-900">
-              PKR {dailyTotal}
+              {dailyTotal === null ? "—" : `PKR ${dailyTotal}`}
             </span>
           </div>
 
-          <button
-            type="button"
-            onClick={onNewInvoice}
-            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-teal-600 rounded-lg hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-500 shadow-sm transition-all"
-          >
-            <Plus className="w-4 h-4" />
-            New invoice
-          </button>
+          {onNewInvoice ? (
+            <button
+              type="button"
+              onClick={onNewInvoice}
+              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-teal-600 rounded-lg hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-500 shadow-sm transition-all"
+            >
+              <Plus className="w-4 h-4" />
+              New invoice
+            </button>
+          ) : null}
         </div>
       </div>
 

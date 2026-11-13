@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { platformService } from "./platformService";
+import { tenantDomain } from "./domain";
 import type { OverviewMetrics, TenantListResponse } from "./types";
 
 export function OverviewScreen(): JSX.Element {
@@ -522,16 +523,19 @@ export function OverviewScreen(): JSX.Element {
                           {lab.name}
                         </Link>
                         <span className="font-code-sm text-code-sm text-outline">
-                          {lab.slug}.labflow.app
+                          {tenantDomain(lab.slug, lab.domain) ??
+                            "Domain not configured"}
                         </span>
                       </div>
                     </td>
                     <td className="px-space-md py-space-xs text-on-surface-variant">
-                      {lab.city || "Lahore"}, {lab.province || "Punjab"}
+                      {lab.city || lab.province
+                        ? [lab.city, lab.province].filter(Boolean).join(", ")
+                        : "Not configured"}
                     </td>
                     <td className="px-space-md py-space-xs">
                       <span className="font-label-md text-label-md text-on-surface">
-                        {lab.plan_name || "Starter"}
+                        {lab.plan_name || "No plan"}
                       </span>
                     </td>
                     <td className="px-space-md py-space-xs">
@@ -561,7 +565,7 @@ export function OverviewScreen(): JSX.Element {
                       {(lab.branch_count ?? 1) > 1 ? "es" : ""}
                     </td>
                     <td className="px-space-md py-space-xs text-right font-semibold tabular-nums text-on-surface">
-                      PKR {lab.plan_price || "0.00"}
+                      {lab.plan_price ? `PKR ${lab.plan_price}` : "—"}
                     </td>
                     <td className="px-space-md py-space-xs text-right pr-space-lg">
                       <Link

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { platformService } from "./platformService";
+import { tenantDomain } from "./domain";
 import type { TenantStatus } from "./types";
 
 export function LabsListScreen(): JSX.Element {
@@ -279,9 +280,7 @@ export function LabsListScreen(): JSX.Element {
                 </tr>
               ) : (
                 labs.map((lab) => {
-                  const cityCode = (lab.city || "LHE")
-                    .slice(0, 3)
-                    .toUpperCase();
+                  const cityCode = (lab.city || "—").slice(0, 3).toUpperCase();
                   const isSuspended = lab.status === "suspended";
                   const isProvisioning = lab.status === "provisioning";
 
@@ -314,7 +313,10 @@ export function LabsListScreen(): JSX.Element {
                               </strong>
                             </span>
                             <span>•</span>
-                            <span>{lab.slug}.labflow.app</span>
+                            <span>
+                              {tenantDomain(lab.slug, lab.domain) ??
+                                "Domain not configured"}
+                            </span>
                           </div>
                         </div>
                       </td>
@@ -325,7 +327,11 @@ export function LabsListScreen(): JSX.Element {
                             place
                           </span>
                           <span>
-                            {lab.city || "Lahore"}, {lab.province || "Punjab"}
+                            {lab.city || lab.province
+                              ? [lab.city, lab.province]
+                                  .filter(Boolean)
+                                  .join(", ")
+                              : "Not configured"}
                           </span>
                         </div>
                       </td>
@@ -333,10 +339,12 @@ export function LabsListScreen(): JSX.Element {
                       <td className="px-space-md py-space-xs">
                         <div className="flex flex-col">
                           <span className="font-label-md text-label-md text-on-surface">
-                            {lab.plan_name || "Growth"}
+                            {lab.plan_name || "No plan"}
                           </span>
                           <span className="font-code-sm text-code-sm text-outline">
-                            PKR {lab.plan_price}/mo
+                            {lab.plan_price
+                              ? `PKR ${lab.plan_price}/mo`
+                              : "No price configured"}
                             {lab.is_demo ? " · demo" : ""}
                           </span>
                         </div>

@@ -89,6 +89,7 @@ describe("resultsService unit tests", () => {
       decision: "approved",
       note: "Clinically correlated.",
       range_override: false,
+      attestation: true,
     });
 
     expect(global.fetch).toHaveBeenCalledWith(
@@ -99,6 +100,7 @@ describe("resultsService unit tests", () => {
           decision: "approved",
           note: "Clinically correlated.",
           range_override: false,
+          attestation: true,
         }),
       }),
     );
@@ -221,51 +223,57 @@ describe("resultsService unit tests", () => {
     ).rejects.toThrow(/Server error \(502\)/i);
   });
 
-  it("derives worklist correctly from sampleService with oldest first sorting", async () => {
-    vi.spyOn(sampleService, "listSamples").mockResolvedValueOnce({
-      total: 3,
-      results: [
-        {
-          id: "smp-02",
-          accession_id: "CDL002",
-          invoice_id: "inv-02",
-          patient_id: "pat-02",
-          patient_name: "Fatima Noor",
-          patient_mrn: "MRN-002",
-          branch_id: "br-01",
-          branch_name: "Gulberg",
-          status: "in_process",
-          tests: ["Potassium (K+)"],
-          collected_at: "2026-10-20T10:00:00Z",
-        },
-        {
-          id: "smp-01",
-          accession_id: "CDL001",
-          invoice_id: "inv-01",
-          patient_id: "pat-01",
-          patient_name: "Muhammad Imran",
-          patient_mrn: "MRN-001",
-          branch_id: "br-01",
-          branch_name: "Gulberg",
-          status: "received",
-          tests: ["CBC"],
-          collected_at: "2026-10-20T08:00:00Z",
-        },
-        {
-          id: "smp-03",
-          accession_id: "CDL003",
-          invoice_id: "inv-03",
-          patient_id: "pat-03",
-          patient_name: "Ahmed Ali",
-          patient_mrn: "MRN-003",
-          branch_id: "br-01",
-          branch_name: "Gulberg",
-          status: "ready", // ready is not in ["collected", "received", "in_process", "rejected"]
-          tests: ["Lipid Profile"],
-          collected_at: "2026-10-20T07:00:00Z",
-        },
-      ],
-    });
+  it("derives worklist from server-filtered pending statuses, oldest first", async () => {
+    const rows = [
+      {
+        id: "smp-02",
+        accession_id: "CDL002",
+        invoice_id: "inv-02",
+        patient_id: "pat-02",
+        patient_name: "Fatima Noor",
+        patient_mrn: "MRN-002",
+        branch_id: "br-01",
+        branch_name: "Gulberg",
+        status: "in_process" as const,
+        tests: ["Potassium (K+)"],
+        collected_at: "2026-10-20T10:00:00Z",
+      },
+      {
+        id: "smp-01",
+        accession_id: "CDL001",
+        invoice_id: "inv-01",
+        patient_id: "pat-01",
+        patient_name: "Muhammad Imran",
+        patient_mrn: "MRN-001",
+        branch_id: "br-01",
+        branch_name: "Gulberg",
+        status: "received" as const,
+        tests: ["CBC"],
+        collected_at: "2026-10-20T08:00:00Z",
+      },
+      {
+        id: "smp-03",
+        accession_id: "CDL003",
+        invoice_id: "inv-03",
+        patient_id: "pat-03",
+        patient_name: "Ahmed Ali",
+        patient_mrn: "MRN-003",
+        branch_id: "br-01",
+        branch_name: "Gulberg",
+        status: "ready" as const,
+        tests: ["Lipid Profile"],
+        collected_at: "2026-10-20T07:00:00Z",
+      },
+    ];
+
+    vi.spyOn(sampleService, "listSamples").mockImplementation(
+      async ({ status } = {}) => {
+        const filtered = status
+          ? rows.filter((row) => row.status === status)
+          : rows;
+        return { total: filtered.length, results: filtered };
+      },
+    );
 
     const worklist = await resultsService.getWorklist({
       branchId: "br-01",
@@ -352,6 +360,43 @@ describe("resultsService unit tests", () => {
     expect(queue[1]!.test_name).toBe("Potassium (K+)");
     expect(queue[1]!.value).toBe("4.1");
     expect(queue[1]!.flag).toBeNull();
+  });
+
+  it("preserves the backend critical flag and sorts it first", async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        results: [
+          {
+            id: "res-critical",
+            sample_id: "smp-03",
+            sample_status: "received",
+            accession_id: "CDL003",
+            patient_id: "pat-03",
+            patient_name: "Critical Patient",
+            patient_mrn: "MRN-003",
+            branch_id: "br-01",
+            branch_name: "Gulberg",
+            test_id: "test-k",
+            test_name: "Potassium (K+)",
+            value: "6.2",
+            unit: "mmol/L",
+            flag: "critical",
+            is_critical: true,
+            status: "entered",
+            matched_range: "3.5 - 5.1 mmol/L",
+            entered_by_name: "tech@labflow.pk",
+            entered_at: "2026-10-20T09:00:00Z",
+          },
+        ],
+      }),
+    });
+
+    const queue = await resultsService.getApprovalsQueue();
+
+    expect(queue[0]!.flag).toBe("critical");
+    expect(queue[0]!.is_critical).toBe(true);
   });
 
   it("fetches result detail and maps only real backend fields", async () => {

@@ -440,7 +440,8 @@ def create_tenant_provisioning(data: ProvisionTenantInput) -> ProvisionTenantRes
                 "subscription_id": str(subscription.id),
                 "owner_email": cleaned_owner_email,
                 "owner_name": cleaned_owner_name,
-                "temp_password": temp_pass,
+                # D6: never persist the issued credential in the audit trail.
+                "temp_password_issued": True,
                 "city": tenant.city,
                 "province": tenant.province,
                 "current_step": "P-2",

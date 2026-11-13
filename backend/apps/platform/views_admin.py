@@ -292,30 +292,30 @@ def _tenant_detail(tenant: Tenant) -> dict[str, Any]:
     ]
 
     billing_summary = {
-        "plan_name": plan_data["name"] if plan_data else "Starter",
-        "price": plan_data["price"] if plan_data else "0.00",
-        "status": sub_data["status"] if sub_data else "active",
+        "plan_name": plan_data["name"] if plan_data else "",
+        "price": plan_data["price"] if plan_data else "",
+        "status": sub_data["status"] if sub_data else "",
         "is_demo": bool(snapshot and snapshot.get("is_demo")),
         "billing_cycle": (
-            "One-time"
-            if plan_data and "lifetime" in plan_data["name"].lower()
-            else "Monthly"
+            ("One-time" if "lifetime" in plan_data["name"].lower() else "Monthly")
+            if plan_data
+            else ""
         ),
         "started_at": sub_data["started_at"] if sub_data else None,
         "ends_at": sub_data["ends_at"] if sub_data else None,
     }
 
     owner_data = {
-        "name": tenant.owner_name or prov_state.owner_name or "Lab Director",
+        "name": tenant.owner_name or prov_state.owner_name,
         "email": tenant.owner_email or prov_state.owner_email,
-        "phone": tenant.owner_phone or "+92 300 0000000",
-        "whatsapp": tenant.owner_phone or "+92 300 0000000",
+        "phone": tenant.owner_phone,
+        "whatsapp": tenant.owner_phone,
     }
 
     return {
         **_tenant_list_item(tenant),
-        "city": tenant.city or "Lahore",
-        "province": tenant.province or "Punjab",
+        "city": tenant.city,
+        "province": tenant.province,
         "schema_name": tenant.schema_name,
         "domains": [
             {"domain": d["domain"], "is_primary": d["is_primary"]} for d in domains

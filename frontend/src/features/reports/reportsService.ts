@@ -253,10 +253,11 @@ export const reportsService = {
   /**
    * GET /api/v1/exceptions — Staff triage exceptions queue derived from real data.
    */
-  async getExceptions(): Promise<ExceptionsResponse> {
+  async getExceptions(signal?: AbortSignal): Promise<ExceptionsResponse> {
     const res = await fetch("/api/v1/exceptions", {
       method: "GET",
       headers: getAuthHeaders(),
+      signal,
     });
 
     return handleResponse<ExceptionsResponse>(res);

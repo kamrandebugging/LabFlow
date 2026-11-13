@@ -21,12 +21,25 @@ import {
   ArrowLeft,
   Info,
 } from "lucide-react";
+import { useAuthStore } from "../auth/authStore";
 import { resultsService } from "./resultsService";
 import type { ResultDetailRecord } from "./types";
 
 export function ResultDetailScreen(): JSX.Element {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const user = useAuthStore((state) => state.user);
+  const canApprove = user?.role === "pathologist" || user?.role === "owner";
+  const canAmend =
+    user?.role === "technician" ||
+    user?.role === "pathologist" ||
+    user?.role === "owner";
+  const backPath =
+    user?.role === "technician"
+      ? "/worklist"
+      : user?.role === "manager" || user?.role === "reception"
+        ? "/exceptions"
+        : "/results/approvals";
 
   const [detail, setDetail] = useState<ResultDetailRecord | null>(null);
   const [loading, setLoading] = useState(true);
@@ -36,11 +49,15 @@ export function ResultDetailScreen(): JSX.Element {
   // Decision Form State
   const [decision, setDecision] = useState<"approved" | "rejected">("approved");
   const [decisionNote, setDecisionNote] = useState("");
+  const [attestation, setAttestation] = useState(false);
   const [submittingDecision, setSubmittingDecision] = useState(false);
   const [withdrawing, setWithdrawing] = useState(false);
 
   useEffect(() => {
     if (!id) return;
+    // A reused route must never carry the previous result's attestation.
+    setAttestation(false);
+    setDecisionNote("");
     async function loadData() {
       try {
         setLoading(true);
@@ -72,6 +89,12 @@ export function ResultDetailScreen(): JSX.Element {
       setErrorMessage("A rejection note is mandatory.");
       return;
     }
+    if (decision === "approved" && !attestation) {
+      setErrorMessage(
+        "Confirm that you reviewed the reference range and critical thresholds.",
+      );
+      return;
+    }
 
     try {
       setSubmittingDecision(true);
@@ -80,6 +103,7 @@ export function ResultDetailScreen(): JSX.Element {
         decision,
         note: decisionNote.trim() || undefined,
         range_override: false,
+        attestation: decision === "approved" ? attestation : false,
       });
 
       setSuccessMessage(`Result ${decision} successfully.`);
@@ -138,11 +162,11 @@ export function ResultDetailScreen(): JSX.Element {
           </p>
           <div className="pt-2">
             <Link
-              to="/results/approvals"
+              to={backPath}
               className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg text-xs font-semibold hover:bg-slate-100 transition-colors"
             >
               <ArrowLeft className="w-4 h-4" />
-              <span>Back to Approvals Queue</span>
+              <span>Back</span>
             </Link>
           </div>
         </div>
@@ -214,7 +238,9 @@ export function ResultDetailScreen(): JSX.Element {
           </div>
 
           <div className="flex items-center gap-2">
-            {detail?.status === "entered" && (
+            {detail?.status === "entered" &&
+            canAmend &&
+            detail.entered_by_name === user?.email ? (
               <button
                 type="button"
                 onClick={handleWithdraw}
@@ -224,15 +250,17 @@ export function ResultDetailScreen(): JSX.Element {
                 <RotateCcw className="w-3.5 h-3.5 text-slate-500" />
                 <span>Withdraw result</span>
               </button>
-            )}
+            ) : null}
 
-            <Link
-              to={`/results/${id}/amend`}
-              className="px-3 py-1.5 rounded-lg border border-teal-200 bg-teal-50 hover:bg-teal-100 text-teal-800 text-xs font-semibold transition-colors flex items-center gap-1.5 cursor-pointer"
-            >
-              <Edit3 className="w-3.5 h-3.5" />
-              <span>Amend result</span>
-            </Link>
+            {canAmend ? (
+              <Link
+                to={`/results/${id}/amend`}
+                className="px-3 py-1.5 rounded-lg border border-teal-200 bg-teal-50 hover:bg-teal-100 text-teal-800 text-xs font-semibold transition-colors flex items-center gap-1.5 cursor-pointer"
+              >
+                <Edit3 className="w-3.5 h-3.5" />
+                <span>Amend result</span>
+              </Link>
+            ) : null}
           </div>
         </div>
       </div>
@@ -487,104 +515,129 @@ export function ResultDetailScreen(): JSX.Element {
               </span>
             </div>
 
-            <form onSubmit={handleSubmitDecision} className="space-y-4">
-              {/* Radio Selector */}
-              <div className="grid grid-cols-2 gap-3">
-                <label
-                  className={`flex flex-col p-3 rounded-lg border cursor-pointer transition-all ${
-                    decision === "approved"
-                      ? "border-teal-600 bg-teal-50/50"
-                      : "border-slate-200 bg-slate-50 hover:bg-slate-100"
-                  }`}
-                >
-                  <div className="flex items-center gap-2">
+            {canApprove ? (
+              <form onSubmit={handleSubmitDecision} className="space-y-4">
+                {/* Radio Selector */}
+                <div className="grid grid-cols-2 gap-3">
+                  <label
+                    className={`flex flex-col p-3 rounded-lg border cursor-pointer transition-all ${
+                      decision === "approved"
+                        ? "border-teal-600 bg-teal-50/50"
+                        : "border-slate-200 bg-slate-50 hover:bg-slate-100"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="radio"
+                        name="decision"
+                        value="approved"
+                        checked={decision === "approved"}
+                        onChange={() => setDecision("approved")}
+                        className="accent-teal-700"
+                      />
+                      <span className="text-xs font-bold text-slate-900">
+                        Approve
+                      </span>
+                    </div>
+                    <span className="text-[10px] text-slate-500 mt-1 pl-5">
+                      Release to EHR report
+                    </span>
+                  </label>
+
+                  <label
+                    className={`flex flex-col p-3 rounded-lg border cursor-pointer transition-all ${
+                      decision === "rejected"
+                        ? "border-red-600 bg-red-50/50"
+                        : "border-slate-200 bg-slate-50 hover:bg-slate-100"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="radio"
+                        name="decision"
+                        value="rejected"
+                        checked={decision === "rejected"}
+                        onChange={() => setDecision("rejected")}
+                        className="accent-red-600"
+                      />
+                      <span className="text-xs font-bold text-slate-900">
+                        Reject
+                      </span>
+                    </div>
+                    <span className="text-[10px] text-slate-500 mt-1 pl-5">
+                      Request Recollect
+                    </span>
+                  </label>
+                </div>
+
+                {/* Rationale Input */}
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-slate-700 flex items-center justify-between">
+                    <span>Decision Note</span>
+                    {decision === "rejected" && (
+                      <span className="text-red-600 text-[10px] font-bold">
+                        Mandatory for rejection
+                      </span>
+                    )}
+                  </label>
+                  <textarea
+                    value={decisionNote}
+                    onChange={(e) => setDecisionNote(e.target.value)}
+                    placeholder="Document clinical review rationale, verbal notifications, and clinical validation reasons..."
+                    rows={3}
+                    className="w-full text-xs p-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-600"
+                  />
+                </div>
+
+                {decision === "approved" && (
+                  <label className="flex items-start gap-2 text-xs text-slate-700 bg-teal-50/50 p-3 rounded-lg border border-teal-100 cursor-pointer">
                     <input
-                      type="radio"
-                      name="decision"
-                      value="approved"
-                      checked={decision === "approved"}
-                      onChange={() => setDecision("approved")}
-                      className="accent-teal-700"
+                      type="checkbox"
+                      checked={attestation}
+                      onChange={(e) => setAttestation(e.target.checked)}
+                      className="mt-0.5 accent-teal-700"
                     />
-                    <span className="text-xs font-bold text-slate-900">
-                      Approve
+                    <span>
+                      I reviewed the reference range and critical thresholds for
+                      this result.
                     </span>
-                  </div>
-                  <span className="text-[10px] text-slate-500 mt-1 pl-5">
-                    Release to EHR report
-                  </span>
-                </label>
-
-                <label
-                  className={`flex flex-col p-3 rounded-lg border cursor-pointer transition-all ${
-                    decision === "rejected"
-                      ? "border-red-600 bg-red-50/50"
-                      : "border-slate-200 bg-slate-50 hover:bg-slate-100"
-                  }`}
-                >
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="radio"
-                      name="decision"
-                      value="rejected"
-                      checked={decision === "rejected"}
-                      onChange={() => setDecision("rejected")}
-                      className="accent-red-600"
-                    />
-                    <span className="text-xs font-bold text-slate-900">
-                      Reject
-                    </span>
-                  </div>
-                  <span className="text-[10px] text-slate-500 mt-1 pl-5">
-                    Request Recollect
-                  </span>
-                </label>
-              </div>
-
-              {/* Rationale Input */}
-              <div className="space-y-1">
-                <label className="text-xs font-semibold text-slate-700 flex items-center justify-between">
-                  <span>Decision Note</span>
-                  {decision === "rejected" && (
-                    <span className="text-red-600 text-[10px] font-bold">
-                      Mandatory for rejection
-                    </span>
-                  )}
-                </label>
-                <textarea
-                  value={decisionNote}
-                  onChange={(e) => setDecisionNote(e.target.value)}
-                  placeholder="Document clinical review rationale, verbal notifications, and clinical validation reasons..."
-                  rows={3}
-                  className="w-full text-xs p-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-600"
-                />
-              </div>
-
-              {/* Policy note */}
-              <div className="flex items-center gap-2 text-xs text-slate-500 bg-slate-50 p-2.5 rounded-lg border border-slate-100">
-                <Info className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                <span>Decision is locked to permanent audit ledger.</span>
-              </div>
-
-              {/* Submit button */}
-              <button
-                type="submit"
-                disabled={submittingDecision}
-                className="w-full py-2.5 px-4 bg-teal-700 hover:bg-teal-800 text-white rounded-lg text-xs font-semibold shadow-xs transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-              >
-                {submittingDecision ? (
-                  <>
-                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                    <span>Transmitting decision...</span>
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                    <span>Submit decision</span>
-                  </>
+                  </label>
                 )}
-              </button>
-            </form>
+
+                {/* Policy note */}
+                <div className="flex items-center gap-2 text-xs text-slate-500 bg-slate-50 p-2.5 rounded-lg border border-slate-100">
+                  <Info className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                  <span>Decision is locked to permanent audit ledger.</span>
+                </div>
+
+                {/* Submit button */}
+                <button
+                  type="submit"
+                  disabled={
+                    submittingDecision ||
+                    (decision === "approved" && !attestation)
+                  }
+                  className="w-full py-2.5 px-4 bg-teal-700 hover:bg-teal-800 text-white rounded-lg text-xs font-semibold shadow-xs transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                >
+                  {submittingDecision ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      <span>Transmitting decision...</span>
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      <span>Submit decision</span>
+                    </>
+                  )}
+                </button>
+              </form>
+            ) : (
+              <p className="text-xs text-slate-500 bg-slate-50 p-4 rounded-lg border border-slate-100">
+                Read-only view. Only a Pathologist or the Owner may approve or
+                reject this result.
+              </p>
+            )}
           </div>
         </div>
       </div>
