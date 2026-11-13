@@ -1,6 +1,7 @@
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 
 import { useAuthStore } from "./authStore";
 import { needsTotpEnrolment, roleHome } from "./access";
@@ -14,6 +15,7 @@ import { accountService, AccountApiError } from "../settings/accountService";
  * dismissible, unlike the old warning modal.
  */
 export function ForcedPasswordChangeScreen(): ReactElement {
+  const { t } = useTranslation(["auth", "common"]);
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
   const accessToken = useAuthStore((state) => state.accessToken);
@@ -30,11 +32,11 @@ export function ForcedPasswordChangeScreen(): ReactElement {
     event.preventDefault();
     setError(null);
     if (newPassword.length < 12) {
-      setError("New password must be at least 12 characters.");
+      setError(t("auth:forced.err_min"));
       return;
     }
     if (newPassword !== confirmPassword) {
-      setError("New password and confirmation do not match.");
+      setError(t("auth:forced.err_match"));
       return;
     }
     setBusy(true);
@@ -54,8 +56,8 @@ export function ForcedPasswordChangeScreen(): ReactElement {
     } catch (err: unknown) {
       setError(
         err instanceof AccountApiError
-          ? err.message
-          : "Could not change the password.",
+          ? t("auth:forced.err_change")
+          : t("auth:forced.err_change"),
       );
     } finally {
       setBusy(false);
@@ -73,11 +75,10 @@ export function ForcedPasswordChangeScreen(): ReactElement {
           </span>
           <div>
             <h1 className="text-lg font-bold tracking-tight text-slate-900">
-              Set your permanent password
+              {t("auth:forced.title")}
             </h1>
             <p className="mt-1 text-sm text-slate-600">
-              You signed in with a temporary credential. Business screens stay
-              locked until you replace it.
+              {t("auth:forced.subtitle")}
             </p>
           </div>
         </div>
@@ -85,7 +86,7 @@ export function ForcedPasswordChangeScreen(): ReactElement {
         <form onSubmit={submit} className="mt-6 space-y-4">
           <div>
             <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-600">
-              Current temporary password
+              {t("auth:forced.current")}
             </label>
             <input
               type="password"
@@ -98,7 +99,7 @@ export function ForcedPasswordChangeScreen(): ReactElement {
           </div>
           <div>
             <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-600">
-              New password
+              {t("auth:forced.new")}
             </label>
             <input
               type="password"
@@ -109,12 +110,12 @@ export function ForcedPasswordChangeScreen(): ReactElement {
               className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-teal-600 focus:outline-none focus:ring-1 focus:ring-teal-600"
             />
             <p className="mt-1 text-[11px] text-slate-500">
-              At least 12 characters.
+              {t("auth:forced.min")}
             </p>
           </div>
           <div>
             <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-600">
-              Confirm new password
+              {t("auth:forced.confirm")}
             </label>
             <input
               type="password"
@@ -143,14 +144,14 @@ export function ForcedPasswordChangeScreen(): ReactElement {
               }}
               className="text-xs font-semibold text-slate-500 hover:text-red-600"
             >
-              Sign out
+              {t("auth:forced.sign_out")}
             </button>
             <button
               type="submit"
               disabled={busy}
               className="rounded-lg bg-[#005c55] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#0f766e] disabled:opacity-60"
             >
-              {busy ? "Saving…" : "Set password and continue"}
+              {busy ? t("common:actions.saving") : t("auth:forced.save")}
             </button>
           </div>
         </form>
