@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   AlertCircle,
   AlertTriangle,
@@ -6,6 +7,7 @@ import {
   Loader2,
   ArrowLeft,
 } from "lucide-react";
+import { messageForError } from "../../lib/errors";
 import { DuplicatePatientError, patientService } from "./patientService";
 import type {
   PatientCandidate,
@@ -26,6 +28,7 @@ export const RegisterPatientScreen: React.FC<RegisterPatientScreenProps> = ({
   onCancel,
   service = patientService,
 }) => {
+  const { t } = useTranslation(["patients", "common"]);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [sex, setSex] = useState<"M" | "F">("M");
@@ -45,13 +48,13 @@ export const RegisterPatientScreen: React.FC<RegisterPatientScreenProps> = ({
     // Validation
     const trimmedName = name.trim();
     if (trimmedName.length < 2 || trimmedName.length > 120) {
-      setFormError("Full name must be between 2 and 120 characters.");
+      setFormError(t("patients:register.validation.name"));
       return;
     }
 
     const cleanPhone = phone.replace(/[\s\-()+]/g, "");
     if (!/^\d{10,15}$/.test(cleanPhone)) {
-      setFormError("Phone number must contain between 10 and 15 digits.");
+      setFormError(t("patients:validation.phone"));
       return;
     }
 
@@ -78,7 +81,9 @@ export const RegisterPatientScreen: React.FC<RegisterPatientScreenProps> = ({
         setDuplicateCandidates(err.candidates);
       } else {
         setFormError(
-          err instanceof Error ? err.message : "Failed to register patient.",
+          err && typeof err === "object" && ("code" in err || "status" in err)
+            ? messageForError(err, t)
+            : t("patients:register.errors.failed"),
         );
       }
     } finally {
@@ -90,28 +95,30 @@ export const RegisterPatientScreen: React.FC<RegisterPatientScreenProps> = ({
     <div className="max-w-2xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
       {/* Breadcrumbs & Header */}
       <div>
-        <nav aria-label="Breadcrumb" className="mb-2">
-          <ol className="flex items-center space-x-2 text-xs text-slate-500">
+        <nav aria-label={t("patients:breadcrumb_aria")} className="mb-2">
+          <ol className="flex items-center gap-x-2 text-xs text-slate-500">
             <li>
               <button
                 type="button"
                 onClick={onCancel}
                 className="hover:text-slate-800 transition-colors inline-flex items-center gap-1"
               >
-                <ArrowLeft className="w-3.5 h-3.5" />
-                <span>Patients</span>
+                <ArrowLeft className="w-3.5 h-3.5 rtl:rotate-180" />
+                <span>{t("common:nav.patients")}</span>
               </button>
             </li>
             <li className="text-slate-300">/</li>
-            <li className="font-medium text-slate-900">New registration</li>
+            <li className="font-medium text-slate-900">
+              {t("patients:register.breadcrumb_new")}
+            </li>
           </ol>
         </nav>
         <div className="flex items-baseline justify-between">
           <h1 className="text-2xl font-bold tracking-tight text-slate-900 font-headline">
-            Register patient
+            {t("patients:register.title")}
           </h1>
           <span className="text-xs text-slate-400 font-mono">
-            ISO 15189 Demographics
+            {t("patients:register.iso_badge")}
           </span>
         </div>
       </div>
@@ -125,11 +132,10 @@ export const RegisterPatientScreen: React.FC<RegisterPatientScreenProps> = ({
         >
           <div className="flex items-center gap-2 font-semibold text-amber-800">
             <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0" />
-            <span>Possible Duplicate Patient Detected</span>
+            <span>{t("patients:register.duplicate.title")}</span>
           </div>
           <p className="text-xs text-amber-700 leading-relaxed">
-            A patient with a matching name and phone number is already
-            registered in the laboratory records:
+            {t("patients:register.duplicate.body")}
           </p>
 
           <div className="divide-y divide-amber-200/60 bg-white/70 rounded-lg border border-amber-200/80 p-2 text-xs">
@@ -140,16 +146,26 @@ export const RegisterPatientScreen: React.FC<RegisterPatientScreenProps> = ({
               >
                 <div>
                   <span className="font-semibold text-slate-900">{c.name}</span>
-                  <span className="text-slate-500 ml-2">
-                    ({c.sex === "M" ? "Male" : "Female"})
+                  <span className="text-slate-500 ms-2">
+                    (
+                    {c.sex === "M"
+                      ? t("patients:sex.male")
+                      : t("patients:sex.female")}
+                    )
                   </span>
                   {c.year_of_birth && (
-                    <span className="text-slate-500 ml-1">
-                      · YOB {c.year_of_birth}
+                    <span className="text-slate-500 ms-1">
+                      ·{" "}
+                      {t("patients:register.duplicate.yob", {
+                        year: c.year_of_birth,
+                      })}
                     </span>
                   )}
                 </div>
-                <span className="font-mono bg-amber-100 text-amber-800 px-2 py-0.5 rounded font-medium">
+                <span
+                  dir="ltr"
+                  className="font-mono bg-amber-100 text-amber-800 px-2 py-0.5 rounded font-medium"
+                >
                   {c.mrn}
                 </span>
               </div>
@@ -162,7 +178,7 @@ export const RegisterPatientScreen: React.FC<RegisterPatientScreenProps> = ({
               onClick={() => setDuplicateCandidates(null)}
               className="px-3.5 py-1.5 text-xs font-medium text-slate-600 hover:text-slate-900 rounded-lg hover:bg-amber-100/50 transition-colors"
             >
-              Cancel
+              {t("common:actions.cancel")}
             </button>
             <button
               type="button"
@@ -171,7 +187,7 @@ export const RegisterPatientScreen: React.FC<RegisterPatientScreenProps> = ({
               className="px-4 py-1.5 text-xs font-semibold bg-amber-700 hover:bg-amber-800 text-white rounded-lg shadow-sm transition-colors flex items-center gap-1.5"
             >
               {isLoading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-              <span>Confirm & Register Anyway</span>
+              <span>{t("patients:register.duplicate.confirm")}</span>
             </button>
           </div>
         </div>
@@ -202,7 +218,7 @@ export const RegisterPatientScreen: React.FC<RegisterPatientScreenProps> = ({
           <div className="space-y-4">
             <div className="border-b border-slate-100 pb-2">
               <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-500">
-                Patient Demographics
+                {t("patients:demographics")}
               </h2>
             </div>
 
@@ -212,7 +228,8 @@ export const RegisterPatientScreen: React.FC<RegisterPatientScreenProps> = ({
                 htmlFor="fullName"
                 className="block text-xs font-semibold text-slate-700 mb-1.5"
               >
-                Full name <span className="text-red-500">*</span>
+                {t("patients:field_full_name")}{" "}
+                <span className="text-red-500">*</span>
               </label>
               <input
                 id="fullName"
@@ -221,7 +238,7 @@ export const RegisterPatientScreen: React.FC<RegisterPatientScreenProps> = ({
                 required
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="e.g. Muhammad Imran"
+                placeholder={t("patients:register.full_name_placeholder")}
                 className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 transition-all"
               />
             </div>
@@ -233,26 +250,31 @@ export const RegisterPatientScreen: React.FC<RegisterPatientScreenProps> = ({
                   htmlFor="phoneNumber"
                   className="block text-xs font-semibold text-slate-700 mb-1.5"
                 >
-                  Phone <span className="text-red-500">*</span>
+                  {t("common:labels.phone")}{" "}
+                  <span className="text-red-500">*</span>
                 </label>
                 <input
                   id="phoneNumber"
                   name="phoneNumber"
                   type="tel"
+                  dir="ltr"
                   required
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
-                  placeholder="03001234567"
+                  placeholder={t("patients:register.phone_placeholder")}
                   className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 transition-all"
                 />
-                <p className="mt-1 text-xs text-slate-400">10-15 digits</p>
+                <p className="mt-1 text-xs text-slate-400">
+                  {t("patients:register.phone_hint")}
+                </p>
               </div>
 
               <div>
                 <span className="block text-xs font-semibold text-slate-700 mb-1.5">
-                  Sex <span className="text-red-500">*</span>
+                  {t("common:labels.sex")}{" "}
+                  <span className="text-red-500">*</span>
                 </span>
-                <div className="flex items-center space-x-6 h-10 px-1">
+                <div className="flex items-center gap-x-6 h-10 px-1">
                   <label className="inline-flex items-center cursor-pointer select-none">
                     <input
                       type="radio"
@@ -262,7 +284,9 @@ export const RegisterPatientScreen: React.FC<RegisterPatientScreenProps> = ({
                       onChange={() => setSex("M")}
                       className="w-4 h-4 text-teal-600 border-slate-300 focus:ring-teal-500"
                     />
-                    <span className="ml-2 text-sm text-slate-700">Male</span>
+                    <span className="ms-2 text-sm text-slate-700">
+                      {t("patients:sex.male")}
+                    </span>
                   </label>
                   <label className="inline-flex items-center cursor-pointer select-none">
                     <input
@@ -273,7 +297,9 @@ export const RegisterPatientScreen: React.FC<RegisterPatientScreenProps> = ({
                       onChange={() => setSex("F")}
                       className="w-4 h-4 text-teal-600 border-slate-300 focus:ring-teal-500"
                     />
-                    <span className="ml-2 text-sm text-slate-700">Female</span>
+                    <span className="ms-2 text-sm text-slate-700">
+                      {t("patients:sex.female")}
+                    </span>
                   </label>
                 </div>
               </div>
@@ -285,7 +311,7 @@ export const RegisterPatientScreen: React.FC<RegisterPatientScreenProps> = ({
                 htmlFor="dateOfBirth"
                 className="block text-xs font-semibold text-slate-700 mb-1.5"
               >
-                Date of birth
+                {t("common:labels.dob")}
               </label>
               <input
                 id="dateOfBirth"
@@ -296,7 +322,7 @@ export const RegisterPatientScreen: React.FC<RegisterPatientScreenProps> = ({
                 className="w-full sm:w-64 rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 transition-all"
               />
               <p className="mt-1 text-xs text-slate-400">
-                Leave blank if unknown
+                {t("patients:register.dob_hint")}
               </p>
             </div>
           </div>
@@ -305,7 +331,7 @@ export const RegisterPatientScreen: React.FC<RegisterPatientScreenProps> = ({
           <div className="space-y-4 pt-2">
             <div className="border-b border-slate-100 pb-2">
               <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-500">
-                Digital Delivery & Consent
+                {t("patients:register.section_delivery")}
               </h2>
             </div>
 
@@ -315,19 +341,20 @@ export const RegisterPatientScreen: React.FC<RegisterPatientScreenProps> = ({
                 htmlFor="whatsappNumber"
                 className="block text-xs font-semibold text-slate-700 mb-1.5"
               >
-                WhatsApp number
+                {t("patients:register.whatsapp")}
               </label>
               <input
                 id="whatsappNumber"
                 name="whatsappNumber"
                 type="tel"
+                dir="ltr"
                 value={whatsappNumber}
                 onChange={(e) => setWhatsappNumber(e.target.value)}
-                placeholder="+92 300 1234567"
+                placeholder={t("patients:register.whatsapp_placeholder")}
                 className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 transition-all"
               />
               <p className="mt-1 text-xs text-slate-400">
-                For instant digital lab report delivery
+                {t("patients:register.whatsapp_hint")}
               </p>
             </div>
 
@@ -342,9 +369,8 @@ export const RegisterPatientScreen: React.FC<RegisterPatientScreenProps> = ({
                   onChange={(e) => setConsentReports(e.target.checked)}
                   className="mt-0.5 rounded border-slate-300 text-teal-600 focus:ring-teal-500 h-4 w-4"
                 />
-                <span className="ml-2.5 text-xs sm:text-sm text-slate-700 leading-snug">
-                  Patient consents to receiving reports & critical notifications
-                  via WhatsApp / SMS
+                <span className="ms-2.5 text-xs sm:text-sm text-slate-700 leading-snug">
+                  {t("patients:register.consent")}
                 </span>
               </label>
             </div>
@@ -357,7 +383,7 @@ export const RegisterPatientScreen: React.FC<RegisterPatientScreenProps> = ({
               onClick={onCancel}
               className="px-4 py-2.5 rounded-lg border border-slate-300 text-slate-700 bg-white hover:bg-slate-50 text-sm font-medium transition-colors"
             >
-              Cancel
+              {t("common:actions.cancel")}
             </button>
             <button
               type="submit"
@@ -369,7 +395,11 @@ export const RegisterPatientScreen: React.FC<RegisterPatientScreenProps> = ({
               ) : (
                 <Check className="w-4 h-4" />
               )}
-              <span>{isLoading ? "Registering..." : "Register patient"}</span>
+              <span>
+                {isLoading
+                  ? t("patients:register.registering")
+                  : t("patients:register.title")}
+              </span>
             </button>
           </div>
         </form>

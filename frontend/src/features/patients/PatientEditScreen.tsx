@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { ArrowLeft, Check, Loader2, AlertCircle } from "lucide-react";
+import { messageForError } from "../../lib/errors";
 import { patientService } from "./patientService";
 import type { PatientDetail, PatientUpdateInput } from "./types";
 
@@ -17,6 +19,7 @@ export const PatientEditScreen: React.FC<PatientEditScreenProps> = ({
   onCancel,
   service = patientService,
 }) => {
+  const { t } = useTranslation(["patients", "common"]);
   const [patient, setPatient] = useState<PatientDetail | null>(null);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -47,7 +50,9 @@ export const PatientEditScreen: React.FC<PatientEditScreenProps> = ({
       .catch((err) => {
         if (isMounted)
           setError(
-            err instanceof Error ? err.message : "Failed to load patient",
+            err && typeof err === "object" && ("code" in err || "status" in err)
+              ? messageForError(err, t)
+              : t("patients:edit.errors.load"),
           );
       })
       .finally(() => {
@@ -57,7 +62,7 @@ export const PatientEditScreen: React.FC<PatientEditScreenProps> = ({
     return () => {
       isMounted = false;
     };
-  }, [patientId, service]);
+  }, [patientId, service, t]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,13 +70,13 @@ export const PatientEditScreen: React.FC<PatientEditScreenProps> = ({
 
     const trimmedName = name.trim();
     if (trimmedName.length < 2 || trimmedName.length > 120) {
-      setError("Name must be between 2 and 120 characters.");
+      setError(t("patients:edit.validation.name"));
       return;
     }
 
     const cleanPhone = phone.replace(/[\s\-()+]/g, "");
     if (!/^\d{10,15}$/.test(cleanPhone)) {
-      setError("Phone number must contain between 10 and 15 digits.");
+      setError(t("patients:validation.phone"));
       return;
     }
 
@@ -88,7 +93,9 @@ export const PatientEditScreen: React.FC<PatientEditScreenProps> = ({
       onSuccess?.();
     } catch (err: unknown) {
       setError(
-        err instanceof Error ? err.message : "Failed to update patient record.",
+        err && typeof err === "object" && ("code" in err || "status" in err)
+          ? messageForError(err, t)
+          : t("patients:edit.errors.save"),
       );
     } finally {
       setIsSaving(false);
@@ -99,7 +106,9 @@ export const PatientEditScreen: React.FC<PatientEditScreenProps> = ({
     return (
       <div className="flex flex-col items-center justify-center min-h-[350px] text-slate-500 gap-2">
         <Loader2 className="w-6 h-6 animate-spin text-teal-600" />
-        <span className="text-sm font-medium">Loading patient details...</span>
+        <span className="text-sm font-medium">
+          {t("patients:edit.loading")}
+        </span>
       </div>
     );
   }
@@ -108,28 +117,30 @@ export const PatientEditScreen: React.FC<PatientEditScreenProps> = ({
     <div className="max-w-2xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
       {/* Header */}
       <div>
-        <nav aria-label="Breadcrumb" className="mb-2">
-          <ol className="flex items-center space-x-2 text-xs text-slate-500">
+        <nav aria-label={t("patients:breadcrumb_aria")} className="mb-2">
+          <ol className="flex items-center gap-x-2 text-xs text-slate-500">
             <li>
               <button
                 type="button"
                 onClick={onCancel}
                 className="hover:text-slate-800 transition-colors inline-flex items-center gap-1"
               >
-                <ArrowLeft className="w-3.5 h-3.5" />
-                <span>Patient record</span>
+                <ArrowLeft className="w-3.5 h-3.5 rtl:rotate-180" />
+                <span>{t("patients:edit.breadcrumb_record")}</span>
               </button>
             </li>
             <li className="text-slate-300">/</li>
-            <li className="font-medium text-slate-900">Edit demographics</li>
+            <li className="font-medium text-slate-900">
+              {t("patients:edit_demographics")}
+            </li>
           </ol>
         </nav>
         <div className="flex items-baseline justify-between">
           <h1 className="text-2xl font-bold tracking-tight text-slate-900 font-headline">
-            Edit patient demographics
+            {t("patients:edit.title")}
           </h1>
           {patient?.mrn && (
-            <span className="text-xs font-mono text-slate-500">
+            <span dir="ltr" className="text-xs font-mono text-slate-500">
               {patient.mrn}
             </span>
           )}
@@ -144,7 +155,9 @@ export const PatientEditScreen: React.FC<PatientEditScreenProps> = ({
         >
           <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
           <div className="flex flex-col">
-            <span className="font-semibold">Unable to save changes</span>
+            <span className="font-semibold">
+              {t("patients:edit.save_failed")}
+            </span>
             <span className="text-xs text-red-600 mt-0.5">{error}</span>
           </div>
         </div>
@@ -159,7 +172,8 @@ export const PatientEditScreen: React.FC<PatientEditScreenProps> = ({
                 htmlFor="editFullName"
                 className="block text-xs font-semibold text-slate-700 mb-1.5"
               >
-                Full name <span className="text-red-500">*</span>
+                {t("patients:field_full_name")}{" "}
+                <span className="text-red-500">*</span>
               </label>
               <input
                 id="editFullName"
@@ -178,12 +192,14 @@ export const PatientEditScreen: React.FC<PatientEditScreenProps> = ({
                   htmlFor="editPhone"
                   className="block text-xs font-semibold text-slate-700 mb-1.5"
                 >
-                  Phone number <span className="text-red-500">*</span>
+                  {t("patients:edit.field_phone")}{" "}
+                  <span className="text-red-500">*</span>
                 </label>
                 <input
                   id="editPhone"
                   name="phone"
                   type="tel"
+                  dir="ltr"
                   required
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
@@ -193,9 +209,10 @@ export const PatientEditScreen: React.FC<PatientEditScreenProps> = ({
 
               <div>
                 <span className="block text-xs font-semibold text-slate-700 mb-1.5">
-                  Biological sex <span className="text-red-500">*</span>
+                  {t("patients:edit.field_sex")}{" "}
+                  <span className="text-red-500">*</span>
                 </span>
-                <div className="flex items-center space-x-6 h-10 px-1">
+                <div className="flex items-center gap-x-6 h-10 px-1">
                   <label className="inline-flex items-center cursor-pointer select-none">
                     <input
                       type="radio"
@@ -205,7 +222,9 @@ export const PatientEditScreen: React.FC<PatientEditScreenProps> = ({
                       onChange={() => setSex("M")}
                       className="w-4 h-4 text-teal-600 border-slate-300 focus:ring-teal-500"
                     />
-                    <span className="ml-2 text-sm text-slate-700">Male</span>
+                    <span className="ms-2 text-sm text-slate-700">
+                      {t("patients:sex.male")}
+                    </span>
                   </label>
                   <label className="inline-flex items-center cursor-pointer select-none">
                     <input
@@ -216,7 +235,9 @@ export const PatientEditScreen: React.FC<PatientEditScreenProps> = ({
                       onChange={() => setSex("F")}
                       className="w-4 h-4 text-teal-600 border-slate-300 focus:ring-teal-500"
                     />
-                    <span className="ml-2 text-sm text-slate-700">Female</span>
+                    <span className="ms-2 text-sm text-slate-700">
+                      {t("patients:sex.female")}
+                    </span>
                   </label>
                 </div>
               </div>
@@ -227,7 +248,7 @@ export const PatientEditScreen: React.FC<PatientEditScreenProps> = ({
                 htmlFor="editDob"
                 className="block text-xs font-semibold text-slate-700 mb-1.5"
               >
-                Date of birth
+                {t("common:labels.dob")}
               </label>
               <input
                 id="editDob"
@@ -246,7 +267,7 @@ export const PatientEditScreen: React.FC<PatientEditScreenProps> = ({
               onClick={onCancel}
               className="px-4 py-2.5 rounded-lg border border-slate-300 text-slate-700 bg-white hover:bg-slate-50 text-sm font-medium transition-colors"
             >
-              Cancel
+              {t("common:actions.cancel")}
             </button>
             <button
               type="submit"
@@ -258,7 +279,11 @@ export const PatientEditScreen: React.FC<PatientEditScreenProps> = ({
               ) : (
                 <Check className="w-4 h-4" />
               )}
-              <span>{isSaving ? "Saving..." : "Save changes"}</span>
+              <span>
+                {isSaving
+                  ? t("common:actions.saving")
+                  : t("patients:edit.save")}
+              </span>
             </button>
           </div>
         </form>
