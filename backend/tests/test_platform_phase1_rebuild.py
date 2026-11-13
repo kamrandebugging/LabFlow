@@ -13,6 +13,7 @@ from decimal import Decimal
 from typing import Any
 
 import pytest
+from django.contrib.auth.hashers import check_password
 from django.core.cache import cache
 from rest_framework.test import APIClient
 
@@ -105,8 +106,10 @@ def test_provision_tenant_with_extended_fields_and_temp_credential() -> None:
     assert tenant.owner_email == "salman@alrazidiag.com"
     assert tenant.owner_phone == "+92 300 1234567"
     assert tenant.staff_seats_limit == 10
-    assert tenant.temp_password == data["temp_password"]
-    assert tenant.temp_password_expires_at is not None
+    # One-time delivery only: the plaintext is never stored at rest.
+    assert tenant.temp_password == ""
+    assert tenant.temp_password_hash
+    assert check_password(data["temp_password"], tenant.temp_password_hash)
 
 
 @pytest.mark.django_db

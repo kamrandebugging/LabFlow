@@ -377,6 +377,10 @@ def create_tenant_provisioning(data: ProvisionTenantInput) -> ProvisionTenantRes
                     )
 
             temp_pass = generate_temp_password()
+            # Never persist the plaintext credential. Only its hash is stored
+            # so the asynchronous provisioning step can create the owner login
+            # exactly once; the plaintext exists only in this response.
+            temp_hash = make_password(temp_pass)
             temp_expires = timezone.now() + timedelta(hours=24)
             # D-G: a new lab starts with the roles a small solo lab actually
             # uses. Manager and Pathologist stay OFF until the Platform enables
@@ -409,7 +413,8 @@ def create_tenant_provisioning(data: ProvisionTenantInput) -> ProvisionTenantRes
                     if data.branches
                     else (data.branch_count if data.branch_count is not None else 1),
                 ),
-                temp_password=temp_pass,
+                temp_password="",
+                temp_password_hash=temp_hash,
                 temp_password_expires_at=temp_expires,
                 enabled_roles=roles,
             )
@@ -482,7 +487,7 @@ def create_tenant_provisioning(data: ProvisionTenantInput) -> ProvisionTenantRes
         subscription=subscription,
         owner_email=cleaned_owner_email,
         owner_name=cleaned_owner_name,
-        temp_password=tenant.temp_password,
+        temp_password=temp_pass,
     )
 
 
@@ -883,27 +888,23 @@ def create_tenant_owner_activation(
     with schema_context(tenant.schema_name):
         now = timezone.now()
         owner = StaffUser.objects.filter(email=cleaned_email).first()
+        issued_hash = getattr(tenant, "temp_password_hash", "") or ""
         if owner is None:
-            # If tenant has an issued temporary master password, configure it so
-            # owner can log in immediately on the tenant login screen.
-            initial_password_hash = (
-                make_password(tenant.temp_password)
-                if getattr(tenant, "temp_password", None)
-                else make_password(None)
-            )
+            # The plaintext credential never reaches the database: the owner
+            # login is created from the stored hash, which is all we need.
             owner = StaffUser.objects.create(
                 email=cleaned_email,
                 display_name=(owner_name or "").strip()[:255],
                 role=Role.OWNER,
                 branch=None,
-                password_hash=initial_password_hash,
-                is_active=bool(getattr(tenant, "temp_password", None)),
-                password_is_temporary=bool(getattr(tenant, "temp_password", None)),
+                password_hash=issued_hash or make_password(None),
+                is_active=bool(issued_hash),
+                password_is_temporary=bool(issued_hash),
                 totp_enabled=False,
             )
-        elif not owner.is_active and getattr(tenant, "temp_password", None):
+        elif not owner.is_active and issued_hash:
             owner.is_active = True
-            owner.password_hash = make_password(tenant.temp_password)
+            owner.password_hash = issued_hash
             owner.password_is_temporary = True
             owner.save(
                 update_fields=[

@@ -2,6 +2,7 @@ import logging
 from unittest.mock import patch
 
 import pytest
+from django.conf import settings
 from django.contrib.auth.hashers import check_password
 from django.core import mail
 from django.db import connection
@@ -84,8 +85,10 @@ class TestStepP8OwnerCreationAndActivationToken:
                 assert owner.is_active is True
                 # TOTP enrols at first login, not during provisioning (LAB-12)
                 assert owner.totp_enabled is False
-                # Usable credential is the temp master password, never a plain token
-                assert check_password(tenant.temp_password, owner.password_hash)
+                # Usable credential is the one-time temp master password,
+                # never a plain token, and the registry keeps only its hash.
+                assert tenant.temp_password == ""
+                assert check_password(res.temp_password, owner.password_hash)
                 assert not check_password("random_pass", owner.password_hash)
 
                 # Activation token verification (A-14 revised, Doc 04 §5 P-8)
@@ -107,7 +110,8 @@ class TestStepP8OwnerCreationAndActivationToken:
             assert owner_email in sent_email.to
             expected_subject = f"Activate your LabFlow account - {tenant.name}"
             assert expected_subject in sent_email.subject
-            assert f"https://{slug}.labflow.app/activate#" in sent_email.body
+            base_domain = getattr(settings, "PLATFORM_BASE_DOMAIN", "labflow.app")
+            assert f"https://{slug}.{base_domain}/activate#" in sent_email.body
 
         finally:
             _drop_schema_if_exists(schema_name)

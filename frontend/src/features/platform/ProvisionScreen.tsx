@@ -31,29 +31,16 @@ export function ProvisionScreen(): JSX.Element {
     "pathologist",
   ]);
 
-  // Master Temp Credential (Doc 1)
-  const [tempPass, setTempPass] = useState<string>("");
+  // One-time credential returned by the server after provisioning.
+  const [provisioned, setProvisioned] = useState<{
+    id: string;
+    tempPassword: string;
+  } | null>(null);
   const [copiedPass, setCopiedPass] = useState<boolean>(false);
 
   // Field validation and API errors
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [generalError, setGeneralError] = useState<string | null>(null);
-
-  // Generate random temp password matching LBF-XXXX-XX#
-  const generateNewPassword = () => {
-    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-    let p1 = "";
-    for (let i = 0; i < 4; i++)
-      p1 += chars.charAt(Math.floor(Math.random() * chars.length));
-    let p2 = "";
-    for (let i = 0; i < 2; i++)
-      p2 += chars.charAt(Math.floor(Math.random() * chars.length));
-    setTempPass(`LBF-${p1}-${p2}#`);
-  };
-
-  useEffect(() => {
-    generateNewPassword();
-  }, []);
 
   useEffect(() => {
     const qName = searchParams.get("name");
@@ -124,7 +111,8 @@ export function ProvisionScreen(): JSX.Element {
   };
 
   const handleCopyPass = () => {
-    navigator.clipboard.writeText(tempPass);
+    if (!provisioned?.tempPassword) return;
+    navigator.clipboard.writeText(provisioned.tempPassword);
     setCopiedPass(true);
     setTimeout(() => setCopiedPass(false), 2000);
   };
@@ -164,7 +152,9 @@ export function ProvisionScreen(): JSX.Element {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["platform", "tenants"] });
       queryClient.invalidateQueries({ queryKey: ["platform", "metrics"] });
-      navigate(`/platform/tenants/${data.id}`);
+      // Hold the operator on this screen so the ONE-TIME credential the
+      // server just issued can be copied before it is gone forever.
+      setProvisioned({ id: data.id, tempPassword: data.temp_password ?? "" });
     },
     onError: (err: unknown) => {
       const problem = (
@@ -516,46 +506,54 @@ export function ProvisionScreen(): JSX.Element {
               </div>
             </div>
 
-            {/* Master Temp Password Block (Doc 1) */}
+            {/* One-time credential: issued by the server, never client-made */}
             <div className="flex flex-col gap-space-2xs bg-surface-container-low p-space-md rounded border border-outline-variant/60 mt-space-md">
               <div className="flex items-center justify-between">
                 <label className="font-label-sm text-label-sm text-on-surface font-bold uppercase tracking-wider">
                   Master Temporary Credential
                 </label>
                 <span className="font-body-xs text-body-xs text-error font-medium">
-                  Expires in 24h
+                  Shown once
                 </span>
               </div>
-              <div className="flex items-center justify-between gap-space-sm my-1">
-                <span className="font-code-sm text-base text-primary font-bold tracking-widest">
-                  {tempPass}
+              {provisioned ? (
+                <>
+                  <div className="flex items-center justify-between gap-space-sm my-1">
+                    <span className="font-code-sm text-base text-primary font-bold tracking-widest">
+                      {provisioned.tempPassword}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleCopyPass}
+                      className="px-space-xs py-space-2xs bg-surface-container hover:bg-surface-container-high rounded text-xs text-on-surface flex items-center gap-1 transition-colors"
+                    >
+                      <span className="material-symbols-outlined text-[14px]">
+                        {copiedPass ? "done" : "content_copy"}
+                      </span>
+                      <span>{copiedPass ? "Copied" : "Copy"}</span>
+                    </button>
+                  </div>
+                  <span className="font-body-xs text-body-xs text-error">
+                    Copy this now. It cannot be retrieved again; use
+                    reset-password to issue a new one.
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      navigate(`/platform/tenants/${provisioned.id}`)
+                    }
+                    className="self-start mt-1 px-space-sm py-space-2xs bg-primary text-on-primary rounded font-label-sm text-label-sm"
+                  >
+                    Open tenant detail
+                  </button>
+                </>
+              ) : (
+                <span className="font-body-xs text-body-xs text-outline">
+                  The server issues this credential after provisioning and shows
+                  it only once. It is never stored in plaintext or retrievable
+                  from the tenant detail page.
                 </span>
-                <div className="flex items-center gap-space-xs">
-                  <button
-                    type="button"
-                    onClick={generateNewPassword}
-                    className="px-space-xs py-space-2xs bg-surface-container hover:bg-surface-container-high rounded text-xs text-on-surface flex items-center gap-1 transition-colors"
-                  >
-                    <span className="material-symbols-outlined text-[14px]">
-                      refresh
-                    </span>
-                    <span>Regenerate</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleCopyPass}
-                    className="px-space-xs py-space-2xs bg-surface-container hover:bg-surface-container-high rounded text-xs text-on-surface flex items-center gap-1 transition-colors"
-                  >
-                    <span className="material-symbols-outlined text-[14px]">
-                      {copiedPass ? "done" : "content_copy"}
-                    </span>
-                    <span>{copiedPass ? "Copied" : "Copy"}</span>
-                  </button>
-                </div>
-              </div>
-              <span className="font-body-xs text-body-xs text-outline">
-                Forced password change is enforced upon primary operator access.
-              </span>
+              )}
             </div>
           </section>
 

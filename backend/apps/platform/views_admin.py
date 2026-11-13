@@ -330,10 +330,6 @@ def _tenant_detail(tenant: Tenant) -> dict[str, Any]:
             or (plan.max_staff if subscription and plan else None)
         ),
         "staff_count": tenant.staff_count,
-        "temp_password": tenant.temp_password,
-        "temp_password_expires_at": tenant.temp_password_expires_at.isoformat()
-        if tenant.temp_password_expires_at
-        else None,
         "schema_size_bytes": schema_size_bytes,
         "migration_state": _migration_state(tenant),
         "provisioning": provisioning,

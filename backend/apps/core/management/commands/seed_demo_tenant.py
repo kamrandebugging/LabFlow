@@ -52,6 +52,14 @@ class Command(BaseCommand):
             action="store_true",
             help="Force execution in production or non-DEBUG mode",
         )
+        parser.add_argument(
+            "--show-credentials",
+            action="store_true",
+            help=(
+                "Print demo passwords and TOTP secrets to stdout. Off by "
+                "default; only use on a local throwaway harness."
+            ),
+        )
 
     def handle(self, *args: Any, **options: Any) -> None:
         is_production = os.environ.get("DJANGO_ENV", "").lower() in (
@@ -105,8 +113,12 @@ class Command(BaseCommand):
             )
             tenant_reports.append(t_report)
 
-        # 3. Print Output Summary
-        self._print_summary(operator_creds, tenant_reports)
+        # 3. Print Output Summary (credentials only on explicit opt-in)
+        self._print_summary(
+            operator_creds,
+            tenant_reports,
+            show_credentials=bool(options.get("show_credentials", False)),
+        )
 
     def _seed_platform_operator(self, fernet: Fernet) -> dict[str, str]:
         """Seed platform Super Admin operator in public schema."""
@@ -543,9 +555,13 @@ class Command(BaseCommand):
         }
 
     def _print_summary(
-        self, op_creds: dict[str, str], tenant_reports: list[dict[str, Any]]
+        self,
+        op_creds: dict[str, str],
+        tenant_reports: list[dict[str, Any]],
+        *,
+        show_credentials: bool = False,
     ) -> None:
-        """Print clean summary box with credentials and TOTP setup keys."""
+        """Print the seed summary; credentials only when explicitly requested."""
         line = "=" * 78
         self.stdout.write(self.style.SUCCESS("\n" + line))
         self.stdout.write(
@@ -555,10 +571,23 @@ class Command(BaseCommand):
         )
         self.stdout.write(self.style.SUCCESS(line))
 
+        if show_credentials:
+            self.stdout.write(
+                self.style.WARNING(
+                    "WARNING: --show-credentials is active. Passwords and TOTP "
+                    "secrets below are being printed in plaintext to stdout."
+                )
+            )
+
         self.stdout.write("\n[1] PLATFORM OPERATOR (Super Admin):")
         self.stdout.write(f"    - Email:       {op_creds['email']}")
-        self.stdout.write(f"    - Password:    {op_creds['password']}")
-        self.stdout.write(f"    - TOTP Secret: {op_creds['totp_secret']}")
+        if show_credentials:
+            self.stdout.write(f"    - Password:    {op_creds['password']}")
+            self.stdout.write(f"    - TOTP Secret: {op_creds['totp_secret']}")
+        else:
+            self.stdout.write(
+                "    - Credentials: not printed (use --show-credentials to print)"
+            )
 
         for t_idx, t in enumerate(tenant_reports, 1):
             self.stdout.write(
@@ -569,10 +598,14 @@ class Command(BaseCommand):
             )
             self.stdout.write("    Staff Accounts:")
             for s in t["staff"]:
-                totp_str = f" | TOTP: {s['totp']}" if s["totp"] != "N/A" else ""
                 role_upper = s["role"].upper()
-                self.stdout.write(
-                    f"      * [{role_upper}] {s['email']} / {s['password']}{totp_str}"
-                )
+                if show_credentials:
+                    totp_str = f" | TOTP: {s['totp']}" if s["totp"] != "N/A" else ""
+                    self.stdout.write(
+                        f"      * [{role_upper}] {s['email']} / "
+                        f"{s['password']}{totp_str}"
+                    )
+                else:
+                    self.stdout.write(f"      * [{role_upper}] {s['email']}")
 
         self.stdout.write(self.style.SUCCESS("\n" + line + "\n"))

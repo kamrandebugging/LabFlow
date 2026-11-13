@@ -102,7 +102,19 @@ class Tenant(TenantMixin):
         max_length=64,
         blank=True,
         default="",
-        help_text="Initial temporary credential issued during provisioning",
+        help_text=(
+            "Deprecated plaintext slot; always empty. The one-time credential "
+            "is returned at creation only and never stored in plaintext."
+        ),
+    )
+    temp_password_hash = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+        help_text=(
+            "Argon2 hash of the provisioning-issued credential, used once to "
+            "create the owner login; cleared on first login/password change."
+        ),
     )
     temp_password_expires_at = models.DateTimeField(
         null=True,

@@ -201,8 +201,9 @@ def test_provisioning_audit_never_contains_temp_password() -> None:
     tenant = Tenant.objects.get(slug=payload["slug"])
     audit = PlatformAudit.objects.get(action="tenant.created", entity_id=tenant.id)
     assert "temp_password" not in cast(dict[str, Any], audit.after_jsonb)
-    # The credential still exists on the tenant for the one-time delivery.
-    assert tenant.temp_password
+    # One-time delivery: the registry stores only the hash, never plaintext.
+    assert tenant.temp_password == ""
+    assert tenant.temp_password_hash
 
 
 @pytest.mark.django_db

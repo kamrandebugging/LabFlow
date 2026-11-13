@@ -138,8 +138,6 @@ export interface TenantDetail extends TenantListItem {
   provisioning: ProvisioningState;
   billing_summary?: BillingSummary;
   audit_timeline?: AuditEntry[];
-  temp_password?: string;
-  temp_password_expires_at?: string | null;
 }
 
 export interface AccessModeCensus {

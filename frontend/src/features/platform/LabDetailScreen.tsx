@@ -11,7 +11,6 @@ export function LabDetailScreen(): JSX.Element {
 
   const [suspendModalOpen, setSuspendModalOpen] = useState(false);
   const [suspendReason, setSuspendReason] = useState("");
-  const [copiedPass, setCopiedPass] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
   const {
@@ -104,14 +103,6 @@ export function LabDetailScreen(): JSX.Element {
   const storageMb = tenant.schema_size_bytes
     ? (tenant.schema_size_bytes / (1024 * 1024)).toFixed(1)
     : null;
-
-  const handleCopyPass = () => {
-    if (tenant.temp_password) {
-      navigator.clipboard.writeText(tenant.temp_password);
-      setCopiedPass(true);
-      setTimeout(() => setCopiedPass(false), 2000);
-    }
-  };
 
   return (
     <div className="flex flex-col w-full gap-space-lg max-w-7xl mx-auto">
@@ -380,36 +371,6 @@ export function LabDetailScreen(): JSX.Element {
             </span>
             <span>Retry Provisioning</span>
           </button>
-        </div>
-      )}
-
-      {/* Temporary Password Credential Banner (Doc 1) */}
-      {tenant.temp_password && (
-        <div className="bg-surface-container-low p-space-md rounded-lg border border-primary/20 flex flex-col sm:flex-row items-center justify-between gap-space-md">
-          <div className="flex items-center gap-space-md">
-            <span className="material-symbols-outlined text-primary text-[24px]">
-              key
-            </span>
-            <div>
-              <div className="font-label-sm text-label-sm uppercase tracking-wider text-outline">
-                Master Temporary Credential (24h Expiry)
-              </div>
-              <div className="font-code-sm text-base font-bold text-primary tracking-widest mt-0.5">
-                {tenant.temp_password}
-              </div>
-            </div>
-          </div>
-          <div className="flex items-center gap-space-xs">
-            <button
-              onClick={handleCopyPass}
-              className="px-space-md py-space-xs bg-surface-container hover:bg-surface-container-high text-on-surface rounded font-label-sm text-label-sm flex items-center gap-1 transition-colors"
-            >
-              <span className="material-symbols-outlined text-[16px]">
-                {copiedPass ? "done" : "content_copy"}
-              </span>
-              <span>{copiedPass ? "Copied" : "Copy Credential"}</span>
-            </button>
-          </div>
         </div>
       )}
 

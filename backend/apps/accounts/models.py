@@ -56,8 +56,9 @@ class StaffUser(models.Model):
     totp_enabled = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
     # True while the account is still on the provisioning-issued temporary
-    # master password (tenant.temp_password). Login surfaces this via
-    # ``must_change_password``; the flag is cleared on password change.
+    # master password (stored only as Tenant.temp_password_hash). Login
+    # surfaces this via ``must_change_password``; the flag is cleared on
+    # password change.
     password_is_temporary = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

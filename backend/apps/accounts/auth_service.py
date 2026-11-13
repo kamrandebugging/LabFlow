@@ -140,6 +140,12 @@ class AuthService:
         # authenticated surface rejects it until the flow is finished.
         onboarding: str | None = None
         if user.password_is_temporary:
+            # First successful owner login consumes the one-time provisioning
+            # credential: remove both the (already empty) plaintext slot and
+            # its hash from the platform registry. Staff temporary passwords
+            # live on StaffUser only and must not clear the owner's record.
+            if user.role == Role.OWNER:
+                cls._clear_tenant_temp_password(tenant_id)
             onboarding = "password_change"
         elif totp_mandated and not user.totp_enabled:
             onboarding = "totp_enroll"
@@ -611,7 +617,7 @@ class AuthService:
         return True, None
 
     @staticmethod
-    def _clear_tenant_temp_password(tenant_id: str) -> None:
+    def _clear_tenant_temp_password(tenant_id: str | None) -> None:
         """Clear the temporary master credential on the platform Tenant row.
 
         Runs in the public schema (the ``Tenant`` registry lives there, not in
@@ -626,6 +632,7 @@ class AuthService:
             with schema_context("public"):
                 Tenant.objects.filter(schema_name=tenant_id).update(
                     temp_password="",
+                    temp_password_hash="",
                     temp_password_expires_at=None,
                 )
         except Exception as exc:  # pragma: no cover - defensive
@@ -853,6 +860,8 @@ class AuthService:
             # Verification succeeded. A temporary-password account still gets
             # a password-change-limited session even when TOTP is enrolled.
             cache.delete(cache_key)
+            if user.password_is_temporary and user.role == Role.OWNER:
+                cls._clear_tenant_temp_password(schema)
             onboarding = "password_change" if user.password_is_temporary else None
             session_data = cls.create_session(
                 user,

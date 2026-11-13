@@ -236,7 +236,8 @@ class TestLab9DefinitionOfDoneVerification:
                 assert owner.role == Role.OWNER
                 assert owner.branch is None
                 assert owner.is_active is True
-                assert check_password(tenant.temp_password, owner.password_hash)
+                assert tenant.temp_password == ""
+                assert check_password(res.json()["temp_password"], owner.password_hash)
 
                 tokens = PasswordResetToken.objects.filter(staff_user=owner)
                 assert tokens.count() == 1
