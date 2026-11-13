@@ -58,9 +58,7 @@ def scrub_temp_passwords(apps: Any, schema_editor: Any) -> int:
         print("D6: temp_password scrub failed; audit rows left unchanged")
         raise
     else:
-        schema_editor.execute(
-            f"REVOKE UPDATE ON platform_audit FROM {quoted_user};"
-        )
+        schema_editor.execute(f"REVOKE UPDATE ON platform_audit FROM {quoted_user};")
     print(f"D6: scrubbed temp_password from {scrubbed} platform_audit row(s)")
     return scrubbed
 

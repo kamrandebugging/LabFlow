@@ -85,9 +85,7 @@ def test_awaiting_collection_returns_ordered_items_without_live_sample(
         branch = BranchFactory(name="Main")
         staff = cast(StaffUser, StaffUserFactory(role=Role.OWNER, branch=branch))
         patient = PatientFactory(branch=branch, name="Ayesha Khan", mrn="MRN-A2-1")
-        invoice = InvoiceFactory(
-            patient=patient, branch=branch, status="unpaid"
-        )
+        invoice = InvoiceFactory(patient=patient, branch=branch, status="unpaid")
         awaiting = InvoiceItemFactory(
             invoice=invoice, test=TestFactory(name="CBC", code="CBC")
         )
@@ -122,9 +120,7 @@ def test_awaiting_collection_excludes_cancelled_invoices(tenant_a: Tenant) -> No
         branch = BranchFactory(name="Main")
         staff = cast(StaffUser, StaffUserFactory(role=Role.OWNER, branch=branch))
         patient = PatientFactory(branch=branch)
-        cancelled = InvoiceFactory(
-            patient=patient, branch=branch, status="cancelled"
-        )
+        cancelled = InvoiceFactory(patient=patient, branch=branch, status="cancelled")
         InvoiceItemFactory(invoice=cancelled, test=TestFactory())
 
     client = _api_client(tenant_a, staff)
@@ -244,9 +240,7 @@ def test_scrub_migration_removes_temp_password_from_existing_rows() -> None:
 
 def _entered_result(tenant: Tenant) -> tuple[Result, StaffUser, StaffUser]:
     branch = BranchFactory(name="Main")
-    enterer = cast(
-        StaffUser, StaffUserFactory(role=Role.TECHNICIAN, branch=branch)
-    )
+    enterer = cast(StaffUser, StaffUserFactory(role=Role.TECHNICIAN, branch=branch))
     pathologist = cast(
         StaffUser, StaffUserFactory(role=Role.PATHOLOGIST, branch=branch)
     )
