@@ -117,7 +117,7 @@ describe("LedgerScreen (Screen 39)", () => {
     expect(screen.getByText("PKR 250.00")).toBeInTheDocument();
 
     // Check linked settlement badge
-    expect(screen.getByText("DRAFT")).toBeInTheDocument();
+    expect(screen.getByText("Draft")).toBeInTheDocument();
     // Check unsettled badge
     expect(screen.getByText("Unsettled")).toBeInTheDocument();
   });

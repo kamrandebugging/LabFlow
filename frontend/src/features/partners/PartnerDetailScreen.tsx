@@ -17,7 +17,10 @@
 
 import React, { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { useAuthStore } from "../auth/authStore";
+import { messageForError } from "../../lib/errors";
+import { formatMoney, formatPercent, statusLabel } from "../../lib/format";
 import { PartnerApiError, partnersService } from "./partnersService";
 import type {
   PartnerDashboardData,
@@ -27,6 +30,8 @@ import type {
 } from "./types";
 
 export const PartnerDetailScreen: React.FC = () => {
+  const { t, i18n } = useTranslation(["partners", "common"]);
+  const lang = i18n.resolvedLanguage === "ur" ? "ur" : "en";
   const { id } = useParams<{ id: string }>();
   const user = useAuthStore((state) => state.user);
   const canEdit = user?.role === "owner" || user?.role === "manager";
@@ -61,14 +66,14 @@ export const PartnerDetailScreen: React.FC = () => {
       setRules(rulesRes);
     } catch (err: unknown) {
       if (err instanceof PartnerApiError) {
-        setError(err.message);
+        setError(messageForError(err, t));
       } else {
-        setError("Failed to load partner information.");
+        setError(t("partners:errors.load_partner"));
       }
     } finally {
       setLoading(false);
     }
-  }, [id]);
+  }, [id, t]);
 
   useEffect(() => {
     fetchPartnerData();
@@ -91,7 +96,7 @@ export const PartnerDetailScreen: React.FC = () => {
     e.preventDefault();
     if (!id || !partner) return;
     if (!editForm.name?.trim()) {
-      setEditError("Partner name is required.");
+      setEditError(t("partners:errors.name_required"));
       return;
     }
 
@@ -109,9 +114,9 @@ export const PartnerDetailScreen: React.FC = () => {
       setShowEditModal(false);
     } catch (err: unknown) {
       if (err instanceof PartnerApiError) {
-        setEditError(err.message);
+        setEditError(messageForError(err, t));
       } else {
-        setEditError("Failed to update partner details.");
+        setEditError(t("partners:errors.update_partner"));
       }
     } finally {
       setEditSubmitting(false);
@@ -128,9 +133,9 @@ export const PartnerDetailScreen: React.FC = () => {
       setPartner(updated);
     } catch (err: unknown) {
       if (err instanceof PartnerApiError) {
-        setError(err.message);
+        setError(messageForError(err, t));
       } else {
-        setError("Failed to change partner status.");
+        setError(t("partners:errors.toggle_status"));
       }
     } finally {
       setTogglingStatus(false);
@@ -140,7 +145,7 @@ export const PartnerDetailScreen: React.FC = () => {
   if (loading) {
     return (
       <div className="flex-1 p-8 text-center text-slate-500 text-sm">
-        Loading partner details...
+        {t("partners:detail.loading")}
       </div>
     );
   }
@@ -149,16 +154,16 @@ export const PartnerDetailScreen: React.FC = () => {
     return (
       <div className="flex-1 p-8 flex flex-col items-center justify-center gap-4">
         <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-xl text-sm max-w-md w-full text-center">
-          {error || "Referral partner not found."}
+          {error || t("partners:detail.not_found")}
         </div>
         <Link
           to="/partners"
           className="text-teal-600 hover:text-teal-800 text-sm font-semibold flex items-center gap-1"
         >
-          <span className="material-symbols-outlined text-base">
+          <span className="material-symbols-outlined text-base rtl:rotate-180">
             arrow_back
           </span>
-          <span>Back to Partners List</span>
+          <span>{t("partners:detail.back_to_list")}</span>
         </Link>
       </div>
     );
@@ -173,24 +178,24 @@ export const PartnerDetailScreen: React.FC = () => {
             to="/partners"
             className="hover:text-slate-900 transition-colors"
           >
-            Management
+            {t("common:nav.management")}
           </Link>
-          <span className="material-symbols-outlined text-[14px]">
+          <span className="material-symbols-outlined text-[14px] rtl:rotate-180">
             chevron_right
           </span>
           <Link
             to="/partners"
             className="hover:text-slate-900 transition-colors"
           >
-            Referral Partners
+            {t("partners:nav.referral_partners")}
           </Link>
-          <span className="material-symbols-outlined text-[14px]">
+          <span className="material-symbols-outlined text-[14px] rtl:rotate-180">
             chevron_right
           </span>
           <span className="text-slate-900 font-semibold">{partner.name}</span>
         </div>
         <span className="text-[11px] font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
-          Partner Record
+          {t("partners:detail.record_badge")}
         </span>
       </nav>
 
@@ -216,18 +221,21 @@ export const PartnerDetailScreen: React.FC = () => {
               {partner.is_active ? (
                 <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
-                  <span>Active</span>
+                  <span>{t("common:status.active")}</span>
                 </span>
               ) : (
                 <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-600 border border-slate-200">
                   <span className="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
-                  <span>Inactive</span>
+                  <span>{t("common:status.inactive")}</span>
                 </span>
               )}
             </div>
 
             <p className="text-xs text-slate-500">
-              Registered on {new Date(partner.created_at).toLocaleDateString()}
+              {t("partners:detail.registered_on")}{" "}
+              <bdi dir="ltr">
+                {new Date(partner.created_at).toLocaleDateString()}
+              </bdi>
             </p>
           </div>
 
@@ -243,7 +251,7 @@ export const PartnerDetailScreen: React.FC = () => {
                   <span className="material-symbols-outlined text-sm">
                     edit
                   </span>
-                  <span>Edit</span>
+                  <span>{t("common:actions.edit")}</span>
                 </button>
 
                 <button
@@ -259,12 +267,15 @@ export const PartnerDetailScreen: React.FC = () => {
                   <span className="material-symbols-outlined text-sm">
                     {partner.is_active ? "block" : "check_circle"}
                   </span>
-                  <span>{partner.is_active ? "Deactivate" : "Activate"}</span>
+                  <span>
+                    {partner.is_active
+                      ? t("partners:detail.deactivate")
+                      : t("partners:detail.activate")}
+                  </span>
                 </button>
               </div>
-              <span className="text-[11px] text-slate-500 text-left md:text-right max-w-xs leading-tight">
-                Partners with ledger history can be deactivated, preserving
-                immutable financial audits.
+              <span className="text-[11px] text-slate-500 text-start md:text-end max-w-xs leading-tight">
+                {t("partners:detail.deactivate_hint")}
               </span>
             </div>
           )}
@@ -274,7 +285,7 @@ export const PartnerDetailScreen: React.FC = () => {
         <div className="border-t border-slate-100 pt-4 grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
           <div className="p-3 bg-slate-50 rounded-lg border border-slate-100 space-y-1">
             <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">
-              Phone Contact
+              {t("partners:detail.phone_contact")}
             </span>
             <div className="font-semibold text-slate-900 font-mono">
               {partner.phone || "—"}
@@ -283,7 +294,7 @@ export const PartnerDetailScreen: React.FC = () => {
 
           <div className="p-3 bg-slate-50 rounded-lg border border-slate-100 space-y-1">
             <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">
-              Email Address
+              {t("partners:detail.email_contact")}
             </span>
             <div className="font-semibold text-slate-900 truncate">
               {partner.email || "—"}
@@ -292,10 +303,10 @@ export const PartnerDetailScreen: React.FC = () => {
 
           <div className="p-3 bg-slate-50 rounded-lg border border-slate-100 space-y-1">
             <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">
-              Affiliated Organisation
+              {t("partners:detail.affiliated")}
             </span>
             <div className="font-semibold text-slate-900 truncate">
-              {partner.organisation || "Independent Referral"}
+              {partner.organisation || t("partners:detail.independent")}
             </div>
           </div>
         </div>
@@ -307,55 +318,56 @@ export const PartnerDetailScreen: React.FC = () => {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div>
               <h2 className="text-lg font-bold text-slate-900 tracking-tight">
-                Referral Financial Position
+                {t("partners:detail.financial_title")}
               </h2>
               <p className="text-xs text-slate-500">
-                Real-time commission accruals and settlement history derived
-                from tenant ledger
+                {t("partners:detail.financial_subtitle")}
               </p>
             </div>
             <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-100 text-slate-600 text-xs font-medium border border-slate-200 self-start sm:self-auto">
               <span className="material-symbols-outlined text-xs">
                 lock_clock
               </span>
-              <span>Ledger Verified</span>
+              <span>{t("partners:detail.ledger_verified")}</span>
             </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="p-4 rounded-lg border border-slate-200 bg-slate-50/50 flex flex-col justify-between">
               <div className="text-xs font-semibold text-slate-600 uppercase tracking-wide">
-                Total Accrued (YTD)
+                {t("partners:detail.total_accrued")}
               </div>
               <div className="text-2xl font-bold text-slate-900 font-mono my-2">
-                PKR {dashboard.ytd_earned}
+                <bdi dir="ltr">{formatMoney(dashboard.ytd_earned, lang)}</bdi>
               </div>
               <div className="text-xs text-slate-500 font-medium">
-                Accumulated partner revenue share
+                {t("partners:detail.total_accrued_hint")}
               </div>
             </div>
 
             <div className="p-4 rounded-lg border border-slate-200 bg-slate-50/50 flex flex-col justify-between">
               <div className="text-xs font-semibold text-slate-600 uppercase tracking-wide">
-                Settled to Date (YTD)
+                {t("partners:detail.settled_ytd")}
               </div>
               <div className="text-2xl font-bold text-emerald-700 font-mono my-2">
-                PKR {dashboard.ytd_settled}
+                <bdi dir="ltr">{formatMoney(dashboard.ytd_settled, lang)}</bdi>
               </div>
               <div className="text-xs text-slate-500 font-medium">
-                Fully paid and disbursed to partner
+                {t("partners:detail.settled_hint")}
               </div>
             </div>
 
             <div className="p-4 rounded-lg border border-slate-200 bg-slate-50/50 flex flex-col justify-between">
               <div className="text-xs font-semibold text-slate-600 uppercase tracking-wide">
-                Pending Balance
+                {t("partners:detail.pending")}
               </div>
               <div className="text-2xl font-bold text-teal-700 font-mono my-2">
-                PKR {dashboard.pending_total}
+                <bdi dir="ltr">
+                  {formatMoney(dashboard.pending_total, lang)}
+                </bdi>
               </div>
               <div className="text-xs text-slate-500 font-medium">
-                Awaiting upcoming settlement cycle
+                {t("partners:detail.pending_hint")}
               </div>
             </div>
           </div>
@@ -363,35 +375,45 @@ export const PartnerDetailScreen: React.FC = () => {
           {/* Recent Settlements List */}
           <div className="pt-2">
             <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
-              Recent Settlements
+              {t("partners:shared.recent_settlements")}
             </h3>
             {dashboard.last_6_settlements.length === 0 ? (
               <p className="text-xs text-slate-500 bg-slate-50 p-4 rounded-lg border border-slate-100">
-                No past settlements recorded for this partner yet.
+                {t("partners:detail.no_settlements")}
               </p>
             ) : (
               <div className="border border-slate-200 rounded-lg overflow-hidden">
-                <table className="w-full text-left text-xs border-collapse">
+                <table className="w-full text-start text-xs border-collapse">
                   <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-semibold uppercase">
                     <tr>
-                      <th className="py-2.5 px-3">Period</th>
-                      <th className="py-2.5 px-3">Status</th>
-                      <th className="py-2.5 px-3 text-right">Settled Amount</th>
+                      <th className="py-2.5 px-3">
+                        {t("partners:shared.period")}
+                      </th>
+                      <th className="py-2.5 px-3">
+                        {t("common:labels.status")}
+                      </th>
+                      <th className="py-2.5 px-3 text-end">
+                        {t("partners:detail.settled_amount")}
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {dashboard.last_6_settlements.map((s) => (
                       <tr key={s.id} className="hover:bg-slate-50">
                         <td className="py-2.5 px-3 font-medium text-slate-800">
-                          {s.period}
+                          <bdi dir="ltr">{s.period}</bdi>
                         </td>
                         <td className="py-2.5 px-3">
                           <span className="capitalize px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-100 text-slate-700 border border-slate-200">
-                            {s.status}
+                            {statusLabel(
+                              "settlement",
+                              s.status.toLowerCase(),
+                              (key) => t(`common:${key}`),
+                            )}
                           </span>
                         </td>
-                        <td className="py-2.5 px-3 text-right font-mono font-semibold text-slate-900">
-                          PKR {s.total}
+                        <td className="py-2.5 px-3 text-end font-mono font-semibold text-slate-900">
+                          <bdi dir="ltr">{formatMoney(s.total, lang)}</bdi>
                         </td>
                       </tr>
                     ))}
@@ -408,15 +430,14 @@ export const PartnerDetailScreen: React.FC = () => {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div>
             <h2 className="text-lg font-bold text-slate-900 tracking-tight">
-              Configured Revenue Share Rules
+              {t("partners:detail.rules_title")}
             </h2>
             <p className="text-xs text-slate-500">
-              Active commission percentage rules applied during billing
-              accession creation
+              {t("partners:detail.rules_subtitle")}
             </p>
           </div>
           <div className="text-xs font-medium text-slate-600 bg-slate-100 border border-slate-200 px-2.5 py-1 rounded-md self-start sm:self-auto">
-            {rules.length} {rules.length === 1 ? "rule" : "rules"} active
+            {t("partners:detail.rules_active", { count: rules.length })}
           </div>
         </div>
 
@@ -426,38 +447,50 @@ export const PartnerDetailScreen: React.FC = () => {
               tune
             </span>
             <p className="font-semibold text-slate-700 text-xs">
-              No specific rules configured
+              {t("partners:detail.no_rules_title")}
             </p>
             <p className="text-[11px] text-slate-500">
-              When no specific rule matches, the standard tenant fallback
-              percentage applies.
+              {t("partners:detail.no_rules_hint")}
             </p>
           </div>
         ) : (
           <div className="border border-slate-200 rounded-lg overflow-hidden">
-            <table className="w-full text-left text-xs border-collapse">
+            <table className="w-full text-start text-xs border-collapse">
               <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-semibold uppercase">
                 <tr>
-                  <th className="py-2.5 px-3">Category</th>
-                  <th className="py-2.5 px-3">Commission %</th>
-                  <th className="py-2.5 px-3">Effective From</th>
-                  <th className="py-2.5 px-3">Effective To</th>
+                  <th className="py-2.5 px-3">
+                    {t("partners:detail.category")}
+                  </th>
+                  <th className="py-2.5 px-3">
+                    {t("partners:detail.commission")}
+                  </th>
+                  <th className="py-2.5 px-3">
+                    {t("partners:detail.effective_from")}
+                  </th>
+                  <th className="py-2.5 px-3">
+                    {t("partners:detail.effective_to")}
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {rules.map((rule) => (
                   <tr key={rule.id} className="hover:bg-slate-50">
                     <td className="py-2.5 px-3 font-medium text-slate-800">
-                      {rule.test_category || "All Categories (General)"}
+                      {rule.test_category ||
+                        t("partners:detail.all_categories")}
                     </td>
                     <td className="py-2.5 px-3 font-mono font-semibold text-teal-700">
-                      {rule.percent}%
+                      {formatPercent(rule.percent)}
                     </td>
                     <td className="py-2.5 px-3 text-slate-600">
-                      {rule.effective_from}
+                      <bdi dir="ltr">{rule.effective_from}</bdi>
                     </td>
                     <td className="py-2.5 px-3 text-slate-600">
-                      {rule.effective_to || "Indefinite"}
+                      {rule.effective_to ? (
+                        <bdi dir="ltr">{rule.effective_to}</bdi>
+                      ) : (
+                        t("partners:detail.indefinite")
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -471,13 +504,10 @@ export const PartnerDetailScreen: React.FC = () => {
             <span className="material-symbols-outlined text-teal-600">
               info
             </span>
-            <span>
-              Detailed rule authoring, category buckets, and historical rate
-              versioning are managed in Screen 38 (Rules Editor).
-            </span>
+            <span>{t("partners:detail.rules_editor_note")}</span>
           </div>
           <span className="text-xs font-semibold text-teal-700 bg-teal-100 px-2 py-0.5 rounded shrink-0">
-            Upcoming Screen 38
+            {t("partners:detail.upcoming_38")}
           </span>
         </div>
       </div>
@@ -486,16 +516,15 @@ export const PartnerDetailScreen: React.FC = () => {
       <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-base font-bold text-slate-900">
-            Settlement History &amp; Disbursements
+            {t("partners:detail.settlement_history_title")}
           </h2>
           <p className="text-xs text-slate-500">
-            Monthly payout batching, PDF statements, and WhatsApp delivery
-            dispatch are handled in Settlement History.
+            {t("partners:detail.settlement_history_subtitle")}
           </p>
         </div>
         <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-100 text-slate-700 text-xs font-semibold border border-slate-200 self-start sm:self-auto shrink-0">
           <span className="material-symbols-outlined text-sm">history</span>
-          <span>Upcoming Screen 41</span>
+          <span>{t("partners:detail.upcoming_41")}</span>
         </div>
       </div>
 
@@ -505,12 +534,13 @@ export const PartnerDetailScreen: React.FC = () => {
           <div className="bg-white rounded-2xl border border-slate-200 shadow-xl max-w-md w-full p-6 space-y-5">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-bold text-slate-900">
-                Edit Referral Partner
+                {t("partners:detail.edit_title")}
               </h2>
               <button
                 type="button"
                 onClick={() => setShowEditModal(false)}
                 className="text-slate-400 hover:text-slate-600 p-1 rounded-lg"
+                aria-label={t("common:actions.close")}
               >
                 <span className="material-symbols-outlined text-lg">close</span>
               </button>
@@ -525,7 +555,7 @@ export const PartnerDetailScreen: React.FC = () => {
             <form onSubmit={handleSaveEdit} className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wide mb-1">
-                  Partner Name *
+                  {t("partners:fields.partner_name")}
                 </label>
                 <input
                   type="text"
@@ -540,7 +570,7 @@ export const PartnerDetailScreen: React.FC = () => {
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wide mb-1">
-                  Organisation / Clinic
+                  {t("partners:fields.organisation")}
                 </label>
                 <input
                   type="text"
@@ -558,7 +588,7 @@ export const PartnerDetailScreen: React.FC = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wide mb-1">
-                    Phone
+                    {t("common:labels.phone")}
                   </label>
                   <input
                     type="text"
@@ -575,7 +605,7 @@ export const PartnerDetailScreen: React.FC = () => {
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wide mb-1">
-                    Email
+                    {t("common:labels.email")}
                   </label>
                   <input
                     type="email"
@@ -608,7 +638,7 @@ export const PartnerDetailScreen: React.FC = () => {
                   htmlFor="edit-partner-active"
                   className="text-xs text-slate-700 select-none"
                 >
-                  Active for new accessions &amp; referrals
+                  {t("partners:fields.active_accessions")}
                 </label>
               </div>
 
@@ -618,14 +648,16 @@ export const PartnerDetailScreen: React.FC = () => {
                   onClick={() => setShowEditModal(false)}
                   className="px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
                 >
-                  Cancel
+                  {t("common:actions.cancel")}
                 </button>
                 <button
                   type="submit"
                   disabled={editSubmitting}
                   className="px-4 py-2 text-xs font-semibold text-white bg-teal-600 hover:bg-teal-700 rounded-lg transition-colors disabled:opacity-50"
                 >
-                  {editSubmitting ? "Saving..." : "Save Changes"}
+                  {editSubmitting
+                    ? t("common:actions.saving")
+                    : t("partners:detail.save_changes")}
                 </button>
               </div>
             </form>

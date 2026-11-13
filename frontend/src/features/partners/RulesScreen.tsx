@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import {
   ArrowLeft,
   Building2,
@@ -16,6 +17,8 @@ import {
 import { useAuthStore } from "../auth/authStore";
 import { settingsService } from "../settings/settingsService";
 import type { Branch } from "../settings/types";
+import { messageForError } from "../../lib/errors";
+import { formatPercent } from "../../lib/format";
 import { PartnerApiError, partnersService } from "./partnersService";
 import type {
   CreateRulePayload,
@@ -25,6 +28,7 @@ import type {
 } from "./types";
 
 export const RulesScreen: React.FC = () => {
+  const { t } = useTranslation(["partners", "common"]);
   const { id } = useParams<{ id: string }>();
   const user = useAuthStore((s) => s.user);
   const isOwner = user?.role === "owner";
@@ -76,17 +80,15 @@ export const RulesScreen: React.FC = () => {
       setRules(rulesData);
       setBranches(branchesData);
     } catch (err: unknown) {
-      if (err instanceof PartnerApiError) {
-        setErrorMsg(err.message);
-      } else if (err instanceof Error) {
-        setErrorMsg(err.message);
-      } else {
-        setErrorMsg("Failed to load rules.");
-      }
+      setErrorMsg(
+        err instanceof PartnerApiError
+          ? messageForError(err, t)
+          : t("partners:errors.load_rules"),
+      );
     } finally {
       setIsLoading(false);
     }
-  }, [id]);
+  }, [id, t]);
 
   useEffect(() => {
     fetchData();
@@ -145,15 +147,20 @@ export const RulesScreen: React.FC = () => {
       if (err instanceof PartnerApiError) {
         if (err.code === "rule_overlap") {
           setActionError(
-            `Rule overlap collision: A rule already exists for this partner with the same branch (${createBranchId ? branchMap.get(createBranchId) || createBranchId : "All branches"}) and category (${createCategory || "All categories"}).`,
+            t("partners:errors.rule_overlap_create", {
+              branch: createBranchId
+                ? branchMap.get(createBranchId) || createBranchId
+                : t("partners:rules.all_branches"),
+              category: createCategory || t("partners:rules.all_categories"),
+            }),
           );
         } else {
-          setActionError(err.message);
+          setActionError(messageForError(err, t));
         }
       } else if (err instanceof Error) {
-        setActionError(err.message);
+        setActionError(messageForError(err, t));
       } else {
-        setActionError("Failed to create rule.");
+        setActionError(t("partners:errors.create_rule"));
       }
     } finally {
       setIsSubmitting(false);
@@ -189,20 +196,16 @@ export const RulesScreen: React.FC = () => {
     } catch (err: unknown) {
       if (err instanceof PartnerApiError) {
         if (err.code === "rule_retroactive") {
-          setActionError(
-            "Retroactive date violation: The new effective_from must be after the current rule's effective_from.",
-          );
+          setActionError(t("partners:errors.rule_retroactive"));
         } else if (err.code === "rule_overlap") {
-          setActionError(
-            "Rule overlap collision: The updated rule conflicts with an existing active rule in this bucket.",
-          );
+          setActionError(t("partners:errors.rule_overlap_update"));
         } else {
-          setActionError(err.message);
+          setActionError(messageForError(err, t));
         }
       } else if (err instanceof Error) {
-        setActionError(err.message);
+        setActionError(messageForError(err, t));
       } else {
-        setActionError("Failed to update rule.");
+        setActionError(t("partners:errors.update_rule"));
       }
     } finally {
       setIsSubmitting(false);
@@ -211,7 +214,11 @@ export const RulesScreen: React.FC = () => {
 
   const handleCloseRule = async (rule: RevenueShareRule): Promise<void> => {
     if (
-      !confirm(`Are you sure you want to retire this ${rule.percent}% rule?`)
+      !confirm(
+        t("partners:rules.retire_confirm", {
+          percent: rule.percent,
+        }),
+      )
     ) {
       return;
     }
@@ -226,12 +233,8 @@ export const RulesScreen: React.FC = () => {
         percent: rule.percent,
       });
       await fetchData();
-    } catch (err: unknown) {
-      if (err instanceof PartnerApiError) {
-        alert(`Failed to close rule: ${err.message}`);
-      } else {
-        alert("Failed to close rule.");
-      }
+    } catch {
+      alert(t("partners:errors.close_rule"));
     } finally {
       setIsSubmitting(false);
     }
@@ -247,7 +250,9 @@ export const RulesScreen: React.FC = () => {
       const isClosed = Boolean(rule.effective_to);
       const branchName = rule.branch_id
         ? branchMap.get(rule.branch_id) ||
-          "Branch " + rule.branch_id.slice(0, 8)
+          t("partners:rules.branch_fallback", {
+            id: rule.branch_id.slice(0, 8),
+          })
         : "—";
       const categoryName = rule.test_category || "—";
 
@@ -277,7 +282,7 @@ export const RulesScreen: React.FC = () => {
             )}
           </td>
           <td className="py-3.5 px-4 font-mono font-semibold text-slate-900 text-[13px]">
-            {rule.percent}%
+            {formatPercent(rule.percent)}
           </td>
           <td className="py-3.5 px-4">
             <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-teal-50 text-teal-700 border border-teal-200">
@@ -288,30 +293,38 @@ export const RulesScreen: React.FC = () => {
             {isClosed ? (
               <span className="inline-flex items-center gap-1.5 text-slate-500 font-semibold text-[11px]">
                 <span className="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
-                Closed
+                {t("partners:rules.closed")}
               </span>
             ) : (
               <span className="inline-flex items-center gap-1.5 text-emerald-600 font-semibold text-[11px]">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
-                Active
+                {t("common:status.active")}
               </span>
             )}
           </td>
           <td className="py-3.5 px-4 text-slate-500 font-mono text-[11px]">
-            <div>From: {rule.effective_from}</div>
+            <div>
+              {t("partners:rules.from_prefix")}{" "}
+              <bdi dir="ltr">{rule.effective_from}</bdi>
+            </div>
             {rule.effective_to && (
-              <div className="text-slate-400">To: {rule.effective_to}</div>
+              <div className="text-slate-400">
+                {t("partners:rules.to_prefix")}{" "}
+                <bdi dir="ltr">{rule.effective_to}</bdi>
+              </div>
             )}
           </td>
-          <td className="py-3.5 px-4 text-right">
+          <td className="py-3.5 px-4 text-end">
             {isOwner && !isClosed && (
               <div className="flex items-center justify-end gap-1.5">
                 <button
                   type="button"
                   onClick={() => openEditModal(rule)}
                   className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition-colors"
-                  title="Edit rule"
-                  aria-label={`Edit rule ${rule.id}`}
+                  title={t("partners:rules.edit_rule_title")}
+                  aria-label={t("partners:rules.edit_rule_aria", {
+                    id: rule.id,
+                  })}
                 >
                   <Pencil className="w-3.5 h-3.5" />
                 </button>
@@ -319,8 +332,10 @@ export const RulesScreen: React.FC = () => {
                   type="button"
                   onClick={() => handleCloseRule(rule)}
                   className="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-600 transition-colors"
-                  title="Close rule"
-                  aria-label={`Close rule ${rule.id}`}
+                  title={t("partners:rules.close_rule_title")}
+                  aria-label={t("partners:rules.close_rule_aria", {
+                    id: rule.id,
+                  })}
                 >
                   <Power className="w-3.5 h-3.5" />
                 </button>
@@ -337,23 +352,25 @@ export const RulesScreen: React.FC = () => {
       <main className="flex-1 p-6 md:p-8 max-w-6xl mx-auto w-full space-y-6">
         {/* BREADCRUMBS */}
         <div className="flex items-center justify-between text-xs text-slate-500">
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center gap-x-2">
             <Link
               to={partner ? `/partners/${partner.id}` : "/partners"}
               className="hover:text-slate-800 transition-colors flex items-center gap-1 font-medium"
             >
-              <ArrowLeft className="w-3.5 h-3.5" />
-              <span>Partner</span>
+              <ArrowLeft className="w-3.5 h-3.5 rtl:rotate-180" />
+              <span>{t("partners:nav.partner")}</span>
             </Link>
             <span className="text-slate-300">/</span>
             <span className="font-medium text-slate-700">
               {partner?.name || "..."}
             </span>
             <span className="text-slate-300">/</span>
-            <span className="text-slate-900 font-semibold">Rules</span>
+            <span className="text-slate-900 font-semibold">
+              {t("partners:nav.rules")}
+            </span>
           </div>
-          <div className="text-slate-400 text-[11px] font-mono">
-            {partner ? `ID: ${partner.id}` : ""}
+          <div className="text-slate-400 text-[11px] font-mono" dir="ltr">
+            {partner ? t("partners:nav.record_id", { id: partner.id }) : ""}
           </div>
         </div>
 
@@ -374,7 +391,7 @@ export const RulesScreen: React.FC = () => {
             <div>
               <div className="flex items-center gap-2.5 flex-wrap">
                 <h1 className="text-xl font-bold text-slate-900 tracking-tight">
-                  {partner?.name || "Loading partner..."}
+                  {partner?.name || t("partners:rules.partner_loading")}
                 </h1>
                 {partner && (
                   <span
@@ -385,18 +402,22 @@ export const RulesScreen: React.FC = () => {
                     }`}
                   >
                     <span
-                      className={`w-1.5 h-1.5 rounded-full mr-1.5 ${
+                      className={`w-1.5 h-1.5 rounded-full me-1.5 ${
                         partner.is_active ? "bg-emerald-600" : "bg-slate-400"
                       }`}
                     ></span>
-                    {partner.is_active ? "Active Partner" : "Inactive Partner"}
+                    {partner.is_active
+                      ? t("partners:rules.active_partner")
+                      : t("partners:rules.inactive_partner")}
                   </span>
                 )}
               </div>
               <div className="flex flex-wrap items-center gap-x-5 gap-y-1 mt-1.5 text-xs text-slate-600">
                 {partner?.organisation && (
                   <span>
-                    <span className="text-slate-500">Org:</span>{" "}
+                    <span className="text-slate-500">
+                      {t("partners:rules.org_label")}
+                    </span>{" "}
                     <span className="font-medium text-slate-800">
                       {partner.organisation}
                     </span>
@@ -404,7 +425,9 @@ export const RulesScreen: React.FC = () => {
                 )}
                 {partner?.phone && (
                   <span>
-                    <span className="text-slate-500">Phone:</span>{" "}
+                    <span className="text-slate-500">
+                      {t("partners:rules.phone_label")}
+                    </span>{" "}
                     <span className="font-mono font-medium text-slate-800">
                       {partner.phone}
                     </span>
@@ -412,9 +435,11 @@ export const RulesScreen: React.FC = () => {
                 )}
                 <span className="flex items-center gap-1.5">
                   <Clock className="w-3.5 h-3.5 text-slate-400" />
-                  <span className="text-slate-500">Evaluation:</span>
+                  <span className="text-slate-500">
+                    {t("partners:rules.evaluation_label")}
+                  </span>
                   <span className="font-medium text-slate-800">
-                    Deterministic Specificity Cascade
+                    {t("partners:rules.evaluation_value")}
                   </span>
                 </span>
               </div>
@@ -428,13 +453,13 @@ export const RulesScreen: React.FC = () => {
                 to={`/partners/ledger?partner_id=${partner.id}`}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
               >
-                <span>Share ledger</span>
+                <span>{t("partners:rules.share_ledger")}</span>
               </Link>
               <Link
                 to={`/partners/${partner.id}/dashboard`}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
               >
-                <span>Dashboard</span>
+                <span>{t("partners:rules.dashboard")}</span>
               </Link>
             </div>
           )}
@@ -445,16 +470,15 @@ export const RulesScreen: React.FC = () => {
           <div>
             <div className="flex items-baseline gap-3">
               <h2 className="text-lg font-bold text-slate-900 tracking-tight">
-                Revenue share rules
+                {t("partners:rules.section_title")}
               </h2>
             </div>
             <p className="text-xs text-slate-600 mt-1 max-w-2xl leading-relaxed">
-              Rules are evaluated in specificity order — the most specific
-              matching rule wins. Overlaps are rejected (
+              {t("partners:rules.specificity_note_before")}{" "}
               <code className="font-mono text-[11px] bg-slate-100 text-slate-800 px-1.5 py-0.5 rounded border border-slate-200">
                 422 rule_overlap
               </code>
-              ).
+              {t("partners:rules.specificity_note_after")}
             </p>
           </div>
 
@@ -466,7 +490,7 @@ export const RulesScreen: React.FC = () => {
                 className="inline-flex items-center justify-center gap-2 px-4 py-2 text-xs font-semibold text-white bg-teal-600 hover:bg-teal-700 rounded-lg shadow-xs transition-colors focus:ring-2 focus:ring-teal-500 focus:ring-offset-1"
               >
                 <Plus className="w-4 h-4" />
-                <span>New rule</span>
+                <span>{t("partners:rules.new_rule")}</span>
               </button>
             </div>
           )}
@@ -478,16 +502,15 @@ export const RulesScreen: React.FC = () => {
             <Layers className="w-4 h-4 text-teal-700 shrink-0" />
             <span>
               <strong className="font-semibold text-teal-950">
-                Cascade evaluation hierarchy:
+                {t("partners:rules.cascade_title")}
               </strong>
-              <span className="text-teal-800 ml-1">
-                Group 1 (Branch + Category) &gt; Group 2 (Branch only) &gt;
-                Group 3 (Category only) &gt; Group 4 (Partner-wide fallback)
+              <span className="text-teal-800 ms-1">
+                {t("partners:rules.cascade_body")}
               </span>
             </span>
           </div>
           <span className="text-[11px] font-mono text-teal-700 bg-white/70 px-2 py-0.5 rounded border border-teal-200 font-medium hidden md:inline">
-            Strict resolution order
+            {t("partners:rules.strict_order")}
           </span>
         </div>
 
@@ -495,24 +518,38 @@ export const RulesScreen: React.FC = () => {
         <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
           {isLoading ? (
             <div className="p-8 text-center text-xs text-slate-500">
-              Loading rules...
+              {t("partners:rules.loading")}
             </div>
           ) : rules.length === 0 ? (
             <div className="p-12 text-center text-xs text-slate-500">
-              No revenue share rules configured for this partner yet.
+              {t("partners:rules.empty")}
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse text-xs">
+              <table className="w-full text-start border-collapse text-xs">
                 <thead>
                   <tr className="bg-slate-50/80 border-b border-slate-200 text-[11px] font-semibold text-slate-600 uppercase tracking-wider">
-                    <th className="py-3 px-4 w-48">Branch</th>
-                    <th className="py-3 px-4 w-44">Category</th>
-                    <th className="py-3 px-4 w-32 font-mono">Percent</th>
-                    <th className="py-3 px-4 w-44">Specificity</th>
-                    <th className="py-3 px-4 w-28">Status</th>
-                    <th className="py-3 px-4 w-44">Validity Period</th>
-                    <th className="py-3 px-4 text-right w-20">Actions</th>
+                    <th className="py-3 px-4 w-48">
+                      {t("partners:rules.branch")}
+                    </th>
+                    <th className="py-3 px-4 w-44">
+                      {t("partners:rules.category")}
+                    </th>
+                    <th className="py-3 px-4 w-32 font-mono">
+                      {t("partners:rules.percent")}
+                    </th>
+                    <th className="py-3 px-4 w-44">
+                      {t("partners:rules.specificity")}
+                    </th>
+                    <th className="py-3 px-4 w-28">
+                      {t("common:labels.status")}
+                    </th>
+                    <th className="py-3 px-4 w-44">
+                      {t("partners:rules.validity")}
+                    </th>
+                    <th className="py-3 px-4 text-end w-20">
+                      {t("common:labels.actions")}
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-slate-700">
@@ -526,16 +563,18 @@ export const RulesScreen: React.FC = () => {
                               1
                             </span>
                             <span className="text-slate-900 text-xs font-semibold">
-                              Branch + category
+                              {t("partners:rules.group1_title")}
                             </span>
-                            <span className="text-[11px] font-normal text-slate-500 ml-2">
-                              (Priority 1 · Matches both branch facility and
-                              clinical test section)
+                            <span className="text-[11px] font-normal text-slate-500 ms-2">
+                              {t("partners:rules.group1_note")}
                             </span>
                           </div>
                         </td>
                       </tr>
-                      {renderRuleRows(group1Rules, "Branch + category")}
+                      {renderRuleRows(
+                        group1Rules,
+                        t("partners:rules.group1_badge"),
+                      )}
                     </>
                   )}
 
@@ -549,16 +588,18 @@ export const RulesScreen: React.FC = () => {
                               2
                             </span>
                             <span className="text-slate-900 text-xs font-semibold">
-                              Branch only
+                              {t("partners:rules.group2_title")}
                             </span>
-                            <span className="text-[11px] font-normal text-slate-500 ml-2">
-                              (Priority 2 · Matches branch facility across all
-                              test categories)
+                            <span className="text-[11px] font-normal text-slate-500 ms-2">
+                              {t("partners:rules.group2_note")}
                             </span>
                           </div>
                         </td>
                       </tr>
-                      {renderRuleRows(group2Rules, "Branch")}
+                      {renderRuleRows(
+                        group2Rules,
+                        t("partners:rules.group2_badge"),
+                      )}
                     </>
                   )}
 
@@ -572,16 +613,18 @@ export const RulesScreen: React.FC = () => {
                               3
                             </span>
                             <span className="text-slate-900 text-xs font-semibold">
-                              Category only
+                              {t("partners:rules.group3_title")}
                             </span>
-                            <span className="text-[11px] font-normal text-slate-500 ml-2">
-                              (Priority 3 · Matches test category across all
-                              branches)
+                            <span className="text-[11px] font-normal text-slate-500 ms-2">
+                              {t("partners:rules.group3_note")}
                             </span>
                           </div>
                         </td>
                       </tr>
-                      {renderRuleRows(group3Rules, "Category")}
+                      {renderRuleRows(
+                        group3Rules,
+                        t("partners:rules.group3_badge"),
+                      )}
                     </>
                   )}
 
@@ -595,16 +638,18 @@ export const RulesScreen: React.FC = () => {
                               4
                             </span>
                             <span className="text-slate-900 text-xs font-semibold">
-                              Partner-wide
+                              {t("partners:rules.group4_title")}
                             </span>
-                            <span className="text-[11px] font-normal text-slate-500 ml-2">
-                              (Priority 4 · Catch-all default applied if no
-                              higher-level rule matches)
+                            <span className="text-[11px] font-normal text-slate-500 ms-2">
+                              {t("partners:rules.group4_note")}
                             </span>
                           </div>
                         </td>
                       </tr>
-                      {renderRuleRows(group4Rules, "Partner-wide")}
+                      {renderRuleRows(
+                        group4Rules,
+                        t("partners:rules.group4_badge"),
+                      )}
                     </>
                   )}
                 </tbody>
@@ -616,13 +661,12 @@ export const RulesScreen: React.FC = () => {
           <div className="p-4 bg-slate-50/90 border-t border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
             <div className="text-slate-600 flex items-center gap-2">
               <Percent className="w-4 h-4 text-slate-400 shrink-0" />
-              <span>
-                Percent values are stored as exact decimal strings; the app
-                never computes what a percent means in money until settlement.
-              </span>
+              <span>{t("partners:rules.percent_note")}</span>
             </div>
             <div className="text-[11px] font-mono text-slate-500 flex items-center gap-2">
-              <span>Total rules active: {activeRulesCount}</span>
+              <span>
+                {t("partners:rules.total_active", { n: activeRulesCount })}
+              </span>
             </div>
           </div>
         </div>
@@ -635,17 +679,19 @@ export const RulesScreen: React.FC = () => {
             <div className="p-5 border-b border-slate-200 flex items-center justify-between">
               <div>
                 <h3 className="text-base font-bold text-slate-900">
-                  New revenue share rule
+                  {t("partners:rules.create_title")}
                 </h3>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Set rule parameters for {partner?.name}.
+                  {t("partners:rules.create_subtitle_before")}{" "}
+                  <bdi dir="ltr">{partner?.name}</bdi>
+                  {t("partners:rules.create_subtitle_after")}
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => setIsCreateModalOpen(false)}
                 className="text-slate-400 hover:text-slate-600 text-lg p-1"
-                aria-label="Close"
+                aria-label={t("common:actions.close")}
               >
                 ✕
               </button>
@@ -661,14 +707,16 @@ export const RulesScreen: React.FC = () => {
 
               <div>
                 <label className="block font-semibold text-slate-700 mb-1">
-                  Branch (optional)
+                  {t("partners:rules.branch_optional")}
                 </label>
                 <select
                   value={createBranchId}
                   onChange={(e) => setCreateBranchId(e.target.value)}
                   className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-900 focus:bg-white focus:ring-1 focus:ring-teal-600 focus:border-teal-600"
                 >
-                  <option value="">All branches (no branch filter)</option>
+                  <option value="">
+                    {t("partners:rules.all_branches_option")}
+                  </option>
                   {branches.map((b) => (
                     <option key={b.id} value={b.id}>
                       {b.name} ({b.code})
@@ -676,30 +724,30 @@ export const RulesScreen: React.FC = () => {
                   ))}
                 </select>
                 <p className="text-[11px] text-slate-400 mt-1">
-                  Leave blank for rules applying across all tenant branches.
+                  {t("partners:rules.branch_hint")}
                 </p>
               </div>
 
               <div>
                 <label className="block font-semibold text-slate-700 mb-1">
-                  Test Category (optional)
+                  {t("partners:rules.category_optional")}
                 </label>
                 <input
                   type="text"
                   value={createCategory}
                   onChange={(e) => setCreateCategory(e.target.value)}
-                  placeholder="e.g. Haematology, Biochemistry, Molecular"
+                  placeholder={t("partners:rules.category_placeholder")}
                   className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-900 focus:bg-white focus:ring-1 focus:ring-teal-600 focus:border-teal-600"
                 />
                 <p className="text-[11px] text-slate-400 mt-1">
-                  Leave blank for rules applying across all test categories.
+                  {t("partners:rules.category_hint")}
                 </p>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block font-semibold text-slate-700 mb-1">
-                    Revenue Share % *
+                    {t("partners:rules.share_percent")}
                   </label>
                   <input
                     type="number"
@@ -714,7 +762,7 @@ export const RulesScreen: React.FC = () => {
                 </div>
                 <div>
                   <label className="block font-semibold text-slate-700 mb-1">
-                    Effective From *
+                    {t("partners:rules.effective_from")}
                   </label>
                   <input
                     type="date"
@@ -728,10 +776,7 @@ export const RulesScreen: React.FC = () => {
 
               <div className="p-3 bg-teal-50/50 rounded-lg border border-teal-100 text-[11px] text-teal-900 flex items-start gap-2">
                 <Sparkles className="w-3.5 h-3.5 text-teal-600 shrink-0 mt-0.5" />
-                <span>
-                  The system will calculate specificity automatically based on
-                  whether branch and category are specified.
-                </span>
+                <span>{t("partners:rules.specificity_auto")}</span>
               </div>
 
               <div className="pt-2 flex items-center justify-end gap-2.5">
@@ -740,14 +785,16 @@ export const RulesScreen: React.FC = () => {
                   onClick={() => setIsCreateModalOpen(false)}
                   className="px-4 py-2 border border-slate-200 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors"
                 >
-                  Cancel
+                  {t("common:actions.cancel")}
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting}
                   className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white font-semibold rounded-lg shadow-xs transition-colors disabled:opacity-50"
                 >
-                  {isSubmitting ? "Creating..." : "Save rule"}
+                  {isSubmitting
+                    ? t("partners:rules.creating")
+                    : t("partners:rules.save_rule")}
                 </button>
               </div>
             </form>
@@ -762,17 +809,17 @@ export const RulesScreen: React.FC = () => {
             <div className="p-5 border-b border-slate-200 flex items-center justify-between">
               <div>
                 <h3 className="text-base font-bold text-slate-900">
-                  Update revenue share rule
+                  {t("partners:rules.update_title")}
                 </h3>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Applies close-old + insert-new rule semantics (RR-3).
+                  {t("partners:rules.update_subtitle")}
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => setEditingRule(null)}
                 className="text-slate-400 hover:text-slate-600 text-lg p-1"
-                aria-label="Close"
+                aria-label={t("common:actions.close")}
               >
                 ✕
               </button>
@@ -788,26 +835,31 @@ export const RulesScreen: React.FC = () => {
 
               <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 space-y-1 text-[11px] text-slate-600">
                 <div>
-                  <span className="font-semibold text-slate-700">Scope:</span>{" "}
+                  <span className="font-semibold text-slate-700">
+                    {t("partners:rules.scope")}
+                  </span>{" "}
                   {editingRule.branch_id
                     ? branchMap.get(editingRule.branch_id) ||
                       editingRule.branch_id
-                    : "All branches"}{" "}
-                  · {editingRule.test_category || "All categories"}
+                    : t("partners:rules.all_branches")}{" "}
+                  ·{" "}
+                  {editingRule.test_category ||
+                    t("partners:rules.all_categories")}
                 </div>
                 <div>
                   <span className="font-semibold text-slate-700">
-                    Current rate:
+                    {t("partners:rules.current_rate")}
                   </span>{" "}
-                  {editingRule.percent}% (active since{" "}
-                  {editingRule.effective_from})
+                  {formatPercent(editingRule.percent)} (
+                  {t("partners:rules.active_since")}{" "}
+                  <bdi dir="ltr">{editingRule.effective_from}</bdi>)
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block font-semibold text-slate-700 mb-1">
-                    New Share % *
+                    {t("partners:rules.new_share_percent")}
                   </label>
                   <input
                     type="number"
@@ -822,7 +874,7 @@ export const RulesScreen: React.FC = () => {
                 </div>
                 <div>
                   <label className="block font-semibold text-slate-700 mb-1">
-                    New Effective From *
+                    {t("partners:rules.new_effective_from")}
                   </label>
                   <input
                     type="date"
@@ -835,10 +887,10 @@ export const RulesScreen: React.FC = () => {
               </div>
 
               <div className="p-3 bg-amber-50 rounded-lg border border-amber-200 text-[11px] text-amber-900">
-                <span className="font-semibold">Immutable History:</span> The
-                current rule will not be overwritten. It will be closed with
-                effective_to set to the day before the new effective date, and a
-                new rule row will be inserted.
+                <span className="font-semibold">
+                  {t("partners:rules.immutable_title")}
+                </span>{" "}
+                {t("partners:rules.immutable_body")}
               </div>
 
               <div className="pt-2 flex items-center justify-end gap-2.5">
@@ -847,14 +899,16 @@ export const RulesScreen: React.FC = () => {
                   onClick={() => setEditingRule(null)}
                   className="px-4 py-2 border border-slate-200 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors"
                 >
-                  Cancel
+                  {t("common:actions.cancel")}
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting}
                   className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white font-semibold rounded-lg shadow-xs transition-colors disabled:opacity-50"
                 >
-                  {isSubmitting ? "Updating..." : "Update rule"}
+                  {isSubmitting
+                    ? t("partners:rules.updating")
+                    : t("partners:rules.update_rule")}
                 </button>
               </div>
             </form>

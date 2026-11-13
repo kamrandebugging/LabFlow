@@ -90,11 +90,11 @@ describe("PartnerDashboardScreen (Screen 40)", () => {
     // Settlements table
     expect(screen.getByText("2026-09")).toBeInTheDocument();
     expect(screen.getByText("PKR 45000.00")).toBeInTheDocument();
-    expect(screen.getByText("PAID")).toBeInTheDocument();
+    expect(screen.getByText("Paid")).toBeInTheDocument();
 
     expect(screen.getByText("2026-10")).toBeInTheDocument();
     expect(screen.getByText("PKR 52000.00")).toBeInTheDocument();
-    expect(screen.getByText("APPROVED")).toBeInTheDocument();
+    expect(screen.getByText("Approved")).toBeInTheDocument();
   });
 
   it("renders honest empty state when no historical settlements exist", async () => {
