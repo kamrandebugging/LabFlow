@@ -7,6 +7,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
+import { Trans, useTranslation } from "react-i18next";
 import {
   User,
   FlaskConical,
@@ -25,6 +26,8 @@ import { sampleService } from "../samples/sampleService";
 import type { SampleDetail } from "../samples/types";
 import { resultsService } from "./resultsService";
 import type { ResultRowInput } from "./types";
+import { ApiError } from "../../lib/apiClient";
+import { messageForError } from "../../lib/errors";
 
 interface TestParamEntry {
   id: string;
@@ -37,12 +40,18 @@ interface TestParamEntry {
   value: string;
 }
 
+const BDI = { bdi: <bdi dir="ltr" /> };
+
 function parseBound(raw: string | null | undefined): number | null {
   if (raw === null || raw === undefined || raw === "") return null;
   const num = Number(raw);
   return Number.isFinite(num) ? num : null;
 }
 
+/**
+ * The numeric part of the range is clinical data and never changes. An empty
+ * string means "no range configured"; the screen supplies the translated text.
+ */
 function formatRangeDisplay(
   low: number | null,
   high: number | null,
@@ -53,10 +62,11 @@ function formatRangeDisplay(
   }
   if (low !== null) return `>= ${low} ${unit}`.trim();
   if (high !== null) return `<= ${high} ${unit}`.trim();
-  return "No reference range configured";
+  return "";
 }
 
 export function ResultEntryScreen(): JSX.Element {
+  const { t } = useTranslation(["results", "common"]);
   const { sampleId } = useParams<{ sampleId: string }>();
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
@@ -73,6 +83,15 @@ export function ResultEntryScreen(): JSX.Element {
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  /** API errors map through the catalogue; anything else uses screen text. */
+  const describeError = (err: unknown, fallbackKey: string): string =>
+    err instanceof ApiError
+      ? messageForError(err, (key) => t(key))
+      : t(fallbackKey);
+
+  const rangeText = (p: TestParamEntry): string =>
+    p.rangeDisplay || t("results:entry.no_range");
 
   useEffect(() => {
     if (!sampleId) return;
@@ -105,17 +124,14 @@ export function ResultEntryScreen(): JSX.Element {
 
         setParams(entries);
       } catch (err) {
-        setErrorMessage(
-          err instanceof Error
-            ? err.message
-            : "Failed to load specimen for result entry.",
-        );
+        setErrorMessage(describeError(err, "results:entry.load_error"));
       } finally {
         setLoading(false);
       }
     }
 
     loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sampleId]);
 
   const handleValueChange = (id: string, val: string) => {
@@ -143,9 +159,7 @@ export function ResultEntryScreen(): JSX.Element {
     // Validation: All items must have non-empty values
     const emptyItem = params.find((p) => !p.value.trim());
     if (emptyItem) {
-      setErrorMessage(
-        "Please enter values for all ordered tests. Saving is all-or-nothing.",
-      );
+      setErrorMessage(t("results:entry.values_required"));
       return;
     }
 
@@ -158,16 +172,12 @@ export function ResultEntryScreen(): JSX.Element {
       }));
 
       await resultsService.submitResults(sampleId!, rows);
-      setSuccessMessage("Results successfully saved to laboratory ledger!");
+      setSuccessMessage(t("results:entry.save_success"));
       setTimeout(() => {
         navigate("/worklist");
       }, 1200);
     } catch (err) {
-      setErrorMessage(
-        err instanceof Error
-          ? err.message
-          : "Failed to submit laboratory results.",
-      );
+      setErrorMessage(describeError(err, "results:entry.submit_error"));
     } finally {
       setSubmitting(false);
     }
@@ -180,19 +190,18 @@ export function ResultEntryScreen(): JSX.Element {
         <div className="bg-red-50 border border-red-200 rounded-xl p-8 text-center space-y-4">
           <ShieldAlert className="w-12 h-12 text-red-600 mx-auto" />
           <h2 className="text-xl font-bold text-red-950">
-            Access Denied · Role Restricted
+            {t("results:access_denied.title")}
           </h2>
           <p className="text-sm text-red-800 max-w-md mx-auto">
-            Only Technician, Pathologist, or Owner may enter results. Your
-            active role does not have authorization for direct laboratory entry.
+            {t("results:entry.denied_body")}
           </p>
           <div className="pt-2">
             <Link
               to="/worklist"
               className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-red-300 text-red-800 rounded-lg text-sm font-semibold hover:bg-red-100 transition-colors"
             >
-              <ArrowLeft className="w-4 h-4" />
-              <span>Back to Worklist</span>
+              <ArrowLeft className="w-4 h-4 rtl:rotate-180" />
+              <span>{t("results:entry.back_to_worklist")}</span>
             </Link>
           </div>
         </div>
@@ -204,7 +213,9 @@ export function ResultEntryScreen(): JSX.Element {
     return (
       <div className="py-24 flex flex-col items-center justify-center text-slate-500">
         <RefreshCw className="w-8 h-8 animate-spin text-teal-600 mb-2" />
-        <span className="text-sm font-medium">Loading specimen data...</span>
+        <span className="text-sm font-medium">
+          {t("results:entry.loading")}
+        </span>
       </div>
     );
   }
@@ -215,41 +226,59 @@ export function ResultEntryScreen(): JSX.Element {
       <div className="flex flex-col gap-2">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <nav
-            aria-label="Breadcrumb"
+            aria-label={t("results:breadcrumb_aria")}
             className="flex items-center gap-2 text-xs font-medium text-slate-500"
           >
             <Link
               to="/worklist"
               className="hover:text-slate-900 transition-colors"
             >
-              Worklist
+              {t("results:worklist.title")}
             </Link>
             <span className="text-slate-400">/</span>
             <span className="font-mono text-slate-900 font-semibold bg-slate-100 px-2 py-0.5 rounded">
-              {sample?.accession_id || "—"}
+              {sample?.accession_id ? (
+                <bdi dir="ltr">{sample.accession_id}</bdi>
+              ) : (
+                "—"
+              )}
             </span>
           </nav>
 
           <div className="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-full border border-slate-200 shadow-xs text-xs">
             <User className="w-4 h-4 text-teal-700" />
             <span className="font-semibold text-slate-900">
-              {sample?.patient_name || "—"}
+              {sample?.patient_name ? (
+                <bdi dir="ltr">{sample.patient_name}</bdi>
+              ) : (
+                "—"
+              )}
             </span>
             <span className="text-slate-300">·</span>
             <span className="text-slate-600">
               {sample?.patient_sex === "M"
-                ? "Male"
+                ? t("results:sex_male")
                 : sample?.patient_sex === "F"
-                  ? "Female"
+                  ? t("results:sex_female")
                   : "—"}
               ,{" "}
-              {sample?.patient_age_years !== undefined
-                ? `${sample.patient_age_years}y`
-                : "—"}
+              {sample?.patient_age_years !== undefined ? (
+                <Trans
+                  i18nKey="results:age_short"
+                  values={{ age: sample.patient_age_years }}
+                  components={BDI}
+                />
+              ) : (
+                "—"
+              )}
             </span>
             <span className="text-slate-300">·</span>
             <span className="font-mono text-slate-500">
-              {sample?.patient_mrn || "—"}
+              {sample?.patient_mrn ? (
+                <bdi dir="ltr">{sample.patient_mrn}</bdi>
+              ) : (
+                "—"
+              )}
             </span>
           </div>
         </div>
@@ -257,18 +286,22 @@ export function ResultEntryScreen(): JSX.Element {
         <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-2 pt-1">
           <div className="flex items-baseline gap-3">
             <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-              Enter results
+              {t("results:entry.title")}
             </h1>
             <span className="text-xs font-bold uppercase tracking-wider text-teal-800 bg-teal-50 px-2 py-0.5 rounded border border-teal-200">
-              Accession Active
+              {t("results:entry.accession_active")}
             </span>
           </div>
           <div className="text-xs text-slate-600 bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-xs flex items-center gap-1.5">
             <FlaskConical className="w-3.5 h-3.5 text-teal-700" />
             <span>
-              Bench Station:{" "}
+              {t("results:entry.bench_station")}{" "}
               <strong className="text-slate-900">
-                {sample?.bench_code || "Not assigned"}
+                {sample?.bench_code ? (
+                  <bdi dir="ltr">{sample.bench_code}</bdi>
+                ) : (
+                  t("results:entry.not_assigned")
+                )}
               </strong>
             </span>
           </div>
@@ -282,10 +315,14 @@ export function ResultEntryScreen(): JSX.Element {
             </div>
             <div>
               <div className="text-slate-400 font-semibold uppercase tracking-wider text-[10px]">
-                Ordered Tests
+                {t("results:entry.ordered_tests")}
               </div>
               <div className="font-medium text-slate-900">
-                {sample?.tests?.length ? sample.tests.join(", ") : "—"}
+                {sample?.tests?.length ? (
+                  <bdi dir="ltr">{sample.tests.join(", ")}</bdi>
+                ) : (
+                  "—"
+                )}
               </div>
             </div>
           </div>
@@ -296,19 +333,23 @@ export function ResultEntryScreen(): JSX.Element {
             </div>
             <div>
               <div className="text-slate-400 font-semibold uppercase tracking-wider text-[10px]">
-                Collection Timestamp
+                {t("results:entry.collection_timestamp")}
               </div>
               <div className="font-mono text-slate-900">
-                {sample?.collected_at
-                  ? new Date(sample.collected_at).toLocaleString([], {
+                {sample?.collected_at ? (
+                  <bdi dir="ltr">
+                    {new Date(sample.collected_at).toLocaleString([], {
                       day: "2-digit",
                       month: "short",
                       year: "numeric",
                       hour: "2-digit",
                       minute: "2-digit",
                       hour12: false,
-                    })
-                  : "—"}
+                    })}
+                  </bdi>
+                ) : (
+                  "—"
+                )}
               </div>
             </div>
           </div>
@@ -319,10 +360,11 @@ export function ResultEntryScreen(): JSX.Element {
             </div>
             <div>
               <div className="text-slate-400 font-semibold uppercase tracking-wider text-[10px]">
-                Technician on Duty
+                {t("results:entry.technician_on_duty")}
               </div>
               <div className="font-medium text-slate-900">
-                {user?.name || user?.email || "—"} ({user?.role})
+                <bdi dir="ltr">{user?.name || user?.email || "—"}</bdi>{" "}
+                {user?.role ? `(${t(`common:role.${user.role}`)})` : ""}
               </div>
             </div>
           </div>
@@ -358,34 +400,35 @@ export function ResultEntryScreen(): JSX.Element {
           <div className="px-6 py-3.5 bg-slate-50 border-b border-slate-200 flex items-center justify-between text-xs">
             <div className="flex items-center gap-2">
               <span className="font-semibold text-slate-900 text-sm">
-                Ordered Quantitative Parameters
+                {t("results:entry.quant_params")}
               </span>
               <span className="bg-slate-200 text-slate-700 px-2 py-0.5 rounded font-mono font-semibold">
-                {params.length} Tests
+                <bdi dir="ltr">{params.length}</bdi>{" "}
+                {t("results:entry.tests_count")}
               </span>
             </div>
             <div className="text-slate-500 font-medium hidden sm:flex items-center gap-1">
               <Info className="w-3.5 h-3.5 text-slate-400" />
-              <span>Double-check raw analyzer output prior to save</span>
+              <span>{t("results:entry.double_check")}</span>
             </div>
           </div>
 
           {/* Clinical Table */}
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+            <table className="w-full text-start border-collapse">
               <thead>
                 <tr className="bg-slate-50/50 text-slate-500 text-xs uppercase tracking-wider font-semibold border-b border-slate-100">
                   <th className="py-3 px-6" scope="col">
-                    Test Parameter
+                    {t("results:entry.col_parameter")}
                   </th>
                   <th className="py-3 px-4 w-64" scope="col">
-                    Observed Value
+                    {t("results:entry.col_value")}
                   </th>
                   <th className="py-3 px-4 w-32" scope="col">
-                    Unit
+                    {t("results:entry.col_unit")}
                   </th>
                   <th className="py-3 px-6" scope="col">
-                    Reference / Matched Range
+                    {t("results:entry.col_range")}
                   </th>
                 </tr>
               </thead>
@@ -396,8 +439,7 @@ export function ResultEntryScreen(): JSX.Element {
                       colSpan={4}
                       className="py-10 px-6 text-center text-sm text-slate-500"
                     >
-                      No ordered tests were found for this sample. Collect or
-                      verify the sample before entering results.
+                      {t("results:entry.empty_row")}
                     </td>
                   </tr>
                 )}
@@ -410,25 +452,35 @@ export function ResultEntryScreen(): JSX.Element {
                     >
                       <td className="py-4 px-6 align-middle">
                         <div className="font-semibold text-slate-900">
-                          {p.name}
+                          <bdi dir="ltr">{p.name}</bdi>
                         </div>
                         <div className="text-xs text-slate-500 mt-0.5">
-                          {p.category || "Uncategorized"}
+                          {p.category ? (
+                            <bdi dir="ltr">{p.category}</bdi>
+                          ) : (
+                            t("results:entry.uncategorized")
+                          )}
                         </div>
                       </td>
                       <td className="py-4 px-4 align-middle">
                         <div className="flex items-center gap-2">
                           <input
                             type="text"
-                            aria-label={`${p.name} value`}
+                            aria-label={t("results:entry.value_aria", {
+                              test: p.name,
+                            })}
                             value={p.value}
                             onChange={(e) =>
                               handleValueChange(p.id, e.target.value)
                             }
                             placeholder={
                               p.refLow !== null && p.refHigh !== null
-                                ? `e.g. ${((p.refLow + p.refHigh) / 2).toFixed(1)}`
-                                : "Enter value"
+                                ? t("results:entry.placeholder_example", {
+                                    value: ((p.refLow + p.refHigh) / 2).toFixed(
+                                      1,
+                                    ),
+                                  })
+                                : t("results:entry.placeholder_value")
                             }
                             className={`w-36 h-9 px-3 rounded-lg border font-mono text-sm focus:outline-none focus:ring-2 transition-all ${
                               flag === "high"
@@ -441,29 +493,29 @@ export function ResultEntryScreen(): JSX.Element {
                           {/* Visual Live Flag Badge */}
                           {flag === "high" && (
                             <span className="text-[11px] font-bold text-red-700 bg-red-100 px-2 py-0.5 rounded uppercase">
-                              High
+                              {t("common:status.flag.high")}
                             </span>
                           )}
                           {flag === "low" && (
                             <span className="text-[11px] font-bold text-blue-700 bg-blue-100 px-2 py-0.5 rounded uppercase">
-                              Low
+                              {t("common:status.flag.low")}
                             </span>
                           )}
                           {flag === "normal" && (
                             <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">
-                              Normal
+                              {t("common:status.flag.normal")}
                             </span>
                           )}
                         </div>
                       </td>
                       <td className="py-4 px-4 align-middle font-medium text-slate-600 text-sm">
-                        {p.unit}
+                        <bdi dir="ltr">{p.unit}</bdi>
                       </td>
                       <td className="py-4 px-6 align-middle">
                         <div className="flex items-center gap-1.5 text-xs text-slate-500">
-                          <span>Range:</span>
+                          <span>{t("results:entry.range_label")}</span>
                           <span className="font-mono font-medium text-slate-800">
-                            {p.rangeDisplay}
+                            <bdi dir="ltr">{rangeText(p)}</bdi>
                           </span>
                         </div>
                       </td>
@@ -476,8 +528,10 @@ export function ResultEntryScreen(): JSX.Element {
 
           {/* Subfooter */}
           <div className="px-6 py-2.5 bg-slate-50/50 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500">
-            <span>Direct LIS protocol entry</span>
-            <span className="font-mono">PROTOCOL: ISO-15189</span>
+            <span>{t("results:entry.direct_lis")}</span>
+            <span className="font-mono">
+              <Trans i18nKey="results:entry.protocol" components={BDI} />
+            </span>
           </div>
         </div>
 
@@ -485,8 +539,7 @@ export function ResultEntryScreen(): JSX.Element {
         <div className="flex items-center gap-2 text-xs text-slate-500 px-1">
           <Info className="w-4 h-4 text-slate-400 shrink-0" />
           <span>
-            Saving is all-or-nothing — one invalid row saves nothing. Values
-            will transition specimen to &quot;in_process&quot;.
+            <Trans i18nKey="results:entry.policy_note" components={BDI} />
           </span>
         </div>
 
@@ -497,7 +550,7 @@ export function ResultEntryScreen(): JSX.Element {
             onClick={() => navigate("/worklist")}
             className="px-5 py-2.5 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold hover:bg-slate-50 transition-colors cursor-pointer"
           >
-            Cancel
+            {t("common:actions.cancel")}
           </button>
           <button
             type="submit"
@@ -507,12 +560,12 @@ export function ResultEntryScreen(): JSX.Element {
             {submitting ? (
               <>
                 <RefreshCw className="w-4 h-4 animate-spin" />
-                <span>Saving results...</span>
+                <span>{t("results:entry.saving")}</span>
               </>
             ) : (
               <>
                 <Save className="w-4 h-4" />
-                <span>Save results</span>
+                <span>{t("results:entry.save")}</span>
               </>
             )}
           </button>
