@@ -12,11 +12,14 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { useAuthStore } from "../auth/authStore";
+import { messageForError } from "../../lib/errors";
 import { PartnerApiError, partnersService } from "./partnersService";
 import type { CreatePartnerPayload, ReferralPartner } from "./types";
 
 export const PartnersListScreen: React.FC = () => {
+  const { t } = useTranslation(["partners", "common"]);
   const user = useAuthStore((state) => state.user);
   const isOwner = user?.role === "owner";
   const canManage = user?.role === "owner" || user?.role === "manager";
@@ -57,9 +60,9 @@ export const PartnersListScreen: React.FC = () => {
       setPartners(data);
     } catch (err: unknown) {
       if (err instanceof PartnerApiError) {
-        setError(err.message);
+        setError(messageForError(err, t));
       } else {
-        setError("Failed to load referral partners.");
+        setError(t("partners:errors.load_partners"));
       }
     } finally {
       setLoading(false);
@@ -68,12 +71,15 @@ export const PartnersListScreen: React.FC = () => {
 
   useEffect(() => {
     fetchPartners();
+    // The loader closes over the current language; it must not re-run on every
+    // render. Language changes refetch through the explicit refresh button.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleCreatePartner = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name.trim()) {
-      setFormError("Partner name is required.");
+      setFormError(t("partners:errors.name_required"));
       return;
     }
 
@@ -100,9 +106,9 @@ export const PartnersListScreen: React.FC = () => {
       await fetchPartners();
     } catch (err: unknown) {
       if (err instanceof PartnerApiError) {
-        setFormError(err.message);
+        setFormError(messageForError(err, t));
       } else {
-        setFormError("Failed to create partner.");
+        setFormError(t("partners:errors.create_partner"));
       }
     } finally {
       setFormSubmitting(false);
@@ -121,14 +127,12 @@ export const PartnersListScreen: React.FC = () => {
     } catch (err: unknown) {
       if (err instanceof PartnerApiError) {
         if (err.code === "partner_has_ledger_entries") {
-          setDeleteError(
-            "Partners with ledger history cannot be deleted — financial records are immutable. You can deactivate this partner instead.",
-          );
+          setDeleteError(t("partners:errors.delete_partner_ledger"));
         } else {
-          setDeleteError(err.message);
+          setDeleteError(messageForError(err, t));
         }
       } else {
-        setDeleteError("Failed to delete partner.");
+        setDeleteError(t("partners:errors.delete_partner"));
       }
     } finally {
       setDeleteSubmitting(false);
@@ -165,22 +169,21 @@ export const PartnersListScreen: React.FC = () => {
       {/* Breadcrumb & Header */}
       <div className="flex flex-col gap-2">
         <div className="flex items-center gap-2 text-xs text-slate-500">
-          <span>Management</span>
-          <span className="material-symbols-outlined text-[14px]">
+          <span>{t("common:nav.management")}</span>
+          <span className="material-symbols-outlined text-[14px] rtl:rotate-180">
             chevron_right
           </span>
           <span className="text-slate-800 font-semibold">
-            Referral Partners
+            {t("partners:nav.referral_partners")}
           </span>
         </div>
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-              Referral Partners
+              {t("partners:nav.referral_partners")}
             </h1>
             <p className="text-sm text-slate-600">
-              Doctors, clinics, and hospitals that refer patients for clinical
-              diagnostics
+              {t("partners:list.subtitle")}
             </p>
           </div>
           {canManage && (
@@ -193,7 +196,7 @@ export const PartnersListScreen: React.FC = () => {
               className="bg-teal-600 hover:bg-teal-700 text-white font-medium text-sm px-4 py-2 rounded-lg flex items-center gap-2 shadow-sm transition-colors self-start sm:self-auto"
             >
               <span className="material-symbols-outlined text-[18px]">add</span>
-              <span>+ Add partner</span>
+              <span>{t("partners:list.add_partner")}</span>
             </button>
           )}
         </div>
@@ -204,7 +207,7 @@ export const PartnersListScreen: React.FC = () => {
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
           <div>
             <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-              Total Partners
+              {t("partners:list.total_partners")}
             </p>
             <p className="text-2xl font-bold text-slate-900 mt-1">
               {totalCount}
@@ -218,7 +221,7 @@ export const PartnersListScreen: React.FC = () => {
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
           <div>
             <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-              Active Referrals
+              {t("partners:list.active_referrals")}
             </p>
             <p className="text-2xl font-bold text-emerald-700 mt-1">
               {activeCount}
@@ -234,7 +237,7 @@ export const PartnersListScreen: React.FC = () => {
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
           <div>
             <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-              Inactive / Paused
+              {t("partners:list.inactive_paused")}
             </p>
             <p className="text-2xl font-bold text-slate-600 mt-1">
               {inactiveCount}
@@ -253,21 +256,23 @@ export const PartnersListScreen: React.FC = () => {
         <div className="flex flex-col sm:flex-row sm:items-center gap-3 flex-1">
           {/* Search box */}
           <div className="relative w-full sm:w-80">
-            <span className="material-symbols-outlined absolute left-3 top-2.5 text-slate-400 text-[18px]">
+            <span className="material-symbols-outlined absolute start-3 top-2.5 text-slate-400 text-[18px]">
               search
             </span>
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by name, organisation, phone..."
-              className="w-full pl-9 pr-3 py-1.5 text-sm bg-white border border-slate-300 rounded-lg text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-teal-600 focus:ring-1 focus:ring-teal-600"
+              placeholder={t("partners:list.search_placeholder")}
+              className="w-full ps-9 pe-3 py-1.5 text-sm bg-white border border-slate-300 rounded-lg text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-teal-600 focus:ring-1 focus:ring-teal-600"
             />
           </div>
 
           {/* Status filter */}
           <div className="flex items-center gap-1.5">
-            <span className="text-xs font-medium text-slate-500">Status:</span>
+            <span className="text-xs font-medium text-slate-500">
+              {t("partners:list.status_label")}
+            </span>
             <select
               value={statusFilter}
               onChange={(e) =>
@@ -275,17 +280,18 @@ export const PartnersListScreen: React.FC = () => {
               }
               className="text-xs font-medium bg-white border border-slate-300 rounded-lg py-1.5 px-3 text-slate-700 focus:outline-none focus:border-teal-600 focus:ring-1 focus:ring-teal-600"
             >
-              <option value="all">All statuses</option>
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
+              <option value="all">{t("partners:list.all_statuses")}</option>
+              <option value="active">{t("common:status.active")}</option>
+              <option value="inactive">{t("common:status.inactive")}</option>
             </select>
           </div>
         </div>
 
         {/* Counter badge */}
         <div className="text-xs font-medium text-slate-600 bg-slate-100 border border-slate-200 px-2.5 py-1 rounded-md self-start md:self-auto">
-          Showing {filteredPartners.length}{" "}
-          {filteredPartners.length === 1 ? "partner" : "partners"}
+          {t("partners:list.showing_partners", {
+            count: filteredPartners.length,
+          })}
         </div>
       </div>
 
@@ -296,9 +302,9 @@ export const PartnersListScreen: React.FC = () => {
           <button
             type="button"
             onClick={fetchPartners}
-            className="text-red-700 font-semibold underline text-xs ml-4"
+            className="text-red-700 font-semibold underline text-xs ms-4"
           >
-            Retry
+            {t("partners:list.retry")}
           </button>
         </div>
       )}
@@ -307,7 +313,7 @@ export const PartnersListScreen: React.FC = () => {
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
         {loading ? (
           <div className="p-12 text-center text-slate-500 text-sm">
-            Loading referral partners...
+            {t("partners:list.loading")}
           </div>
         ) : filteredPartners.length === 0 ? (
           <div className="p-12 text-center text-slate-500 flex flex-col items-center gap-2">
@@ -315,23 +321,31 @@ export const PartnersListScreen: React.FC = () => {
               handshake
             </span>
             <p className="font-semibold text-slate-800">
-              No referral partners found
+              {t("partners:list.empty_title")}
             </p>
             <p className="text-xs text-slate-500 max-w-sm">
               {searchQuery || statusFilter !== "all"
-                ? "No partners match your current filters. Try resetting the filters."
-                : "No referral partners have been registered yet. Click '+ Add partner' above to register a clinic or doctor."}
+                ? t("partners:list.empty_filtered")
+                : t("partners:list.empty_none")}
             </p>
           </div>
         ) : (
-          <table className="w-full text-left border-collapse">
+          <table className="w-full text-start border-collapse">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                <th className="py-3 px-4">Partner Name</th>
-                <th className="py-3 px-4">Organisation</th>
-                <th className="py-3 px-4">Contact</th>
-                <th className="py-3 px-4">Status</th>
-                <th className="py-3 px-4 text-right">Actions</th>
+                <th className="py-3 px-4">
+                  {t("partners:list.table_partner")}
+                </th>
+                <th className="py-3 px-4">
+                  {t("partners:list.table_organisation")}
+                </th>
+                <th className="py-3 px-4">
+                  {t("partners:list.table_contact")}
+                </th>
+                <th className="py-3 px-4">{t("common:labels.status")}</th>
+                <th className="py-3 px-4 text-end">
+                  {t("common:labels.actions")}
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-sm">
@@ -380,30 +394,36 @@ export const PartnersListScreen: React.FC = () => {
                     </td>
 
                     <td className="py-3.5 px-4 text-slate-600 font-mono text-xs">
-                      {partner.phone || "—"}
+                      <bdi dir="ltr">{partner.phone || "—"}</bdi>
                     </td>
 
                     <td className="py-3.5 px-4">
                       {partner.is_active ? (
                         <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
                           <span className="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
-                          <span>Active</span>
+                          <span>{t("common:status.active")}</span>
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200">
                           <span className="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
-                          <span>Inactive</span>
+                          <span>{t("common:status.inactive")}</span>
                         </span>
                       )}
                     </td>
 
-                    <td className="py-3.5 px-4 text-right">
+                    <td className="py-3.5 px-4 text-end">
                       <div className="inline-flex items-center gap-3">
                         <Link
                           to={`/partners/${partner.id}`}
                           className="text-teal-600 hover:text-teal-800 font-medium text-xs transition-colors"
                         >
-                          View details →
+                          <span>{t("partners:list.view_details")}</span>{" "}
+                          <span
+                            aria-hidden="true"
+                            className="inline-block rtl:-scale-x-100"
+                          >
+                            →
+                          </span>
                         </Link>
                         {isOwner && (
                           <button
@@ -413,8 +433,10 @@ export const PartnersListScreen: React.FC = () => {
                               setPartnerToDelete(partner);
                             }}
                             className="p-1 text-slate-400 hover:text-red-600 rounded transition-colors"
-                            title="Delete partner"
-                            aria-label={`Delete partner ${partner.name}`}
+                            title={t("partners:list.delete_title")}
+                            aria-label={t("partners:list.delete_aria", {
+                              name: partner.name,
+                            })}
                           >
                             <span className="material-symbols-outlined text-[18px]">
                               delete
@@ -437,12 +459,13 @@ export const PartnersListScreen: React.FC = () => {
           <div className="bg-white rounded-2xl border border-slate-200 shadow-xl max-w-md w-full p-6 space-y-5">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-bold text-slate-900">
-                Add Referral Partner
+                {t("partners:list.add_title")}
               </h2>
               <button
                 type="button"
                 onClick={() => setShowAddModal(false)}
                 className="text-slate-400 hover:text-slate-600 p-1 rounded-lg"
+                aria-label={t("common:actions.close")}
               >
                 <span className="material-symbols-outlined text-lg">close</span>
               </button>
@@ -457,7 +480,7 @@ export const PartnersListScreen: React.FC = () => {
             <form onSubmit={handleCreatePartner} className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wide mb-1">
-                  Partner Name *
+                  {t("partners:fields.partner_name")}
                 </label>
                 <input
                   type="text"
@@ -466,14 +489,14 @@ export const PartnersListScreen: React.FC = () => {
                   onChange={(e) =>
                     setFormData((prev) => ({ ...prev, name: e.target.value }))
                   }
-                  placeholder="e.g. Dr. Farhan Qureshi"
+                  placeholder={t("partners:list.name_placeholder")}
                   className="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:border-teal-600"
                 />
               </div>
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wide mb-1">
-                  Organisation / Clinic
+                  {t("partners:fields.organisation")}
                 </label>
                 <input
                   type="text"
@@ -484,7 +507,7 @@ export const PartnersListScreen: React.FC = () => {
                       organisation: e.target.value,
                     }))
                   }
-                  placeholder="e.g. Al-Shifa Clinic or Shalimar Hospital"
+                  placeholder={t("partners:list.organisation_placeholder")}
                   className="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:border-teal-600"
                 />
               </div>
@@ -492,7 +515,7 @@ export const PartnersListScreen: React.FC = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wide mb-1">
-                    Phone
+                    {t("common:labels.phone")}
                   </label>
                   <input
                     type="text"
@@ -503,14 +526,14 @@ export const PartnersListScreen: React.FC = () => {
                         phone: e.target.value,
                       }))
                     }
-                    placeholder="e.g. +92 300 1234567"
+                    placeholder={t("partners:list.phone_placeholder")}
                     className="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:border-teal-600"
                   />
                 </div>
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wide mb-1">
-                    Email
+                    {t("common:labels.email")}
                   </label>
                   <input
                     type="email"
@@ -521,7 +544,7 @@ export const PartnersListScreen: React.FC = () => {
                         email: e.target.value,
                       }))
                     }
-                    placeholder="partner@example.com"
+                    placeholder={t("partners:list.email_placeholder")}
                     className="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:border-teal-600"
                   />
                 </div>
@@ -544,7 +567,7 @@ export const PartnersListScreen: React.FC = () => {
                   htmlFor="partner-is-active"
                   className="text-xs text-slate-700 select-none"
                 >
-                  Active for new accessions &amp; referrals
+                  {t("partners:fields.active_accessions")}
                 </label>
               </div>
 
@@ -554,14 +577,16 @@ export const PartnersListScreen: React.FC = () => {
                   onClick={() => setShowAddModal(false)}
                   className="px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
                 >
-                  Cancel
+                  {t("common:actions.cancel")}
                 </button>
                 <button
                   type="submit"
                   disabled={formSubmitting}
                   className="px-4 py-2 text-xs font-semibold text-white bg-teal-600 hover:bg-teal-700 rounded-lg transition-colors disabled:opacity-50"
                 >
-                  {formSubmitting ? "Creating..." : "Create Partner"}
+                  {formSubmitting
+                    ? t("partners:list.creating")
+                    : t("partners:list.create")}
                 </button>
               </div>
             </form>
@@ -578,14 +603,16 @@ export const PartnersListScreen: React.FC = () => {
                 warning
               </span>
               <h3 className="text-base font-bold text-slate-900">
-                Delete Referral Partner
+                {t("partners:list.delete_heading")}
               </h3>
             </div>
 
             <p className="text-xs text-slate-600">
-              Are you sure you want to delete{" "}
-              <strong className="text-slate-900">{partnerToDelete.name}</strong>
-              ?
+              {t("partners:list.delete_confirm_prefix")}{" "}
+              <strong className="text-slate-900">
+                <bdi dir="ltr">{partnerToDelete.name}</bdi>
+              </strong>
+              {t("partners:list.delete_confirm_suffix")}
             </p>
 
             {deleteError && (
@@ -594,7 +621,7 @@ export const PartnersListScreen: React.FC = () => {
                   <span className="material-symbols-outlined text-sm text-amber-700">
                     lock
                   </span>
-                  <span>Financial Integrity Blocker</span>
+                  <span>{t("partners:list.integrity_blocker")}</span>
                 </div>
                 <p>{deleteError}</p>
               </div>
@@ -606,7 +633,7 @@ export const PartnersListScreen: React.FC = () => {
                 onClick={() => setPartnerToDelete(null)}
                 className="px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
               >
-                Cancel
+                {t("common:actions.cancel")}
               </button>
               <button
                 type="button"
@@ -614,7 +641,9 @@ export const PartnersListScreen: React.FC = () => {
                 onClick={handleDeletePartner}
                 className="px-4 py-2 text-xs font-semibold text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors disabled:opacity-50"
               >
-                {deleteSubmitting ? "Deleting..." : "Confirm Delete"}
+                {deleteSubmitting
+                  ? t("partners:list.deleting")
+                  : t("partners:list.confirm_delete")}
               </button>
             </div>
           </div>

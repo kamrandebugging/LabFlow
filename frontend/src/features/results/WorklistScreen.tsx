@@ -6,6 +6,7 @@
 
 import { useEffect, useState, useId } from "react";
 import { Link } from "react-router-dom";
+import { Trans, useTranslation } from "react-i18next";
 import {
   Clock,
   ArrowRight,
@@ -19,8 +20,13 @@ import type { WorklistItem } from "./types";
 import { settingsService } from "../settings/settingsService";
 import type { Branch } from "../settings/types";
 import { sampleService } from "../samples/sampleService";
+import { ApiError } from "../../lib/apiClient";
+import { messageForError } from "../../lib/errors";
+
+const BDI = { bdi: <bdi dir="ltr" /> };
 
 export function WorklistScreen(): JSX.Element {
+  const { t } = useTranslation(["results", "common"]);
   const branchFilterId = useId();
   const statusFilterId = useId();
   const testFilterId = useId();
@@ -36,6 +42,12 @@ export function WorklistScreen(): JSX.Element {
   const [statusFilter, setStatusFilter] = useState("all");
   const [testFilter, setTestFilter] = useState("all");
 
+  /** API errors map through the catalogue; anything else uses screen text. */
+  const describeError = (err: unknown, fallbackKey: string): string =>
+    err instanceof ApiError
+      ? messageForError(err, (key) => t(key))
+      : t(fallbackKey);
+
   const loadData = async () => {
     try {
       setLoading(true);
@@ -45,11 +57,7 @@ export function WorklistScreen(): JSX.Element {
       });
       setItems(data);
     } catch (err) {
-      setErrorMessage(
-        err instanceof Error
-          ? err.message
-          : "Failed to load clinical worklist.",
-      );
+      setErrorMessage(describeError(err, "results:worklist.load_error"));
     } finally {
       setLoading(false);
     }
@@ -67,9 +75,7 @@ export function WorklistScreen(): JSX.Element {
       await sampleService.receiveSample(sampleId);
       await loadData();
     } catch (err) {
-      setErrorMessage(
-        err instanceof Error ? err.message : "Failed to receive sample.",
-      );
+      setErrorMessage(describeError(err, "results:worklist.receive_error"));
     } finally {
       setReceivingId(null);
     }
@@ -113,15 +119,15 @@ export function WorklistScreen(): JSX.Element {
       <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-            Worklist
+            {t("results:worklist.title")}
           </h1>
           <p className="text-xs text-slate-500 mt-1">
-            Oldest first · Times are PKT
+            {t("results:worklist.subtitle")}
           </p>
         </div>
         <div className="flex items-center gap-2 text-xs font-mono text-slate-600 bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200">
           <span className="w-2 h-2 rounded-full bg-teal-600 animate-pulse" />
-          <span>Live Telemetry Synchronized</span>
+          <span>{t("results:worklist.live_telemetry")}</span>
         </div>
       </div>
 
@@ -133,24 +139,24 @@ export function WorklistScreen(): JSX.Element {
             htmlFor={branchFilterId}
             className="text-xs font-semibold text-slate-500 uppercase tracking-wider"
           >
-            Branch
+            {t("results:worklist.filter_branch")}
           </label>
           <div className="relative w-full">
             <select
               id={branchFilterId}
-              aria-label="Branch filter"
+              aria-label={t("results:worklist.branch_filter_aria")}
               value={branchFilter}
               onChange={(e) => setBranchFilter(e.target.value)}
-              className="w-full appearance-none bg-slate-50 text-slate-900 text-sm rounded-lg px-3 py-2 pr-8 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-600 cursor-pointer"
+              className="w-full appearance-none bg-slate-50 text-slate-900 text-sm rounded-lg px-3 py-2 pe-8 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-600 cursor-pointer"
             >
-              <option value="all">All Branches</option>
+              <option value="all">{t("results:worklist.all_branches")}</option>
               {branches.map((branch) => (
                 <option key={branch.id} value={branch.id}>
                   {branch.name}
                 </option>
               ))}
             </select>
-            <ChevronDown className="w-4 h-4 text-slate-400 pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2" />
+            <ChevronDown className="w-4 h-4 text-slate-400 pointer-events-none absolute end-2.5 top-1/2 -translate-y-1/2" />
           </div>
         </div>
 
@@ -160,22 +166,28 @@ export function WorklistScreen(): JSX.Element {
             htmlFor={statusFilterId}
             className="text-xs font-semibold text-slate-500 uppercase tracking-wider"
           >
-            Status
+            {t("common:labels.status")}
           </label>
           <div className="relative w-full">
             <select
               id={statusFilterId}
-              aria-label="Sample status filter"
+              aria-label={t("results:worklist.status_filter_aria")}
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="w-full appearance-none bg-slate-50 text-slate-900 text-sm rounded-lg px-3 py-2 pr-8 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-600 cursor-pointer"
+              className="w-full appearance-none bg-slate-50 text-slate-900 text-sm rounded-lg px-3 py-2 pe-8 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-600 cursor-pointer"
             >
-              <option value="all">All</option>
-              <option value="ready">Ready for entry</option>
-              <option value="in_process">In process</option>
-              <option value="rejected">Sample rejected</option>{" "}
+              <option value="all">{t("common:labels.all")}</option>
+              <option value="ready">
+                {t("results:worklist.status_ready")}
+              </option>
+              <option value="in_process">
+                {t("common:status.sample.in_process")}
+              </option>
+              <option value="rejected">
+                {t("results:worklist.status_rejected")}
+              </option>{" "}
             </select>
-            <ChevronDown className="w-4 h-4 text-slate-400 pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2" />
+            <ChevronDown className="w-4 h-4 text-slate-400 pointer-events-none absolute end-2.5 top-1/2 -translate-y-1/2" />
           </div>
         </div>
 
@@ -185,31 +197,31 @@ export function WorklistScreen(): JSX.Element {
             htmlFor={testFilterId}
             className="text-xs font-semibold text-slate-500 uppercase tracking-wider"
           >
-            Test
+            {t("results:worklist.filter_test")}
           </label>
           <div className="relative w-full">
             <select
               id={testFilterId}
-              aria-label="Test panel filter"
+              aria-label={t("results:worklist.test_filter_aria")}
               value={testFilter}
               onChange={(e) => setTestFilter(e.target.value)}
-              className="w-full appearance-none bg-slate-50 text-slate-900 text-sm rounded-lg px-3 py-2 pr-8 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-600 cursor-pointer"
+              className="w-full appearance-none bg-slate-50 text-slate-900 text-sm rounded-lg px-3 py-2 pe-8 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-600 cursor-pointer"
             >
-              <option value="all">All Tests</option>
+              <option value="all">{t("results:worklist.all_tests")}</option>
               {testOptions.map((testName) => (
                 <option key={testName} value={testName}>
                   {testName}
                 </option>
               ))}
             </select>
-            <ChevronDown className="w-4 h-4 text-slate-400 pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2" />
+            <ChevronDown className="w-4 h-4 text-slate-400 pointer-events-none absolute end-2.5 top-1/2 -translate-y-1/2" />
           </div>
         </div>
 
         {/* Ordering info */}
-        <div className="ml-auto flex items-center gap-1.5 text-xs text-slate-500 font-mono">
+        <div className="ms-auto flex items-center gap-1.5 text-xs text-slate-500 font-mono">
           <Clock className="w-3.5 h-3.5 text-slate-400" />
-          <span>Ordered by oldest specimen collection</span>
+          <span>{t("results:worklist.ordering")}</span>
         </div>
       </div>
 
@@ -228,7 +240,7 @@ export function WorklistScreen(): JSX.Element {
             onClick={loadData}
             className="px-3 py-1 bg-red-100 hover:bg-red-200 text-red-800 text-xs font-semibold rounded-lg transition-colors cursor-pointer"
           >
-            Retry
+            {t("results:retry")}
           </button>
         </div>
       )}
@@ -239,45 +251,44 @@ export function WorklistScreen(): JSX.Element {
           <div className="py-16 flex flex-col items-center justify-center text-slate-500">
             <RefreshCw className="w-6 h-6 animate-spin text-teal-600 mb-2" />
             <span className="text-xs font-medium">
-              Loading clinical worklist...
+              {t("results:worklist.loading")}
             </span>
           </div>
         ) : filteredItems.length === 0 ? (
           <div className="py-16 text-center text-slate-500 text-sm">
             <Layers className="w-10 h-10 mx-auto text-slate-300 mb-2" />
             <p className="font-semibold text-slate-700">
-              No pending specimens in the worklist
+              {t("results:worklist.empty_title")}
             </p>
             <p className="text-xs text-slate-400 mt-1">
-              Specimens collected at reception will appear here chronologically
-              for result entry.
+              {t("results:worklist.empty_body")}
             </p>
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+            <table className="w-full text-start border-collapse">
               <thead>
                 <tr className="bg-slate-50 text-slate-500 text-xs font-semibold uppercase tracking-wider border-b border-slate-200">
                   <th className="py-3.5 px-6" scope="col">
-                    Accession ID
+                    {t("results:columns.accession")}
                   </th>
                   <th className="py-3.5 px-6" scope="col">
-                    Patient
+                    {t("results:columns.patient")}
                   </th>
                   <th className="py-3.5 px-6" scope="col">
-                    Test
+                    {t("results:columns.test")}
                   </th>
                   <th className="py-3.5 px-6" scope="col">
-                    Collected
+                    {t("results:columns.collected")}
                   </th>
                   <th className="py-3.5 px-6" scope="col">
-                    Waiting
+                    {t("results:columns.waiting")}
                   </th>
                   <th className="py-3.5 px-6" scope="col">
-                    Status
+                    {t("common:labels.status")}
                   </th>
-                  <th className="py-3.5 px-6 text-right" scope="col">
-                    Action
+                  <th className="py-3.5 px-6 text-end" scope="col">
+                    {t("results:columns.action")}
                   </th>
                 </tr>
               </thead>
@@ -295,27 +306,38 @@ export function WorklistScreen(): JSX.Element {
                       }`}
                     >
                       <td className="py-4 px-6 font-mono font-semibold text-slate-900">
-                        {item.accession_id}
+                        <bdi dir="ltr">{item.accession_id}</bdi>
                       </td>
                       <td className="py-4 px-6">
                         <div className="font-medium text-slate-900">
-                          {item.patient_name}
+                          <bdi dir="ltr">{item.patient_name}</bdi>
                         </div>
                         <div className="text-xs font-mono text-slate-400">
-                          {item.patient_mrn}
+                          <bdi dir="ltr">{item.patient_mrn}</bdi>
                         </div>
                       </td>
                       <td className="py-4 px-6 text-slate-600">
-                        {item.tests.join(", ") || "—"}
+                        {item.tests.length > 0 ? (
+                          <bdi dir="ltr">{item.tests.join(", ")}</bdi>
+                        ) : (
+                          "—"
+                        )}
                       </td>
                       <td className="py-4 px-6 font-mono text-xs text-slate-500">
-                        {item.collected_at
-                          ? new Date(item.collected_at).toLocaleTimeString([], {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                              hour12: false,
-                            })
-                          : "—"}
+                        {item.collected_at ? (
+                          <bdi dir="ltr">
+                            {new Date(item.collected_at).toLocaleTimeString(
+                              [],
+                              {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                                hour12: false,
+                              },
+                            )}
+                          </bdi>
+                        ) : (
+                          "—"
+                        )}
                       </td>
                       <td className="py-4 px-6">
                         <span
@@ -325,39 +347,39 @@ export function WorklistScreen(): JSX.Element {
                               : "text-slate-600 bg-slate-100"
                           }`}
                         >
-                          {item.waiting_time}
+                          <bdi dir="ltr">{item.waiting_time}</bdi>
                         </span>
                       </td>
                       <td className="py-4 px-6">
                         {item.sample_status === "collected" && (
                           <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700">
                             <span className="w-1.5 h-1.5 rounded-full bg-amber-600" />
-                            Awaiting receipt
+                            {t("results:worklist.badge_awaiting_receipt")}
                           </span>
                         )}
                         {item.status === "ready" &&
                           item.sample_status !== "collected" && (
                             <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700">
                               <span className="w-1.5 h-1.5 rounded-full bg-blue-600" />
-                              Ready for entry
+                              {t("results:worklist.status_ready")}
                             </span>
                           )}
                         {item.status === "in_process" && (
                           <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-50 text-orange-700">
                             <span className="w-1.5 h-1.5 rounded-full bg-orange-600" />
-                            In process
+                            {t("common:status.sample.in_process")}
                           </span>
                         )}
                         {item.status === "rejected" && (
                           <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-50 text-red-700">
                             <span className="w-1.5 h-1.5 rounded-full bg-red-600" />
-                            Sample rejected
+                            {t("results:worklist.status_rejected")}
                           </span>
                         )}
                       </td>
-                      <td className="py-4 px-6 text-right">
+                      <td className="py-4 px-6 text-end">
                         {item.status === "rejected" ? (
-                          <span className="text-slate-300 font-mono text-xs select-none pr-3">
+                          <span className="text-slate-300 font-mono text-xs select-none pe-3">
                             —
                           </span>
                         ) : item.sample_status === "collected" ? (
@@ -369,18 +391,18 @@ export function WorklistScreen(): JSX.Element {
                           >
                             <span>
                               {receivingId === item.sample_id
-                                ? "Receiving..."
-                                : "Receive sample"}
+                                ? t("results:worklist.receiving")
+                                : t("results:worklist.receive_sample")}
                             </span>
-                            <ArrowRight className="w-3.5 h-3.5" />
+                            <ArrowRight className="w-3.5 h-3.5 rtl:rotate-180" />
                           </button>
                         ) : (
                           <Link
                             to={`/results/entry/${item.sample_id}`}
                             className="text-teal-700 font-semibold hover:text-teal-900 inline-flex items-center gap-1 transition-colors text-xs"
                           >
-                            <span>Enter results</span>
-                            <ArrowRight className="w-3.5 h-3.5" />
+                            <span>{t("results:worklist.enter_results")}</span>
+                            <ArrowRight className="w-3.5 h-3.5 rtl:rotate-180" />
                           </Link>
                         )}
                       </td>
@@ -395,9 +417,15 @@ export function WorklistScreen(): JSX.Element {
         {/* Footer info */}
         <div className="px-6 py-3 bg-slate-50/60 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500">
           <span>
-            Showing {filteredItems.length} of {items.length} items
+            <Trans
+              i18nKey="results:worklist.showing"
+              values={{ shown: filteredItems.length, total: items.length }}
+              components={BDI}
+            />
           </span>
-          <span className="font-mono">Worklist Queue v2.4</span>
+          <span className="font-mono">
+            {t("results:worklist.queue_version")}
+          </span>
         </div>
       </div>
     </div>

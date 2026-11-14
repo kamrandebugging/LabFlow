@@ -1,0 +1,129 @@
+{
+  "mrn": "MRN",
+  "sex": {
+    "male": "Male",
+    "female": "Female",
+    "other": "Other",
+    "unknown": "Unknown"
+  },
+  "breadcrumb_aria": "Breadcrumb",
+  "demographics": "Patient Demographics",
+  "main_branch": "Main Branch",
+  "not_found": "Patient not found.",
+  "return_to_patients": "Return to Patients",
+  "edit_demographics": "Edit demographics",
+  "field_full_name": "Full name",
+  "validation": {
+    "phone": "Phone number must contain between 10 and 15 digits."
+  },
+  "list": {
+    "subtitle": "Accessioning, demographics & medical records",
+    "branch_sync_active": "Branch Sync Active",
+    "search_placeholder": "Search by name, phone or MRN…",
+    "refresh_aria": "Refresh list",
+    "new_patient": "New patient",
+    "retry": "Retry",
+    "col_patient": "Patient",
+    "col_branch": "Branch",
+    "col_last_visit": "Last visit",
+    "loading": "Loading patients...",
+    "empty_title": "No patients found",
+    "empty_search": "Try adjusting your search criteria",
+    "empty_first": "Register your first patient using the button above",
+    "empty_scope": "No patient records are available in your branch scope",
+    "cross_branch": "Cross-Branch",
+    "age_years": "{{age}} years",
+    "errors": {
+      "load": "Failed to load patients"
+    }
+  },
+  "register": {
+    "breadcrumb_new": "New registration",
+    "title": "Register patient",
+    "iso_badge": "ISO 15189 Demographics",
+    "duplicate": {
+      "title": "Possible Duplicate Patient Detected",
+      "body": "A patient with a matching name and phone number is already registered in the laboratory records:",
+      "yob": "YOB {{year}}",
+      "confirm": "Confirm & Register Anyway"
+    },
+    "full_name_placeholder": "e.g. Muhammad Imran",
+    "phone_placeholder": "03001234567",
+    "phone_hint": "10-15 digits",
+    "dob_hint": "Leave blank if unknown",
+    "section_delivery": "Digital Delivery & Consent",
+    "whatsapp": "WhatsApp number",
+    "whatsapp_placeholder": "+92 300 1234567",
+    "whatsapp_hint": "For instant digital lab report delivery",
+    "consent": "Patient consents to receiving reports & critical notifications via WhatsApp / SMS",
+    "registering": "Registering...",
+    "validation": {
+      "name": "Full name must be between 2 and 120 characters."
+    },
+    "errors": {
+      "failed": "Failed to register patient."
+    }
+  },
+  "details": {
+    "active": "ACTIVE",
+    "registered": "Registered",
+    "id": "ID",
+    "audit_history": "Audit history",
+    "new_accession": "+ New accession",
+    "delete_patient_aria": "Delete patient",
+    "confirm_delete": "Are you sure you want to soft-delete this patient record?",
+    "loading": "Loading clinical record...",
+    "unavailable_title": "Patient Record Unavailable",
+    "field_full_name": "Full Name",
+    "field_sex": "Biological Sex",
+    "field_dob": "Date of Birth",
+    "field_phone": "Primary Phone",
+    "consent_title": "Consent & Notifications",
+    "digital_delivery": "Digital Report Delivery",
+    "consent_granted": "Consent Granted",
+    "consent_none": "No Consent on File",
+    "whatsapp_channel": "WhatsApp Channel",
+    "compliance_note": "ISO 15189 compliance verified. Consent auditable per regulatory requirements.",
+    "errors": {
+      "load": "Failed to load patient",
+      "delete": "Failed to delete patient"
+    }
+  },
+  "edit": {
+    "title": "Edit patient demographics",
+    "breadcrumb_record": "Patient record",
+    "loading": "Loading patient details...",
+    "save_failed": "Unable to save changes",
+    "field_phone": "Phone number",
+    "field_sex": "Biological sex",
+    "save": "Save changes",
+    "validation": {
+      "name": "Name must be between 2 and 120 characters."
+    },
+    "errors": {
+      "load": "Failed to load patient",
+      "save": "Failed to update patient record."
+    }
+  },
+  "history": {
+    "breadcrumb": "Clinical History",
+    "title": "Patient History —",
+    "no_phone": "No phone",
+    "audit_active": "Audit Ledger Active",
+    "ledger_scope_label": "Partitioned ledger scope:",
+    "ledger_scope_body": "Showing historical visits, sample accession records, and verified diagnostic reports for <strong>{{mrn}}</strong>. Changes to patient demographics are immutably logged in the tenant audit vault.",
+    "event_registration": "Patient Registration & Demographic Enrolment",
+    "system_mrn": "System MRN",
+    "home_branch": "Home Branch",
+    "iso_status": "ISO 15189 Status",
+    "verified_active": "Verified Active",
+    "event_visit": "Diagnostic Visit Episode",
+    "recent_visit": "Recent Visit",
+    "visit_note": "Samples and reports accessioned during this visit episode are recorded under the clinical worklist ledger.",
+    "loading": "Loading longitudinal clinical history...",
+    "unavailable_title": "Unable to load history",
+    "errors": {
+      "load": "Failed to load history"
+    }
+  }
+}

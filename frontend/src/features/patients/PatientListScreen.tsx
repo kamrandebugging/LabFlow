@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Plus,
   Search,
@@ -7,6 +8,8 @@ import {
   AlertCircle,
   RefreshCw,
 } from "lucide-react";
+import { messageForError } from "../../lib/errors";
+import { formatDate } from "../../lib/format";
 import { patientService } from "./patientService";
 import type { PatientSummary } from "./types";
 
@@ -21,6 +24,7 @@ export const PatientListScreen: React.FC<PatientListScreenProps> = ({
   onSelectPatient,
   service = patientService,
 }) => {
+  const { t } = useTranslation(["patients", "common"]);
   const [patients, setPatients] = useState<PatientSummary[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [isLoading, setIsLoading] = useState(true);
@@ -35,13 +39,15 @@ export const PatientListScreen: React.FC<PatientListScreenProps> = ({
         setPatients(data);
       } catch (err: unknown) {
         setError(
-          err instanceof Error ? err.message : "Failed to load patients",
+          err && typeof err === "object" && ("code" in err || "status" in err)
+            ? messageForError(err, t)
+            : t("patients:list.errors.load"),
         );
       } finally {
         setIsLoading(false);
       }
     },
-    [service],
+    [service, t],
   );
 
   useEffect(() => {
@@ -66,10 +72,10 @@ export const PatientListScreen: React.FC<PatientListScreenProps> = ({
   };
 
   const formatSex = (sex?: string) => {
-    if (sex === "M") return "Male";
-    if (sex === "F") return "Female";
-    if (sex === "O") return "Other";
-    return sex || "Unknown";
+    if (sex === "M") return t("patients:sex.male");
+    if (sex === "F") return t("patients:sex.female");
+    if (sex === "O") return t("patients:sex.other");
+    return sex || t("patients:sex.unknown");
   };
 
   return (
@@ -78,16 +84,16 @@ export const PatientListScreen: React.FC<PatientListScreenProps> = ({
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 font-headline">
-            Patients
+            {t("common:nav.patients")}
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Accessioning, demographics & medical records
+            {t("patients:list.subtitle")}
           </p>
         </div>
         <div className="flex items-center gap-2">
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 text-slate-600 text-xs font-medium">
             <span className="w-2 h-2 rounded-full bg-teal-600 animate-pulse" />
-            Branch Sync Active
+            {t("patients:list.branch_sync_active")}
           </span>
         </div>
       </div>
@@ -95,14 +101,14 @@ export const PatientListScreen: React.FC<PatientListScreenProps> = ({
       {/* Search & Action Bar */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
         <div className="relative w-full sm:w-96">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4 pointer-events-none" />
+          <Search className="absolute start-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4 pointer-events-none" />
           <input
             id="patient-search-input"
             type="search"
             value={searchQuery}
             onChange={handleSearchChange}
-            placeholder="Search by name, phone or MRN…"
-            className="w-full pl-9 pr-4 py-2 bg-white text-slate-900 text-sm placeholder:text-slate-400 rounded-lg border border-slate-200 shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 transition-all"
+            placeholder={t("patients:list.search_placeholder")}
+            className="w-full ps-9 pe-4 py-2 bg-white text-slate-900 text-sm placeholder:text-slate-400 rounded-lg border border-slate-200 shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 transition-all"
             autoComplete="off"
           />
         </div>
@@ -111,8 +117,8 @@ export const PatientListScreen: React.FC<PatientListScreenProps> = ({
             type="button"
             onClick={() => fetchPatients(searchQuery)}
             className="p-2 text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg border border-slate-200 transition-colors"
-            title="Refresh list"
-            aria-label="Refresh list"
+            title={t("patients:list.refresh_aria")}
+            aria-label={t("patients:list.refresh_aria")}
           >
             <RefreshCw
               className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`}
@@ -125,7 +131,7 @@ export const PatientListScreen: React.FC<PatientListScreenProps> = ({
               className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-[#005c55] hover:bg-[#0f766e] text-white text-sm font-medium rounded-lg shadow-sm transition-colors cursor-pointer"
             >
               <Plus className="w-4 h-4" />
-              <span>New patient</span>
+              <span>{t("patients:list.new_patient")}</span>
             </button>
           ) : null}
         </div>
@@ -144,9 +150,9 @@ export const PatientListScreen: React.FC<PatientListScreenProps> = ({
           <button
             type="button"
             onClick={() => fetchPatients(searchQuery)}
-            className="underline font-semibold hover:text-red-900 ml-4"
+            className="underline font-semibold hover:text-red-900 ms-4"
           >
-            Retry
+            {t("patients:list.retry")}
           </button>
         </div>
       )}
@@ -155,46 +161,46 @@ export const PatientListScreen: React.FC<PatientListScreenProps> = ({
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table
-            className="w-full text-left border-collapse"
+            className="w-full text-start border-collapse"
             data-testid="patient-table"
           >
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200">
                 <th
                   scope="col"
-                  className="py-3 px-4 text-xs font-semibold uppercase tracking-wider text-slate-500"
+                  className="py-3 px-4 text-xs font-semibold uppercase tracking-wider text-slate-500 text-start"
                 >
-                  Patient
+                  {t("patients:list.col_patient")}
                 </th>
                 <th
                   scope="col"
-                  className="py-3 px-4 text-xs font-semibold uppercase tracking-wider text-slate-500"
+                  className="py-3 px-4 text-xs font-semibold uppercase tracking-wider text-slate-500 text-start"
                 >
-                  MRN
+                  {t("patients:mrn")}
                 </th>
                 <th
                   scope="col"
-                  className="py-3 px-4 text-xs font-semibold uppercase tracking-wider text-slate-500"
+                  className="py-3 px-4 text-xs font-semibold uppercase tracking-wider text-slate-500 text-start"
                 >
-                  Phone
+                  {t("common:labels.phone")}
                 </th>
                 <th
                   scope="col"
-                  className="py-3 px-4 text-xs font-semibold uppercase tracking-wider text-slate-500"
+                  className="py-3 px-4 text-xs font-semibold uppercase tracking-wider text-slate-500 text-start"
                 >
-                  Branch
+                  {t("patients:list.col_branch")}
                 </th>
                 <th
                   scope="col"
-                  className="py-3 px-4 text-xs font-semibold uppercase tracking-wider text-slate-500"
+                  className="py-3 px-4 text-xs font-semibold uppercase tracking-wider text-slate-500 text-start"
                 >
-                  Last visit
+                  {t("patients:list.col_last_visit")}
                 </th>
                 <th
                   scope="col"
-                  className="py-3 px-4 text-xs font-semibold uppercase tracking-wider text-slate-500 text-right"
+                  className="py-3 px-4 text-xs font-semibold uppercase tracking-wider text-slate-500 text-end"
                 >
-                  Actions
+                  {t("common:labels.actions")}
                 </th>
               </tr>
             </thead>
@@ -207,7 +213,7 @@ export const PatientListScreen: React.FC<PatientListScreenProps> = ({
                   >
                     <div className="inline-flex items-center gap-2">
                       <RefreshCw className="w-4 h-4 animate-spin text-teal-600" />
-                      <span>Loading patients...</span>
+                      <span>{t("patients:list.loading")}</span>
                     </div>
                   </td>
                 </tr>
@@ -219,14 +225,14 @@ export const PatientListScreen: React.FC<PatientListScreenProps> = ({
                   >
                     <User className="w-8 h-8 text-slate-300 mx-auto mb-2" />
                     <p className="font-medium text-slate-700">
-                      No patients found
+                      {t("patients:list.empty_title")}
                     </p>
                     <p className="text-xs text-slate-400 mt-1">
                       {searchQuery
-                        ? "Try adjusting your search criteria"
+                        ? t("patients:list.empty_search")
                         : onNewPatient
-                          ? "Register your first patient using the button above"
-                          : "No patient records are available in your branch scope"}
+                          ? t("patients:list.empty_first")
+                          : t("patients:list.empty_scope")}
                     </p>
                   </td>
                 </tr>
@@ -248,23 +254,32 @@ export const PatientListScreen: React.FC<PatientListScreenProps> = ({
                             {patient.name}
                           </span>
                           <span className="text-xs text-slate-500">
-                            {age !== null ? `${age} years · ` : ""}
+                            {age !== null
+                              ? `${t("patients:list.age_years", { age })} · `
+                              : ""}
                             {formatSex(patient.sex)}
                           </span>
                         </div>
                       </td>
                       <td className="py-3.5 px-4 align-middle">
-                        <span className="font-mono text-xs font-medium text-slate-800 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                        <span
+                          dir="ltr"
+                          className="font-mono text-xs font-medium text-slate-800 bg-slate-100 px-2 py-0.5 rounded border border-slate-200"
+                        >
                           {patient.mrn}
                         </span>
                       </td>
                       <td className="py-3.5 px-4 align-middle text-sm text-slate-600">
-                        {patient.phone || "—"}
+                        {patient.phone ? (
+                          <bdi dir="ltr">{patient.phone}</bdi>
+                        ) : (
+                          "—"
+                        )}
                       </td>
                       <td className="py-3.5 px-4 align-middle text-sm text-slate-700">
                         {patient.is_cross_branch ? (
                           <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">
-                            Cross-Branch
+                            {t("patients:list.cross_branch")}
                           </span>
                         ) : (
                           patient.branch_name || "—"
@@ -273,10 +288,10 @@ export const PatientListScreen: React.FC<PatientListScreenProps> = ({
                       <td className="py-3.5 px-4 align-middle text-sm text-slate-500">
                         {patient.last_visit ||
                           (patient.created_at
-                            ? new Date(patient.created_at).toLocaleDateString()
+                            ? formatDate(patient.created_at)
                             : "—")}
                       </td>
-                      <td className="py-3.5 px-4 align-middle text-right">
+                      <td className="py-3.5 px-4 align-middle text-end">
                         <button
                           type="button"
                           onClick={(e) => {
@@ -285,7 +300,8 @@ export const PatientListScreen: React.FC<PatientListScreenProps> = ({
                           }}
                           className="text-xs font-semibold text-teal-700 hover:text-teal-900 inline-flex items-center gap-1 transition-colors"
                         >
-                          View <ArrowRight className="w-3.5 h-3.5" />
+                          {t("common:actions.view")}{" "}
+                          <ArrowRight className="w-3.5 h-3.5 rtl:rotate-180" />
                         </button>
                       </td>
                     </tr>

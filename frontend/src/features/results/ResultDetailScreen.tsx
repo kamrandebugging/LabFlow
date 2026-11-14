@@ -7,6 +7,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
+import { Trans, useTranslation } from "react-i18next";
 import {
   FlaskConical,
   CheckCircle2,
@@ -24,8 +25,13 @@ import {
 import { useAuthStore } from "../auth/authStore";
 import { resultsService } from "./resultsService";
 import type { ResultDetailRecord } from "./types";
+import { ApiError } from "../../lib/apiClient";
+import { messageForError } from "../../lib/errors";
+
+const BDI = { bdi: <bdi dir="ltr" /> };
 
 export function ResultDetailScreen(): JSX.Element {
+  const { t } = useTranslation(["results", "common"]);
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
@@ -53,6 +59,12 @@ export function ResultDetailScreen(): JSX.Element {
   const [submittingDecision, setSubmittingDecision] = useState(false);
   const [withdrawing, setWithdrawing] = useState(false);
 
+  /** API errors map through the catalogue; anything else uses screen text. */
+  const describeError = (err: unknown, fallbackKey: string): string =>
+    err instanceof ApiError
+      ? messageForError(err, (key) => t(key))
+      : t(fallbackKey);
+
   useEffect(() => {
     if (!id) return;
     // A reused route must never carry the previous result's attestation.
@@ -64,21 +76,18 @@ export function ResultDetailScreen(): JSX.Element {
         setErrorMessage(null);
         const data = await resultsService.getResultDetail(id!);
         if (!data) {
-          setErrorMessage("Result record not found or endpoint not available.");
+          setErrorMessage(t("results:detail.not_found_body"));
         } else {
           setDetail(data);
         }
       } catch (err) {
-        setErrorMessage(
-          err instanceof Error
-            ? err.message
-            : "Failed to load result detail record.",
-        );
+        setErrorMessage(describeError(err, "results:detail.load_error"));
       } finally {
         setLoading(false);
       }
     }
     loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   const handleSubmitDecision = async (e: React.FormEvent) => {
@@ -86,13 +95,11 @@ export function ResultDetailScreen(): JSX.Element {
     if (!id) return;
 
     if (decision === "rejected" && !decisionNote.trim()) {
-      setErrorMessage("A rejection note is mandatory.");
+      setErrorMessage(t("results:detail.rejection_note_required"));
       return;
     }
     if (decision === "approved" && !attestation) {
-      setErrorMessage(
-        "Confirm that you reviewed the reference range and critical thresholds.",
-      );
+      setErrorMessage(t("results:detail.attestation_required"));
       return;
     }
 
@@ -106,16 +113,16 @@ export function ResultDetailScreen(): JSX.Element {
         attestation: decision === "approved" ? attestation : false,
       });
 
-      setSuccessMessage(`Result ${decision} successfully.`);
+      setSuccessMessage(
+        decision === "approved"
+          ? t("results:detail.decision_approved_success")
+          : t("results:detail.decision_rejected_success"),
+      );
       setTimeout(() => {
         navigate("/results/approvals");
       }, 1200);
     } catch (err) {
-      setErrorMessage(
-        err instanceof Error
-          ? err.message
-          : "Failed to submit clinical decision.",
-      );
+      setErrorMessage(describeError(err, "results:detail.decision_error"));
     } finally {
       setSubmittingDecision(false);
     }
@@ -127,14 +134,12 @@ export function ResultDetailScreen(): JSX.Element {
       setWithdrawing(true);
       setErrorMessage(null);
       await resultsService.withdrawResult(id);
-      setSuccessMessage("Result successfully withdrawn.");
+      setSuccessMessage(t("results:detail.withdraw_success"));
       setTimeout(() => {
         navigate("/results/approvals");
       }, 1200);
     } catch (err) {
-      setErrorMessage(
-        err instanceof Error ? err.message : "Failed to withdraw result.",
-      );
+      setErrorMessage(describeError(err, "results:detail.withdraw_error"));
     } finally {
       setWithdrawing(false);
     }
@@ -145,7 +150,7 @@ export function ResultDetailScreen(): JSX.Element {
       <div className="py-24 flex flex-col items-center justify-center text-slate-500">
         <RefreshCw className="w-8 h-8 animate-spin text-teal-600 mb-2" />
         <span className="text-sm font-medium">
-          Loading diagnostic review...
+          {t("results:detail.loading")}
         </span>
       </div>
     );
@@ -156,7 +161,9 @@ export function ResultDetailScreen(): JSX.Element {
       <div className="w-full max-w-4xl mx-auto px-4 py-12">
         <div className="bg-slate-50 border border-slate-200 rounded-xl p-8 text-center space-y-4">
           <AlertCircle className="w-12 h-12 text-slate-400 mx-auto" />
-          <h2 className="text-lg font-bold text-slate-900">Result Not Found</h2>
+          <h2 className="text-lg font-bold text-slate-900">
+            {t("results:detail.not_found_title")}
+          </h2>
           <p className="text-xs text-slate-500 max-w-md mx-auto">
             {errorMessage}
           </p>
@@ -165,8 +172,8 @@ export function ResultDetailScreen(): JSX.Element {
               to={backPath}
               className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg text-xs font-semibold hover:bg-slate-100 transition-colors"
             >
-              <ArrowLeft className="w-4 h-4" />
-              <span>Back</span>
+              <ArrowLeft className="w-4 h-4 rtl:rotate-180" />
+              <span>{t("common:actions.back")}</span>
             </Link>
           </div>
         </div>
@@ -179,7 +186,7 @@ export function ResultDetailScreen(): JSX.Element {
       {/* Top Header & Breadcrumbs */}
       <div className="flex flex-col gap-2">
         <nav
-          aria-label="Breadcrumb"
+          aria-label={t("results:breadcrumb_aria")}
           className="flex items-center gap-2 text-xs font-medium text-slate-500"
         >
           <Link
@@ -187,15 +194,15 @@ export function ResultDetailScreen(): JSX.Element {
             className="hover:text-slate-900 transition-colors flex items-center gap-1"
           >
             <ShieldCheck className="w-3.5 h-3.5 text-teal-700" />
-            <span>Approvals</span>
+            <span>{t("common:nav.approvals")}</span>
           </Link>
           <span className="text-slate-400">/</span>
           <span className="font-mono text-slate-700">
-            {detail?.accession_id}
+            <bdi dir="ltr">{detail?.accession_id}</bdi>
           </span>
           <span className="text-slate-400">/</span>
           <span className="text-slate-900 font-semibold">
-            {detail?.test_name}
+            <bdi dir="ltr">{detail?.test_name}</bdi>
           </span>
         </nav>
 
@@ -203,36 +210,44 @@ export function ResultDetailScreen(): JSX.Element {
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex items-center gap-2">
               <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-                {detail?.test_name}
+                <bdi dir="ltr">{detail?.test_name}</bdi>
               </h1>
               {detail?.is_critical && (
                 <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-800">
                   <span className="w-1.5 h-1.5 rounded-full bg-red-600 animate-pulse" />
-                  CRITICAL
+                  {t("results:critical_badge")}
                 </span>
               )}
             </div>
 
             <div className="flex items-center gap-2 bg-slate-50 px-3 py-1 rounded-full border border-slate-200 text-xs">
-              <span className="text-slate-500">Patient:</span>
+              <span className="text-slate-500">
+                {t("results:columns.patient")}:
+              </span>
               <span className="font-semibold text-slate-900">
-                {detail?.patient_name}
+                <bdi dir="ltr">{detail?.patient_name}</bdi>
               </span>
               <span className="text-slate-300">·</span>
               <span className="font-mono text-slate-500">
-                {detail?.patient_mrn}
+                <bdi dir="ltr">{detail?.patient_mrn}</bdi>
               </span>
               <span className="text-slate-300">·</span>
               <span className="text-slate-600">
                 {detail?.patient_sex === "M"
-                  ? "Male"
+                  ? t("results:sex_male")
                   : detail?.patient_sex === "F"
-                    ? "Female"
+                    ? t("results:sex_female")
                     : "—"}
                 ,{" "}
-                {detail?.patient_age_years !== undefined
-                  ? `${detail.patient_age_years}y`
-                  : "—"}
+                {detail?.patient_age_years !== undefined ? (
+                  <Trans
+                    i18nKey="results:age_short"
+                    values={{ age: detail.patient_age_years }}
+                    components={BDI}
+                  />
+                ) : (
+                  "—"
+                )}
               </span>
             </div>
           </div>
@@ -248,7 +263,7 @@ export function ResultDetailScreen(): JSX.Element {
                 className="px-3 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
               >
                 <RotateCcw className="w-3.5 h-3.5 text-slate-500" />
-                <span>Withdraw result</span>
+                <span>{t("results:detail.withdraw")}</span>
               </button>
             ) : null}
 
@@ -258,7 +273,7 @@ export function ResultDetailScreen(): JSX.Element {
                 className="px-3 py-1.5 rounded-lg border border-teal-200 bg-teal-50 hover:bg-teal-100 text-teal-800 text-xs font-semibold transition-colors flex items-center gap-1.5 cursor-pointer"
               >
                 <Edit3 className="w-3.5 h-3.5" />
-                <span>Amend result</span>
+                <span>{t("results:amend_result")}</span>
               </Link>
             ) : null}
           </div>
@@ -296,11 +311,15 @@ export function ResultDetailScreen(): JSX.Element {
               <div className="flex items-center gap-2">
                 <FlaskConical className="w-4 h-4 text-teal-700" />
                 <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                  Result Details
+                  {t("results:detail.card_details")}
                 </h2>
               </div>
               <span className="font-mono text-xs text-slate-600 bg-slate-100 px-2.5 py-0.5 rounded">
-                {detail?.test_code || "—"}
+                {detail?.test_code ? (
+                  <bdi dir="ltr">{detail.test_code}</bdi>
+                ) : (
+                  "—"
+                )}
               </span>
             </div>
 
@@ -309,10 +328,10 @@ export function ResultDetailScreen(): JSX.Element {
               <div>
                 <div className="flex items-baseline gap-2">
                   <span className="text-5xl font-extrabold font-mono text-red-700 tracking-tight">
-                    {detail?.value}
+                    <bdi dir="ltr">{detail?.value}</bdi>
                   </span>
                   <span className="text-lg font-medium text-slate-600">
-                    {detail?.unit}
+                    <bdi dir="ltr">{detail?.unit}</bdi>
                   </span>
                 </div>
                 <div
@@ -329,22 +348,37 @@ export function ResultDetailScreen(): JSX.Element {
                   />
                   <span>
                     {detail?.is_critical
-                      ? "critical"
-                      : detail?.flag || "no flag"}
+                      ? t("results:detail.flag_critical")
+                      : detail?.flag || t("results:detail.no_flag")}
                   </span>
                 </div>
               </div>
 
-              <div className="text-left sm:text-right">
+              <div className="text-start sm:text-right">
                 <span className="text-[10px] uppercase tracking-wider text-slate-400 font-bold block">
-                  Reference Interval
+                  {t("results:columns.reference")}
                 </span>
                 <span className="font-mono text-sm font-semibold text-slate-900 block mt-0.5">
-                  Matched: {detail?.matched_range || "Not configured"}
+                  <Trans
+                    i18nKey="results:detail.matched"
+                    values={{
+                      range:
+                        detail?.matched_range ||
+                        t("results:detail.not_configured"),
+                    }}
+                    components={BDI}
+                  />
                 </span>
                 <span className="text-xs text-red-700 font-semibold block mt-0.5">
-                  Critical Panic Threshold:{" "}
-                  {detail?.critical_threshold || "Not configured"}
+                  <Trans
+                    i18nKey="results:detail.panic_threshold"
+                    values={{
+                      range:
+                        detail?.critical_threshold ||
+                        t("results:detail.not_configured"),
+                    }}
+                    components={BDI}
+                  />
                 </span>
               </div>
             </div>
@@ -353,43 +387,59 @@ export function ResultDetailScreen(): JSX.Element {
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2 text-xs border-t border-slate-100">
               <div>
                 <span className="text-slate-400 font-medium text-[10px] uppercase block">
-                  Specimen
+                  {t("results:detail.specimen")}
                 </span>
                 <span className="font-semibold text-slate-800 mt-0.5 block">
-                  {detail?.specimen_type || "—"}
+                  {detail?.specimen_type ? (
+                    <bdi dir="ltr">{detail.specimen_type}</bdi>
+                  ) : (
+                    "—"
+                  )}
                 </span>
               </div>
               <div>
                 <span className="text-slate-400 font-medium text-[10px] uppercase block">
-                  Test Code
+                  {t("results:test_code")}
                 </span>
                 <span className="font-semibold text-slate-800 mt-0.5 block">
-                  {detail?.test_code || "—"}
+                  {detail?.test_code ? (
+                    <bdi dir="ltr">{detail.test_code}</bdi>
+                  ) : (
+                    "—"
+                  )}
                 </span>
               </div>
               <div>
                 <span className="text-slate-400 font-medium text-[10px] uppercase block">
-                  Entered At
+                  {t("results:detail.entered_at")}
                 </span>
                 <span className="font-mono text-slate-800 mt-0.5 block">
-                  {detail?.entered_at
-                    ? new Date(detail.entered_at).toLocaleString([], {
+                  {detail?.entered_at ? (
+                    <bdi dir="ltr">
+                      {new Date(detail.entered_at).toLocaleString([], {
                         day: "2-digit",
                         month: "short",
                         year: "numeric",
                         hour: "2-digit",
                         minute: "2-digit",
                         hour12: false,
-                      })
-                    : "—"}
+                      })}
+                    </bdi>
+                  ) : (
+                    "—"
+                  )}
                 </span>
               </div>
               <div>
                 <span className="text-slate-400 font-medium text-[10px] uppercase block">
-                  Entered By
+                  {t("results:columns.entered_by")}
                 </span>
                 <span className="font-semibold text-slate-800 mt-0.5 block">
-                  {detail?.entered_by_name || "—"}
+                  {detail?.entered_by_name ? (
+                    <bdi dir="ltr">{detail.entered_by_name}</bdi>
+                  ) : (
+                    "—"
+                  )}
                 </span>
               </div>
             </div>
@@ -401,13 +451,19 @@ export function ResultDetailScreen(): JSX.Element {
               <div className="flex items-center gap-2">
                 <TrendingUp className="w-4 h-4 text-amber-600" />
                 <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                  Delta Check
+                  {t("results:detail.delta_title")}
                 </h2>
               </div>
               {detail?.previous_value ? (
                 <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200">
                   <AlertTriangle className="w-3 h-3" />
-                  <span>{detail.delta_note || "Prior result available"}</span>
+                  <span>
+                    {detail.delta_note ? (
+                      <bdi dir="ltr">{detail.delta_note}</bdi>
+                    ) : (
+                      t("results:detail.prior_available")
+                    )}
+                  </span>
                 </span>
               ) : (
                 <span className="text-xs text-slate-500">—</span>
@@ -418,27 +474,36 @@ export function ResultDetailScreen(): JSX.Element {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50 p-4 rounded-lg border border-slate-100">
                 <div>
                   <span className="font-semibold text-slate-900 text-sm block">
-                    Previous approved: {detail.previous_value}
+                    <Trans
+                      i18nKey="results:detail.previous_approved"
+                      values={{ value: detail.previous_value }}
+                      components={BDI}
+                    />
                   </span>
                   {detail.previous_date && (
                     <span className="text-xs text-slate-500">
-                      Validated on {detail.previous_date}
+                      <Trans
+                        i18nKey="results:detail.validated_on"
+                        values={{ date: detail.previous_date }}
+                        components={BDI}
+                      />
                     </span>
                   )}
                 </div>
                 {detail.shift_rate && (
                   <div className="font-mono text-xs">
-                    <span className="text-slate-500">Shift Rate: </span>
+                    <span className="text-slate-500">
+                      {t("results:detail.shift_rate_label")}{" "}
+                    </span>
                     <span className="font-bold text-amber-700">
-                      {detail.shift_rate}
+                      <bdi dir="ltr">{detail.shift_rate}</bdi>
                     </span>
                   </div>
                 )}
               </div>
             ) : (
               <p className="text-xs text-slate-500 bg-slate-50 p-4 rounded-lg border border-slate-100">
-                No prior approved result is available for a longitudinal delta
-                comparison.
+                {t("results:detail.no_prior")}
               </p>
             )}
           </div>
@@ -452,51 +517,70 @@ export function ResultDetailScreen(): JSX.Element {
               <div className="flex items-center gap-2">
                 <PhoneCall className="w-4 h-4 text-teal-700" />
                 <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                  Critical Notification
+                  {t("results:detail.critical_notification_title")}
                 </h2>
               </div>
               <span className="text-xs font-mono font-semibold text-teal-800 bg-teal-50 px-2 py-0.5 rounded">
-                Read-back:{" "}
-                {detail?.critical_notification
-                  ? detail.critical_notification.read_back
-                    ? "Yes"
-                    : "No"
-                  : "—"}
+                <Trans
+                  i18nKey="results:detail.read_back"
+                  values={{
+                    value: detail?.critical_notification
+                      ? detail.critical_notification.read_back
+                        ? t("common:labels.yes")
+                        : t("common:labels.no")
+                      : "—",
+                  }}
+                  components={BDI}
+                />
               </span>
             </div>
 
             {detail?.critical_notification ? (
               <div className="bg-slate-50 p-4 rounded-lg border border-slate-100 space-y-1">
                 <div className="text-xs text-slate-400 font-semibold uppercase tracking-wider">
-                  Immediate Verbal Dispatch
+                  {t("results:detail.verbal_dispatch")}
                 </div>
                 <p className="text-sm font-semibold text-slate-900">
-                  Notified: {detail.critical_notification.notified_name}
+                  <Trans
+                    i18nKey="results:detail.notified"
+                    values={{
+                      name: detail.critical_notification.notified_name,
+                    }}
+                    components={BDI}
+                  />
                 </p>
                 <p className="text-xs text-slate-500">
-                  Notified at{" "}
-                  {new Date(
-                    detail.critical_notification.notified_at,
-                  ).toLocaleString([], {
-                    day: "2-digit",
-                    month: "short",
-                    year: "numeric",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                    hour12: false,
-                  })}
+                  <Trans
+                    i18nKey="results:detail.notified_at"
+                    values={{
+                      date: new Date(
+                        detail.critical_notification.notified_at,
+                      ).toLocaleString([], {
+                        day: "2-digit",
+                        month: "short",
+                        year: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        hour12: false,
+                      }),
+                    }}
+                    components={BDI}
+                  />
                 </p>
               </div>
             ) : (
               <p className="text-xs text-slate-500 bg-slate-50 p-4 rounded-lg border border-slate-100">
-                No critical notification has been recorded for this result.
+                {t("results:detail.no_notification")}
               </p>
             )}
 
             <div className="text-xs text-slate-500 flex items-center gap-1.5 pt-1">
               <ShieldCheck className="w-4 h-4 text-teal-700 shrink-0" />
               <span>
-                Compliant with ISO 15189:2022 §7.3.3 verbal panic protocol
+                <Trans
+                  i18nKey="results:detail.iso_compliance"
+                  components={BDI}
+                />
               </span>
             </div>
           </div>
@@ -507,11 +591,11 @@ export function ResultDetailScreen(): JSX.Element {
               <div className="flex items-center gap-2">
                 <ShieldCheck className="w-4 h-4 text-teal-700" />
                 <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                  Pathologist Decision
+                  {t("results:detail.decision_title")}
                 </h2>
               </div>
               <span className="text-xs font-mono text-slate-500">
-                Sign-off Desk
+                {t("results:detail.signoff_desk")}
               </span>
             </div>
 
@@ -536,11 +620,11 @@ export function ResultDetailScreen(): JSX.Element {
                         className="accent-teal-700"
                       />
                       <span className="text-xs font-bold text-slate-900">
-                        Approve
+                        {t("results:detail.approve")}
                       </span>
                     </div>
-                    <span className="text-[10px] text-slate-500 mt-1 pl-5">
-                      Release to EHR report
+                    <span className="text-[10px] text-slate-500 mt-1 ps-5">
+                      {t("results:detail.release_to_ehr")}
                     </span>
                   </label>
 
@@ -561,11 +645,11 @@ export function ResultDetailScreen(): JSX.Element {
                         className="accent-red-600"
                       />
                       <span className="text-xs font-bold text-slate-900">
-                        Reject
+                        {t("results:detail.reject")}
                       </span>
                     </div>
-                    <span className="text-[10px] text-slate-500 mt-1 pl-5">
-                      Request Recollect
+                    <span className="text-[10px] text-slate-500 mt-1 ps-5">
+                      {t("results:detail.request_recollect")}
                     </span>
                   </label>
                 </div>
@@ -573,17 +657,17 @@ export function ResultDetailScreen(): JSX.Element {
                 {/* Rationale Input */}
                 <div className="space-y-1">
                   <label className="text-xs font-semibold text-slate-700 flex items-center justify-between">
-                    <span>Decision Note</span>
+                    <span>{t("results:detail.decision_note")}</span>
                     {decision === "rejected" && (
                       <span className="text-red-600 text-[10px] font-bold">
-                        Mandatory for rejection
+                        {t("results:detail.mandatory_for_rejection")}
                       </span>
                     )}
                   </label>
                   <textarea
                     value={decisionNote}
                     onChange={(e) => setDecisionNote(e.target.value)}
-                    placeholder="Document clinical review rationale, verbal notifications, and clinical validation reasons..."
+                    placeholder={t("results:detail.decision_placeholder")}
                     rows={3}
                     className="w-full text-xs p-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-600"
                   />
@@ -597,17 +681,14 @@ export function ResultDetailScreen(): JSX.Element {
                       onChange={(e) => setAttestation(e.target.checked)}
                       className="mt-0.5 accent-teal-700"
                     />
-                    <span>
-                      I reviewed the reference range and critical thresholds for
-                      this result.
-                    </span>
+                    <span>{t("results:detail.attestation")}</span>
                   </label>
                 )}
 
                 {/* Policy note */}
                 <div className="flex items-center gap-2 text-xs text-slate-500 bg-slate-50 p-2.5 rounded-lg border border-slate-100">
                   <Info className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                  <span>Decision is locked to permanent audit ledger.</span>
+                  <span>{t("results:detail.decision_locked")}</span>
                 </div>
 
                 {/* Submit button */}
@@ -622,20 +703,19 @@ export function ResultDetailScreen(): JSX.Element {
                   {submittingDecision ? (
                     <>
                       <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                      <span>Transmitting decision...</span>
+                      <span>{t("results:detail.transmitting")}</span>
                     </>
                   ) : (
                     <>
                       <CheckCircle2 className="w-3.5 h-3.5" />
-                      <span>Submit decision</span>
+                      <span>{t("results:detail.submit_decision")}</span>
                     </>
                   )}
                 </button>
               </form>
             ) : (
               <p className="text-xs text-slate-500 bg-slate-50 p-4 rounded-lg border border-slate-100">
-                Read-only view. Only a Pathologist or the Owner may approve or
-                reject this result.
+                {t("results:detail.read_only")}
               </p>
             )}
           </div>

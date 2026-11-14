@@ -158,9 +158,19 @@ describe("Screen 01: Staff Login (01-staff-login.html & Doc 07 §5.1)", () => {
 
       await user.click(urduBtn);
       expect(changeLanguageSpy).toHaveBeenCalledWith("ur");
+      await waitFor(() => {
+        expect(document.documentElement.dir).toBe("rtl");
+        expect(document.documentElement.lang).toBe("ur");
+        expect(window.localStorage.getItem("labflow.lang")).toBe("ur");
+        expect(screen.getByText("پاس ورڈ")).toBeInTheDocument();
+      });
 
       await user.click(englishBtn);
       expect(changeLanguageSpy).toHaveBeenCalledWith("en");
+      await waitFor(() => {
+        expect(document.documentElement.dir).toBe("ltr");
+        expect(window.localStorage.getItem("labflow.lang")).toBe("en");
+      });
     });
   });
 

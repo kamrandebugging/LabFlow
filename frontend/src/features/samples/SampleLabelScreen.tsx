@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   ArrowLeft,
   CheckCircle2,
@@ -10,6 +11,8 @@ import {
   ShieldCheck,
   X,
 } from "lucide-react";
+import { messageForError } from "../../lib/errors";
+import { formatDate } from "../../lib/format";
 import { Code128Barcode } from "./components/Code128Barcode";
 import { sampleService } from "./sampleService";
 import type { SampleLabelData } from "./types";
@@ -25,6 +28,7 @@ export function SampleLabelScreen({
   onBack,
   service = sampleService,
 }: SampleLabelScreenProps): JSX.Element {
+  const { t } = useTranslation(["samples", "common"]);
   const [labelData, setLabelData] = useState<SampleLabelData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -38,13 +42,11 @@ export function SampleLabelScreen({
       const data = await service.getLabel(sampleId);
       setLabelData(data);
     } catch (err: unknown) {
-      const msg =
-        err instanceof Error ? err.message : "Failed to load sample label";
-      setErrorMessage(msg);
+      setErrorMessage(messageForError(err, t));
     } finally {
       setIsLoading(false);
     }
-  }, [sampleId, service]);
+  }, [sampleId, service, t]);
 
   useEffect(() => {
     loadLabel();
@@ -53,21 +55,23 @@ export function SampleLabelScreen({
   // Toast auto-dismiss
   useEffect(() => {
     if (!toastMessage) return;
-    const t = setTimeout(() => setToastMessage(null), 4000);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setToastMessage(null), 4000);
+    return () => clearTimeout(timer);
   }, [toastMessage]);
 
   const handlePrint = () => {
     setPrintCount((c) => c + 1);
     setToastMessage(
-      `Print job dispatched to thermal printer for ${labelData?.accession_id}.`,
+      t("samples:label.print_dispatched_desc", {
+        accession: labelData?.accession_id,
+      }),
     );
     window.print();
   };
 
   const handleReprint = () => {
     setPrintCount((c) => c + 1);
-    setToastMessage(`Reprint #${printCount} audit logged under ISO 15189.`);
+    setToastMessage(t("samples:label.reprint_logged", { n: printCount }));
     window.print();
   };
 
@@ -75,7 +79,7 @@ export function SampleLabelScreen({
     return (
       <main className="w-full min-h-screen bg-slate-50 flex flex-col items-center justify-center p-8 text-slate-600">
         <RotateCw className="w-8 h-8 animate-spin text-teal-600 mb-3" />
-        <p className="text-sm font-medium">Generating barcode label...</p>
+        <p className="text-sm font-medium">{t("samples:label.generating")}</p>
       </main>
     );
   }
@@ -85,15 +89,15 @@ export function SampleLabelScreen({
       <main className="w-full min-h-screen bg-slate-50 flex flex-col items-center justify-center p-8">
         <div className="bg-white border border-red-200 rounded-xl p-6 max-w-md w-full shadow-sm text-center">
           <p className="text-sm text-red-600 mb-4">
-            {errorMessage || "Label data unavailable"}
+            {errorMessage || t("samples:label.unavailable")}
           </p>
           <button
             type="button"
             onClick={onBack}
             className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-teal-600 text-white text-sm font-medium hover:bg-teal-700"
           >
-            <ArrowLeft className="w-4 h-4" />
-            Back to Details
+            <ArrowLeft className="w-4 h-4 rtl:rotate-180" />
+            {t("samples:label.back_to_details")}
           </button>
         </div>
       </main>
@@ -133,7 +137,7 @@ export function SampleLabelScreen({
         <div className="mb-6 sm:mb-8 no-print">
           <div className="flex items-center justify-between mb-1">
             <nav
-              aria-label="Breadcrumb"
+              aria-label={t("samples:breadcrumbs.aria")}
               className="flex items-center gap-1.5 text-xs text-slate-500"
             >
               <button
@@ -142,39 +146,38 @@ export function SampleLabelScreen({
                 className="hover:text-teal-700 transition-colors flex items-center gap-1"
               >
                 <FlaskConical className="w-3.5 h-3.5 text-teal-600" />
-                <span>Samples</span>
+                <span>{t("common:nav.samples")}</span>
               </button>
               <span>/</span>
-              <span className="font-mono text-slate-700">{d.accession_id}</span>
+              <span className="font-mono text-slate-700" dir="ltr">
+                {d.accession_id}
+              </span>
               <span>/</span>
-              <span className="text-slate-800 font-semibold">Label</span>
+              <span className="text-slate-800 font-semibold">
+                {t("samples:label.breadcrumb_label")}
+              </span>
             </nav>
             <div className="text-xs text-slate-500 flex items-center gap-1.5">
               <Clock className="w-3.5 h-3.5 text-slate-400" />
               <span>
                 {d.collected_at
-                  ? `${new Date(d.collected_at).toLocaleDateString("en-GB", {
-                      day: "2-digit",
-                      month: "short",
-                      year: "numeric",
-                      timeZone: "Asia/Karachi",
-                    })} · times are PKT`
-                  : "Times are PKT"}
+                  ? `${formatDate(d.collected_at)} · ${t("common:time.pkt")}`
+                  : t("samples:label.times_are_pkt")}
               </span>
             </div>
           </div>
 
           <div className="flex items-center justify-between pt-1">
             <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-              Sample label
+              {t("samples:label.title")}
             </h1>
             <button
               type="button"
               onClick={onBack}
               className="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-slate-800 transition-colors font-medium"
             >
-              <ArrowLeft className="w-4 h-4" />
-              <span>Back to sample details</span>
+              <ArrowLeft className="w-4 h-4 rtl:rotate-180" />
+              <span>{t("samples:label.back_to_sample_details")}</span>
             </button>
           </div>
         </div>
@@ -185,18 +188,18 @@ export function SampleLabelScreen({
           <div className="w-full max-w-md mb-6 flex items-center justify-between text-xs text-slate-500 pb-3 border-b border-slate-100 no-print">
             <div className="flex items-center gap-1.5">
               <Printer className="w-4 h-4 text-slate-400" />
-              <span>Thermal Specimen Label (50mm × 25mm)</span>
+              <span>{t("samples:label.thermal_size")}</span>
             </div>
             <span className="font-mono text-slate-400">
-              DPI 203 · Direct Thermal
+              {t("samples:label.print_mode")}
             </span>
           </div>
 
           {/* THE PRINT PREVIEW (Real Proportions, thin dashed cut border) */}
           <div className="printable-label bg-white border-2 border-dashed border-slate-300 rounded-md p-4 sm:p-5 w-full max-w-[380px] shadow-sm relative transition-all hover:border-slate-400">
             {/* Cut line corner marker */}
-            <div className="absolute -top-2.5 left-4 bg-white px-1.5 text-[10px] font-mono uppercase tracking-wider text-slate-400 border border-slate-200 rounded no-print">
-              Cut line
+            <div className="absolute -top-2.5 start-4 bg-white px-1.5 text-[10px] font-mono uppercase tracking-wider text-slate-400 border border-slate-200 rounded no-print">
+              {t("samples:label.cut_line")}
             </div>
 
             <div className="bg-white flex flex-col items-center text-center select-none pt-1 pb-1">
@@ -248,7 +251,7 @@ export function SampleLabelScreen({
           <div className="mt-6 pt-6 border-t border-slate-100 w-full max-w-md grid grid-cols-2 gap-y-2 gap-x-4 text-xs no-print">
             <div>
               <span className="text-slate-400 block text-[11px]">
-                Patient MRN
+                {t("samples:label.patient_mrn")}
               </span>
               <span className="font-mono font-medium text-slate-800">
                 {d.mrn}
@@ -256,7 +259,7 @@ export function SampleLabelScreen({
             </div>
             <div>
               <span className="text-slate-400 block text-[11px]">
-                Primary Specimen
+                {t("samples:label.primary_specimen")}
               </span>
               <span className="font-medium text-slate-800">
                 {d.tests?.length ? d.tests.join(", ") : "—"}
@@ -264,7 +267,7 @@ export function SampleLabelScreen({
             </div>
             <div>
               <span className="text-slate-400 block text-[11px]">
-                Collected By
+                {t("samples:label.collected_by")}
               </span>
               <span className="font-medium text-slate-800">
                 {d.collected_by || "—"}
@@ -272,7 +275,7 @@ export function SampleLabelScreen({
             </div>
             <div>
               <span className="text-slate-400 block text-[11px]">
-                Accessioning Branch
+                {t("samples:label.accessioning_branch")}
               </span>
               <span className="font-medium text-slate-800">
                 {d.branch_name || "—"}
@@ -290,7 +293,7 @@ export function SampleLabelScreen({
                 className="flex-1 bg-teal-600 hover:bg-teal-700 text-white font-medium py-2.5 px-4 rounded-lg shadow-sm flex items-center justify-center gap-2 transition-colors cursor-pointer text-sm"
               >
                 <Printer className="w-4 h-4" />
-                <span>Print</span>
+                <span>{t("common:actions.print")}</span>
               </button>
 
               {/* Reprint Button */}
@@ -300,14 +303,14 @@ export function SampleLabelScreen({
                 className="flex-1 bg-white hover:bg-slate-50 text-slate-700 font-medium py-2.5 px-4 rounded-lg border border-slate-300 shadow-sm flex items-center justify-center gap-2 transition-colors cursor-pointer text-sm"
               >
                 <RotateCcw className="w-4 h-4" />
-                <span>Reprint</span>
+                <span>{t("samples:actions.reprint")}</span>
               </button>
             </div>
 
             {/* Audit Note */}
             <p className="text-xs text-slate-500 flex items-center gap-1 text-center">
               <ShieldCheck className="w-4 h-4 text-slate-400" />
-              <span>Prints and reprints are audit-logged.</span>
+              <span>{t("samples:label.audit_note")}</span>
             </p>
           </div>
         </div>
@@ -315,8 +318,7 @@ export function SampleLabelScreen({
 
       {/* System Protocol Footer */}
       <footer className="mt-8 text-center text-xs text-slate-400 py-2 border-t border-slate-200 no-print">
-        LabFlow LIMS · ISO 15189 Specimen Identification &amp; Chain of Custody
-        Standard
+        {t("samples:label.footer")}
       </footer>
 
       {/* Floating Toast Notification */}
@@ -324,12 +326,12 @@ export function SampleLabelScreen({
         <aside
           role="status"
           aria-live="polite"
-          className="fixed bottom-4 right-4 z-50 bg-white rounded-lg shadow-lg border border-slate-200 p-4 max-w-sm w-80 flex items-start gap-3 animate-in fade-in slide-in-from-bottom-2 no-print"
+          className="fixed bottom-4 end-4 z-50 bg-white rounded-lg shadow-lg border border-slate-200 p-4 max-w-sm w-80 flex items-start gap-3 animate-in fade-in slide-in-from-bottom-2 no-print"
         >
           <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
           <div className="flex-1 min-w-0">
             <h4 className="text-xs font-semibold text-slate-900">
-              Print Dispatched
+              {t("samples:label.print_dispatched")}
             </h4>
             <p className="text-xs text-slate-600 mt-0.5 leading-snug">
               {toastMessage}
@@ -339,7 +341,7 @@ export function SampleLabelScreen({
             type="button"
             onClick={() => setToastMessage(null)}
             className="text-slate-400 hover:text-slate-600 p-1"
-            aria-label="Close notification"
+            aria-label={t("samples:label.close_notification")}
           >
             <X className="w-4 h-4" />
           </button>

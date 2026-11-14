@@ -148,6 +148,10 @@ describe("RulesScreen (Screen 38)", () => {
       await screen.findByRole("heading", { name: "Shifa Medical Centre" }),
     ).toBeInTheDocument();
     expect(screen.getByText("Active Partner")).toBeInTheDocument();
+    expect(screen.getByText("+92 321 4567890").closest("bdi")).toHaveAttribute(
+      "dir",
+      "ltr",
+    );
     expect(screen.getByText("Total rules active: 4")).toBeInTheDocument();
 
     // Specificity groups check

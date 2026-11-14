@@ -1,9 +1,12 @@
 import React, { useEffect, useRef, useState } from "react";
+import { Trans, useTranslation } from "react-i18next";
 import { useAuthStore } from "../auth/authStore";
-import { settingsService, SettingsApiError } from "./settingsService";
+import { messageForError } from "../../lib/errors";
+import { settingsService } from "./settingsService";
 import type { DataExport } from "./types";
 
 export const DataExportScreen: React.FC = () => {
+  const { t } = useTranslation(["settings", "common"]);
   const user = useAuthStore((s) => s.user);
   const isOwner = user?.role === "owner";
 
@@ -38,20 +41,15 @@ export const DataExportScreen: React.FC = () => {
 
         if (statusData.status === "complete" || statusData.status === "ready") {
           cleanupPolling();
-          setSuccessMsg(
-            "Export bundle generated successfully! Download is ready below.",
-          );
+          setSuccessMsg(t("settings:exports.generated"));
         } else if (statusData.status === "failed") {
           cleanupPolling();
-          setErrorMsg(
-            statusData.error_message ||
-              "Data export processing failed. Please try again.",
-          );
+          setErrorMsg(t("settings:exports.failed_poll"));
         }
       } catch (err: unknown) {
         cleanupPolling();
         setErrorMsg(
-          err instanceof Error ? err.message : "Error polling export status",
+          messageForError(err, (key, options) => t(`common:${key}`, options)),
         );
       }
     }, 2000);
@@ -76,13 +74,9 @@ export const DataExportScreen: React.FC = () => {
       setActiveExport(initialExport);
       startPolling(result.export_id);
     } catch (err: unknown) {
-      if (err instanceof SettingsApiError) {
-        setErrorMsg(err.message);
-      } else {
-        setErrorMsg(
-          err instanceof Error ? err.message : "Failed to request data export",
-        );
-      }
+      setErrorMsg(
+        messageForError(err, (key, options) => t(`common:${key}`, options)),
+      );
     } finally {
       setIsRequesting(false);
     }
@@ -94,17 +88,19 @@ export const DataExportScreen: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-3 border-b border-slate-200">
         <div>
           <div className="flex items-center gap-2 text-xs text-slate-500 mb-1">
-            <span>Settings</span>
-            <span className="material-symbols-outlined text-[14px]">
+            <span>{t("common:nav.settings")}</span>
+            <span className="material-symbols-outlined text-[14px] rtl:rotate-180">
               chevron_right
             </span>
-            <span className="text-teal-700 font-medium">Exports</span>
+            <span className="text-teal-700 font-medium">
+              {t("settings:exports.breadcrumb")}
+            </span>
           </div>
           <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-            Data Export
+            {t("settings:exports.title")}
           </h1>
           <p className="text-sm text-slate-600 mt-0.5">
-            Audited export of complete laboratory data (Doc 04 §4.3)
+            {t("settings:exports.subtitle")}
           </p>
         </div>
 
@@ -113,7 +109,7 @@ export const DataExportScreen: React.FC = () => {
             <span className="material-symbols-outlined text-[15px] text-teal-600">
               lock
             </span>
-            <span>AES-256 Archive</span>
+            <span>{t("settings:exports.archive_badge")}</span>
           </span>
         </div>
       </div>
@@ -125,7 +121,7 @@ export const DataExportScreen: React.FC = () => {
             error
           </span>
           <div>
-            <p className="font-semibold">Export Request Error</p>
+            <p className="font-semibold">{t("settings:exports.error_title")}</p>
             <p className="text-red-700 mt-0.5">{errorMsg}</p>
           </div>
         </div>
@@ -147,21 +143,23 @@ export const DataExportScreen: React.FC = () => {
         </span>
         <div className="space-y-1">
           <p className="font-bold text-amber-950">
-            Security &amp; Confidentiality Guarantee
+            {t("settings:exports.guarantee_title")}
           </p>
           <p className="leading-relaxed text-amber-800">
-            Export archives contain complete historical records for your
-            laboratory (one CSV per tenant table, all report PDFs, and a{" "}
-            <code className="font-mono bg-amber-100/80 px-1 py-0.5 rounded text-amber-900">
-              manifest.json
-            </code>{" "}
-            with row counts and SHA-256 integrity hashes).
+            <Trans
+              i18nKey="settings:exports.guarantee_body"
+              components={{
+                code: (
+                  <code className="font-mono bg-amber-100/80 px-1 py-0.5 rounded text-amber-900" />
+                ),
+              }}
+            />
           </p>
           <p className="font-semibold text-amber-950 pt-0.5">
-            Sensitive authentication secrets are NEVER exported: passwords
-            (password_hash), two-factor TOTP secrets (totp_secret_encrypted),
-            recovery backup codes (totp_backup_codes_hash), and all access token
-            hashes are strictly excluded.
+            <Trans
+              i18nKey="settings:exports.secrets_body"
+              components={{ bdi: <bdi dir="ltr" /> }}
+            />
           </p>
         </div>
       </div>
@@ -171,46 +169,45 @@ export const DataExportScreen: React.FC = () => {
         <div className="flex items-start justify-between">
           <div>
             <h2 className="text-base font-bold text-slate-900">
-              Request Data Portability Export
+              {t("settings:exports.request_title")}
             </h2>
             <p className="text-xs text-slate-500 mt-1">
-              Creates a signed ZIP archive of all database tables, specimen
-              custody logs, and clinical documents.
+              {t("settings:exports.request_desc")}
             </p>
           </div>
           <span className="text-xs text-slate-500 bg-slate-100 border border-slate-200 px-2.5 py-1 rounded-md font-medium">
-            Owner Only
+            {t("settings:exports.owner_only")}
           </span>
         </div>
 
         {/* Export Scope Details */}
         <div className="space-y-2">
           <p className="text-xs font-semibold text-slate-700 uppercase tracking-wider">
-            Archive Contents &amp; Scope
+            {t("settings:exports.scope_title")}
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 text-xs">
             <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-1">
               <span className="font-bold text-slate-900 block">
-                Patients &amp; Invoices
+                {t("settings:exports.scope_patients")}
               </span>
               <span className="text-slate-500 block">
-                Demographics, MRNs, billing vouchers, payments
+                {t("settings:exports.scope_patients_desc")}
               </span>
             </div>
             <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-1">
               <span className="font-bold text-slate-900 block">
-                Samples &amp; Results
+                {t("settings:exports.scope_samples")}
               </span>
               <span className="text-slate-500 block">
-                Accessions, custody transfers, analyte values
+                {t("settings:exports.scope_samples_desc")}
               </span>
             </div>
             <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-1">
               <span className="font-bold text-slate-900 block">
-                Reports &amp; Catalog
+                {t("settings:exports.scope_reports")}
               </span>
               <span className="text-slate-500 block">
-                Official PDF files, test definitions, panels
+                {t("settings:exports.scope_reports_desc")}
               </span>
             </div>
           </div>
@@ -221,17 +218,14 @@ export const DataExportScreen: React.FC = () => {
           <span className="material-symbols-outlined text-[18px] text-teal-600 shrink-0">
             verified_user
           </span>
-          <span>
-            Data export is explicitly available in read-only subscription mode
-            to ensure complete data portability at all times.
-          </span>
+          <span>{t("settings:exports.read_only_note")}</span>
         </div>
 
         {/* Action Button */}
         {isOwner ? (
           <div className="pt-2 flex items-center justify-between">
             <span className="text-xs text-slate-500">
-              Signed download links remain active for 7 days.
+              {t("settings:exports.links_note")}
             </span>
             <button
               type="button"
@@ -244,17 +238,16 @@ export const DataExportScreen: React.FC = () => {
               </span>
               <span>
                 {isRequesting
-                  ? "Initiating..."
+                  ? t("settings:exports.initiating")
                   : activeExport?.status === "pending"
-                    ? "Generating archive..."
-                    : "Request export"}
+                    ? t("settings:exports.generating")
+                    : t("settings:exports.request")}
               </span>
             </button>
           </div>
         ) : (
           <div className="bg-slate-100 border border-slate-200 rounded-lg p-3 text-xs text-slate-600 text-center">
-            Only the Lab Owner has permission to request and download full
-            tenant data exports.
+            {t("settings:exports.not_owner")}
           </div>
         )}
       </div>
@@ -265,7 +258,7 @@ export const DataExportScreen: React.FC = () => {
           <div className="flex items-center justify-between pb-2 border-b border-slate-100">
             <div className="flex items-center gap-2">
               <h3 className="text-base font-bold text-slate-900">
-                Current Export Status
+                {t("settings:exports.status_title")}
               </h3>
               <span className="font-mono text-xs text-slate-500">
                 ({activeExport.id})
@@ -275,7 +268,7 @@ export const DataExportScreen: React.FC = () => {
             {activeExport.status === "pending" && (
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs bg-amber-50 text-amber-700 border border-amber-200 font-semibold">
                 <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping"></span>
-                Processing Archive
+                {t("settings:exports.processing")}
               </span>
             )}
 
@@ -283,21 +276,21 @@ export const DataExportScreen: React.FC = () => {
               activeExport.status === "ready") && (
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold">
                 <span className="w-2 h-2 rounded-full bg-emerald-600"></span>
-                Ready for Download
+                {t("settings:exports.ready")}
               </span>
             )}
 
             {activeExport.status === "failed" && (
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs bg-red-50 text-red-700 border border-red-200 font-semibold">
                 <span className="w-2 h-2 rounded-full bg-red-600"></span>
-                Failed
+                {t("settings:exports.failed")}
               </span>
             )}
           </div>
 
           <div className="text-xs text-slate-600 space-y-2">
             <p>
-              <strong>Requested:</strong>{" "}
+              <strong>{t("settings:exports.requested")}</strong>{" "}
               {new Date(activeExport.requested_at).toLocaleString("en-GB")}
             </p>
 
@@ -307,8 +300,7 @@ export const DataExportScreen: React.FC = () => {
                   <div className="bg-teal-600 h-full w-2/3 animate-pulse"></div>
                 </div>
                 <p className="text-slate-500 text-[11px]">
-                  Database serializer is compiling table CSVs and report PDF
-                  assets into an encrypted bundle...
+                  {t("settings:exports.compiling")}
                 </p>
               </div>
             )}
@@ -317,7 +309,7 @@ export const DataExportScreen: React.FC = () => {
               activeExport.status === "ready") && (
               <div className="pt-3 space-y-3">
                 <p className="text-emerald-700 font-semibold">
-                  Archive bundle verified and signed with HMAC timestamp.
+                  {t("settings:exports.verified")}
                 </p>
                 {activeExport.download_url ? (
                   <a
@@ -328,7 +320,7 @@ export const DataExportScreen: React.FC = () => {
                     <span className="material-symbols-outlined text-[18px]">
                       file_download
                     </span>
-                    <span>Download Export Bundle (.zip)</span>
+                    <span>{t("settings:exports.download")}</span>
                   </a>
                 ) : (
                   <a
@@ -339,7 +331,7 @@ export const DataExportScreen: React.FC = () => {
                     <span className="material-symbols-outlined text-[18px]">
                       file_download
                     </span>
-                    <span>Download Export Bundle (.zip)</span>
+                    <span>{t("settings:exports.download")}</span>
                   </a>
                 )}
               </div>
@@ -347,9 +339,8 @@ export const DataExportScreen: React.FC = () => {
 
             {activeExport.status === "failed" && (
               <p className="text-red-600">
-                Error details:{" "}
-                {activeExport.error_message ||
-                  "Unknown error during serialization."}
+                {t("settings:exports.error_details")}{" "}
+                {t("settings:exports.failed_generic")}
               </p>
             )}
           </div>

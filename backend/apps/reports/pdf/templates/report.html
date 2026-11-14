@@ -4,7 +4,28 @@
 <meta charset="utf-8">
 <title>Lab Report {{ ctx.report_id }} v{{ ctx.version }}</title>
 <style>
-  /* §9.5 — block layout + tables only; no JS, no web fonts, no external images. */
+  /* §9.5 — block layout + tables only; no JS, no external images.
+     Fonts are bundled static TTFs (SIL OFL 1.1) next to this template, so the
+     PDF worker never depends on a distro font package or a network fetch.
+     Noto Naskh Arabic = body/reading; Noto Nastaliq Urdu = Urdu display block. */
+  @font-face {
+    font-family: "LabFlow Naskh";
+    src: url("../fonts/NotoNaskhArabic-Regular.ttf") format("truetype");
+    font-weight: 400;
+    font-style: normal;
+  }
+  @font-face {
+    font-family: "LabFlow Naskh";
+    src: url("../fonts/NotoNaskhArabic-Bold.ttf") format("truetype");
+    font-weight: 700;
+    font-style: normal;
+  }
+  @font-face {
+    font-family: "LabFlow Nastaliq";
+    src: url("../fonts/NotoNastaliqUrdu-Regular.ttf") format("truetype");
+    font-weight: 400;
+    font-style: normal;
+  }
   @page {
     size: A4;
     margin: 14mm 12mm 22mm 12mm;
@@ -15,7 +36,7 @@
   }
   * { box-sizing: border-box; }
   body {
-    font-family: "DejaVu Sans", "Noto Sans", sans-serif;
+    font-family: "DejaVu Sans", "LabFlow Naskh", "Noto Sans", sans-serif;
     font-size: 9pt;
     color: #111;
     line-height: 1.35;
@@ -59,7 +80,8 @@
   /* §9.2 — Urdu block: single isolated RTL container. */
   .urdu-block {
     direction: rtl;
-    font-family: "Noto Nastaliq Urdu", "Jameel Noori Nastaleeq", serif;
+    unicode-bidi: isolate;
+    font-family: "LabFlow Nastaliq", "LabFlow Naskh", serif;
     font-size: 11pt;
     line-height: 2;
     border: 0.5pt solid #999;

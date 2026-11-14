@@ -41,11 +41,19 @@ export function isTodayInPkt(
   return PKT_DAY_FORMATTER.format(parsed) === PKT_DAY_FORMATTER.format(now);
 }
 
-export function formatPkr(value: string | number | null | undefined): string {
+/**
+ * PKR 1250.00 in English, روپے 1250.00 in Urdu. The amount itself is a data
+ * value: the same two decimals, never regrouped or re-rounded.
+ */
+export function formatPkr(
+  value: string | number | null | undefined,
+  lang: "en" | "ur" = "en",
+): string {
   if (value === null || value === undefined) return "—";
   const amount = typeof value === "number" ? value : Number.parseFloat(value);
   if (!Number.isFinite(amount)) return "—";
-  return `PKR ${amount.toFixed(2)}`;
+  const formatted = amount.toFixed(2);
+  return lang === "ur" ? `روپے ${formatted}` : `PKR ${formatted}`;
 }
 
 export function formatCount(value: number | null | undefined): string {

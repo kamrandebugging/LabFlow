@@ -1,10 +1,14 @@
 import React, { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useAuthStore } from "../auth/authStore";
-import { settingsService, SettingsApiError } from "./settingsService";
+import { messageForError } from "../../lib/errors";
+import { settingsService } from "./settingsService";
 
 export const TenantSettingsScreen: React.FC = () => {
+  const { t, i18n } = useTranslation(["settings", "common"]);
   const user = useAuthStore((s) => s.user);
   const canEdit = user?.role === "owner" || user?.role === "manager";
+  const currentLanguage = i18n.resolvedLanguage?.startsWith("ur") ? "ur" : "en";
 
   // Data state
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -58,7 +62,7 @@ export const TenantSettingsScreen: React.FC = () => {
       }
     } catch (err: unknown) {
       setErrorMsg(
-        err instanceof Error ? err.message : "Failed to load tenant settings",
+        messageForError(err, (key, options) => t(`common:${key}`, options)),
       );
     } finally {
       setIsLoading(false);
@@ -67,6 +71,7 @@ export const TenantSettingsScreen: React.FC = () => {
 
   useEffect(() => {
     void fetchSettings();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleSave = async (e: React.FormEvent): Promise<void> => {
@@ -75,25 +80,23 @@ export const TenantSettingsScreen: React.FC = () => {
 
     // Validate inputs per settings_registry.py rules
     if (!brandDisplayName.trim() || brandDisplayName.length > 120) {
-      setErrorMsg("Brand display name must be between 1 and 120 characters.");
+      setErrorMsg(t("settings:tenant.error_brand_name"));
       return;
     }
 
     const hexRe = /^#[0-9a-fA-F]{6}$/;
     if (!hexRe.test(brandAccentColour)) {
-      setErrorMsg(
-        "Brand accent colour must be a valid 6-character hex code (e.g. #005C55).",
-      );
+      setErrorMsg(t("settings:tenant.error_accent"));
       return;
     }
 
     if (reportLinkValidityDays < 1 || reportLinkValidityDays > 30) {
-      setErrorMsg("Report link validity days must be between 1 and 30 days.");
+      setErrorMsg(t("settings:tenant.error_validity"));
       return;
     }
 
     if (transferLateAfterHours < 1) {
-      setErrorMsg("Transfer late threshold must be at least 1 hour.");
+      setErrorMsg(t("settings:tenant.error_transfer"));
       return;
     }
 
@@ -113,16 +116,12 @@ export const TenantSettingsScreen: React.FC = () => {
 
     try {
       await settingsService.updateSettings(updates);
-      setSuccessMsg("Tenant settings updated successfully.");
+      setSuccessMsg(t("settings:tenant.saved"));
       await fetchSettings();
     } catch (err: unknown) {
-      if (err instanceof SettingsApiError) {
-        setErrorMsg(err.message);
-      } else {
-        setErrorMsg(
-          err instanceof Error ? err.message : "Failed to save settings",
-        );
-      }
+      setErrorMsg(
+        messageForError(err, (key, options) => t(`common:${key}`, options)),
+      );
     } finally {
       setIsSaving(false);
     }
@@ -134,17 +133,19 @@ export const TenantSettingsScreen: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-3 border-b border-slate-200">
         <div>
           <div className="flex items-center gap-2 text-xs text-slate-500 mb-1">
-            <span>Settings</span>
-            <span className="material-symbols-outlined text-[14px]">
+            <span>{t("common:nav.settings")}</span>
+            <span className="material-symbols-outlined text-[14px] rtl:rotate-180">
               chevron_right
             </span>
-            <span className="text-teal-700 font-medium">Tenant Settings</span>
+            <span className="text-teal-700 font-medium">
+              {t("settings:tenant.title")}
+            </span>
           </div>
           <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-            Tenant Settings
+            {t("settings:tenant.title")}
           </h1>
           <p className="text-sm text-slate-600 mt-0.5">
-            Lab-wide configuration registry (Doc 04 §10 key/value store)
+            {t("settings:tenant.subtitle")}
           </p>
         </div>
 
@@ -152,12 +153,12 @@ export const TenantSettingsScreen: React.FC = () => {
           {/* Informative Timezone Pill per Step 2 instruction */}
           <span
             className="inline-flex items-center gap-1.5 font-mono text-xs text-slate-600 bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200"
-            title="All tenant transactions operate on Pakistan Standard Time"
+            title={t("settings:tenant.timezone_title")}
           >
             <span className="material-symbols-outlined text-[15px] text-teal-600">
               schedule
             </span>
-            <span>Asia/Karachi (PKT, UTC+5)</span>
+            <span>{t("common:timezone_pill")}</span>
           </span>
         </div>
       </div>
@@ -169,7 +170,7 @@ export const TenantSettingsScreen: React.FC = () => {
             error
           </span>
           <div>
-            <p className="font-semibold">Settings Error</p>
+            <p className="font-semibold">{t("settings:tenant.error_title")}</p>
             <p className="text-red-700 mt-0.5">{errorMsg}</p>
           </div>
         </div>
@@ -200,6 +201,56 @@ export const TenantSettingsScreen: React.FC = () => {
           onSubmit={handleSave}
           className="space-y-6"
         >
+          {/* CARD 0: Staff app language (client preference only) */}
+          <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+            <div className="p-6 border-b border-slate-100">
+              <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                <span className="material-symbols-outlined text-teal-700">
+                  translate
+                </span>
+                <span>{t("settings:language.title")}</span>
+              </h2>
+              <p className="text-xs text-slate-500 mt-1">
+                {t("settings:language.description")}
+              </p>
+            </div>
+            <div className="p-6 space-y-6 text-sm">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-start">
+                <div>
+                  <label
+                    htmlFor="app_language"
+                    className="block font-semibold text-slate-900"
+                  >
+                    {t("settings:language.field")}
+                  </label>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    {t("settings:language.help")}
+                  </p>
+                </div>
+                <div className="md:col-span-2">
+                  <select
+                    id="app_language"
+                    value={currentLanguage}
+                    onChange={(e) =>
+                      void i18n.changeLanguage(
+                        e.target.value === "ur" ? "ur" : "en",
+                      )
+                    }
+                    className="w-full md:w-64 rounded-lg border border-slate-300 text-slate-900 text-sm px-3 py-2 bg-white focus:ring-2 focus:ring-teal-600 focus:outline-none font-medium"
+                  >
+                    <option value="en">{t("settings:language.english")}</option>
+                    <option value="ur" lang="ur" dir="rtl">
+                      {t("settings:language.urdu")}
+                    </option>
+                  </select>
+                  <p className="text-[11px] text-slate-500 mt-1">
+                    {t("settings:language.saved")}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* CARD 1: Branding & Report Identity */}
           <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
             <div className="p-6 border-b border-slate-100">
@@ -207,11 +258,10 @@ export const TenantSettingsScreen: React.FC = () => {
                 <span className="material-symbols-outlined text-teal-700">
                   corporate_fare
                 </span>
-                <span>Branding &amp; Report Identity</span>
+                <span>{t("settings:tenant.branding_title")}</span>
               </h2>
               <p className="text-xs text-slate-500 mt-1">
-                Visual brand configuration displayed on clinical reports and
-                invoice headers.
+                {t("settings:tenant.branding_desc")}
               </p>
             </div>
 
@@ -223,11 +273,10 @@ export const TenantSettingsScreen: React.FC = () => {
                     htmlFor="brand_display_name"
                     className="block font-semibold text-slate-900"
                   >
-                    Brand Display Name
+                    {t("settings:tenant.brand_name_label")}
                   </label>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    Printed at the top of patient reports, receipts, and portal
-                    banners. (1–120 chars)
+                    {t("settings:tenant.brand_name_help")}
                   </p>
                 </div>
                 <div className="md:col-span-2">
@@ -251,11 +300,10 @@ export const TenantSettingsScreen: React.FC = () => {
                     htmlFor="brand_accent_colour"
                     className="block font-semibold text-slate-900"
                   >
-                    Brand Accent Colour
+                    {t("settings:tenant.accent_label")}
                   </label>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    Primary hex accent colour (#RRGGBB) used on PDF headers,
-                    table borders, and online results.
+                    {t("settings:tenant.accent_help")}
                   </p>
                 </div>
                 <div className="md:col-span-2 flex items-center gap-3">
@@ -301,11 +349,10 @@ export const TenantSettingsScreen: React.FC = () => {
                 <span className="material-symbols-outlined text-teal-700">
                   science
                 </span>
-                <span>Clinical Operations &amp; Traceability</span>
+                <span>{t("settings:tenant.ops_title")}</span>
               </h2>
               <p className="text-xs text-slate-500 mt-1">
-                Thresholds and policies governing specimen transit and billing
-                holds.
+                {t("settings:tenant.ops_desc")}
               </p>
             </div>
 
@@ -317,11 +364,10 @@ export const TenantSettingsScreen: React.FC = () => {
                     htmlFor="billing_hold_enabled"
                     className="block font-semibold text-slate-900"
                   >
-                    Tenant Billing Hold
+                    {t("settings:tenant.billing_hold_label")}
                   </label>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    When active, receptionists are blocked from generating new
-                    billing invoices across all branches.
+                    {t("settings:tenant.billing_hold_help")}
                   </p>
                 </div>
                 <div className="md:col-span-2 pt-1">
@@ -335,7 +381,7 @@ export const TenantSettingsScreen: React.FC = () => {
                       className="rounded border-slate-300 text-red-600 focus:ring-red-500 w-4 h-4 disabled:cursor-not-allowed"
                     />
                     <span className="font-medium text-slate-800 text-sm">
-                      Enable billing hold (Freeze invoice generation)
+                      {t("settings:tenant.billing_hold_checkbox")}
                     </span>
                   </label>
                   {billingHoldEnabled && (
@@ -343,8 +389,7 @@ export const TenantSettingsScreen: React.FC = () => {
                       <span className="material-symbols-outlined text-[15px]">
                         warning
                       </span>
-                      Notice: Front desk staff will see &quot;Billing is
-                      temporarily held&quot; when attempting to bill patients.
+                      {t("settings:tenant.billing_hold_notice")}
                     </p>
                   )}
                 </div>
@@ -357,11 +402,10 @@ export const TenantSettingsScreen: React.FC = () => {
                     htmlFor="transfer_late_after_hours"
                     className="block font-semibold text-slate-900"
                   >
-                    Transfer Late Threshold
+                    {t("settings:tenant.transfer_label")}
                   </label>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    Maximum allowed hours for inter-branch specimen courier
-                    transfer before an exception is logged.
+                    {t("settings:tenant.transfer_help")}
                   </p>
                 </div>
                 <div className="md:col-span-2 flex items-center gap-2">
@@ -380,7 +424,7 @@ export const TenantSettingsScreen: React.FC = () => {
                     className="w-28 rounded-lg border border-slate-300 font-mono text-sm px-3.5 py-2 focus:ring-2 focus:ring-teal-600 focus:outline-none disabled:bg-slate-50"
                   />
                   <span className="text-slate-600 text-sm font-medium">
-                    hours (≥ 1)
+                    {t("settings:tenant.transfer_unit")}
                   </span>
                 </div>
               </div>
@@ -394,10 +438,10 @@ export const TenantSettingsScreen: React.FC = () => {
                 <span className="material-symbols-outlined text-teal-700">
                   chat
                 </span>
-                <span>Patient Communication &amp; Report Delivery</span>
+                <span>{t("settings:tenant.comms_title")}</span>
               </h2>
               <p className="text-xs text-slate-500 mt-1">
-                Language preferences and cryptographic access token life cycle.
+                {t("settings:tenant.comms_desc")}
               </p>
             </div>
 
@@ -409,11 +453,10 @@ export const TenantSettingsScreen: React.FC = () => {
                     htmlFor="report_default_language"
                     className="block font-semibold text-slate-900"
                   >
-                    Default Patient Language
+                    {t("settings:tenant.report_language_label")}
                   </label>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    Language template applied for automated SMS, WhatsApp
-                    messages, and patient report links.
+                    {t("settings:tenant.report_language_help")}
                   </p>
                 </div>
                 <div className="md:col-span-2">
@@ -426,8 +469,12 @@ export const TenantSettingsScreen: React.FC = () => {
                     }
                     className="w-full md:w-64 rounded-lg border border-slate-300 text-slate-900 text-sm px-3 py-2 bg-white focus:ring-2 focus:ring-teal-600 focus:outline-none disabled:bg-slate-50 font-medium"
                   >
-                    <option value="en">English (en)</option>
-                    <option value="ur">Urdu (اردو - ur)</option>
+                    <option value="en">
+                      {t("settings:tenant.report_language_en")}
+                    </option>
+                    <option value="ur">
+                      {t("settings:tenant.report_language_ur")}
+                    </option>
                   </select>
                 </div>
               </div>
@@ -439,11 +486,10 @@ export const TenantSettingsScreen: React.FC = () => {
                     htmlFor="report_link_validity_days"
                     className="block font-semibold text-slate-900"
                   >
-                    Report Link Validity
+                    {t("settings:tenant.link_validity_label")}
                   </label>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    Security expiration window for tokenized public report
-                    inspection links without patient login. (1–30 days)
+                    {t("settings:tenant.link_validity_help")}
                   </p>
                 </div>
                 <div className="md:col-span-2 flex items-center gap-2">
@@ -463,7 +509,7 @@ export const TenantSettingsScreen: React.FC = () => {
                     className="w-28 rounded-lg border border-slate-300 font-mono text-sm px-3.5 py-2 focus:ring-2 focus:ring-teal-600 focus:outline-none disabled:bg-slate-50"
                   />
                   <span className="text-slate-600 text-sm font-medium">
-                    days (1–30)
+                    {t("settings:tenant.link_validity_unit")}
                   </span>
                 </div>
               </div>
@@ -479,7 +525,7 @@ export const TenantSettingsScreen: React.FC = () => {
                 disabled={isSaving}
                 className="px-4 py-2 border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 text-sm font-medium"
               >
-                Reset to Current
+                {t("settings:tenant.reset_to_current")}
               </button>
               <button
                 type="submit"
@@ -489,13 +535,16 @@ export const TenantSettingsScreen: React.FC = () => {
                 <span className="material-symbols-outlined text-[18px]">
                   check
                 </span>
-                <span>{isSaving ? "Saving..." : "Save Settings"}</span>
+                <span>
+                  {isSaving
+                    ? t("common:actions.saving")
+                    : t("settings:tenant.save")}
+                </span>
               </button>
             </div>
           ) : (
             <div className="bg-slate-100 border border-slate-200 rounded-lg p-3 text-xs text-slate-600 text-center">
-              You are viewing tenant settings in read-only mode. Only Lab Owners
-              and Managers may update configurations.
+              {t("settings:tenant.read_only")}
             </div>
           )}
         </form>

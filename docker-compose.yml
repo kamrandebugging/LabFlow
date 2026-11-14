@@ -42,6 +42,8 @@ volumes:
     name: redis_data
   minio_data:
     name: minio_data
+  media_data:
+    name: media_data
   n8n_data:
     name: n8n_data
   caddy_data:
@@ -198,6 +200,8 @@ services:
     container_name: labflow-backend
     mem_limit: 1g
     cpus: "2.0"
+    volumes:
+      - media_data:/app/mediafiles
     environment:
       DJANGO_SETTINGS_MODULE: ${DJANGO_SETTINGS_MODULE:-config.settings.prod}
       DJANGO_SECRET_KEY: "${DJANGO_SECRET_KEY:?error: DJANGO_SECRET_KEY is required — copy .env.example to .env and set it}"
@@ -252,6 +256,8 @@ services:
     container_name: labflow-worker
     mem_limit: 1536m
     cpus: "2.0"
+    volumes:
+      - media_data:/app/mediafiles
     command:
       - celery
       - -A

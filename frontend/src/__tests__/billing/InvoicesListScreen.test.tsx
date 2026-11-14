@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { billingService } from "../../features/billing/billingService";
 import { InvoicesListScreen } from "../../features/billing/InvoicesListScreen";
 import type { InvoiceSummary } from "../../features/billing/types";
+import i18n from "../../i18n";
 
 vi.mock("../../features/billing/billingService", () => ({
   billingService: {
@@ -124,5 +125,24 @@ describe("Screen 13: Invoices List (13-invoices.html & Doc 03 §5.3)", () => {
     fireEvent.click(viewButtons[0]!);
 
     expect(handleSelect).toHaveBeenCalledWith(mockInvoices[0]!.id);
+  });
+
+  it("renders Urdu invoice status labels, never raw i18n keys", async () => {
+    await i18n.changeLanguage("ur");
+    render(<InvoicesListScreen />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Muhammad Imran")).toBeInTheDocument();
+    });
+
+    expect(screen.queryByText(/status\.invoice\./)).not.toBeInTheDocument();
+    expect(
+      screen.getAllByText(i18n.t("status.invoice.paid")).length,
+    ).toBeGreaterThan(0);
+    expect(
+      screen.getAllByText(i18n.t("status.invoice.partial")).length,
+    ).toBeGreaterThan(0);
+
+    await i18n.changeLanguage("en");
   });
 });

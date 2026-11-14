@@ -1,4 +1,5 @@
 import { useEffect, useId, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   FileText,
   Search,
@@ -13,6 +14,8 @@ import type { DiagnosticPanel, DiagnosticTest } from "../catalog/types";
 import { patientService } from "../patients/patientService";
 import type { PatientSummary } from "../patients/types";
 import { billingService } from "./billingService";
+import { formatMoney } from "../../lib/format";
+import { messageForError } from "../../lib/errors";
 import type { InvoiceDetail, InvoiceItemInput } from "./types";
 
 export interface NewInvoiceScreenProps {
@@ -38,6 +41,8 @@ export function NewInvoiceScreen({
   onCancel,
   onRegisterPatient,
 }: NewInvoiceScreenProps): JSX.Element {
+  const { t, i18n } = useTranslation(["billing", "common"]);
+  const lang: "en" | "ur" = i18n.resolvedLanguage === "ur" ? "ur" : "en";
   const patientInputId = useId();
   const searchInputId = useId();
   const panelSelectId = useId();
@@ -91,9 +96,7 @@ export function NewInvoiceScreen({
         }
       } catch (err) {
         if (active) {
-          setErrorMessage(
-            err instanceof Error ? err.message : "Failed to load catalog.",
-          );
+          setErrorMessage(messageForError(err, t));
         }
       } finally {
         if (active) setCatalogLoading(false);
@@ -103,7 +106,7 @@ export function NewInvoiceScreen({
     return () => {
       active = false;
     };
-  }, []);
+  }, [t]);
 
   // Pre-load patient if initialPatientId passed
   useEffect(() => {
@@ -151,22 +154,18 @@ export function NewInvoiceScreen({
   // Add individual test
   const handleAddTest = (testId: string) => {
     if (!testId) return;
-    const test = availableTests.find((t) => t.id === testId);
+    const test = availableTests.find((candidate) => candidate.id === testId);
     if (!test) return;
 
     if (test.is_panel_only) {
       const panel = test.panel_codes?.length
         ? test.panel_codes.join(", ")
-        : "a panel";
-      setErrorMessage(
-        `This test is billed as part of the ${panel} panel. Add the panel instead.`,
-      );
+        : t("billing:new.a_panel");
+      setErrorMessage(t("billing:new.error_panel_only_test", { panel }));
       return;
     }
     if (!test.price) {
-      setErrorMessage(
-        `No price has been configured for ${test.name}. Set a catalog price before billing it.`,
-      );
+      setErrorMessage(t("billing:new.error_no_price", { name: test.name }));
       return;
     }
 
@@ -191,9 +190,7 @@ export function NewInvoiceScreen({
     if (!panel) return;
 
     if (!panel.price) {
-      setErrorMessage(
-        `No price has been configured for ${panel.name}. Set a catalog price before billing it.`,
-      );
+      setErrorMessage(t("billing:new.error_no_price", { name: panel.name }));
       return;
     }
 
@@ -202,7 +199,7 @@ export function NewInvoiceScreen({
       key: `panel-${panel.id}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
       panelId: panel.id,
       code: panel.code,
-      name: `${panel.name} (Package)`,
+      name: `${panel.name} ${t("billing:new.package_suffix")}`,
       price,
       quantity: 1,
     };
@@ -227,21 +224,19 @@ export function NewInvoiceScreen({
     setErrorMessage(null);
 
     if (!selectedPatient) {
-      setErrorMessage("Please select a patient for this invoice.");
+      setErrorMessage(t("billing:new.error_patient_required"));
       return;
     }
     if (items.length === 0) {
-      setErrorMessage("Please add at least one test or diagnostic panel.");
+      setErrorMessage(t("billing:new.error_items_required"));
       return;
     }
     if (discountVal > 0 && !discountReason.trim()) {
-      setErrorMessage(
-        "A discount reason is required when a discount is applied.",
-      );
+      setErrorMessage(t("billing:new.error_discount_reason"));
       return;
     }
     if (discountVal > subtotal) {
-      setErrorMessage("Discount amount cannot exceed the subtotal.");
+      setErrorMessage(t("billing:new.error_discount_exceeds"));
       return;
     }
 
@@ -265,9 +260,7 @@ export function NewInvoiceScreen({
         onSuccess(created);
       }
     } catch (err) {
-      setErrorMessage(
-        err instanceof Error ? err.message : "Failed to create invoice.",
-      );
+      setErrorMessage(messageForError(err, t));
     } finally {
       setSubmitting(false);
     }
@@ -278,7 +271,7 @@ export function NewInvoiceScreen({
       {/* Breadcrumb & Page Header */}
       <div className="mb-6 flex flex-col gap-1">
         <nav
-          aria-label="Breadcrumb"
+          aria-label={t("billing:new.breadcrumb_aria")}
           className="flex items-center gap-1.5 text-slate-500 text-xs"
         >
           <button
@@ -286,23 +279,25 @@ export function NewInvoiceScreen({
             onClick={onCancel}
             className="hover:text-slate-900 transition-colors cursor-pointer"
           >
-            Invoices
+            {t("billing:shared.invoices")}
           </button>
           <span className="text-slate-400">/</span>
-          <span className="text-slate-900 font-semibold">New</span>
+          <span className="text-slate-900 font-semibold">
+            {t("billing:new.breadcrumb_new")}
+          </span>
         </nav>
         <div className="flex items-center justify-between mt-1">
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-              New invoice
+              {t("billing:new.title")}
             </h1>
             <p className="text-xs text-slate-500 mt-0.5">
-              Create diagnostic billing statement and counter settlement.
+              {t("billing:new.subtitle")}
             </p>
           </div>
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md bg-slate-100 text-slate-700 font-mono text-xs border border-slate-200">
             <FileText className="w-3.5 h-3.5 text-teal-700 shrink-0" />
-            <span>Draft #INV-NEW</span>
+            <span>{t("billing:new.draft", { id: "INV-NEW" })}</span>
           </div>
         </div>
       </div>
@@ -319,7 +314,7 @@ export function NewInvoiceScreen({
             type="button"
             onClick={() => setErrorMessage(null)}
             className="text-red-500 hover:text-red-700 font-bold"
-            aria-label="Dismiss error"
+            aria-label={t("billing:shared.dismiss_error_aria")}
           >
             ×
           </button>
@@ -336,7 +331,8 @@ export function NewInvoiceScreen({
                 htmlFor={patientInputId}
                 className="block text-xs font-semibold uppercase tracking-wider text-slate-700"
               >
-                Patient <span className="text-red-600">*</span>
+                {t("billing:new.patient_label")}{" "}
+                <span className="text-red-600">*</span>
               </label>
               {onRegisterPatient && !selectedPatient && (
                 <button
@@ -344,7 +340,7 @@ export function NewInvoiceScreen({
                   onClick={onRegisterPatient}
                   className="text-xs text-teal-700 font-semibold hover:underline"
                 >
-                  + Register new patient
+                  + {t("billing:new.register_patient")}
                 </button>
               )}
             </div>
@@ -354,20 +350,26 @@ export function NewInvoiceScreen({
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-teal-100 text-teal-800 font-bold flex items-center justify-center text-sm">
                     {selectedPatient.name?.substring(0, 2).toUpperCase() ||
-                      "PT"}
+                      t("billing:new.patient_initials")}
                   </div>
                   <div>
                     <div className="font-semibold text-slate-900 text-sm">
                       {selectedPatient.name} ·{" "}
                       <span className="font-mono text-xs text-slate-500">
-                        {selectedPatient.mrn}
+                        <bdi dir="ltr">{selectedPatient.mrn}</bdi>
                       </span>
                     </div>
                     <div className="text-xs text-slate-500 mt-0.5">
-                      Sex: {selectedPatient.sex || "Unknown"}
                       {selectedPatient.phone
-                        ? ` · Phone: ${selectedPatient.phone}`
-                        : ""}
+                        ? t("billing:new.patient_meta", {
+                            sex:
+                              selectedPatient.sex || t("common:labels.unknown"),
+                            phone: selectedPatient.phone,
+                          })
+                        : t("billing:new.patient_meta_no_phone", {
+                            sex:
+                              selectedPatient.sex || t("common:labels.unknown"),
+                          })}
                     </div>
                   </div>
                 </div>
@@ -379,13 +381,13 @@ export function NewInvoiceScreen({
                   }}
                   className="text-xs text-teal-700 font-semibold hover:underline px-3 py-1.5 rounded-lg border border-teal-200 bg-white"
                 >
-                  Change patient
+                  {t("billing:new.change_patient")}
                 </button>
               </div>
             ) : (
               <div className="relative">
                 <div className="relative flex items-center">
-                  <Search className="w-4 h-4 text-slate-400 absolute left-3 pointer-events-none" />
+                  <Search className="w-4 h-4 text-slate-400 absolute start-3 pointer-events-none" />
                   <input
                     id={patientInputId}
                     type="text"
@@ -395,19 +397,19 @@ export function NewInvoiceScreen({
                       if (patientResults.length > 0)
                         setShowPatientDropdown(true);
                     }}
-                    placeholder="Search by MRN, Name, Phone or CNIC..."
-                    className="w-full pl-9 pr-24 py-2.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-600 bg-white placeholder:text-slate-400"
+                    placeholder={t("billing:new.patient_search_placeholder")}
+                    className="w-full ps-9 pe-24 py-2.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-600 bg-white placeholder:text-slate-400"
                   />
                   {isSearchingPatient && (
-                    <span className="absolute right-3 text-xs text-slate-400 animate-pulse">
-                      Searching...
+                    <span className="absolute end-3 text-xs text-slate-400 animate-pulse">
+                      {t("billing:new.searching")}
                     </span>
                   )}
                 </div>
 
                 {/* Search Dropdown Results */}
                 {showPatientDropdown && patientResults.length > 0 && (
-                  <div className="absolute z-20 left-0 right-0 mt-1 max-h-56 overflow-y-auto bg-white border border-slate-200 rounded-lg shadow-lg">
+                  <div className="absolute z-20 start-0 end-0 mt-1 max-h-56 overflow-y-auto bg-white border border-slate-200 rounded-lg shadow-lg">
                     {patientResults.map((p) => (
                       <button
                         key={p.id}
@@ -417,20 +419,23 @@ export function NewInvoiceScreen({
                           setShowPatientDropdown(false);
                           setPatientQuery("");
                         }}
-                        className="w-full text-left px-4 py-2.5 hover:bg-slate-50 border-b border-slate-100 last:border-b-0 flex items-center justify-between"
+                        className="w-full text-start px-4 py-2.5 hover:bg-slate-50 border-b border-slate-100 last:border-b-0 flex items-center justify-between"
                       >
                         <div>
                           <span className="font-semibold text-slate-900 text-sm">
                             {p.name}
                           </span>
-                          <span className="text-xs text-slate-500 ml-2 font-mono">
+                          <span className="text-xs text-slate-500 ms-2 font-mono">
                             {p.mrn}
                           </span>
                           <div className="text-xs text-slate-400 mt-0.5">
-                            Sex: {p.sex} · Phone: {p.phone || "N/A"}
+                            {t("billing:new.patient_meta", {
+                              sex: p.sex,
+                              phone: p.phone || t("billing:new.not_available"),
+                            })}
                           </div>
                         </div>
-                        <ArrowRight className="w-4 h-4 text-slate-400" />
+                        <ArrowRight className="w-4 h-4 text-slate-400 rtl:rotate-180" />
                       </button>
                     ))}
                   </div>
@@ -448,18 +453,21 @@ export function NewInvoiceScreen({
                 htmlFor={searchInputId}
                 className="block text-xs font-semibold uppercase tracking-wider text-slate-700"
               >
-                Tests &amp; Panels <span className="text-red-600">*</span>
+                {t("billing:new.tests_label")}{" "}
+                <span className="text-red-600">*</span>
               </label>
               <span className="text-xs text-slate-500 font-medium">
-                {items.length} {items.length === 1 ? "item" : "items"} added
+                {items.length}{" "}
+                {items.length === 1
+                  ? t("billing:new.items_added_one")
+                  : t("billing:new.items_added_other")}
               </span>
             </div>
 
             {/* Selected Rows */}
             {items.length === 0 ? (
               <div className="py-6 border-2 border-dashed border-slate-200 rounded-lg text-center text-slate-500 text-xs">
-                No diagnostic tests or panels selected yet. Use the dropdowns
-                below to add items.
+                {t("billing:new.items_empty")}
               </div>
             ) : (
               <div className="space-y-2" data-testid="selected-items-list">
@@ -473,17 +481,20 @@ export function NewInvoiceScreen({
                         {item.name}
                       </div>
                       <div className="text-xs font-mono text-slate-500">
-                        Code: {item.code}
+                        {t("billing:new.code_label")}{" "}
+                        <bdi dir="ltr">{item.code}</bdi>
                       </div>
                     </div>
                     <div className="font-mono font-semibold text-sm text-slate-900">
-                      PKR {item.price.toFixed(2)}
+                      {formatMoney(item.price.toFixed(2), lang)}
                     </div>
                     <button
                       type="button"
                       onClick={() => handleRemoveItem(item.key)}
-                      title={`Remove ${item.name}`}
-                      aria-label={`Remove ${item.name}`}
+                      title={t("billing:new.remove_item", { name: item.name })}
+                      aria-label={t("billing:new.remove_item", {
+                        name: item.name,
+                      })}
                       className="w-8 h-8 flex items-center justify-center rounded text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
                     >
                       <X className="w-4 h-4" />
@@ -500,7 +511,7 @@ export function NewInvoiceScreen({
                   htmlFor={searchInputId}
                   className="block text-xs font-semibold text-slate-700 mb-1.5"
                 >
-                  Add Individual Test
+                  {t("billing:new.add_test_label")}
                 </label>
                 <div className="flex items-center gap-2 min-w-0">
                   <div className="flex-1 min-w-0">
@@ -511,13 +522,18 @@ export function NewInvoiceScreen({
                       disabled={catalogLoading}
                       className="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-600 truncate block"
                     >
-                      <option value="">— Select Diagnostic Test —</option>
-                      {selectableTests.map((t) => (
-                        <option key={t.id} value={t.id}>
-                          {t.name} ({t.code}) -{" "}
-                          {t.price
-                            ? `PKR ${parseFloat(t.price).toFixed(2)}`
-                            : "Price not configured"}
+                      <option value="">
+                        {t("billing:new.select_test_placeholder")}
+                      </option>
+                      {selectableTests.map((test) => (
+                        <option key={test.id} value={test.id}>
+                          {test.name} ({test.code}) -{" "}
+                          {test.price
+                            ? formatMoney(
+                                parseFloat(test.price).toFixed(2),
+                                lang,
+                              )
+                            : t("billing:new.price_not_configured")}
                         </option>
                       ))}
                     </select>
@@ -529,23 +545,23 @@ export function NewInvoiceScreen({
                     className="px-4 py-2 bg-teal-700 hover:bg-teal-800 text-white text-xs font-semibold rounded-lg shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 shrink-0 whitespace-nowrap cursor-pointer"
                   >
                     <Plus className="w-3.5 h-3.5" />
-                    <span>Add</span>
+                    <span>{t("common:actions.add")}</span>
                   </button>
                 </div>
                 {panelOnlyTests.length > 0 && (
                   <p className="text-[11px] text-slate-500 mt-1.5">
-                    Billed through a panel:{" "}
+                    {t("billing:new.panel_only_prefix")}{" "}
                     {panelOnlyTests
                       .map(
-                        (t) =>
-                          `${t.name}${
-                            t.panel_codes?.length
-                              ? ` (${t.panel_codes.join(", ")})`
+                        (test) =>
+                          `${test.name}${
+                            test.panel_codes?.length
+                              ? ` (${test.panel_codes.join(", ")})`
                               : ""
                           }`,
                       )
                       .join("; ")}
-                    . Add the panel instead.
+                    . {t("billing:new.panel_only_suffix")}
                   </p>
                 )}
               </div>
@@ -556,7 +572,7 @@ export function NewInvoiceScreen({
                   htmlFor={panelSelectId}
                   className="block text-xs font-semibold text-slate-700 mb-1.5"
                 >
-                  Bulk Add by Panel / Package
+                  {t("billing:new.add_panel_label")}
                 </label>
                 <select
                   id={panelSelectId}
@@ -569,13 +585,15 @@ export function NewInvoiceScreen({
                   disabled={catalogLoading}
                   className="w-full min-w-0 truncate text-sm border border-slate-300 rounded-lg px-3 py-2 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-600"
                 >
-                  <option value="">— Select Panel Package —</option>
-                  {availablePanels.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name} ({p.code}) -{" "}
-                      {p.price
-                        ? `PKR ${parseFloat(p.price).toFixed(2)}`
-                        : "Price not configured"}
+                  <option value="">
+                    {t("billing:new.select_panel_placeholder")}
+                  </option>
+                  {availablePanels.map((panel) => (
+                    <option key={panel.id} value={panel.id}>
+                      {panel.name} ({panel.code}) -{" "}
+                      {panel.price
+                        ? formatMoney(parseFloat(panel.price).toFixed(2), lang)
+                        : t("billing:new.price_not_configured")}
                     </option>
                   ))}
                 </select>
@@ -593,7 +611,7 @@ export function NewInvoiceScreen({
                   htmlFor={discountAmountId}
                   className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1"
                 >
-                  Discount Amount (PKR)
+                  {t("billing:new.discount_amount_label")}
                 </label>
                 <input
                   id={discountAmountId}
@@ -603,7 +621,7 @@ export function NewInvoiceScreen({
                   value={discountAmount}
                   onChange={(e) => setDiscountAmount(e.target.value)}
                   className="w-full text-sm font-mono border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-600"
-                  placeholder="0.00"
+                  placeholder={t("billing:new.amount_placeholder")}
                 />
               </div>
 
@@ -612,7 +630,7 @@ export function NewInvoiceScreen({
                   htmlFor={discountReasonId}
                   className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1"
                 >
-                  Discount Reason{" "}
+                  {t("billing:new.discount_reason_label")}{" "}
                   {discountVal > 0 && <span className="text-red-600">*</span>}
                 </label>
                 <input
@@ -620,7 +638,7 @@ export function NewInvoiceScreen({
                   type="text"
                   value={discountReason}
                   onChange={(e) => setDiscountReason(e.target.value)}
-                  placeholder="e.g. Staff discount, corporate subsidy, welfare"
+                  placeholder={t("billing:new.discount_reason_placeholder")}
                   className="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-600"
                 />
               </div>
@@ -630,28 +648,34 @@ export function NewInvoiceScreen({
           {/* 4. TOTALS SUMMARY BOX */}
           <div className="bg-slate-50 border border-slate-200 rounded-lg p-5 space-y-2.5">
             <div className="flex items-center justify-between text-sm">
-              <span className="text-slate-600">Subtotal</span>
+              <span className="text-slate-600">
+                {t("billing:new.subtotal")}
+              </span>
               <span
                 className="font-mono font-medium text-slate-900"
                 data-testid="invoice-subtotal"
               >
-                PKR {subtotal.toFixed(2)}
+                {formatMoney(subtotal.toFixed(2), lang)}
               </span>
             </div>
             <div className="flex items-center justify-between text-sm">
-              <span className="text-slate-600">Discount</span>
+              <span className="text-slate-600">
+                {t("billing:new.discount")}
+              </span>
               <span className="font-mono font-medium text-slate-900">
-                - PKR {discountVal.toFixed(2)}
+                - {formatMoney(discountVal.toFixed(2), lang)}
               </span>
             </div>
             <div className="h-px bg-slate-200 my-1" />
             <div className="flex items-baseline justify-between pt-1">
-              <span className="text-base font-bold text-slate-900">Total</span>
+              <span className="text-base font-bold text-slate-900">
+                {t("common:labels.total")}
+              </span>
               <span
                 className="text-2xl font-bold font-mono text-slate-900"
                 data-testid="invoice-total"
               >
-                PKR {netTotal.toFixed(2)}
+                {formatMoney(netTotal.toFixed(2), lang)}
               </span>
             </div>
           </div>
@@ -666,12 +690,12 @@ export function NewInvoiceScreen({
               {submitting ? (
                 <>
                   <span className="inline-block animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
-                  <span>Creating invoice...</span>
+                  <span>{t("billing:new.creating")}</span>
                 </>
               ) : (
                 <>
                   <CheckCircle2 className="w-4 h-4" />
-                  <span>Create Invoice</span>
+                  <span>{t("billing:new.create")}</span>
                 </>
               )}
             </button>
@@ -681,7 +705,7 @@ export function NewInvoiceScreen({
               disabled={submitting}
               className="bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 font-medium text-sm px-5 py-2.5 rounded-lg transition-colors cursor-pointer"
             >
-              Cancel
+              {t("common:actions.cancel")}
             </button>
           </div>
         </form>

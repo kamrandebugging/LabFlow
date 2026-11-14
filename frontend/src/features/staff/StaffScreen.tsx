@@ -1,5 +1,6 @@
 import type { ReactElement, ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Trans, useTranslation } from "react-i18next";
 
 import type {
   CreateStaffInput,
@@ -10,12 +11,14 @@ import type {
   StaffTempPasswordResponse,
 } from "./types";
 import { staffService } from "./staffService";
+import { ApiError } from "../../lib/apiClient";
+import { messageForError } from "../../lib/errors";
 
-const ROLE_HELP: Record<StaffRole, string> = {
-  manager: "Branch operations, patients, billing, samples and reports.",
-  reception: "Registration, invoicing, cash collection and sample intake.",
-  technician: "Worklist, result entry and sample receiving.",
-  pathologist: "Clinical review and report approval.",
+const ROLE_HELP_KEYS: Record<StaffRole, string> = {
+  manager: "settings:staff.role_help_manager",
+  reception: "settings:staff.role_help_reception",
+  technician: "settings:staff.role_help_technician",
+  pathologist: "settings:staff.role_help_pathologist",
 };
 
 type BusyAction = "create" | "edit" | "deactivate" | "reactivate" | "reset";
@@ -31,6 +34,7 @@ function Modal({
   onClose: () => void;
   children: ReactNode;
 }): ReactElement {
+  const { t } = useTranslation(["settings", "common"]);
   return (
     <div className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-900/50 p-4">
       <div
@@ -52,7 +56,7 @@ function Modal({
             type="button"
             onClick={onClose}
             className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
-            aria-label="Close"
+            aria-label={t("common:actions.close")}
           >
             <span className="material-symbols-outlined text-[20px]">close</span>
           </button>
@@ -70,6 +74,7 @@ function TempPasswordPanel({
   result: StaffTempPasswordResponse;
   onDone: () => void;
 }): ReactElement {
+  const { t } = useTranslation(["settings", "common"]);
   const [copied, setCopied] = useState(false);
   const copy = (): void => {
     void navigator.clipboard.writeText(result.temp_password);
@@ -81,15 +86,20 @@ function TempPasswordPanel({
     <div className="space-y-4" data-testid="temp-password-panel">
       <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
         <p className="text-sm font-semibold text-amber-900">
-          Temporary password — shown once
+          {t("settings:staff.temp_title")}
         </p>
         <p className="text-xs text-amber-800 mt-1">
-          Give this to {result.staff.display_name} in person. It is never shown
-          again, never emailed as the only delivery, and must be changed at
-          first login.
+          <Trans
+            i18nKey="settings:staff.temp_give"
+            values={{ name: result.staff.display_name }}
+            components={{ bdi: <bdi dir="ltr" /> }}
+          />
         </p>
         <div className="mt-3 flex items-center gap-3">
-          <code className="flex-1 rounded-lg border border-amber-300 bg-white px-3 py-2 font-mono text-sm text-slate-900 select-all">
+          <code
+            dir="ltr"
+            className="flex-1 rounded-lg border border-amber-300 bg-white px-3 py-2 font-mono text-sm text-slate-900 select-all"
+          >
             {result.temp_password}
           </code>
           <button
@@ -100,7 +110,7 @@ function TempPasswordPanel({
             <span className="material-symbols-outlined text-[16px]">
               {copied ? "check" : "content_copy"}
             </span>
-            {copied ? "Copied" : "Copy"}
+            {copied ? t("settings:staff.copied") : t("common:actions.copy")}
           </button>
         </div>
       </div>
@@ -109,7 +119,7 @@ function TempPasswordPanel({
         onClick={onDone}
         className="w-full rounded-lg bg-[#005c55] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#0f766e]"
       >
-        I have saved this password — done
+        {t("settings:staff.temp_saved")}
       </button>
     </div>
   );
@@ -124,6 +134,7 @@ function CreateStaffForm({
   onCreated: (result: StaffTempPasswordResponse) => void;
   onCancel: () => void;
 }): ReactElement {
+  const { t } = useTranslation(["settings", "common"]);
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<StaffRole | "">(
@@ -139,11 +150,11 @@ function CreateStaffForm({
     event.preventDefault();
     setError(null);
     if (!role) {
-      setError("Select a role that is enabled for this lab.");
+      setError(t("settings:staff.error_role_required"));
       return;
     }
     if (!tenantWide && !branchId) {
-      setError("Select the staff member's branch.");
+      setError(t("settings:staff.error_branch_required"));
       return;
     }
     setBusy(true);
@@ -156,7 +167,11 @@ function CreateStaffForm({
       };
       onCreated(await staffService.create(payload));
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Could not create staff.");
+      setError(
+        err instanceof ApiError
+          ? messageForError(err, (key, options) => t(`common:${key}`, options))
+          : t("settings:staff.error_create"),
+      );
     } finally {
       setBusy(false);
     }
@@ -170,29 +185,29 @@ function CreateStaffForm({
     >
       <div>
         <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-600">
-          Display name
+          {t("settings:staff.form_display_name")}
         </label>
         <input
           required
-          aria-label="Display name"
+          aria-label={t("settings:staff.form_display_name")}
           value={displayName}
           onChange={(e) => setDisplayName(e.target.value)}
-          placeholder="e.g. Usman Tariq"
+          placeholder={t("settings:staff.form_display_placeholder")}
           className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-teal-600 focus:outline-none focus:ring-1 focus:ring-teal-600"
         />
       </div>
 
       <div>
         <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-600">
-          Work email
+          {t("settings:staff.form_email")}
         </label>
         <input
           required
           type="email"
-          aria-label="Work email"
+          aria-label={t("settings:staff.form_email")}
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          placeholder="name@lab.pk"
+          placeholder={t("settings:staff.form_email_placeholder")}
           className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-teal-600 focus:outline-none focus:ring-1 focus:ring-teal-600"
         />
       </div>
@@ -200,41 +215,43 @@ function CreateStaffForm({
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
           <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-600">
-            Role
+            {t("settings:staff.form_role")}
           </label>
           <select
-            aria-label="Role"
+            aria-label={t("settings:staff.form_role")}
             value={role}
             onChange={(e) => setRole(e.target.value as StaffRole)}
             className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-teal-600 focus:outline-none focus:ring-1 focus:ring-teal-600"
           >
             {data.enabled_roles.length === 0 && (
-              <option value="">No roles enabled by the platform</option>
+              <option value="">{t("settings:staff.form_no_roles")}</option>
             )}
             {data.enabled_roles.map((item) => (
               <option key={item.role} value={item.role}>
-                {item.label}
+                {t(`common:role.${item.role}`)}
               </option>
             ))}
           </select>
           {role && (
-            <p className="mt-1 text-[11px] text-slate-500">{ROLE_HELP[role]}</p>
+            <p className="mt-1 text-[11px] text-slate-500">
+              {t(ROLE_HELP_KEYS[role])}
+            </p>
           )}
         </div>
 
         <div>
           <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-600">
-            Branch
+            {t("settings:staff.form_branch")}
           </label>
           <select
-            aria-label="Branch"
+            aria-label={t("settings:staff.form_branch")}
             value={tenantWide ? "" : branchId}
             onChange={(e) => setBranchId(e.target.value)}
             disabled={tenantWide}
             className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:bg-slate-100 disabled:text-slate-500 focus:border-teal-600 focus:outline-none focus:ring-1 focus:ring-teal-600"
           >
             {tenantWide ? (
-              <option value="">All branches (tenant-wide role)</option>
+              <option value="">{t("settings:staff.form_all_branches")}</option>
             ) : (
               data.branches.map((branch) => (
                 <option key={branch.id} value={branch.id}>
@@ -261,7 +278,7 @@ function CreateStaffForm({
           onClick={onCancel}
           className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
         >
-          Cancel
+          {t("common:actions.cancel")}
         </button>
         <button
           type="submit"
@@ -271,7 +288,9 @@ function CreateStaffForm({
           <span className="material-symbols-outlined text-[18px]">
             person_add
           </span>
-          {busy ? "Creating..." : "Create staff account"}
+          {busy
+            ? t("settings:staff.form_creating")
+            : t("settings:staff.form_create")}
         </button>
       </div>
     </form>
@@ -289,6 +308,7 @@ function EditStaffForm({
   onSaved: (row: StaffRow) => void;
   onCancel: () => void;
 }): ReactElement {
+  const { t } = useTranslation(["settings", "common"]);
   const [displayName, setDisplayName] = useState(staff.display_name);
   const [role, setRole] = useState<StaffRole | "owner">(staff.role);
   const [branchId, setBranchId] = useState(staff.branch?.id ?? "");
@@ -308,7 +328,11 @@ function EditStaffForm({
       });
       onSaved(updated);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Could not save changes.");
+      setError(
+        err instanceof ApiError
+          ? messageForError(err, (key, options) => t(`common:${key}`, options))
+          : t("settings:staff.error_save"),
+      );
     } finally {
       setBusy(false);
     }
@@ -318,7 +342,7 @@ function EditStaffForm({
     <form onSubmit={submit} className="space-y-4" data-testid="edit-staff-form">
       <div>
         <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-600">
-          Display name
+          {t("settings:staff.form_display_name")}
         </label>
         <input
           required
@@ -330,7 +354,7 @@ function EditStaffForm({
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
           <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-600">
-            Role
+            {t("settings:staff.form_role")}
           </label>
           <select
             value={role}
@@ -339,27 +363,27 @@ function EditStaffForm({
           >
             {data.enabled_roles.map((item) => (
               <option key={item.role} value={item.role}>
-                {item.label}
+                {t(`common:role.${item.role}`)}
               </option>
             ))}
           </select>
           <p className="mt-1 text-[11px] text-slate-500">
-            Only roles the Platform enabled for this lab can be chosen.
+            {t("settings:staff.form_role_note")}
           </p>
         </div>
         <div>
           <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-600">
-            Branch
+            {t("settings:staff.form_branch")}
           </label>
           <select
-            aria-label="Branch"
+            aria-label={t("settings:staff.form_branch")}
             value={tenantWide ? "" : branchId}
             onChange={(e) => setBranchId(e.target.value)}
             disabled={tenantWide}
             className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:bg-slate-100 disabled:text-slate-500 focus:border-teal-600 focus:outline-none focus:ring-1 focus:ring-teal-600"
           >
             {tenantWide ? (
-              <option value="">All branches (tenant-wide role)</option>
+              <option value="">{t("settings:staff.form_all_branches")}</option>
             ) : (
               data.branches.map((branch) => (
                 <option key={branch.id} value={branch.id}>
@@ -386,14 +410,14 @@ function EditStaffForm({
           onClick={onCancel}
           className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
         >
-          Cancel
+          {t("common:actions.cancel")}
         </button>
         <button
           type="submit"
           disabled={busy}
           className="rounded-lg bg-[#005c55] px-5 py-2 text-sm font-semibold text-white hover:bg-[#0f766e] disabled:opacity-60"
         >
-          {busy ? "Saving..." : "Save changes"}
+          {busy ? t("settings:staff.saving") : t("settings:staff.form_save")}
         </button>
       </div>
     </form>
@@ -401,58 +425,75 @@ function EditStaffForm({
 }
 
 function DetailPanel({ detail }: { detail: StaffDetail }): ReactElement {
+  const { t } = useTranslation(["settings", "common"]);
   return (
     <div className="space-y-5" data-testid="staff-detail">
       <div className="grid grid-cols-2 gap-4 text-sm">
         <div>
           <p className="text-[11px] uppercase tracking-wide text-slate-500">
-            Name
+            {t("common:labels.name")}
           </p>
-          <p className="font-semibold text-slate-900">{detail.display_name}</p>
+          <p className="font-semibold text-slate-900">
+            <bdi dir="ltr">{detail.display_name}</bdi>
+          </p>
         </div>
         <div>
           <p className="text-[11px] uppercase tracking-wide text-slate-500">
-            Email
+            {t("common:labels.email")}
           </p>
-          <p className="font-mono text-slate-800 break-all">{detail.email}</p>
+          <p className="font-mono text-slate-800 break-all" dir="ltr">
+            {detail.email}
+          </p>
         </div>
         <div>
           <p className="text-[11px] uppercase tracking-wide text-slate-500">
-            Role
+            {t("settings:staff.col_role")}
           </p>
-          <p className="text-slate-800">{detail.role_label}</p>
+          <p className="text-slate-800">{t(`common:role.${detail.role}`)}</p>
         </div>
         <div>
           <p className="text-[11px] uppercase tracking-wide text-slate-500">
-            Branch
+            {t("settings:staff.col_branch")}
           </p>
           <p className="text-slate-800">
-            {detail.branch
-              ? `${detail.branch.code} — ${detail.branch.name}`
-              : "All branches"}
+            {detail.branch ? (
+              <bdi dir="ltr">
+                {detail.branch.code} — {detail.branch.name}
+              </bdi>
+            ) : (
+              t("common:topbar.all_branches")
+            )}
           </p>
         </div>
         <div>
           <p className="text-[11px] uppercase tracking-wide text-slate-500">
-            Status
+            {t("common:labels.status")}
           </p>
-          <p className="text-slate-800 capitalize">{detail.status}</p>
+          <p className="text-slate-800 capitalize">
+            {detail.status === "active"
+              ? t("settings:staff.account_active")
+              : t("settings:staff.account_deactivated")}
+          </p>
         </div>
         <div>
           <p className="text-[11px] uppercase tracking-wide text-slate-500">
-            Two-factor
+            {t("settings:staff.totp_title")}
           </p>
-          <p className="text-slate-800 capitalize">{detail.totp_status}</p>
+          <p className="text-slate-800 capitalize">
+            {detail.totp_status === "enabled"
+              ? t("settings:staff.totp_enabled")
+              : t("settings:staff.totp_disabled")}
+          </p>
         </div>
       </div>
 
       <div>
         <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-600 mb-2">
-          Account audit history
+          {t("settings:staff.audit_title")}
         </h3>
         {detail.audit_history.length === 0 ? (
           <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500">
-            No audit entries recorded for this account yet.
+            {t("settings:staff.audit_empty")}
           </p>
         ) : (
           <ul className="divide-y divide-slate-100 rounded-lg border border-slate-200">
@@ -479,6 +520,7 @@ function DetailPanel({ detail }: { detail: StaffDetail }): ReactElement {
 }
 
 export function StaffScreen(): ReactElement {
+  const { t } = useTranslation(["settings", "common"]);
   const [data, setData] = useState<StaffListResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -511,11 +553,15 @@ export function StaffScreen(): ReactElement {
       setData(result);
       setNextCursor(result.next_cursor);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Could not load staff.");
+      setError(
+        err instanceof ApiError
+          ? messageForError(err, (key, options) => t(`common:${key}`, options))
+          : t("settings:staff.error_load"),
+      );
     } finally {
       setLoading(false);
     }
-  }, [query, statusFilter]);
+  }, [query, statusFilter, t]);
 
   const loadMore = async (): Promise<void> => {
     if (!nextCursor || loadingMore) return;
@@ -540,7 +586,9 @@ export function StaffScreen(): ReactElement {
       setNextCursor(result.next_cursor);
     } catch (err: unknown) {
       setError(
-        err instanceof Error ? err.message : "Could not load more staff.",
+        err instanceof ApiError
+          ? messageForError(err, (key, options) => t(`common:${key}`, options))
+          : t("settings:staff.error_load_more"),
       );
     } finally {
       setLoadingMore(false);
@@ -574,7 +622,7 @@ export function StaffScreen(): ReactElement {
   const handleReset = async (row: StaffRow): Promise<void> => {
     if (
       !window.confirm(
-        `Issue a new temporary password for ${row.display_name}? Their current password stops working immediately and all sessions are revoked.`,
+        t("settings:staff.confirm_reset", { name: row.display_name }),
       )
     ) {
       return;
@@ -587,7 +635,9 @@ export function StaffScreen(): ReactElement {
       void load();
     } catch (err: unknown) {
       setError(
-        err instanceof Error ? err.message : "Could not reset the password.",
+        err instanceof ApiError
+          ? messageForError(err, (key, options) => t(`common:${key}`, options))
+          : t("settings:staff.error_reset"),
       );
     } finally {
       setBusyRow(null);
@@ -600,8 +650,12 @@ export function StaffScreen(): ReactElement {
     if (
       !window.confirm(
         row.is_active
-          ? `Deactivate ${row.display_name}? They are signed out immediately and cannot log in until reactivated. Their history and approvals are kept.`
-          : `Reactivate ${row.display_name}? They can log in again with their existing two-factor state.`,
+          ? t("settings:staff.confirm_deactivate", {
+              name: row.display_name,
+            })
+          : t("settings:staff.confirm_reactivate", {
+              name: row.display_name,
+            }),
       )
     ) {
       return;
@@ -615,11 +669,18 @@ export function StaffScreen(): ReactElement {
         : await staffService.reactivate(row.id);
       replaceRow(updated);
       setNotice(
-        `${updated.display_name} was ${updated.is_active ? "reactivated" : "deactivated"}.`,
+        t(
+          updated.is_active
+            ? "settings:staff.notice_reactivated"
+            : "settings:staff.notice_deactivated",
+          { name: updated.display_name },
+        ),
       );
     } catch (err: unknown) {
       setError(
-        err instanceof Error ? err.message : "Could not update the account.",
+        err instanceof ApiError
+          ? messageForError(err, (key, options) => t(`common:${key}`, options))
+          : t("settings:staff.error_update"),
       );
     } finally {
       setBusyRow(null);
@@ -634,7 +695,9 @@ export function StaffScreen(): ReactElement {
       setDetail(await staffService.get(row.id));
     } catch (err: unknown) {
       setError(
-        err instanceof Error ? err.message : "Could not load the profile.",
+        err instanceof ApiError
+          ? messageForError(err, (key, options) => t(`common:${key}`, options))
+          : t("settings:staff.error_profile"),
       );
     } finally {
       setDetailLoading(false);
@@ -644,27 +707,32 @@ export function StaffScreen(): ReactElement {
   const seatText = useMemo(() => {
     if (!data) return "";
     if (data.plan_staff_limit === null) {
-      return `${data.staff_count} accounts — unlimited on this plan`;
+      return t("settings:staff.seat_unlimited", { n: data.staff_count });
     }
-    return `${data.staff_count} of ${data.plan_staff_limit} plan seats used (Owner counts as a seat)`;
-  }, [data]);
+    return t("settings:staff.seat_limit", {
+      n: data.staff_count,
+      limit: data.plan_staff_limit,
+    });
+  }, [data, t]);
 
   return (
     <div className="mx-auto max-w-6xl space-y-6 px-4 py-6 sm:px-8">
       <div className="flex flex-col gap-4 border-b border-slate-200 pb-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="mb-1 flex items-center gap-2 text-xs text-slate-500">
-            <span>Settings</span>
-            <span className="material-symbols-outlined text-[14px]">
+            <span>{t("common:nav.settings")}</span>
+            <span className="material-symbols-outlined text-[14px] rtl:rotate-180">
               chevron_right
             </span>
-            <span className="font-medium text-teal-700">Staff</span>
+            <span className="font-medium text-teal-700">
+              {t("common:nav.staff")}
+            </span>
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-            Staff accounts
+            {t("settings:staff.title")}
           </h1>
           <p className="mt-0.5 text-sm text-slate-600">
-            Create and manage the people who work in your lab.
+            {t("settings:staff.subtitle")}
           </p>
         </div>
         <button
@@ -679,7 +747,7 @@ export function StaffScreen(): ReactElement {
           <span className="material-symbols-outlined text-[18px]">
             person_add
           </span>
-          Add staff
+          {t("settings:staff.add")}
         </button>
       </div>
 
@@ -693,10 +761,11 @@ export function StaffScreen(): ReactElement {
           </span>
           <span className="text-slate-300">|</span>
           <span>
-            Enabled roles:{" "}
+            {t("settings:staff.enabled_roles")}{" "}
             <strong className="text-slate-800">
-              {data.enabled_roles.map((role) => role.label).join(", ") ||
-                "None — ask the Platform"}
+              {data.enabled_roles
+                .map((role) => t(`common:role.${role.role}`))
+                .join(", ") || t("settings:staff.no_roles")}
             </strong>
           </span>
         </div>
@@ -722,14 +791,14 @@ export function StaffScreen(): ReactElement {
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="relative w-full sm:max-w-xs">
-          <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[18px] text-slate-400">
+          <span className="material-symbols-outlined absolute start-3 top-1/2 -translate-y-1/2 text-[18px] text-slate-400">
             search
           </span>
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search name or email"
-            className="w-full rounded-lg border border-slate-300 bg-white py-2 pl-9 pr-3 text-sm focus:border-teal-600 focus:outline-none focus:ring-1 focus:ring-teal-600"
+            placeholder={t("settings:staff.search_placeholder")}
+            className="w-full rounded-lg border border-slate-300 bg-white py-2 ps-9 pe-3 text-sm focus:border-teal-600 focus:outline-none focus:ring-1 focus:ring-teal-600"
           />
         </div>
         <select
@@ -739,9 +808,11 @@ export function StaffScreen(): ReactElement {
           }
           className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-teal-600 focus:outline-none focus:ring-1 focus:ring-teal-600"
         >
-          <option value="">All statuses</option>
-          <option value="active">Active</option>
-          <option value="deactivated">Deactivated</option>
+          <option value="">{t("settings:staff.all_statuses")}</option>
+          <option value="active">{t("settings:staff.account_active")}</option>
+          <option value="deactivated">
+            {t("settings:staff.account_deactivated")}
+          </option>
         </select>
       </div>
 
@@ -761,16 +832,18 @@ export function StaffScreen(): ReactElement {
                 </span>
                 <div>
                   <p className="text-sm font-semibold text-slate-900">
-                    {data.owner.display_name}{" "}
-                    <span className="ml-1 rounded bg-[#005c55] px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
-                      Owner
+                    <bdi dir="ltr">{data.owner.display_name}</bdi>{" "}
+                    <span className="ms-1 rounded bg-[#005c55] px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
+                      {t("settings:staff.owner_badge")}
                     </span>
                   </p>
-                  <p className="text-xs text-slate-500">{data.owner.email}</p>
+                  <p className="text-xs text-slate-500" dir="ltr">
+                    {data.owner.email}
+                  </p>
                 </div>
               </div>
               <span className="text-[11px] text-slate-500">
-                Full access — cannot be edited or deactivated
+                {t("settings:staff.owner_note")}
               </span>
             </div>
           )}
@@ -781,25 +854,34 @@ export function StaffScreen(): ReactElement {
                 group_off
               </span>
               <p className="mt-2 text-sm font-semibold text-slate-800">
-                No staff accounts yet
+                {t("settings:staff.empty_title")}
               </p>
               <p className="mx-auto mt-1 max-w-md text-xs text-slate-500">
-                You are running the lab alone. Add a receptionist or technician
-                when you are ready — the Owner account never depends on them.
+                {t("settings:staff.empty_body")}
               </p>
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
+              <table className="w-full text-start text-sm">
                 <thead className="bg-slate-50 text-[11px] uppercase tracking-wider text-slate-500">
                   <tr>
-                    <th className="px-4 py-3 font-semibold">Name</th>
-                    <th className="px-4 py-3 font-semibold">Role</th>
-                    <th className="px-4 py-3 font-semibold">Branch</th>
-                    <th className="px-4 py-3 font-semibold">Status</th>
-                    <th className="px-4 py-3 font-semibold">2FA</th>
-                    <th className="px-4 py-3 text-right font-semibold">
-                      Actions
+                    <th className="px-4 py-3 font-semibold">
+                      {t("common:labels.name")}
+                    </th>
+                    <th className="px-4 py-3 font-semibold">
+                      {t("settings:staff.col_role")}
+                    </th>
+                    <th className="px-4 py-3 font-semibold">
+                      {t("settings:staff.col_branch")}
+                    </th>
+                    <th className="px-4 py-3 font-semibold">
+                      {t("common:labels.status")}
+                    </th>
+                    <th className="px-4 py-3 font-semibold">
+                      {t("settings:staff.col_2fa")}
+                    </th>
+                    <th className="px-4 py-3 text-end font-semibold">
+                      {t("common:labels.actions")}
                     </th>
                   </tr>
                 </thead>
@@ -808,19 +890,26 @@ export function StaffScreen(): ReactElement {
                     <tr key={row.id} className="hover:bg-slate-50/70">
                       <td className="px-4 py-3">
                         <p className="font-semibold text-slate-900">
-                          {row.display_name}
+                          <bdi dir="ltr">{row.display_name}</bdi>
                         </p>
-                        <p className="text-xs text-slate-500 break-all">
+                        <p
+                          className="text-xs text-slate-500 break-all"
+                          dir="ltr"
+                        >
                           {row.email}
                         </p>
                       </td>
                       <td className="px-4 py-3 text-slate-700">
-                        {row.role_label}
+                        {t(`common:role.${row.role}`)}
                       </td>
                       <td className="px-4 py-3 text-slate-700">
-                        {row.branch
-                          ? `${row.branch.code} — ${row.branch.name}`
-                          : "All branches"}
+                        {row.branch ? (
+                          <bdi dir="ltr">
+                            {row.branch.code} — {row.branch.name}
+                          </bdi>
+                        ) : (
+                          t("common:topbar.all_branches")
+                        )}
                       </td>
                       <td className="px-4 py-3">
                         <span
@@ -830,11 +919,15 @@ export function StaffScreen(): ReactElement {
                               : "bg-slate-100 text-slate-600"
                           }`}
                         >
-                          {row.is_active ? "Active" : "Deactivated"}
+                          {row.is_active
+                            ? t("settings:staff.account_active")
+                            : t("settings:staff.account_deactivated")}
                         </span>
                       </td>
                       <td className="px-4 py-3 text-xs text-slate-600 capitalize">
-                        {row.totp_status}
+                        {row.totp_status === "enabled"
+                          ? t("settings:staff.totp_enabled")
+                          : t("settings:staff.totp_disabled")}
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex flex-wrap items-center justify-end gap-1">
@@ -843,14 +936,14 @@ export function StaffScreen(): ReactElement {
                             onClick={() => void openDetail(row)}
                             className="rounded px-2 py-1 text-xs font-semibold text-teal-700 hover:bg-teal-50"
                           >
-                            View
+                            {t("common:actions.view")}
                           </button>
                           <button
                             type="button"
                             onClick={() => setEditTarget(row)}
                             className="rounded px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100"
                           >
-                            Edit
+                            {t("common:actions.edit")}
                           </button>
                           <button
                             type="button"
@@ -859,8 +952,8 @@ export function StaffScreen(): ReactElement {
                             className="rounded px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-50"
                           >
                             {busyRow === row.id && busyAction === "reset"
-                              ? "Resetting…"
-                              : "Reset password"}
+                              ? t("settings:staff.resetting")
+                              : t("settings:staff.reset_password")}
                           </button>
                           <button
                             type="button"
@@ -875,10 +968,10 @@ export function StaffScreen(): ReactElement {
                             {busyRow === row.id &&
                             (busyAction === "deactivate" ||
                               busyAction === "reactivate")
-                              ? "Saving…"
+                              ? t("settings:staff.saving")
                               : row.is_active
-                                ? "Deactivate"
-                                : "Reactivate"}
+                                ? t("settings:staff.deactivate")
+                                : t("settings:staff.reactivate")}
                           </button>
                         </div>
                       </td>
@@ -899,15 +992,17 @@ export function StaffScreen(): ReactElement {
             disabled={loadingMore}
             className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
           >
-            {loadingMore ? "Loading…" : "Load more staff"}
+            {loadingMore
+              ? t("common:empty.loading")
+              : t("settings:staff.load_more")}
           </button>
         </div>
       )}
 
       {createOpen && data && (
         <Modal
-          title="Add a staff account"
-          subtitle="Only roles the Platform enabled for this lab are offered."
+          title={t("settings:staff.modal_add_title")}
+          subtitle={t("settings:staff.modal_add_subtitle")}
           onClose={() => setCreateOpen(false)}
         >
           <CreateStaffForm
@@ -920,8 +1015,10 @@ export function StaffScreen(): ReactElement {
 
       {editTarget && data && (
         <Modal
-          title={`Edit ${editTarget.display_name}`}
-          subtitle="Role and branch changes are audited."
+          title={t("settings:staff.modal_edit_title", {
+            name: editTarget.display_name,
+          })}
+          subtitle={t("settings:staff.modal_edit_subtitle")}
           onClose={() => setEditTarget(null)}
         >
           <EditStaffForm
@@ -930,7 +1027,9 @@ export function StaffScreen(): ReactElement {
             onSaved={(row) => {
               setEditTarget(null);
               replaceRow(row);
-              setNotice(`${row.display_name} was updated.`);
+              setNotice(
+                t("settings:staff.notice_updated", { name: row.display_name }),
+              );
               void load();
             }}
             onCancel={() => setEditTarget(null)}
@@ -940,8 +1039,10 @@ export function StaffScreen(): ReactElement {
 
       {(detailLoading || detail) && (
         <Modal
-          title={detail ? detail.display_name : "Staff profile"}
-          subtitle={detail ? detail.email : "Loading profile…"}
+          title={
+            detail ? detail.display_name : t("settings:staff.profile_title")
+          }
+          subtitle={detail ? detail.email : t("settings:staff.profile_loading")}
           onClose={() => setDetail(null)}
         >
           {detailLoading ? (
@@ -954,15 +1055,15 @@ export function StaffScreen(): ReactElement {
 
       {tempResult && (
         <Modal
-          title="Temporary password issued"
-          subtitle="Copy it now — the server will not show it again."
+          title={t("settings:staff.temp_modal_title")}
+          subtitle={t("settings:staff.temp_modal_subtitle")}
           onClose={() => setTempResult(null)}
         >
           <TempPasswordPanel
             result={tempResult}
             onDone={() => {
               setTempResult(null);
-              setNotice("Temporary password issued.");
+              setNotice(t("settings:staff.temp_notice"));
             }}
           />
         </Modal>

@@ -2,6 +2,7 @@ import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
 import { Check, Copy, ShieldCheck } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 
 import { useAuthStore } from "./authStore";
 import { roleHome } from "./access";
@@ -12,6 +13,7 @@ import { roleHome } from "./access";
  * Open only when flagged with totp_enrollment_required.
  */
 export function TenantEnrollScreen(): ReactElement {
+  const { t } = useTranslation(["auth", "common"]);
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
   const accessToken = useAuthStore((state) => state.accessToken);
@@ -68,7 +70,7 @@ export function TenantEnrollScreen(): ReactElement {
       credentials: "include",
     })
       .then((res) => {
-        if (!res.ok) throw new Error("Failed to start enrolment");
+        if (!res.ok) throw new Error("start_enrolment_failed");
         return res.json();
       })
       .then((data) => {
@@ -78,13 +80,16 @@ export function TenantEnrollScreen(): ReactElement {
       })
       .catch(() => {
         if (!cancelled) {
-          setError("Could not start enrolment. Please sign in again.");
+          setError(t("auth:enroll.start_failed"));
         }
       });
 
     return () => {
       cancelled = true;
     };
+    // t changes identity on language switch; re-running would issue a NEW
+    // enrolment secret, so this effect intentionally runs once per session.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accessToken, navigate]);
 
   const handleConfirm = async (event: React.FormEvent) => {
@@ -105,7 +110,7 @@ export function TenantEnrollScreen(): ReactElement {
       });
 
       if (!res.ok) {
-        throw new Error("Invalid code");
+        throw new Error("invalid_code");
       }
 
       const data = await res.json();
@@ -114,9 +119,7 @@ export function TenantEnrollScreen(): ReactElement {
         setSession(accessToken, { ...user, totp_enabled: true });
       }
     } catch {
-      setError(
-        "That code did not match. Check the device clock and try again.",
-      );
+      setError(t("auth:enroll.code_mismatch"));
     } finally {
       setBusy(false);
     }
@@ -137,10 +140,10 @@ export function TenantEnrollScreen(): ReactElement {
               className="text-lg font-bold leading-tight text-slate-900"
               style={{ fontFamily: "'Plus Jakarta Sans', 'Inter', sans-serif" }}
             >
-              Enable two-factor authentication
+              {t("auth:enroll.title")}
             </p>
             <p className="text-xs text-slate-500">
-              Required for security compliance before opening your lab console.
+              {t("auth:enroll.subtitle")}
             </p>
           </div>
         </div>
@@ -150,29 +153,31 @@ export function TenantEnrollScreen(): ReactElement {
             <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
               <div className="flex items-center justify-between gap-2">
                 <p className="text-sm font-semibold text-amber-900">
-                  Save these backup codes now
+                  {t("auth:enroll.save_codes")}
                 </p>
                 <button
                   type="button"
                   onClick={handleCopyCodes}
                   className="inline-flex items-center gap-1.5 rounded-md border border-amber-300 bg-white px-2.5 py-1 text-xs font-semibold text-amber-950 hover:bg-amber-100/70 transition-colors shadow-xs"
-                  title="Copy all backup codes"
+                  title={t("auth:enroll.copy_title")}
                 >
                   {copiedCodes ? (
                     <>
                       <Check className="h-3.5 w-3.5 text-emerald-600" />
-                      <span className="text-emerald-700 font-bold">Copied</span>
+                      <span className="text-emerald-700 font-bold">
+                        {t("common:toast.copied")}
+                      </span>
                     </>
                   ) : (
                     <>
                       <Copy className="h-3.5 w-3.5 text-amber-800" />
-                      <span>Copy codes</span>
+                      <span>{t("auth:enroll.copy_codes")}</span>
                     </>
                   )}
                 </button>
               </div>
               <p className="mt-1 text-xs text-amber-800">
-                Each code works once. They are shown only on this screen.
+                {t("auth:enroll.codes_once")}
               </p>
               <div className="mt-3 grid grid-cols-2 gap-1 font-mono text-xs text-amber-950">
                 {backupCodes.map((backupCode) => (
@@ -189,26 +194,28 @@ export function TenantEnrollScreen(): ReactElement {
               }
               className="w-full rounded-lg bg-[#0E6B3A] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0A522C]"
             >
-              I have saved my codes — continue
+              {t("auth:enroll.codes_saved")}
             </button>
           </div>
         ) : (
           <form onSubmit={handleConfirm} className="space-y-4" noValidate>
             <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">
-                Add this account to your authenticator
+                {t("auth:enroll.add_account")}
               </p>
               {otpauthUri ? (
                 <p className="mt-2 break-all font-mono text-[11px] text-slate-700">
                   {otpauthUri}
                 </p>
               ) : (
-                <p className="mt-2 text-xs text-slate-500">Preparing…</p>
+                <p className="mt-2 text-xs text-slate-500">
+                  {t("auth:enroll.preparing")}
+                </p>
               )}
               {secret ? (
                 <div className="mt-2 flex items-center justify-between gap-2">
                   <p className="text-[11px] text-slate-500">
-                    Manual key:{" "}
+                    {t("auth:enroll.manual_key")}{" "}
                     <span className="font-mono text-slate-800 font-medium select-all">
                       {secret}
                     </span>
@@ -217,19 +224,19 @@ export function TenantEnrollScreen(): ReactElement {
                     type="button"
                     onClick={handleCopyKey}
                     className="inline-flex items-center gap-1 rounded border border-slate-300 bg-white px-2 py-0.5 text-xs font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors shadow-xs"
-                    title="Copy manual key"
+                    title={t("auth:enroll.copy_key_title")}
                   >
                     {copiedKey ? (
                       <>
                         <Check className="h-3.5 w-3.5 text-emerald-600" />
                         <span className="text-emerald-700 font-semibold">
-                          Copied
+                          {t("common:toast.copied")}
                         </span>
                       </>
                     ) : (
                       <>
                         <Copy className="h-3.5 w-3.5 text-slate-500" />
-                        <span>Copy key</span>
+                        <span>{t("auth:enroll.copy_key")}</span>
                       </>
                     )}
                   </button>
@@ -240,13 +247,15 @@ export function TenantEnrollScreen(): ReactElement {
             <div>
               <div className="mb-2 rounded-lg border border-teal-200 bg-teal-50/80 p-3">
                 <p className="text-xs font-medium text-teal-950">
-                  Enter the code for{" "}
+                  {t("auth:enroll.enter_code_for")}{" "}
                   <strong className="font-semibold text-slate-900">
-                    {user?.email || "your account"}
+                    <bdi dir="ltr">
+                      {user?.email || t("auth:enroll.your_account")}
+                    </bdi>
                   </strong>
                 </p>
                 <div className="mt-1 flex items-center justify-between text-[11px] text-teal-800">
-                  <span>Current code valid for</span>
+                  <span>{t("auth:enroll.valid_for")}</span>
                   <span className="font-mono font-bold text-teal-900">
                     {secondsLeft}s
                   </span>
@@ -256,7 +265,7 @@ export function TenantEnrollScreen(): ReactElement {
                 htmlFor="enroll-code"
                 className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-600"
               >
-                Code from the app
+                {t("auth:enroll.code_label")}
               </label>
               <input
                 id="enroll-code"
@@ -283,7 +292,7 @@ export function TenantEnrollScreen(): ReactElement {
               disabled={busy || !secret}
               className="w-full rounded-lg bg-[#0E6B3A] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0A522C] disabled:opacity-60"
             >
-              {busy ? "Activating…" : "Activate two-factor"}
+              {busy ? t("auth:enroll.activating") : t("auth:enroll.activate")}
             </button>
           </form>
         )}

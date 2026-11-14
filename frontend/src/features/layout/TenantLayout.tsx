@@ -15,15 +15,17 @@ import {
   isRoleEnabled,
   navForRole,
   needsTotpEnrolment,
-  ROLE_LABELS,
   roleHome,
 } from "../auth/access";
 import { fetchTenantContext, getSubdomainTenant } from "../auth/tenantContext";
 import { partnersService } from "../partners/partnersService";
 import { reportsService } from "../reports/reportsService";
 import { resultsService } from "../results/resultsService";
+import { LanguageSwitcher } from "../../components/LanguageSwitcher";
+import { useTranslation } from "react-i18next";
 
 export function TenantLayout(): ReactElement {
+  const { t } = useTranslation(["common", "auth"]);
   const navigate = useNavigate();
   const location = useLocation();
   const user = useAuthStore((state) => state.user);
@@ -34,7 +36,6 @@ export function TenantLayout(): ReactElement {
   // real brand. Render the resolved tenant name only.
   const [tenantName, setTenantName] = useState<string | null>(null);
   const [tenantCity, setTenantCity] = useState<string>("");
-  const [lang, setLang] = useState<"en" | "ur">("en");
   const [badges, setBadges] = useState({
     pendingApprovals: 0,
     draftSettlements: 0,
@@ -42,8 +43,8 @@ export function TenantLayout(): ReactElement {
   });
 
   const displayName = useMemo(() => {
-    return user?.display_name || user?.name || user?.email || "Staff";
-  }, [user]);
+    return user?.display_name || user?.name || user?.email || t("role.staff");
+  }, [user, t]);
 
   const userInitials = useMemo(() => {
     const source = displayName.trim();
@@ -55,9 +56,9 @@ export function TenantLayout(): ReactElement {
   }, [displayName]);
 
   const userRole = useMemo(() => {
-    if (!user?.role) return "Staff";
-    return ROLE_LABELS[user.role] ?? "Staff";
-  }, [user?.role]);
+    if (!user?.role) return t("role.staff");
+    return t(`role.${user.role}`);
+  }, [user?.role, t]);
 
   const navigation = useMemo(
     () => navForRole(user?.role, user?.enabled_roles),
@@ -191,12 +192,12 @@ export function TenantLayout(): ReactElement {
   return (
     <div className="bg-[#faf8ff] text-[#131b2e] antialiased min-h-screen">
       {/* Top Header */}
-      <header className="fixed top-0 left-0 right-0 h-16 bg-white border-b border-slate-200/80 z-50 px-6 flex items-center justify-between shadow-[0_1px_8px_rgba(0,0,0,0.02)]">
+      <header className="fixed top-0 start-0 end-0 h-16 bg-white border-b border-slate-200/80 z-50 px-6 flex items-center justify-between shadow-[0_1px_8px_rgba(0,0,0,0.02)]">
         <div className="flex items-center gap-4">
           <Link
             to="/"
             className="w-9 h-9 rounded-lg bg-[#005c55] flex items-center justify-center text-white shadow-sm hover:opacity-90 transition-opacity"
-            title="LabFlow Dashboard"
+            title={t("topbar.dashboard_title")}
           >
             <span
               aria-hidden="true"
@@ -216,44 +217,21 @@ export function TenantLayout(): ReactElement {
             </div>
             <p className="text-xs text-slate-400">
               {user?.role === "owner" || user?.role === "pathologist"
-                ? "All branches"
-                : "Branch workspace"}
+                ? t("topbar.all_branches")
+                : t("topbar.branch_workspace")}
               {tenantCity ? ` • ${tenantCity}` : ""}
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-4">
-          <div className="flex items-center bg-slate-100 p-1 rounded-full border border-slate-200/60">
-            <button
-              onClick={() => setLang("en")}
-              className={`px-3 py-1 rounded-full text-xs font-semibold shadow-sm transition-all ${
-                lang === "en"
-                  ? "bg-white text-[#005c55]"
-                  : "text-slate-500 hover:text-slate-900"
-              }`}
-              type="button"
-            >
-              English
-            </button>
-            <button
-              onClick={() => setLang("ur")}
-              className={`px-3 py-1 rounded-full text-xs transition-colors ${
-                lang === "ur"
-                  ? "bg-white text-[#005c55] font-semibold shadow-sm"
-                  : "text-slate-500 hover:text-slate-900"
-              }`}
-              type="button"
-            >
-              اردو
-            </button>
-          </div>
+          <LanguageSwitcher compact />
           <div className="h-6 w-px bg-slate-200" />
-          <div className="flex items-center gap-3 pl-1">
+          <div className="flex items-center gap-3 ps-1">
             <div className="w-9 h-9 rounded-full bg-[#86f2e4] flex items-center justify-center text-xs font-bold text-[#006f66] ring-2 ring-[#005c55]/20">
               {userInitials}
             </div>
-            <div className="hidden sm:flex flex-col text-left">
+            <div className="hidden sm:flex flex-col text-start">
               <span className="text-xs font-semibold text-slate-900 leading-tight">
                 {displayName}
               </span>
@@ -263,8 +241,8 @@ export function TenantLayout(): ReactElement {
             </div>
             <button
               onClick={handleLogout}
-              className="text-slate-400 hover:text-red-600 ml-1 p-1 rounded transition-colors flex items-center"
-              title="Log out"
+              className="text-slate-400 hover:text-red-600 ms-1 p-1 rounded transition-colors flex items-center"
+              title={t("topbar.logout")}
               type="button"
             >
               <span
@@ -279,11 +257,11 @@ export function TenantLayout(): ReactElement {
       </header>
 
       {/* Left Sidebar */}
-      <aside className="fixed left-0 top-16 bottom-0 w-60 bg-white border-r border-slate-200/80 z-40 overflow-y-auto p-4 flex flex-col gap-6">
+      <aside className="fixed start-0 top-16 bottom-0 w-60 bg-white border-e border-slate-200/80 z-40 overflow-y-auto p-4 flex flex-col gap-6">
         {navigation.operations.length > 0 && (
           <div className="flex flex-col">
             <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1 px-3">
-              Lab Operations
+              {t("nav.operations")}
             </div>
             <nav className="flex flex-col gap-0.5">
               {navigation.operations.map((item) => (
@@ -295,7 +273,7 @@ export function TenantLayout(): ReactElement {
                     >
                       {item.icon}
                     </span>
-                    <span>{item.label}</span>
+                    <span>{t(`nav.${item.labelKey}`)}</span>
                   </div>
                   {item.to === "/results/approvals" &&
                     badges.pendingApprovals > 0 && (
@@ -317,7 +295,7 @@ export function TenantLayout(): ReactElement {
         {navigation.management.length > 0 && (
           <div className="flex flex-col">
             <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1 px-3">
-              Management
+              {t("nav.management")}
             </div>
             <nav className="flex flex-col gap-0.5">
               {navigation.management.map((item) => (
@@ -329,7 +307,7 @@ export function TenantLayout(): ReactElement {
                     >
                       {item.icon}
                     </span>
-                    <span>{item.label}</span>
+                    <span>{t(`nav.${item.labelKey}`)}</span>
                   </div>
                   {item.to === "/settlements" &&
                     badges.draftSettlements > 0 && (
@@ -345,7 +323,7 @@ export function TenantLayout(): ReactElement {
       </aside>
 
       {/* Main Content Area */}
-      <div className="pl-60 min-h-screen flex flex-col bg-[#f8f9ff]">
+      <div className="ps-60 min-h-screen flex flex-col bg-[#f8f9ff]">
         <main className="flex-1 pt-16">
           <Outlet />
         </main>

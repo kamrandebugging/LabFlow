@@ -7,6 +7,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import { Trans, useTranslation } from "react-i18next";
 import {
   CheckCircle2,
   AlertTriangle,
@@ -20,17 +21,28 @@ import {
 import { useAuthStore } from "../auth/authStore";
 import { resultsService } from "./resultsService";
 import type { ApprovalQueueItem } from "./types";
+import { ApiError } from "../../lib/apiClient";
+import { messageForError } from "../../lib/errors";
+
+const BDI = { bdi: <bdi dir="ltr" /> };
+const BDI_AND_STRONG = { bdi: <bdi dir="ltr" />, strong: <strong /> };
+
+interface RejectedNotice {
+  patient: string;
+  test: string;
+}
 
 export function ApprovalsQueueScreen(): JSX.Element {
+  const { t } = useTranslation(["results", "common"]);
   const user = useAuthStore((state) => state.user);
   const isAuthorized = user?.role === "pathologist" || user?.role === "owner";
 
   const [queue, setQueue] = useState<ApprovalQueueItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [actionSuccessMessage, setActionSuccessMessage] = useState<
-    string | null
-  >(null);
+  const [actionSuccess, setActionSuccess] = useState<RejectedNotice | null>(
+    null,
+  );
 
   // Reject Modal State
   const [rejectingItem, setRejectingItem] = useState<ApprovalQueueItem | null>(
@@ -40,6 +52,12 @@ export function ApprovalsQueueScreen(): JSX.Element {
   const [rejectError, setRejectError] = useState<string | null>(null);
   const [processingAction, setProcessingAction] = useState(false);
   const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  /** API errors map through the catalogue; anything else uses screen text. */
+  const describeError = (err: unknown, fallbackKey: string): string =>
+    err instanceof ApiError
+      ? messageForError(err, (key) => t(key))
+      : t(fallbackKey);
 
   useEffect(() => {
     return () => {
@@ -56,9 +74,7 @@ export function ApprovalsQueueScreen(): JSX.Element {
       const data = await resultsService.getApprovalsQueue();
       setQueue(data);
     } catch (err) {
-      setErrorMessage(
-        err instanceof Error ? err.message : "Failed to load approvals queue.",
-      );
+      setErrorMessage(describeError(err, "results:approvals.load_error"));
     } finally {
       setLoading(false);
     }
@@ -66,14 +82,13 @@ export function ApprovalsQueueScreen(): JSX.Element {
 
   useEffect(() => {
     loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleConfirmReject = async () => {
     if (!rejectingItem) return;
     if (!rejectionNote.trim()) {
-      setRejectError(
-        "A clinical reason note is strictly required for rejection.",
-      );
+      setRejectError(t("results:approvals.reject_note_required"));
       return;
     }
 
@@ -89,20 +104,16 @@ export function ApprovalsQueueScreen(): JSX.Element {
       setQueue((prev) =>
         prev.filter((q) => q.result_id !== rejectingItem.result_id),
       );
-      setActionSuccessMessage(
-        `Result for ${rejectingItem.patient_name} (${rejectingItem.test_name}) rejected. Sample recollect requested.`,
-      );
+      setActionSuccess({
+        patient: rejectingItem.patient_name,
+        test: rejectingItem.test_name,
+      });
       setRejectingItem(null);
       setRejectionNote("");
       if (successTimerRef.current) clearTimeout(successTimerRef.current);
-      successTimerRef.current = setTimeout(
-        () => setActionSuccessMessage(null),
-        4000,
-      );
+      successTimerRef.current = setTimeout(() => setActionSuccess(null), 4000);
     } catch (err) {
-      setRejectError(
-        err instanceof Error ? err.message : "Failed to reject result.",
-      );
+      setRejectError(describeError(err, "results:approvals.reject_error"));
     } finally {
       setProcessingAction(false);
     }
@@ -115,18 +126,17 @@ export function ApprovalsQueueScreen(): JSX.Element {
         <div className="bg-red-50 border border-red-200 rounded-xl p-8 text-center space-y-4">
           <ShieldAlert className="w-12 h-12 text-red-600 mx-auto" />
           <h2 className="text-xl font-bold text-red-950">
-            Access Denied · Role Restricted
+            {t("results:access_denied.title")}
           </h2>
           <p className="text-sm text-red-800 max-w-md mx-auto">
-            Only a registered Pathologist or Owner may access the clinical
-            verification and approvals queue (Doc 03 §6.6).
+            <Trans i18nKey="results:approvals.denied_body" components={BDI} />
           </p>
           <div className="pt-2">
             <Link
               to="/worklist"
               className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-red-300 text-red-800 rounded-lg text-sm font-semibold hover:bg-red-100 transition-colors"
             >
-              <span>Go to Worklist</span>
+              <span>{t("results:approvals.go_to_worklist")}</span>
             </Link>
           </div>
         </div>
@@ -144,14 +154,13 @@ export function ApprovalsQueueScreen(): JSX.Element {
         <div>
           <div className="flex items-center gap-2 text-slate-500 text-xs uppercase tracking-wider font-semibold mb-1">
             <span className="w-2 h-2 rounded-full bg-red-600 animate-pulse" />
-            <span>Clinical Verification · Pathologist Desk</span>
+            <span>{t("results:approvals.kicker")}</span>
           </div>
           <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-            Approvals queue
+            {t("results:approvals.title")}
           </h1>
           <p className="text-xs text-slate-500 mt-1">
-            Entered results awaiting your decision · Critical first · Times are
-            PKT
+            {t("results:approvals.subtitle")}
           </p>
         </div>
 
@@ -161,10 +170,11 @@ export function ApprovalsQueueScreen(): JSX.Element {
             <AlertTriangle className="w-4 h-4 text-red-600" />
             <div>
               <div className="text-xs font-bold text-red-800 uppercase">
-                {criticalCount} Critical
+                <bdi dir="ltr">{criticalCount}</bdi>{" "}
+                {t("results:approvals.stat_critical")}
               </div>
               <div className="text-[10px] text-red-600 font-mono">
-                TAT &gt; 2h
+                {t("results:approvals.tat_breach")}
               </div>
             </div>
           </div>
@@ -172,10 +182,11 @@ export function ApprovalsQueueScreen(): JSX.Element {
             <FileCheck className="w-4 h-4 text-teal-700" />
             <div>
               <div className="text-xs font-bold text-slate-800 uppercase">
-                {standardCount} Standard
+                <bdi dir="ltr">{standardCount}</bdi>{" "}
+                {t("results:approvals.stat_standard")}
               </div>
               <div className="text-[10px] text-slate-500 font-mono">
-                In batch
+                {t("results:approvals.in_batch")}
               </div>
             </div>
           </div>
@@ -191,29 +202,40 @@ export function ApprovalsQueueScreen(): JSX.Element {
             </div>
             <div>
               <p className="text-xs font-bold text-red-900">
-                {criticalCount} critical results need immediate clinical
-                sign-off.
+                <bdi dir="ltr">{criticalCount}</bdi>{" "}
+                {t("results:approvals.critical_banner")}
               </p>
               <p className="text-xs text-red-700 mt-0.5">
-                Per CAP/ISO 15189 protocol, critical alerts require verified
-                telephonic/portal notification within 30 minutes of entry.
+                <Trans
+                  i18nKey="results:approvals.critical_protocol"
+                  components={BDI}
+                />
               </p>
             </div>
           </div>
           <span className="hidden sm:inline-flex items-center gap-1 text-[11px] font-bold text-red-700 uppercase tracking-wider bg-white px-2.5 py-1 rounded border border-red-200">
-            Priority Escalated
+            {t("results:approvals.priority_escalated")}
           </span>
         </div>
       )}
 
       {/* Action Feedback Banners */}
-      {actionSuccessMessage && (
+      {actionSuccess && (
         <div
           role="status"
           className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-900 text-xs flex items-center gap-2"
         >
           <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-          <span className="font-semibold">{actionSuccessMessage}</span>
+          <span className="font-semibold">
+            <Trans
+              i18nKey="results:approvals.reject_success"
+              values={{
+                patient: actionSuccess.patient,
+                test: actionSuccess.test,
+              }}
+              components={BDI}
+            />
+          </span>
         </div>
       )}
 
@@ -231,7 +253,7 @@ export function ApprovalsQueueScreen(): JSX.Element {
             onClick={loadData}
             className="px-2.5 py-1 bg-red-100 text-red-900 rounded font-semibold text-xs hover:bg-red-200"
           >
-            Retry
+            {t("results:retry")}
           </button>
         </div>
       )}
@@ -242,10 +264,11 @@ export function ApprovalsQueueScreen(): JSX.Element {
         <div className="px-6 py-3.5 bg-slate-50 border-b border-slate-200 flex items-center justify-between text-xs">
           <div className="flex items-center gap-2">
             <span className="font-semibold text-slate-900 text-sm">
-              Specimens for Sign-off
+              {t("results:approvals.signoff_title")}
             </span>
             <span className="bg-slate-200 text-slate-700 px-2 py-0.5 rounded font-mono font-semibold">
-              {queue.length} items pending
+              <bdi dir="ltr">{queue.length}</bdi>{" "}
+              {t("results:approvals.items_pending")}
             </span>
           </div>
           <div className="flex items-center gap-2">
@@ -255,7 +278,7 @@ export function ApprovalsQueueScreen(): JSX.Element {
               className="px-3 py-1 bg-white border border-slate-200 text-slate-700 rounded-lg hover:bg-slate-50 text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
             >
               <RefreshCw className="w-3.5 h-3.5 text-slate-500" />
-              <span>Refresh</span>
+              <span>{t("common:actions.refresh")}</span>
             </button>
           </div>
         </div>
@@ -265,44 +288,44 @@ export function ApprovalsQueueScreen(): JSX.Element {
           <div className="py-20 flex flex-col items-center justify-center text-slate-500">
             <RefreshCw className="w-6 h-6 animate-spin text-teal-600 mb-2" />
             <span className="text-xs font-medium">
-              Loading pending sign-offs...
+              {t("results:approvals.loading")}
             </span>
           </div>
         ) : queue.length === 0 ? (
           <div className="py-20 text-center text-slate-500 text-sm">
             <CheckCircle2 className="w-10 h-10 mx-auto text-emerald-500 mb-2" />
             <p className="font-semibold text-slate-800">
-              Approvals queue is clear!
+              {t("results:approvals.empty_title")}
             </p>
             <p className="text-xs text-slate-400 mt-1">
-              No results currently pending pathologist verification.
+              {t("results:approvals.empty_body")}
             </p>
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+            <table className="w-full text-start border-collapse">
               <thead>
                 <tr className="bg-slate-50/50 text-slate-500 text-xs uppercase tracking-wider font-semibold border-b border-slate-100">
                   <th className="py-3 px-6" scope="col">
-                    Priority
+                    {t("results:columns.priority")}
                   </th>
                   <th className="py-3 px-4" scope="col">
-                    Patient
+                    {t("results:columns.patient")}
                   </th>
                   <th className="py-3 px-4" scope="col">
-                    Test
+                    {t("results:columns.test")}
                   </th>
                   <th className="py-3 px-4" scope="col">
-                    Value &amp; Flag
+                    {t("results:columns.value_flag")}
                   </th>
                   <th className="py-3 px-4" scope="col">
-                    Entered By
+                    {t("results:columns.entered_by")}
                   </th>
                   <th className="py-3 px-4" scope="col">
-                    Waiting
+                    {t("results:columns.waiting")}
                   </th>
-                  <th className="py-3 px-6 text-right" scope="col">
-                    Action
+                  <th className="py-3 px-6 text-end" scope="col">
+                    {t("results:columns.action")}
                   </th>
                 </tr>
               </thead>
@@ -316,29 +339,33 @@ export function ApprovalsQueueScreen(): JSX.Element {
                       {item.is_critical ? (
                         <span className="bg-red-100 text-red-800 font-bold text-[11px] px-2.5 py-0.5 rounded-full inline-flex items-center gap-1.5 shadow-xs">
                           <span className="w-1.5 h-1.5 rounded-full bg-red-600 animate-ping" />
-                          CRITICAL
+                          {t("results:critical_badge")}
                         </span>
                       ) : (
                         <span className="bg-slate-100 text-slate-600 font-semibold text-[11px] px-2.5 py-0.5 rounded-full inline-flex items-center gap-1">
                           <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
-                          entered
+                          {t("results:approvals.status_entered")}
                         </span>
                       )}
                     </td>
                     <td className="py-4 px-4">
                       <div className="font-semibold text-slate-900">
-                        {item.patient_name}
+                        <bdi dir="ltr">{item.patient_name}</bdi>
                       </div>
                       <div className="text-xs font-mono text-slate-400">
-                        {item.patient_mrn}
+                        <bdi dir="ltr">{item.patient_mrn}</bdi>
                       </div>
                     </td>
                     <td className="py-4 px-4">
                       <div className="font-medium text-slate-900">
-                        {item.test_name}
+                        <bdi dir="ltr">{item.test_name}</bdi>
                       </div>
                       <div className="text-xs text-slate-400">
-                        {item.specimen_type || "Specimen"}
+                        {item.specimen_type ? (
+                          <bdi dir="ltr">{item.specimen_type}</bdi>
+                        ) : (
+                          t("results:approvals.specimen_fallback")
+                        )}
                       </div>
                     </td>
                     <td className="py-4 px-4">
@@ -351,20 +378,26 @@ export function ApprovalsQueueScreen(): JSX.Element {
                           }`}
                         >
                           <span>
-                            {item.value} {item.unit}
+                            <bdi dir="ltr">
+                              {item.value} {item.unit}
+                            </bdi>
                           </span>
-                          {item.flag === "critical_high" && <span>— high</span>}
-                          {item.flag === "critical_low" && <span>— low</span>}
+                          {item.flag === "critical_high" && (
+                            <span>{t("results:approvals.flag_high")}</span>
+                          )}
+                          {item.flag === "critical_low" && (
+                            <span>{t("results:approvals.flag_low")}</span>
+                          )}
                         </div>
                         {item.delta_alert && (
                           <span className="text-[10px] font-semibold text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded w-fit border border-amber-200">
-                            {item.delta_alert}
+                            <bdi dir="ltr">{item.delta_alert}</bdi>
                           </span>
                         )}
                       </div>
                     </td>
                     <td className="py-4 px-4 text-xs text-slate-600 whitespace-nowrap">
-                      {item.entered_by_name}
+                      <bdi dir="ltr">{item.entered_by_name}</bdi>
                     </td>
                     <td className="py-4 px-4 whitespace-nowrap">
                       <span
@@ -373,17 +406,25 @@ export function ApprovalsQueueScreen(): JSX.Element {
                         }`}
                       >
                         <Clock className="w-3.5 h-3.5" />
-                        <span>{item.waiting_time}</span>
+                        <span>
+                          <bdi dir="ltr">{item.waiting_time}</bdi>
+                        </span>
                       </span>
                     </td>
-                    <td className="py-4 px-6 text-right whitespace-nowrap">
+                    <td className="py-4 px-6 text-end whitespace-nowrap">
                       <div className="flex items-center justify-end gap-2">
                         <Link
                           to={`/results/${item.result_id}`}
-                          aria-label={`Review and approve ${item.test_name} for ${item.patient_name}`}
+                          aria-label={t(
+                            "results:approvals.review_approve_aria",
+                            {
+                              test: item.test_name,
+                              patient: item.patient_name,
+                            },
+                          )}
                           className="px-2.5 py-1.5 bg-teal-50 hover:bg-teal-100 text-teal-800 rounded-lg text-xs font-semibold transition-colors"
                         >
-                          Review &amp; approve
+                          {t("results:approvals.review_approve")}
                         </Link>
                         <button
                           type="button"
@@ -395,7 +436,7 @@ export function ApprovalsQueueScreen(): JSX.Element {
                           disabled={processingAction}
                           className="px-2.5 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 rounded-lg text-xs font-semibold transition-colors disabled:opacity-50 cursor-pointer"
                         >
-                          Reject
+                          {t("results:approvals.reject")}
                         </button>
                       </div>
                     </td>
@@ -414,11 +455,12 @@ export function ApprovalsQueueScreen(): JSX.Element {
             <div className="flex items-center justify-between pb-2 border-b border-slate-100">
               <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
                 <AlertCircle className="w-5 h-5 text-red-600" />
-                <span>Rejection Note Required</span>
+                <span>{t("results:approvals.reject_modal_title")}</span>
               </h2>
               <button
                 type="button"
                 onClick={() => setRejectingItem(null)}
+                aria-label={t("results:approvals.close_modal_aria")}
                 className="text-slate-400 hover:text-slate-600"
               >
                 <X className="w-4 h-4" />
@@ -426,9 +468,14 @@ export function ApprovalsQueueScreen(): JSX.Element {
             </div>
 
             <p className="text-xs text-slate-600">
-              Rejecting result for <strong>{rejectingItem.patient_name}</strong>{" "}
-              ({rejectingItem.test_name}). Please document the explicit clinical
-              justification:
+              <Trans
+                i18nKey="results:approvals.reject_modal_body"
+                values={{
+                  patient: rejectingItem.patient_name,
+                  test: rejectingItem.test_name,
+                }}
+                components={BDI_AND_STRONG}
+              />
             </p>
 
             {rejectError && (
@@ -441,7 +488,7 @@ export function ApprovalsQueueScreen(): JSX.Element {
               <textarea
                 value={rejectionNote}
                 onChange={(e) => setRejectionNote(e.target.value)}
-                placeholder="Enter clinical reason for rejection (e.g. Specimen clotted, hemolysis index exceeded, delta mismatch)..."
+                placeholder={t("results:approvals.reject_placeholder")}
                 rows={3}
                 maxLength={2000}
                 className="w-full text-xs p-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
@@ -454,7 +501,7 @@ export function ApprovalsQueueScreen(): JSX.Element {
                 onClick={() => setRejectingItem(null)}
                 className="px-4 py-2 border border-slate-300 text-slate-700 text-xs font-semibold rounded-lg hover:bg-slate-50 cursor-pointer"
               >
-                Cancel
+                {t("common:actions.cancel")}
               </button>
               <button
                 type="button"
@@ -462,7 +509,7 @@ export function ApprovalsQueueScreen(): JSX.Element {
                 disabled={processingAction}
                 className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold rounded-lg shadow-xs transition-colors disabled:opacity-50 cursor-pointer"
               >
-                Confirm Rejection
+                {t("results:approvals.confirm_reject")}
               </button>
             </div>
           </div>

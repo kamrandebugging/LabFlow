@@ -18,7 +18,7 @@ import type { UserRole } from "./types";
 
 export interface NavItem {
   to: string;
-  label: string;
+  labelKey: string;
   icon: string;
   end?: boolean;
 }
@@ -72,28 +72,32 @@ export function roleHome(role: UserRole | undefined): string {
 }
 
 const OPS_NAV: NavItem[] = [
-  { to: "/", label: "Home", icon: "home", end: true },
-  { to: "/patients", label: "Patients", icon: "personal_injury" },
-  { to: "/invoices", label: "Invoices & Payments", icon: "receipt_long" },
-  { to: "/samples", label: "Samples", icon: "colorize" },
-  { to: "/worklist", label: "Worklist", icon: "assignment" },
-  { to: "/results/approvals", label: "Approvals", icon: "verified" },
+  { to: "/", labelKey: "home", icon: "home", end: true },
+  { to: "/patients", labelKey: "patients", icon: "personal_injury" },
+  { to: "/invoices", labelKey: "invoices", icon: "receipt_long" },
+  { to: "/samples", labelKey: "samples", icon: "colorize" },
+  { to: "/worklist", labelKey: "worklist", icon: "assignment" },
+  { to: "/results/approvals", labelKey: "approvals", icon: "verified" },
   {
     to: "/exceptions",
-    label: "Critical Notifications",
+    labelKey: "exceptions",
     icon: "notification_important",
   },
-  { to: "/reports", label: "Reports", icon: "lab_profile" },
+  { to: "/reports", labelKey: "reports", icon: "lab_profile" },
 ];
 
 const MANAGEMENT_NAV: NavItem[] = [
-  { to: "/partners", label: "Partners & Share Ledger", icon: "handshake" },
-  { to: "/settlements", label: "Settlements", icon: "account_balance_wallet" },
-  { to: "/catalog", label: "Catalog", icon: "medical_services" },
-  { to: "/settings/staff", label: "Staff", icon: "groups" },
-  { to: "/settings/account", label: "Account & Security", icon: "shield" },
-  { to: "/settings/tenant", label: "Settings", icon: "settings" },
-  { to: "/settings/branches", label: "Branches", icon: "domain" },
+  { to: "/partners", labelKey: "partners", icon: "handshake" },
+  {
+    to: "/settlements",
+    labelKey: "settlements",
+    icon: "account_balance_wallet",
+  },
+  { to: "/catalog", labelKey: "catalog", icon: "medical_services" },
+  { to: "/settings/staff", labelKey: "staff", icon: "groups" },
+  { to: "/settings/account", labelKey: "account", icon: "shield" },
+  { to: "/settings/tenant", labelKey: "settings", icon: "settings" },
+  { to: "/settings/branches", labelKey: "branches", icon: "domain" },
 ];
 
 const pick = (paths: string[]): NavItem[] =>

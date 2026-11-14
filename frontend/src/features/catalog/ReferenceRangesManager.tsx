@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Plus, RefreshCw, AlertCircle, X, Archive, Pencil } from "lucide-react";
+import { messageForError } from "../../lib/errors";
 import { catalogService } from "./catalogService";
 import type {
   RangeSex,
@@ -13,15 +15,15 @@ interface ReferenceRangesManagerProps {
   service?: typeof catalogService;
 }
 
-const SEX_LABELS: Record<RangeSex, string> = {
-  M: "Male",
-  F: "Female",
-  B: "Both",
+const SEX_SLUGS: Record<RangeSex, string> = {
+  M: "male",
+  F: "female",
+  B: "both",
 };
 
-function formatBand(range: ReferenceRange): string {
+function formatBand(range: ReferenceRange, daysLabel: string): string {
   const max = range.age_max_days === null ? "∞" : String(range.age_max_days);
-  return `${range.age_min_days}–${max} days`;
+  return `${range.age_min_days}–${max} ${daysLabel}`;
 }
 
 function formatBounds(range: ReferenceRange): string {
@@ -50,6 +52,7 @@ export function ReferenceRangesManager({
   testCode,
   service = catalogService,
 }: ReferenceRangesManagerProps): JSX.Element {
+  const { t } = useTranslation(["settings", "common"]);
   const [ranges, setRanges] = useState<ReferenceRange[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -75,11 +78,15 @@ export function ReferenceRangesManager({
       const data = await service.listTestRanges(testId);
       setRanges(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load ranges.");
+      setError(
+        err && typeof err === "object" && "code" in err
+          ? messageForError(err, (key, options) => t(`common:${key}`, options))
+          : t("settings:ranges.load_failed"),
+      );
     } finally {
       setIsLoading(false);
     }
-  }, [service, testId]);
+  }, [service, testId, t]);
 
   useEffect(() => {
     void load();
@@ -115,10 +122,12 @@ export function ReferenceRangesManager({
       const coded = err as Error & { code?: string };
       setError(
         coded.code === "overlapping_range"
-          ? "This range overlaps an existing range for the same sex, age band and effective dates."
-          : err instanceof Error
-            ? err.message
-            : "Failed to create range.",
+          ? t("settings:ranges.overlap_create")
+          : coded.code
+            ? messageForError(coded, (key, options) =>
+                t(`common:${key}`, options),
+              )
+            : t("settings:ranges.create_failed"),
       );
     } finally {
       setIsSaving(false);
@@ -153,10 +162,12 @@ export function ReferenceRangesManager({
       const coded = err as Error & { code?: string };
       setError(
         coded.code === "overlapping_range"
-          ? "This change overlaps another range for the same sex, age band and effective dates."
-          : err instanceof Error
-            ? err.message
-            : "Failed to update critical thresholds.",
+          ? t("settings:ranges.overlap_update")
+          : coded.code
+            ? messageForError(coded, (key, options) =>
+                t(`common:${key}`, options),
+              )
+            : t("settings:ranges.critical_update_failed"),
       );
     } finally {
       setSavingCriticalId(null);
@@ -172,7 +183,11 @@ export function ReferenceRangesManager({
       });
       setRanges((prev) => prev.map((r) => (r.id === rangeId ? updated : r)));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to retire range.");
+      setError(
+        err && typeof err === "object" && "code" in err
+          ? messageForError(err, (key, options) => t(`common:${key}`, options))
+          : t("settings:ranges.retire_failed"),
+      );
     } finally {
       setRetiringId(null);
     }
@@ -182,14 +197,16 @@ export function ReferenceRangesManager({
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold text-slate-900">
-          Reference Ranges{testCode ? ` — ${testCode}` : ""}
+          {testCode
+            ? t("settings:ranges.title_with_code", { code: testCode })
+            : t("settings:ranges.title")}
         </h3>
         <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={() => void load()}
             className="p-2 text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg border border-slate-200 transition-colors"
-            aria-label="Reload ranges"
+            aria-label={t("settings:ranges.reload_aria")}
           >
             <RefreshCw className="w-4 h-4" />
           </button>
@@ -203,7 +220,7 @@ export function ReferenceRangesManager({
             ) : (
               <Plus className="w-4 h-4" />
             )}
-            {isFormOpen ? "Cancel" : "Add Range"}
+            {isFormOpen ? t("common:actions.cancel") : t("settings:ranges.add")}
           </button>
         </div>
       </div>
@@ -221,21 +238,21 @@ export function ReferenceRangesManager({
           className="grid grid-cols-2 md:grid-cols-4 gap-3 p-4 rounded-lg bg-slate-50 border border-slate-200"
         >
           <label className="text-xs font-medium text-slate-600">
-            Sex
+            {t("common:labels.sex")}
             <select
               value={form.sex}
               onChange={(e) => setField("sex", e.target.value as RangeSex)}
               className="mt-1 w-full px-2 py-1.5 bg-white text-slate-900 text-sm rounded-lg border border-slate-200"
             >
-              {(Object.keys(SEX_LABELS) as RangeSex[]).map((s) => (
+              {(Object.keys(SEX_SLUGS) as RangeSex[]).map((s) => (
                 <option key={s} value={s}>
-                  {SEX_LABELS[s]}
+                  {t(`settings:ranges.sex_${SEX_SLUGS[s]}`)}
                 </option>
               ))}
             </select>
           </label>
           <label className="text-xs font-medium text-slate-600">
-            Age min (days)
+            {t("settings:ranges.age_min")}
             <input
               type="number"
               min={0}
@@ -246,7 +263,7 @@ export function ReferenceRangesManager({
             />
           </label>
           <label className="text-xs font-medium text-slate-600">
-            Age max (days, blank = ∞)
+            {t("settings:ranges.age_max")}
             <input
               type="number"
               min={0}
@@ -261,7 +278,7 @@ export function ReferenceRangesManager({
             />
           </label>
           <label className="text-xs font-medium text-slate-600">
-            Unit
+            {t("settings:ranges.unit")}
             <input
               type="text"
               value={form.unit}
@@ -271,29 +288,29 @@ export function ReferenceRangesManager({
             />
           </label>
           <label className="text-xs font-medium text-slate-600">
-            Low
+            {t("settings:ranges.low")}
             <input
               type="text"
               inputMode="decimal"
               value={form.low ?? ""}
               onChange={(e) => setField("low", e.target.value)}
-              placeholder="e.g. 13.500"
+              placeholder={t("settings:ranges.low_placeholder")}
               className="mt-1 w-full px-2 py-1.5 bg-white text-slate-900 text-sm rounded-lg border border-slate-200"
             />
           </label>
           <label className="text-xs font-medium text-slate-600">
-            High
+            {t("settings:ranges.high")}
             <input
               type="text"
               inputMode="decimal"
               value={form.high ?? ""}
               onChange={(e) => setField("high", e.target.value)}
-              placeholder="e.g. 17.500"
+              placeholder={t("settings:ranges.high_placeholder")}
               className="mt-1 w-full px-2 py-1.5 bg-white text-slate-900 text-sm rounded-lg border border-slate-200"
             />
           </label>
           <label className="text-xs font-medium text-slate-600">
-            Critical low
+            {t("settings:ranges.critical_low")}
             <input
               type="text"
               inputMode="decimal"
@@ -303,7 +320,7 @@ export function ReferenceRangesManager({
             />
           </label>
           <label className="text-xs font-medium text-slate-600">
-            Critical high
+            {t("settings:ranges.critical_high")}
             <input
               type="text"
               inputMode="decimal"
@@ -313,7 +330,7 @@ export function ReferenceRangesManager({
             />
           </label>
           <label className="text-xs font-medium text-slate-600">
-            Effective from
+            {t("settings:ranges.effective_from")}
             <input
               type="date"
               value={form.effective_from}
@@ -323,7 +340,7 @@ export function ReferenceRangesManager({
             />
           </label>
           <label className="text-xs font-medium text-slate-600">
-            Effective to (blank = open)
+            {t("settings:ranges.effective_to")}
             <input
               type="date"
               value={form.effective_to ?? ""}
@@ -342,7 +359,9 @@ export function ReferenceRangesManager({
               disabled={isSaving}
               className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#005c55] hover:bg-[#0f766e] disabled:opacity-50 text-white text-sm font-medium rounded-lg shadow-sm transition-colors cursor-pointer"
             >
-              {isSaving ? "Saving…" : "Save Range"}
+              {isSaving
+                ? t("settings:ranges.saving")
+                : t("settings:ranges.save_range")}
             </button>
           </div>
         </form>
@@ -352,19 +371,27 @@ export function ReferenceRangesManager({
         <div className="h-24 rounded-lg bg-slate-100 border border-slate-200" />
       ) : ranges.length === 0 ? (
         <p className="text-sm text-slate-500 py-6 text-center border border-dashed border-slate-200 rounded-lg">
-          No reference ranges defined for this test yet.
+          {t("settings:ranges.empty")}
         </p>
       ) : (
         <div className="overflow-x-auto rounded-lg border border-slate-200">
           <table className="w-full text-sm">
             <thead>
-              <tr className="bg-slate-50 text-left text-xs font-medium text-slate-500">
-                <th className="px-3 py-2">Sex</th>
-                <th className="px-3 py-2">Age band</th>
-                <th className="px-3 py-2">Range</th>
-                <th className="px-3 py-2">Critical</th>
-                <th className="px-3 py-2">Effective</th>
-                <th className="px-3 py-2 text-right">Actions</th>
+              <tr className="bg-slate-50 text-start text-xs font-medium text-slate-500">
+                <th className="px-3 py-2">{t("settings:ranges.col_sex")}</th>
+                <th className="px-3 py-2">
+                  {t("settings:ranges.col_age_band")}
+                </th>
+                <th className="px-3 py-2">{t("settings:ranges.col_range")}</th>
+                <th className="px-3 py-2">
+                  {t("settings:ranges.col_critical")}
+                </th>
+                <th className="px-3 py-2">
+                  {t("settings:ranges.col_effective")}
+                </th>
+                <th className="px-3 py-2 text-end">
+                  {t("settings:ranges.col_actions")}
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -374,15 +401,21 @@ export function ReferenceRangesManager({
                   className="border-t border-slate-100 text-slate-800"
                 >
                   <td className="px-3 py-2 font-medium">
-                    {SEX_LABELS[range.sex]}
+                    {t(`settings:ranges.sex_${SEX_SLUGS[range.sex]}`)}
                   </td>
-                  <td className="px-3 py-2">{formatBand(range)}</td>
-                  <td className="px-3 py-2">{formatBounds(range)}</td>
+                  <td className="px-3 py-2">
+                    {formatBand(range, t("settings:ranges.days"))}
+                  </td>
+                  <td className="px-3 py-2" dir="ltr">
+                    {formatBounds(range)}
+                  </td>
                   <td className="px-3 py-2 text-slate-500">
                     {editingCriticalId === range.id ? (
                       <div className="flex items-center gap-1">
                         <input
-                          aria-label={`Critical low for ${range.id}`}
+                          aria-label={t("settings:ranges.critical_low_aria", {
+                            id: range.id,
+                          })}
                           inputMode="decimal"
                           value={criticalDraft.low}
                           onChange={(e) =>
@@ -391,12 +424,14 @@ export function ReferenceRangesManager({
                               low: e.target.value,
                             }))
                           }
-                          placeholder="low"
+                          placeholder={t("settings:ranges.placeholder_low")}
                           className="w-16 px-1.5 py-1 bg-white text-slate-900 text-xs rounded border border-slate-300"
                         />
                         <span>–</span>
                         <input
-                          aria-label={`Critical high for ${range.id}`}
+                          aria-label={t("settings:ranges.critical_high_aria", {
+                            id: range.id,
+                          })}
                           inputMode="decimal"
                           value={criticalDraft.high}
                           onChange={(e) =>
@@ -405,21 +440,23 @@ export function ReferenceRangesManager({
                               high: e.target.value,
                             }))
                           }
-                          placeholder="high"
+                          placeholder={t("settings:ranges.placeholder_high")}
                           className="w-16 px-1.5 py-1 bg-white text-slate-900 text-xs rounded border border-slate-300"
                         />
                       </div>
                     ) : (
-                      <>
+                      <span dir="ltr">
                         {range.critical_low ?? "–"} –{" "}
                         {range.critical_high ?? "–"}
-                      </>
+                      </span>
                     )}
                   </td>
                   <td className="px-3 py-2 text-slate-500">
-                    {range.effective_from} → {range.effective_to ?? "∞"}
+                    <span dir="ltr">
+                      {range.effective_from} → {range.effective_to ?? "∞"}
+                    </span>
                   </td>
-                  <td className="px-3 py-2 text-right">
+                  <td className="px-3 py-2 text-end">
                     <div className="inline-flex items-center gap-1">
                       {editingCriticalId === range.id ? (
                         <>
@@ -429,22 +466,24 @@ export function ReferenceRangesManager({
                             disabled={savingCriticalId === range.id}
                             className="px-2 py-1 text-xs font-semibold text-white bg-[#005c55] hover:bg-[#0f766e] rounded disabled:opacity-50"
                           >
-                            {savingCriticalId === range.id ? "Saving…" : "Save"}
+                            {savingCriticalId === range.id
+                              ? t("settings:ranges.saving")
+                              : t("common:actions.save")}
                           </button>
                           <button
                             type="button"
                             onClick={() => setEditingCriticalId(null)}
                             className="px-2 py-1 text-xs font-semibold text-slate-600 border border-slate-200 rounded"
                           >
-                            Cancel
+                            {t("common:actions.cancel")}
                           </button>
                         </>
                       ) : (
                         <button
                           type="button"
                           onClick={() => startCriticalEdit(range)}
-                          title="Edit critical thresholds"
-                          aria-label="Edit critical thresholds"
+                          title={t("settings:ranges.edit_critical_title")}
+                          aria-label={t("settings:ranges.edit_critical_title")}
                           className="p-1.5 text-slate-400 hover:text-[#005c55] hover:bg-teal-50 rounded-md transition-colors"
                         >
                           <Pencil className="w-4 h-4" />
@@ -455,7 +494,7 @@ export function ReferenceRangesManager({
                           type="button"
                           onClick={() => void handleRetire(range.id)}
                           disabled={retiringId === range.id}
-                          title="Retire this range"
+                          title={t("settings:ranges.retire_title")}
                           className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors disabled:opacity-50"
                         >
                           <Archive className="w-4 h-4" />

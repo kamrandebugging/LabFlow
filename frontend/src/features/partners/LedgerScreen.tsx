@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import {
   ArrowDownToLine,
   Calendar,
@@ -11,6 +12,8 @@ import {
   Wallet,
   X,
 } from "lucide-react";
+import { messageForError } from "../../lib/errors";
+import { formatMoney, formatPercent, statusLabel } from "../../lib/format";
 import { PartnerApiError, partnersService } from "./partnersService";
 import type {
   ReferralPartner,
@@ -19,6 +22,8 @@ import type {
 } from "./types";
 
 export const LedgerScreen: React.FC = () => {
+  const { t, i18n } = useTranslation(["partners", "common"]);
+  const lang = i18n.resolvedLanguage === "ur" ? "ur" : "en";
   const [searchParams, setSearchParams] = useSearchParams();
 
   // URL query params
@@ -86,19 +91,17 @@ export const LedgerScreen: React.FC = () => {
         }
         setNextCursor(response.next_cursor);
       } catch (err: unknown) {
-        if (err instanceof PartnerApiError) {
-          setErrorMsg(err.message);
-        } else if (err instanceof Error) {
-          setErrorMsg(err.message);
-        } else {
-          setErrorMsg("Failed to load share ledger.");
-        }
+        setErrorMsg(
+          err instanceof PartnerApiError
+            ? messageForError(err, t)
+            : t("partners:errors.load_ledger"),
+        );
       } finally {
         setIsLoading(false);
         setIsLoadingMore(false);
       }
     },
-    [selectedPartnerId, selectedPeriod, initialRuleId],
+    [selectedPartnerId, selectedPeriod, initialRuleId, t],
   );
 
   useEffect(() => {
@@ -136,6 +139,7 @@ export const LedgerScreen: React.FC = () => {
 
   const handleExportCsv = () => {
     if (entries.length === 0) return;
+    // CSV headers stay English (finance export, not screen copy).
     const headers = [
       "ID",
       "Created At",
@@ -206,31 +210,33 @@ export const LedgerScreen: React.FC = () => {
         {/* BREADCRUMB & HEADER */}
         <div>
           <nav className="flex items-center gap-1.5 text-xs text-slate-500 mb-1.5">
-            <span>Management</span>
-            <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
+            <span>{t("common:nav.management")}</span>
+            <ChevronRight className="w-3.5 h-3.5 text-slate-400 rtl:rotate-180" />
             <Link
               to="/partners"
               className="hover:text-slate-800 transition-colors"
             >
-              Partners
+              {t("partners:nav.partners")}
             </Link>
-            <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
-            <span className="text-slate-900 font-semibold">Share Ledger</span>
+            <ChevronRight className="w-3.5 h-3.5 text-slate-400 rtl:rotate-180" />
+            <span className="text-slate-900 font-semibold">
+              {t("partners:nav.share_ledger")}
+            </span>
           </nav>
 
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <h1 className="text-xl font-bold text-slate-900 tracking-tight">
-                Revenue Share Ledger
+                {t("partners:ledger.title")}
               </h1>
               <p className="text-xs text-slate-600 mt-0.5">
-                Every revenue-share entry, recorded per payment
+                {t("partners:ledger.subtitle")}
               </p>
             </div>
             <div className="flex items-center gap-2">
               <div className="px-2.5 py-1 rounded-md bg-slate-200/70 border border-slate-300 text-slate-700 text-xs flex items-center gap-1.5 font-medium">
                 <Lock className="w-3.5 h-3.5" />
-                <span>Audit Lock: Active</span>
+                <span>{t("partners:ledger.audit_lock")}</span>
               </div>
               <button
                 type="button"
@@ -239,7 +245,7 @@ export const LedgerScreen: React.FC = () => {
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-semibold rounded-lg shadow-xs transition-colors disabled:opacity-50"
               >
                 <ArrowDownToLine className="w-3.5 h-3.5 text-slate-500" />
-                <span>Export CSV</span>
+                <span>{t("partners:ledger.export_csv")}</span>
               </button>
             </div>
           </div>
@@ -250,11 +256,10 @@ export const LedgerScreen: React.FC = () => {
           <ShieldCheck className="w-5 h-5 text-sky-700 shrink-0 mt-0.5" />
           <div className="text-xs space-y-0.5">
             <p className="font-semibold text-slate-900">
-              Append-only — entries cannot be edited or deleted.
+              {t("partners:ledger.compliance_title")}
             </p>
             <p className="text-slate-600">
-              Immutable financial audit log complying with multi-tenant
-              laboratory fiscal governance.
+              {t("partners:ledger.compliance_body")}
             </p>
           </div>
         </div>
@@ -270,43 +275,53 @@ export const LedgerScreen: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs">
             <div className="flex items-center justify-between text-slate-500 mb-2">
-              <span className="text-xs font-medium">Recorded Shares</span>
+              <span className="text-xs font-medium">
+                {t("partners:ledger.recorded_shares")}
+              </span>
               <Receipt className="w-4 h-4 text-slate-400" />
             </div>
             <div className="text-2xl font-bold font-mono text-slate-900 tracking-tight">
-              PKR {totals.amount}
+              <bdi dir="ltr">{formatMoney(totals.amount, lang)}</bdi>
             </div>
             <div className="text-xs text-slate-500 mt-1">
-              {totals.count} total ledger entries
+              {t("partners:ledger.total_entries", { n: totals.count })}
             </div>
           </div>
 
           <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs">
             <div className="flex items-center justify-between text-slate-500 mb-2">
-              <span className="text-xs font-medium">Filtered Period</span>
+              <span className="text-xs font-medium">
+                {t("partners:ledger.filtered_period")}
+              </span>
               <Calendar className="w-4 h-4 text-slate-400" />
             </div>
             <div className="text-2xl font-bold font-mono text-slate-900 tracking-tight">
-              {selectedPeriod || "All periods"}
+              {selectedPeriod ? (
+                <bdi dir="ltr">{selectedPeriod}</bdi>
+              ) : (
+                t("partners:ledger.all_periods")
+              )}
             </div>
             <div className="text-xs text-slate-500 mt-1">
               {selectedPartnerId
                 ? partners.find((p) => p.id === selectedPartnerId)?.name ||
-                  "Partner filtered"
-                : "All referral partners"}
+                  t("partners:ledger.partner_filtered")
+                : t("partners:ledger.all_partners")}
             </div>
           </div>
 
           <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs">
             <div className="flex items-center justify-between text-slate-500 mb-2">
-              <span className="text-xs font-medium">Settlement Status</span>
+              <span className="text-xs font-medium">
+                {t("partners:ledger.settlement_status")}
+              </span>
               <Wallet className="w-4 h-4 text-slate-400" />
             </div>
             <div className="text-2xl font-bold font-mono text-slate-900 tracking-tight">
-              {unsettledCount} Unsettled
+              {t("partners:ledger.unsettled_count", { n: unsettledCount })}
             </div>
             <div className="text-xs text-slate-500 mt-1">
-              {settledCount} entries linked to settlements
+              {t("partners:ledger.linked_settlements", { n: settledCount })}
             </div>
           </div>
         </div>
@@ -316,25 +331,27 @@ export const LedgerScreen: React.FC = () => {
           <div className="flex flex-wrap items-center gap-2.5 flex-1 min-w-[300px]">
             {/* Search */}
             <div className="relative flex-1 min-w-[220px]">
-              <Search className="absolute left-2.5 top-2.5 text-slate-400 w-4 h-4 pointer-events-none" />
+              <Search className="absolute start-2.5 top-2.5 text-slate-400 w-4 h-4 pointer-events-none" />
               <input
                 type="text"
-                placeholder="Search invoice ref, partner or entry ID..."
+                placeholder={t("partners:ledger.search_placeholder")}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-9 pr-3 py-1.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-teal-600 focus:border-teal-600 focus:bg-white transition-all"
+                className="w-full bg-slate-50 border border-slate-200 rounded-lg ps-9 pe-3 py-1.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-teal-600 focus:border-teal-600 focus:bg-white transition-all"
               />
             </div>
 
             {/* Partner dropdown */}
             <div className="relative min-w-[180px]">
               <select
-                aria-label="Filter by Partner"
+                aria-label={t("partners:ledger.filter_partner_aria")}
                 value={selectedPartnerId}
                 onChange={(e) => handlePartnerChange(e.target.value)}
                 className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-700 focus:bg-white focus:outline-none focus:ring-1 focus:ring-teal-600 focus:border-teal-600"
               >
-                <option value="">All partners</option>
+                <option value="">
+                  {t("partners:ledger.all_partners_option")}
+                </option>
                 {partners.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.name}
@@ -347,7 +364,7 @@ export const LedgerScreen: React.FC = () => {
             <div className="relative w-36">
               <input
                 type="text"
-                placeholder="YYYY-MM"
+                placeholder={t("partners:ledger.period_placeholder")}
                 value={selectedPeriod}
                 onChange={(e) => handlePeriodChange(e.target.value)}
                 className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-mono text-slate-700 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-1 focus:ring-teal-600 focus:border-teal-600"
@@ -360,7 +377,7 @@ export const LedgerScreen: React.FC = () => {
                 type="button"
                 onClick={resetFilters}
                 className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors"
-                title="Reset filters"
+                title={t("partners:ledger.reset_filters")}
               >
                 <X className="w-4 h-4" />
               </button>
@@ -372,30 +389,38 @@ export const LedgerScreen: React.FC = () => {
         <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
           {isLoading ? (
             <div className="p-12 text-center text-xs text-slate-500">
-              Loading revenue share ledger...
+              {t("partners:ledger.loading")}
             </div>
           ) : filteredEntries.length === 0 ? (
             <div className="p-12 text-center text-xs text-slate-500">
-              No ledger entries found for this selection.
+              {t("partners:ledger.empty")}
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse text-xs">
+              <table className="w-full text-start border-collapse text-xs">
                 <thead>
                   <tr className="bg-slate-50/80 border-b border-slate-200 text-[11px] font-semibold text-slate-600 uppercase tracking-wider">
-                    <th className="py-3 px-4 w-40">Date / Time</th>
-                    <th className="py-3 px-4 w-36 font-mono">Payment Ref</th>
-                    <th className="py-3 px-4 w-48">Partner</th>
-                    <th className="py-3 px-4 w-32 text-right font-mono">
-                      Basis Amount
+                    <th className="py-3 px-4 w-40">
+                      {t("partners:ledger.date_time")}
                     </th>
-                    <th className="py-3 px-4 w-24 text-right font-mono">
-                      Rate
+                    <th className="py-3 px-4 w-36 font-mono">
+                      {t("partners:ledger.payment_ref")}
                     </th>
-                    <th className="py-3 px-4 w-36 text-right font-mono">
-                      Commission
+                    <th className="py-3 px-4 w-48">
+                      {t("partners:ledger.partner")}
                     </th>
-                    <th className="py-3 px-4 w-36 text-center">Settlement</th>
+                    <th className="py-3 px-4 w-32 text-end font-mono">
+                      {t("partners:ledger.basis_amount")}
+                    </th>
+                    <th className="py-3 px-4 w-24 text-end font-mono">
+                      {t("partners:ledger.rate")}
+                    </th>
+                    <th className="py-3 px-4 w-36 text-end font-mono">
+                      {t("partners:ledger.commission")}
+                    </th>
+                    <th className="py-3 px-4 w-36 text-center">
+                      {t("partners:ledger.settlement")}
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-slate-700">
@@ -417,10 +442,10 @@ export const LedgerScreen: React.FC = () => {
                         data-testid={`ledger-row-${entry.id}`}
                       >
                         <td className="py-3.5 px-4 text-slate-600 whitespace-nowrap font-mono text-[11px]">
-                          {formattedDate}
+                          <bdi dir="ltr">{formattedDate}</bdi>
                         </td>
                         <td className="py-3.5 px-4 font-mono font-medium text-slate-900 whitespace-nowrap">
-                          {entry.payment_id}
+                          <bdi dir="ltr">{entry.payment_id}</bdi>
                         </td>
                         <td className="py-3.5 px-4 font-medium text-slate-900">
                           <Link
@@ -430,14 +455,18 @@ export const LedgerScreen: React.FC = () => {
                             {entry.referral_partner_name}
                           </Link>
                         </td>
-                        <td className="py-3.5 px-4 text-right font-mono text-slate-900 whitespace-nowrap">
-                          PKR {entry.basis_amount}
+                        <td className="py-3.5 px-4 text-end font-mono text-slate-900 whitespace-nowrap">
+                          <bdi dir="ltr">
+                            {formatMoney(entry.basis_amount, lang)}
+                          </bdi>
                         </td>
-                        <td className="py-3.5 px-4 text-right font-mono text-slate-600 whitespace-nowrap">
-                          {entry.percent_applied}%
+                        <td className="py-3.5 px-4 text-end font-mono text-slate-600 whitespace-nowrap">
+                          <bdi dir="ltr">
+                            {formatPercent(entry.percent_applied)}
+                          </bdi>
                         </td>
-                        <td className="py-3.5 px-4 text-right font-mono font-semibold text-slate-900 whitespace-nowrap">
-                          PKR {entry.amount}
+                        <td className="py-3.5 px-4 text-end font-mono font-semibold text-slate-900 whitespace-nowrap">
+                          <bdi dir="ltr">{formatMoney(entry.amount, lang)}</bdi>
                         </td>
                         <td className="py-3.5 px-4 text-center whitespace-nowrap">
                           {entry.settlement ? (
@@ -446,12 +475,18 @@ export const LedgerScreen: React.FC = () => {
                               className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-teal-50 text-teal-700 border border-teal-200 hover:bg-teal-100 transition-colors"
                             >
                               <span className="w-1.5 h-1.5 rounded-full bg-teal-600"></span>
-                              <span>{entry.settlement.status}</span>
+                              <span>
+                                {statusLabel(
+                                  "settlement",
+                                  entry.settlement.status.toLowerCase(),
+                                  (key) => t(`common:${key}`),
+                                )}
+                              </span>
                             </Link>
                           ) : (
                             <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-amber-50 text-amber-700 border border-amber-200">
                               <span className="w-1.5 h-1.5 rounded-full bg-amber-600"></span>
-                              <span>Unsettled</span>
+                              <span>{t("partners:ledger.unsettled")}</span>
                             </span>
                           )}
                         </td>
@@ -466,7 +501,10 @@ export const LedgerScreen: React.FC = () => {
           {/* TABLE FOOTER / CURSOR PAGINATION */}
           <div className="p-4 bg-slate-50/90 border-t border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
             <div className="text-slate-500 font-mono text-[11px]">
-              Showing {filteredEntries.length} of {totals.count} entries
+              {t("partners:ledger.showing_entries", {
+                shown: filteredEntries.length,
+                total: totals.count,
+              })}
             </div>
 
             {nextCursor && (
@@ -476,7 +514,9 @@ export const LedgerScreen: React.FC = () => {
                 onClick={() => fetchLedger(nextCursor)}
                 className="px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg text-xs font-medium shadow-xs transition-colors disabled:opacity-50"
               >
-                {isLoadingMore ? "Loading..." : "Load next 50 entries"}
+                {isLoadingMore
+                  ? t("partners:ledger.loading_more")
+                  : t("partners:ledger.load_more")}
               </button>
             )}
           </div>

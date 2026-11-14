@@ -1,6 +1,7 @@
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { ShieldAlert } from "lucide-react";
 
 import { useAuthStore } from "./authStore";
@@ -14,6 +15,7 @@ import { useAuthStore } from "./authStore";
  * screen until the password is actually changed.
  */
 export function MustChangePasswordModal(): ReactElement | null {
+  const { t } = useTranslation(["auth", "common"]);
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
   const [dismissed, setDismissed] = useState(false);
@@ -27,7 +29,7 @@ export function MustChangePasswordModal(): ReactElement | null {
       className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 p-4"
       role="alertdialog"
       aria-modal="true"
-      aria-label="Change your temporary password"
+      aria-label={t("auth:modal.title")}
     >
       <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
         <div className="flex items-start gap-3">
@@ -36,12 +38,10 @@ export function MustChangePasswordModal(): ReactElement | null {
           </div>
           <div>
             <h2 className="text-lg font-bold text-slate-900 tracking-tight">
-              Change your temporary password
+              {t("auth:modal.title")}
             </h2>
             <p className="text-sm text-slate-600 mt-1">
-              You are signed in with a temporary credential. Set a personal
-              password now to secure your account — your temporary password will
-              be invalidated automatically.
+              {t("auth:modal.body")}
             </p>
           </div>
         </div>
@@ -52,7 +52,7 @@ export function MustChangePasswordModal(): ReactElement | null {
             onClick={() => setDismissed(true)}
             className="px-4 py-2 border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 text-sm font-medium transition-colors"
           >
-            Remind me later
+            {t("auth:modal.later")}
           </button>
           <button
             type="button"
@@ -60,7 +60,7 @@ export function MustChangePasswordModal(): ReactElement | null {
             className="inline-flex items-center gap-2 px-5 py-2.5 bg-teal-600 hover:bg-teal-700 active:bg-teal-800 text-white rounded-lg text-sm font-semibold shadow-sm transition-all"
           >
             <span className="material-symbols-outlined text-[18px]">lock</span>
-            <span>Change now</span>
+            <span>{t("auth:modal.now")}</span>
           </button>
         </div>
       </div>

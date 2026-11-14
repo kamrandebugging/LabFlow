@@ -107,7 +107,7 @@ describe("SettlementDetailScreen (Screen 42)", () => {
       }),
     ).toBeInTheDocument();
 
-    expect(screen.getAllByText("DRAFT").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("Draft").length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText("PKR 22140.00").length).toBeGreaterThanOrEqual(
       1,
     );

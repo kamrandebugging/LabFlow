@@ -124,11 +124,11 @@ describe("SettlementsScreen (Screen 41)", () => {
     ).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("2026-10")).toBeInTheDocument();
     expect(screen.getByText("PKR 22140.00")).toBeInTheDocument();
-    expect(screen.getByText("DRAFT")).toBeInTheDocument();
+    expect(screen.getAllByText("Draft").length).toBeGreaterThanOrEqual(1);
 
     expect(screen.getByText("2026-09")).toBeInTheDocument();
     expect(screen.getByText("PKR 18500.00")).toBeInTheDocument();
-    expect(screen.getByText("PAID")).toBeInTheDocument();
+    expect(screen.getAllByText("Paid").length).toBeGreaterThanOrEqual(1);
   });
 
   it("switches status filter tab and calls API with status", async () => {

@@ -10,6 +10,7 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
+import i18n from "../../i18n";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { useAuthStore } from "../../features/auth/authStore";
@@ -338,6 +339,15 @@ describe("Screen 27: Report Detail (/reports/:id)", () => {
       expect(screen.getByText("4.5")).toBeInTheDocument();
       expect(screen.getByText("Patient Access Link")).toBeInTheDocument();
     });
+
+    const phone = screen
+      .getAllByText("+92 300 1234567")
+      .find((el) => el.closest("bdi"));
+    expect(phone?.closest("bdi")).toHaveAttribute("dir", "ltr");
+    const date = screen
+      .getAllByText("20 Oct 2026")
+      .find((el) => el.closest("bdi"));
+    expect(date?.closest("bdi")).toHaveAttribute("dir", "ltr");
   });
 
   it("issues access token when clicking Reissue link", async () => {
@@ -465,7 +475,14 @@ describe("Screen 28: Patient Report Access (/report-access/:token)", () => {
 describe("Screen 29: Link Expired (/link-expired)", () => {
   it("renders calm card with guidance and lab phone", () => {
     render(
-      <MemoryRouter initialEntries={["/link-expired"]}>
+      <MemoryRouter
+        initialEntries={[
+          {
+            pathname: "/link-expired",
+            state: { phone: "+92 42 35712345", reason: "link_expired" },
+          },
+        ]}
+      >
         <LinkExpiredScreen />
       </MemoryRouter>,
     );
@@ -567,5 +584,50 @@ describe("Screen 30: Exceptions Queue (/exceptions)", () => {
         ),
       ).toBeInTheDocument();
     });
+  });
+
+  it("maps raw sample enums to Urdu status words on the exceptions queue", async () => {
+    await i18n.changeLanguage("ur");
+    vi.mocked(reportsService.getExceptions).mockResolvedValueOnce({
+      results: [
+        {
+          id: "x-ur-01",
+          kind: "stuck_sample",
+          title: "Stuck sample",
+          severity: "warning",
+          reference_id: "smp-ur-01",
+          reference_code: "ACC-26-000003",
+          patient_name: "Zainab Khan",
+          branch_name: "Main Lab",
+          created_at: "2026-10-19T16:40:00Z",
+          details: { sample_status: "In_process" },
+        },
+      ],
+      counts: {
+        total: 1,
+        failed_generation: 0,
+        failed_delivery: 0,
+        late_transfer: 0,
+        critical_unacknowledged: 0,
+        stuck_sample: 1,
+      },
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/exceptions"]}>
+        <ExceptionsScreen />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("ACC-26-000003")).toBeInTheDocument();
+    });
+
+    expect(screen.queryByText(/In_process/)).not.toBeInTheDocument();
+    expect(document.body.textContent).toContain(
+      i18n.t("status.sample.in_process", { ns: "common" }),
+    );
+
+    await i18n.changeLanguage("en");
   });
 });

@@ -1,4 +1,5 @@
 import React, { useState, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Loader2,
   ArrowRight,
@@ -12,7 +13,7 @@ import type {
   TotpVerifyPayload,
 } from "./types";
 import { defaultAuthService } from "./authService";
-import { GENERIC_AUTH_ERROR } from "./authStore";
+import { LanguageSwitcher } from "../../components/LanguageSwitcher";
 
 export interface TwoFactorAuthScreenProps {
   email?: string;
@@ -33,6 +34,7 @@ export function TwoFactorAuthScreen({
   onSuccess,
   onBack,
 }: TwoFactorAuthScreenProps): JSX.Element {
+  const { t } = useTranslation(["auth", "common"]);
   const [digits, setDigits] = useState<string[]>(["", "", "", "", "", ""]);
   const [isBackupMode, setIsBackupMode] = useState<boolean>(false);
   const [backupCode, setBackupCode] = useState<string>("");
@@ -116,7 +118,7 @@ export function TwoFactorAuthScreen({
       const session = await authService.verifyTotp(payload);
       onSuccess?.(session);
     } catch {
-      setError(GENERIC_AUTH_ERROR);
+      setError(t("auth:errors.generic"));
     } finally {
       setIsLoading(false);
     }
@@ -126,6 +128,16 @@ export function TwoFactorAuthScreen({
     <div className="relative min-h-screen w-full flex items-center justify-center bg-[#faf8ff] p-4 text-[#131b2e] selection:bg-[#86f2e4]">
       {/* Background radial gradient */}
       <div className="fixed inset-0 pointer-events-none bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-teal-500/10 via-[#faf8ff] to-[#faf8ff] z-0" />
+
+      <aside
+        aria-label={t("auth:login.language_aria")}
+        className="fixed top-6 end-6 z-50"
+      >
+        <LanguageSwitcher
+          compact
+          className="bg-slate-200/80 backdrop-blur-md shadow-sm"
+        />
+      </aside>
 
       <main className="relative z-10 w-full max-w-[420px] bg-white rounded-xl shadow-md border border-slate-100 p-6 flex flex-col gap-4">
         {/* Brand Header */}
@@ -152,7 +164,7 @@ export function TwoFactorAuthScreen({
         {/* Tenant & User Context Banner */}
         {(tenantName || email) && (
           <section
-            aria-label="Tenant and session identity"
+            aria-label={t("auth:totp.identity_aria")}
             className="bg-slate-50 border border-slate-100 p-3 rounded-lg flex flex-col gap-1"
           >
             {tenantName && (
@@ -164,8 +176,10 @@ export function TwoFactorAuthScreen({
             )}
             {email && (
               <div className="text-xs text-slate-500">
-                Signing in as{" "}
-                <strong className="font-medium text-slate-800">{email}</strong>
+                {t("auth:totp.signing_in_as")}{" "}
+                <strong className="font-medium text-slate-800">
+                  <bdi dir="ltr">{email}</bdi>
+                </strong>
               </div>
             )}
           </section>
@@ -174,11 +188,9 @@ export function TwoFactorAuthScreen({
         {/* Title & Guidance */}
         <div className="flex flex-col gap-0.5">
           <h1 className="text-lg font-bold text-slate-900">
-            Two-factor authentication
+            {t("auth:totp.title")}
           </h1>
-          <p className="text-xs text-slate-600">
-            Enter the 6-digit code from your authenticator app.
-          </p>
+          <p className="text-xs text-slate-600">{t("auth:totp.guidance")}</p>
         </div>
 
         {/* Verification Inputs */}
@@ -187,12 +199,12 @@ export function TwoFactorAuthScreen({
             {email && (
               <div className="rounded-lg border border-teal-200 bg-teal-50/80 p-3">
                 <p className="text-xs font-medium text-teal-950">
-                  Enter the code from your authenticator app
+                  {t("auth:totp.code_from_app")}
                 </p>
                 <div className="mt-1 flex items-center justify-between text-[11px] text-teal-800">
-                  <span>Current code valid for</span>
+                  <span>{t("auth:totp.valid_for")}</span>
                   <span className="font-mono font-bold text-teal-900">
-                    {secondsLeft}s
+                    <bdi dir="ltr">{secondsLeft}s</bdi>
                   </span>
                 </div>
               </div>
@@ -208,7 +220,7 @@ export function TwoFactorAuthScreen({
                   ref={(el) => {
                     inputRefs.current[idx] = el;
                   }}
-                  aria-label={`Digit ${idx + 1}`}
+                  aria-label={t("auth:totp.digit", { number: idx + 1 })}
                   type="text"
                   inputMode="numeric"
                   maxLength={1}
@@ -217,6 +229,7 @@ export function TwoFactorAuthScreen({
                   onKeyDown={(e) => handleKeyDown(idx, e)}
                   onPaste={handlePaste}
                   className="w-12 h-12 text-center text-xl font-bold bg-slate-50 border border-slate-200 text-slate-900 rounded-lg outline-none focus:border-teal-700 focus:ring-2 focus:ring-teal-700/20 transition-all"
+                  dir="ltr"
                 />
               ))}
             </div>
@@ -225,9 +238,11 @@ export function TwoFactorAuthScreen({
             <div className="flex items-center justify-between text-xs font-mono text-slate-400 px-1">
               <span className="flex items-center gap-1">
                 <span className="w-1.5 h-1.5 rounded-full bg-teal-600 animate-pulse" />
-                Time-synced TOTP ({secondsLeft}s)
+                {t("auth:totp.time_synced", { seconds: secondsLeft })}
               </span>
-              <span className="text-slate-500">SHA-1 / 30s</span>
+              <span className="text-slate-500" dir="ltr">
+                SHA-1 / 30s
+              </span>
             </div>
           </div>
         ) : (
@@ -236,21 +251,22 @@ export function TwoFactorAuthScreen({
               htmlFor="backup-code"
               className="text-xs font-medium text-slate-800"
             >
-              Backup code
+              {t("auth:totp.backup_code")}
             </label>
             <input
               id="backup-code"
               type="text"
-              placeholder="Enter backup code"
+              placeholder={t("auth:totp.backup_placeholder")}
               value={backupCode}
               onChange={(e) => setBackupCode(e.target.value)}
               className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-sm rounded-lg px-3.5 py-2.5 outline-none focus:border-teal-700 focus:ring-1 focus:ring-teal-700 font-mono"
+              dir="ltr"
             />
           </div>
         )}
 
         {/* Mode Toggle Button */}
-        <div className="text-right">
+        <div className="text-end">
           <button
             type="button"
             onClick={() => {
@@ -259,7 +275,9 @@ export function TwoFactorAuthScreen({
             }}
             className="text-xs text-teal-700 hover:text-teal-900 font-medium transition-colors"
           >
-            {isBackupMode ? "Use authenticator app" : "Use a backup code"}
+            {isBackupMode
+              ? t("auth:totp.use_authenticator")
+              : t("auth:totp.use_backup")}
           </button>
         </div>
 
@@ -285,12 +303,12 @@ export function TwoFactorAuthScreen({
             {isLoading ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Verifying...</span>
+                <span>{t("auth:totp.verifying")}</span>
               </>
             ) : (
               <>
-                <span>Verify Session</span>
-                <ArrowRight className="w-4 h-4" />
+                <span>{t("auth:totp.verify")}</span>
+                <ArrowRight className="w-4 h-4 rtl:rotate-180" />
               </>
             )}
           </button>
@@ -300,8 +318,8 @@ export function TwoFactorAuthScreen({
             onClick={onBack}
             className="text-center text-xs text-slate-500 hover:text-slate-800 transition-colors py-1 flex items-center justify-center gap-1 cursor-pointer"
           >
-            <ArrowLeft className="w-3.5 h-3.5" />
-            <span>Back to sign in</span>
+            <ArrowLeft className="w-3.5 h-3.5 rtl:rotate-180" />
+            <span>{t("auth:totp.back_to_sign_in")}</span>
           </button>
         </div>
 
@@ -311,18 +329,18 @@ export function TwoFactorAuthScreen({
             <ShieldCheck className="w-4 h-4 text-teal-700" />
             <div className="flex flex-col">
               <span className="text-[11px] font-semibold text-slate-800 uppercase tracking-wide">
-                ISO 15189 Certified Node
+                {t("auth:totp.certified_node")}
               </span>
               {terminalId && (
                 <span className="text-[10px] font-mono text-slate-400">
-                  Encrypted Terminal {terminalId}
+                  {t("auth:totp.encrypted_terminal", { id: terminalId })}
                 </span>
               )}
             </div>
           </div>
           <div className="flex items-center gap-1 bg-white border border-slate-200 px-2 py-0.5 rounded text-[11px] font-mono text-slate-700">
             <span className="w-1.5 h-1.5 rounded-full bg-teal-600" />
-            <span>Secure</span>
+            <span>{t("auth:totp.secure")}</span>
           </div>
         </footer>
       </main>

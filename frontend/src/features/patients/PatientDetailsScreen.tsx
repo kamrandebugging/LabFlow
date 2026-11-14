@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   ArrowLeft,
   Edit,
@@ -10,6 +11,8 @@ import {
   RefreshCw,
   AlertCircle,
 } from "lucide-react";
+import { messageForError } from "../../lib/errors";
+import { formatDate } from "../../lib/format";
 import { patientService } from "./patientService";
 import type { PatientDetail } from "./types";
 
@@ -36,6 +39,7 @@ export const PatientDetailsScreen: React.FC<PatientDetailsScreenProps> = ({
   canDelete = false,
   service = patientService,
 }) => {
+  const { t } = useTranslation(["patients", "common"]);
   const [patient, setPatient] = useState<PatientDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -54,7 +58,9 @@ export const PatientDetailsScreen: React.FC<PatientDetailsScreenProps> = ({
       .catch((err) => {
         if (isMounted)
           setError(
-            err instanceof Error ? err.message : "Failed to load patient",
+            err && typeof err === "object" && ("code" in err || "status" in err)
+              ? messageForError(err, t)
+              : t("patients:details.errors.load"),
           );
       })
       .finally(() => {
@@ -64,21 +70,20 @@ export const PatientDetailsScreen: React.FC<PatientDetailsScreenProps> = ({
     return () => {
       isMounted = false;
     };
-  }, [patientId, service]);
+  }, [patientId, service, t]);
 
   const handleDelete = async () => {
-    if (
-      !window.confirm(
-        "Are you sure you want to soft-delete this patient record?",
-      )
-    )
-      return;
+    if (!window.confirm(t("patients:details.confirm_delete"))) return;
     setIsDeleting(true);
     try {
       await service.deletePatient(patientId);
       onBack?.();
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Failed to delete patient");
+      alert(
+        err && typeof err === "object" && ("code" in err || "status" in err)
+          ? messageForError(err, t)
+          : t("patients:details.errors.delete"),
+      );
     } finally {
       setIsDeleting(false);
     }
@@ -88,7 +93,9 @@ export const PatientDetailsScreen: React.FC<PatientDetailsScreenProps> = ({
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px] text-slate-500 gap-3">
         <RefreshCw className="w-6 h-6 animate-spin text-teal-600" />
-        <span className="text-sm font-medium">Loading clinical record...</span>
+        <span className="text-sm font-medium">
+          {t("patients:details.loading")}
+        </span>
       </div>
     );
   }
@@ -100,17 +107,17 @@ export const PatientDetailsScreen: React.FC<PatientDetailsScreenProps> = ({
           <AlertCircle className="w-6 h-6" />
         </div>
         <h2 className="text-lg font-bold text-slate-900">
-          Patient Record Unavailable
+          {t("patients:details.unavailable_title")}
         </h2>
         <p className="text-sm text-slate-600">
-          {error || "Patient not found."}
+          {error || t("patients:not_found")}
         </p>
         <button
           type="button"
           onClick={onBack}
           className="px-4 py-2 bg-slate-900 text-white rounded-lg text-sm font-medium hover:bg-slate-800"
         >
-          Return to Patients
+          {t("patients:return_to_patients")}
         </button>
       </div>
     );
@@ -131,7 +138,7 @@ export const PatientDetailsScreen: React.FC<PatientDetailsScreenProps> = ({
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div className="space-y-1">
           <nav
-            aria-label="Breadcrumb"
+            aria-label={t("patients:breadcrumb_aria")}
             className="flex items-center gap-2 text-xs text-slate-500 mb-1"
           >
             <button
@@ -139,11 +146,11 @@ export const PatientDetailsScreen: React.FC<PatientDetailsScreenProps> = ({
               onClick={onBack}
               className="hover:text-slate-800 transition-colors inline-flex items-center gap-1"
             >
-              <ArrowLeft className="w-3.5 h-3.5" />
-              <span>Patients</span>
+              <ArrowLeft className="w-3.5 h-3.5 rtl:rotate-180" />
+              <span>{t("common:nav.patients")}</span>
             </button>
             <span className="text-slate-300">/</span>
-            <span className="font-mono text-slate-700 font-semibold">
+            <span dir="ltr" className="font-mono text-slate-700 font-semibold">
               {patient.mrn}
             </span>
           </nav>
@@ -153,15 +160,19 @@ export const PatientDetailsScreen: React.FC<PatientDetailsScreenProps> = ({
             </h1>
             <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
-              ACTIVE
+              {t("patients:details.active")}
             </span>
             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-700">
-              {patient.branch_name || "Main Branch"}
+              {patient.branch_name || t("patients:main_branch")}
             </span>
           </div>
           <p className="text-xs text-slate-400 font-mono">
-            MRN: <strong className="text-slate-700">{patient.mrn}</strong> ·
-            Registered {new Date(patient.created_at).toLocaleDateString()}
+            {t("patients:mrn")}:{" "}
+            <strong className="text-slate-700">
+              <bdi dir="ltr">{patient.mrn}</bdi>
+            </strong>{" "}
+            · {t("patients:details.registered")}{" "}
+            <bdi dir="ltr">{formatDate(patient.created_at)}</bdi>
           </p>
         </div>
 
@@ -174,7 +185,7 @@ export const PatientDetailsScreen: React.FC<PatientDetailsScreenProps> = ({
               className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 text-sm font-medium transition-colors shadow-sm"
             >
               <Edit className="w-4 h-4 text-slate-400" />
-              <span>Edit demographics</span>
+              <span>{t("patients:edit_demographics")}</span>
             </button>
           ) : null}
           <button
@@ -183,22 +194,22 @@ export const PatientDetailsScreen: React.FC<PatientDetailsScreenProps> = ({
             className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 text-sm font-medium transition-colors shadow-sm"
           >
             <History className="w-4 h-4 text-slate-400" />
-            <span>Audit history</span>
+            <span>{t("patients:details.audit_history")}</span>
           </button>
           <button
             type="button"
             onClick={() => onNewVisit?.(patient.id)}
             className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#005c55] text-white hover:bg-[#0f766e] text-sm font-semibold transition-colors shadow-sm"
           >
-            <span>+ New accession</span>
+            <span>{t("patients:details.new_accession")}</span>
           </button>
           {canDelete ? (
             <button
               type="button"
               onClick={handleDelete}
               disabled={isDeleting}
-              title="Delete patient"
-              aria-label="Delete patient"
+              title={t("patients:details.delete_patient_aria")}
+              aria-label={t("patients:details.delete_patient_aria")}
               className="p-2 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
             >
               <Trash2 className="w-4 h-4" />
@@ -214,17 +225,18 @@ export const PatientDetailsScreen: React.FC<PatientDetailsScreenProps> = ({
           <div className="border-b border-slate-100 pb-3 flex items-center justify-between">
             <h2 className="text-sm font-semibold text-slate-900 uppercase tracking-wider flex items-center gap-2">
               <User className="w-4 h-4 text-teal-600" />
-              <span>Patient Demographics</span>
+              <span>{t("patients:demographics")}</span>
             </h2>
             <span className="text-xs font-mono text-slate-400">
-              ID: {patient.id.slice(0, 8)}
+              {t("patients:details.id")}:{" "}
+              <bdi dir="ltr">{patient.id.slice(0, 8)}</bdi>
             </span>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
             <div>
               <span className="text-xs text-slate-400 block mb-0.5">
-                Full Name
+                {t("patients:details.field_full_name")}
               </span>
               <span className="font-semibold text-slate-900">
                 {patient.name}
@@ -232,33 +244,35 @@ export const PatientDetailsScreen: React.FC<PatientDetailsScreenProps> = ({
             </div>
             <div>
               <span className="text-xs text-slate-400 block mb-0.5">
-                Biological Sex
+                {t("patients:details.field_sex")}
               </span>
               <span className="font-medium text-slate-800">
                 {patient.sex === "M"
-                  ? "Male"
+                  ? t("patients:sex.male")
                   : patient.sex === "F"
-                    ? "Female"
-                    : "Other"}
+                    ? t("patients:sex.female")
+                    : t("patients:sex.other")}
               </span>
             </div>
             <div>
               <span className="text-xs text-slate-400 block mb-0.5">
-                Date of Birth
+                {t("patients:details.field_dob")}
               </span>
               <span className="font-medium text-slate-800">
-                {patient.date_of_birth
-                  ? new Date(patient.date_of_birth).toLocaleDateString()
-                  : "Not recorded"}
+                {patient.date_of_birth ? (
+                  <bdi dir="ltr">{formatDate(patient.date_of_birth)}</bdi>
+                ) : (
+                  t("common:labels.not_recorded")
+                )}
               </span>
             </div>
             <div>
               <span className="text-xs text-slate-400 block mb-0.5">
-                Primary Phone
+                {t("patients:details.field_phone")}
               </span>
               <span className="font-mono text-slate-800 flex items-center gap-1.5">
                 <Phone className="w-3.5 h-3.5 text-slate-400" />
-                {primaryPhone}
+                <bdi dir="ltr">{primaryPhone}</bdi>
               </span>
             </div>
           </div>
@@ -269,14 +283,14 @@ export const PatientDetailsScreen: React.FC<PatientDetailsScreenProps> = ({
           <div className="border-b border-slate-100 pb-3">
             <h2 className="text-sm font-semibold text-slate-900 uppercase tracking-wider flex items-center gap-2">
               <ShieldCheck className="w-4 h-4 text-teal-600" />
-              <span>Consent & Notifications</span>
+              <span>{t("patients:details.consent_title")}</span>
             </h2>
           </div>
 
           <div className="space-y-3 text-sm">
             <div>
               <span className="text-xs text-slate-400 block mb-0.5">
-                Digital Report Delivery
+                {t("patients:details.digital_delivery")}
               </span>
               <span
                 className={`inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded font-medium ${
@@ -285,22 +299,23 @@ export const PatientDetailsScreen: React.FC<PatientDetailsScreenProps> = ({
                     : "bg-slate-100 text-slate-600"
                 }`}
               >
-                {hasDigitalConsent ? "Consent Granted" : "No Consent on File"}
+                {hasDigitalConsent
+                  ? t("patients:details.consent_granted")
+                  : t("patients:details.consent_none")}
               </span>
             </div>
             {whatsappContact && (
               <div>
                 <span className="text-xs text-slate-400 block mb-0.5">
-                  WhatsApp Channel
+                  {t("patients:details.whatsapp_channel")}
                 </span>
                 <span className="font-mono text-slate-700 text-xs">
-                  {whatsappContact}
+                  <bdi dir="ltr">{whatsappContact}</bdi>
                 </span>
               </div>
             )}
             <div className="pt-2 border-t border-slate-100 text-xs text-slate-400">
-              ISO 15189 compliance verified. Consent auditable per regulatory
-              requirements.
+              {t("patients:details.compliance_note")}
             </div>
           </div>
         </div>

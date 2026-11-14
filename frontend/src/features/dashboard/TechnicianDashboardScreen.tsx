@@ -1,5 +1,6 @@
 import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
+import { Trans, useTranslation } from "react-i18next";
 
 import { useAuthStore } from "../auth/authStore";
 import { resultsService } from "../results/resultsService";
@@ -7,11 +8,10 @@ import type { ResultDetailRecord, WorklistItem } from "../results/types";
 import {
   fetchSampleStatusCounts,
   formatCount,
-  PKT_LABEL,
-  pktDateLabel,
   type SampleStatusCounts,
 } from "./dashboardService";
 import {
+  DashboardDateLine,
   DashboardHeader,
   DashboardLink,
   EmptyState,
@@ -26,11 +26,10 @@ interface TechnicianData {
 }
 
 export function TechnicianDashboardScreen(): ReactElement {
+  const { t } = useTranslation("common");
   const accessToken = useAuthStore((state) => state.accessToken);
   const [data, setData] = useState<TechnicianData | null>(null);
   const [loading, setLoading] = useState(true);
-
-  const dateLabel = `${pktDateLabel()} · ${PKT_LABEL}`;
 
   useEffect(() => {
     let active = true;
@@ -86,89 +85,117 @@ export function TechnicianDashboardScreen(): ReactElement {
     <div className="p-8">
       <div className="flex flex-col w-full max-w-7xl mx-auto">
         <DashboardHeader
-          title="Bench worklist"
-          subtitle={`${dateLabel} · samples awaiting receipt or result entry`}
-          badge="Technician"
+          title={t("dashboard.technician.title")}
+          subtitle={
+            <DashboardDateLine
+              suffix={t("dashboard.technician.subtitle_suffix")}
+            />
+          }
+          badge={t("dashboard.technician.badge")}
         />
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard
             testId="stat-worklist"
-            label="Worklist"
+            label={t("nav.worklist")}
             value={loading ? "—" : formatCount(worklistCount)}
-            hint="Collected, received, in-process and rejected accessions."
+            hint={
+              <Trans
+                i18nKey="dashboard.hint.worklist"
+                components={{ acc: <bdi dir="ltr" /> }}
+              />
+            }
             icon="assignment"
           />
           <StatCard
             testId="stat-awaiting-receipt"
-            label="Awaiting receipt"
+            label={t("dashboard.stat.awaiting_receipt")}
             value={
               loading ? "—" : formatCount(data?.sampleCounts?.collected ?? null)
             }
-            hint="Collected samples not yet received into the lab."
+            hint={t("dashboard.hint.awaiting_receipt")}
             icon="inventory"
             tone="warning"
           />
           <StatCard
             testId="stat-awaiting-result-entry"
-            label="Awaiting result entry"
+            label={t("dashboard.stat.awaiting_result_entry")}
             value={loading ? "—" : formatCount(awaitingResultEntry)}
-            hint="Status count of received and in-process samples on the bench."
+            hint={t("dashboard.hint.awaiting_result_entry")}
             icon="edit_note"
           />
           <StatCard
             testId="stat-critical-pending"
-            label="Critical results pending"
+            label={t("dashboard.stat.critical_pending")}
             value={
               loading ? "—" : formatCount(data?.criticalResults?.length ?? null)
             }
-            hint="Entered results flagged critical and awaiting verification."
+            hint={t("dashboard.hint.critical_pending")}
             icon="crisis_alert"
             tone="danger"
           />
         </div>
 
         <Panel
-          title="Worklist"
-          subtitle="Oldest accession first — real rows from the worklist API"
+          title={t("nav.worklist")}
+          subtitle={
+            <Trans
+              i18nKey="dashboard.technician.worklist_subtitle"
+              components={{ acc: <bdi dir="ltr" /> }}
+            />
+          }
           className="mt-6"
           testId="panel-worklist"
-          action={<DashboardLink to="/worklist">Open worklist</DashboardLink>}
+          action={
+            <DashboardLink to="/worklist">
+              {t("dashboard.links.open_worklist")}
+            </DashboardLink>
+          }
         >
           {loading ? (
-            <EmptyState message="Loading worklist…" />
+            <EmptyState message={t("dashboard.loading.worklist")} />
           ) : data?.worklist === null ? (
-            <EmptyState message="Unavailable — the worklist API did not respond." />
+            <EmptyState message={t("dashboard.unavailable.worklist")} />
           ) : data?.worklist.length ? (
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
+              <table className="w-full text-start text-sm">
                 <thead>
                   <tr className="text-[11px] uppercase tracking-wider text-slate-500 border-b border-slate-100">
-                    <th className="py-2 pr-3 font-semibold">Accession</th>
-                    <th className="py-2 pr-3 font-semibold">Patient</th>
-                    <th className="py-2 pr-3 font-semibold">Tests</th>
-                    <th className="py-2 pr-3 font-semibold">Waiting</th>
-                    <th className="py-2 font-semibold">Status</th>
+                    <th className="py-2 pe-3 font-semibold">
+                      {t("dashboard.table.accession")}
+                    </th>
+                    <th className="py-2 pe-3 font-semibold">
+                      {t("dashboard.table.patient")}
+                    </th>
+                    <th className="py-2 pe-3 font-semibold">
+                      {t("dashboard.table.tests")}
+                    </th>
+                    <th className="py-2 pe-3 font-semibold">
+                      {t("dashboard.table.waiting")}
+                    </th>
+                    <th className="py-2 font-semibold">{t("labels.status")}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {data.worklist.slice(0, 6).map((item) => (
                     <tr key={item.sample_id}>
-                      <td className="py-2.5 pr-3 font-mono text-xs text-slate-700">
+                      <td className="py-2.5 pe-3 font-mono text-xs text-slate-700">
                         {item.accession_id}
                       </td>
-                      <td className="py-2.5 pr-3 font-medium text-slate-900">
+                      <td className="py-2.5 pe-3 font-medium text-slate-900">
                         {item.patient_name}
                       </td>
-                      <td className="py-2.5 pr-3 text-slate-600">
+                      <td className="py-2.5 pe-3 text-slate-600">
                         {item.tests.length ? item.tests.join(", ") : "—"}
                       </td>
-                      <td className="py-2.5 pr-3 font-mono text-xs text-slate-600">
+                      <td className="py-2.5 pe-3 font-mono text-xs text-slate-600">
                         {item.waiting_time}
                       </td>
                       <td className="py-2.5">
                         <span className="text-xs font-medium text-slate-700 bg-slate-100 px-2 py-0.5 rounded">
-                          {item.sample_status ?? item.status}
+                          {t(
+                            `status.sample.${item.sample_status ?? item.status}`,
+                          )}
                         </span>
                       </td>
                     </tr>
@@ -177,20 +204,20 @@ export function TechnicianDashboardScreen(): ReactElement {
               </table>
             </div>
           ) : (
-            <EmptyState message="No samples are waiting on the bench." />
+            <EmptyState message={t("dashboard.empty.no_bench_samples")} />
           )}
         </Panel>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
           <Panel
-            title="Critical results awaiting verification"
-            subtitle="Entered rows flagged critical by the reference-range engine"
+            title={t("dashboard.technician.critical_title")}
+            subtitle={t("dashboard.technician.critical_subtitle")}
             testId="panel-critical-results"
           >
             {loading ? (
-              <EmptyState message="Loading critical results…" />
+              <EmptyState message={t("dashboard.loading.critical_results")} />
             ) : data?.criticalResults === null ? (
-              <EmptyState message="Unavailable — the results API did not respond." />
+              <EmptyState message={t("dashboard.unavailable.results")} />
             ) : data?.criticalResults.length ? (
               <ul className="divide-y divide-slate-100">
                 {data.criticalResults.slice(0, 6).map((result) => (
@@ -213,13 +240,13 @@ export function TechnicianDashboardScreen(): ReactElement {
                 ))}
               </ul>
             ) : (
-              <EmptyState message="No critical results are awaiting verification." />
+              <EmptyState message={t("dashboard.empty.no_critical_pending")} />
             )}
           </Panel>
 
           <Panel
-            title="Bench scope"
-            subtitle="What this role can and cannot do"
+            title={t("dashboard.technician.scope_title")}
+            subtitle={t("dashboard.scope.subtitle")}
           >
             <ul className="space-y-3 text-sm text-slate-700">
               <li className="flex items-start gap-2">
@@ -229,10 +256,7 @@ export function TechnicianDashboardScreen(): ReactElement {
                 >
                   check_circle
                 </span>
-                <span>
-                  Receive samples, enter results, and flag/reject bench
-                  specimens.
-                </span>
+                <span>{t("dashboard.scope.technician_receive")}</span>
               </li>
               <li className="flex items-start gap-2">
                 <span
@@ -241,10 +265,7 @@ export function TechnicianDashboardScreen(): ReactElement {
                 >
                   block
                 </span>
-                <span>
-                  Billing, payments, settlements and the partner ledger are
-                  hidden and refused by the API.
-                </span>
+                <span>{t("dashboard.scope.technician_billing_hidden")}</span>
               </li>
               <li className="flex items-start gap-2">
                 <span
@@ -253,9 +274,7 @@ export function TechnicianDashboardScreen(): ReactElement {
                 >
                   block
                 </span>
-                <span>
-                  Clinical approval remains with the Pathologist or Owner.
-                </span>
+                <span>{t("dashboard.scope.technician_approval_owner")}</span>
               </li>
             </ul>
           </Panel>

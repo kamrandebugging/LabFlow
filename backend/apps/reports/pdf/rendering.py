@@ -46,8 +46,11 @@ def render_report_pdf(ctx: ReportContext) -> bytes:
     from weasyprint import HTML  # type: ignore[import-untyped]
 
     html = render_report_html(ctx)  # raises ValueError on bad input
+    # The template's @font-face URLs are relative to templates/, so the
+    # bundled static TTFs in ../fonts/ resolve without process-wide fontconfig.
+    base_url = str(_TEMPLATE_PATH.parent) + "/"
     try:
-        return HTML(string=html).write_pdf()
+        return HTML(string=html, base_url=base_url).write_pdf()
     except Exception:
         # Deliberately no partial bytes: WeasyPrint either returns the
         # complete document or raises.

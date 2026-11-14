@@ -1,5 +1,6 @@
 import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
+import { Trans, useTranslation } from "react-i18next";
 
 import { useAuthStore } from "../auth/authStore";
 import { billingService } from "../billing/billingService";
@@ -13,11 +14,10 @@ import {
   formatCount,
   formatPkr,
   isTodayInPkt,
-  PKT_LABEL,
-  pktDateLabel,
   type SampleStatusCounts,
 } from "./dashboardService";
 import {
+  DashboardDateLine,
   DashboardHeader,
   DashboardLink,
   EmptyState,
@@ -35,11 +35,11 @@ interface ManagerData {
 }
 
 export function ManagerDashboardScreen(): ReactElement {
+  const { t, i18n } = useTranslation("common");
+  const lang = i18n.resolvedLanguage === "ur" ? "ur" : "en";
   const accessToken = useAuthStore((state) => state.accessToken);
   const [data, setData] = useState<ManagerData | null>(null);
   const [loading, setLoading] = useState(true);
-
-  const dateLabel = `${pktDateLabel()} · ${PKT_LABEL}`;
 
   useEffect(() => {
     let active = true;
@@ -112,39 +112,43 @@ export function ManagerDashboardScreen(): ReactElement {
     <div className="p-8">
       <div className="flex flex-col w-full max-w-7xl mx-auto">
         <DashboardHeader
-          title="Branch operations"
-          subtitle={`${dateLabel} · read-only overview`}
-          badge="Manager view"
+          title={t("dashboard.manager.title")}
+          subtitle={
+            <DashboardDateLine
+              suffix={t("dashboard.manager.subtitle_suffix")}
+            />
+          }
+          badge={t("dashboard.manager.badge")}
         />
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard
             testId="stat-registrations-today"
-            label="Registrations today"
+            label={t("dashboard.stat.registrations_today")}
             value={loading ? "—" : (data?.registrationsToday ?? "—")}
-            hint="Patients registered in your branches today (PKT)."
+            hint={t("dashboard.hint.registrations_manager")}
             icon="personal_injury"
           />
           <StatCard
             testId="stat-revenue-today"
-            label="Invoiced today"
-            value={loading ? "—" : formatPkr(data?.revenueToday)}
-            hint="Server total of today's non-cancelled invoices; not cash collected."
+            label={t("dashboard.stat.revenue_today")}
+            value={loading ? "—" : formatPkr(data?.revenueToday, lang)}
+            hint={t("dashboard.hint.revenue_today")}
             icon="payments"
           />
           <StatCard
             testId="stat-pending-approvals"
-            label="Pending approvals"
+            label={t("dashboard.stat.pending_approvals")}
             value={loading ? "—" : formatCount(data?.pendingApprovals)}
-            hint="Results awaiting a Pathologist or Owner decision."
+            hint={t("dashboard.hint.pending_approvals")}
             icon="verified"
             tone="warning"
           />
           <StatCard
             testId="stat-exceptions"
-            label="Exceptions"
+            label={t("dashboard.exceptions")}
             value={loading ? "—" : formatCount(data?.exceptions?.total)}
-            hint="Open operational exceptions across the lab."
+            hint={t("dashboard.hint.exceptions")}
             icon="warning"
             tone="danger"
           />
@@ -152,26 +156,35 @@ export function ManagerDashboardScreen(): ReactElement {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
           <Panel
-            title="Samples by status"
+            title={t("dashboard.samples_by_status")}
             subtitle={
-              data?.samples
-                ? `${data.samples.total} accessions in scope`
-                : "Live accession counts"
+              data?.samples ? (
+                <Trans
+                  i18nKey="dashboard.samples.accessions_in_scope"
+                  values={{ total: data.samples.total }}
+                  components={{ acc: <bdi dir="ltr" /> }}
+                />
+              ) : (
+                <Trans
+                  i18nKey="dashboard.samples.live_accession_counts"
+                  components={{ acc: <bdi dir="ltr" /> }}
+                />
+              )
             }
             className="lg:col-span-2"
             testId="panel-samples-by-status"
           >
             {loading ? (
-              <EmptyState message="Loading sample counts…" />
+              <EmptyState message={t("dashboard.loading.sample_counts")} />
             ) : data?.samples ? (
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {[
-                  ["Collected", data.samples.collected],
-                  ["Received", data.samples.received],
-                  ["In process", data.samples.inProcess],
-                  ["Ready", data.samples.ready],
-                  ["Rejected", data.samples.rejected],
-                  ["Cancelled", data.samples.cancelled],
+                  [t("status.sample.collected"), data.samples.collected],
+                  [t("status.sample.received"), data.samples.received],
+                  [t("status.sample.in_process"), data.samples.inProcess],
+                  [t("status.sample.ready"), data.samples.ready],
+                  [t("status.sample.rejected"), data.samples.rejected],
+                  [t("status.sample.cancelled"), data.samples.cancelled],
                 ].map(([label, value]) => (
                   <div
                     key={String(label)}
@@ -187,20 +200,22 @@ export function ManagerDashboardScreen(): ReactElement {
                 ))}
               </div>
             ) : (
-              <EmptyState message="Unavailable — the samples API did not respond." />
+              <EmptyState message={t("dashboard.unavailable.samples")} />
             )}
             <div className="mt-4">
-              <DashboardLink to="/samples">Open samples</DashboardLink>
+              <DashboardLink to="/samples">
+                {t("dashboard.links.open_samples")}
+              </DashboardLink>
             </div>
           </Panel>
 
           <Panel
-            title="Exceptions"
-            subtitle="Read-only operational triage"
+            title={t("dashboard.exceptions")}
+            subtitle={t("dashboard.manager.triage_subtitle")}
             testId="panel-exceptions"
           >
             {loading ? (
-              <EmptyState message="Loading exception counts…" />
+              <EmptyState message={t("dashboard.loading.exception_counts")} />
             ) : data?.exceptions ? (
               <div className="space-y-3">
                 <div className="flex items-baseline gap-2">
@@ -208,61 +223,81 @@ export function ManagerDashboardScreen(): ReactElement {
                     {data.exceptions.total}
                   </span>
                   <span className="text-xs font-semibold uppercase tracking-wide text-red-700 bg-red-50 px-2 py-0.5 rounded">
-                    requires action
+                    {t("dashboard.requires_action_inline")}
                   </span>
                 </div>
                 <ul className="space-y-2 text-sm text-slate-700">
-                  <li>{data.exceptions.late_transfer} late sample transfers</li>
                   <li>
-                    {data.exceptions.failed_delivery} failed report deliveries
+                    {t("dashboard.counts.late_transfers", {
+                      count: data.exceptions.late_transfer,
+                    })}
                   </li>
                   <li>
-                    {data.exceptions.critical_unacknowledged} critical results
-                    unacknowledged
+                    {t("dashboard.counts.failed_deliveries", {
+                      count: data.exceptions.failed_delivery,
+                    })}
                   </li>
                   <li>
-                    {data.exceptions.failed_generation} failed report
-                    generations
+                    {t("dashboard.counts.critical_results_unacknowledged", {
+                      count: data.exceptions.critical_unacknowledged,
+                    })}
                   </li>
-                  <li>{data.exceptions.stuck_sample} stuck samples</li>
+                  <li>
+                    {t("dashboard.counts.failed_generations", {
+                      count: data.exceptions.failed_generation,
+                    })}
+                  </li>
+                  <li>
+                    {t("dashboard.counts.stuck_samples", {
+                      count: data.exceptions.stuck_sample,
+                    })}
+                  </li>
                 </ul>
               </div>
             ) : (
-              <EmptyState message="Unavailable — the exceptions API did not respond." />
+              <EmptyState message={t("dashboard.unavailable.exceptions")} />
             )}
             <div className="mt-4">
-              <DashboardLink to="/exceptions">Open exceptions</DashboardLink>
+              <DashboardLink to="/exceptions">
+                {t("dashboard.links.open_exceptions")}
+              </DashboardLink>
             </div>
           </Panel>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
           <Panel
-            title="Today's registrations"
-            subtitle="Real patient rows created today (PKT)"
+            title={t("dashboard.panel.today_registrations")}
+            subtitle={t("dashboard.panel.today_registrations_subtitle")}
             testId="panel-today-registrations"
           >
             {loading ? (
-              <EmptyState message="Loading registrations…" />
+              <EmptyState message={t("dashboard.loading.registrations")} />
             ) : data?.todayPatients === null ? (
-              <EmptyState message="Unavailable — the patient API did not respond." />
+              <EmptyState message={t("dashboard.unavailable.patients")} />
             ) : data?.todayPatients.length ? (
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm">
+                <table className="w-full text-start text-sm">
                   <thead>
                     <tr className="text-[11px] uppercase tracking-wider text-slate-500 border-b border-slate-100">
-                      <th className="py-2 pr-3 font-semibold">Patient</th>
-                      <th className="py-2 pr-3 font-semibold">MRN</th>
-                      <th className="py-2 font-semibold">Branch</th>
+                      <th className="py-2 pe-3 font-semibold">
+                        {t("dashboard.table.patient")}
+                      </th>
+                      <th className="py-2 pe-3 font-semibold">
+                        {t("dashboard.table.mrn")}
+                      </th>
+                      <th className="py-2 font-semibold">
+                        {t("dashboard.table.branch")}
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {data.todayPatients.slice(0, 5).map((patient) => (
                       <tr key={patient.id}>
-                        <td className="py-2.5 pr-3 font-medium text-slate-900">
+                        <td className="py-2.5 pe-3 font-medium text-slate-900">
                           {patient.name}
                         </td>
-                        <td className="py-2.5 pr-3 font-mono text-xs text-slate-600">
+                        <td className="py-2.5 pe-3 font-mono text-xs text-slate-600">
                           {patient.mrn}
                         </td>
                         <td className="py-2.5 text-slate-600">
@@ -274,16 +309,18 @@ export function ManagerDashboardScreen(): ReactElement {
                 </table>
               </div>
             ) : (
-              <EmptyState message="No patients were registered today." />
+              <EmptyState message={t("dashboard.empty.no_patients_today")} />
             )}
             <div className="mt-4">
-              <DashboardLink to="/patients">Open patients</DashboardLink>
+              <DashboardLink to="/patients">
+                {t("dashboard.links.open_patients")}
+              </DashboardLink>
             </div>
           </Panel>
 
           <Panel
-            title="Manager scope"
-            subtitle="Summaries only — clinical and financial decisions stay with their roles"
+            title={t("dashboard.manager.scope_title")}
+            subtitle={t("dashboard.manager.scope_subtitle")}
           >
             <ul className="space-y-3 text-sm text-slate-700">
               <li className="flex items-start gap-2">
@@ -293,9 +330,7 @@ export function ManagerDashboardScreen(): ReactElement {
                 >
                   lock
                 </span>
-                <span>
-                  Result approval is restricted to Pathologists and the Owner.
-                </span>
+                <span>{t("dashboard.scope.manager_restricted")}</span>
               </li>
               <li className="flex items-start gap-2">
                 <span
@@ -304,10 +339,7 @@ export function ManagerDashboardScreen(): ReactElement {
                 >
                   lock
                 </span>
-                <span>
-                  Catalog and price edits are Owner-only; this dashboard never
-                  exposes an edit action.
-                </span>
+                <span>{t("dashboard.scope.manager_catalog_owner")}</span>
               </li>
               <li className="flex items-start gap-2">
                 <span
@@ -316,9 +348,7 @@ export function ManagerDashboardScreen(): ReactElement {
                 >
                   lock
                 </span>
-                <span>
-                  Partner registry and share-ledger writes stay with the Owner.
-                </span>
+                <span>{t("dashboard.scope.manager_partner_ledger")}</span>
               </li>
             </ul>
           </Panel>

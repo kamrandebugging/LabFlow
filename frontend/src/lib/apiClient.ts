@@ -9,6 +9,7 @@
  */
 
 import { getSession, type SessionKind } from "./sessionBridge";
+import { errorKeyForCode, errorKeyForStatus } from "./errors";
 
 const API_PREFIX = "/api/v1";
 
@@ -34,6 +35,8 @@ export class ApiError extends Error {
   readonly status: number;
   readonly problem: ProblemDetails | null;
   readonly code: string | null;
+  /** Safe i18n key for user-facing text; never the server's detail. */
+  readonly i18nKey: string;
 
   constructor(
     status: number,
@@ -68,6 +71,9 @@ export class ApiError extends Error {
     this.status = status;
     this.problem = problem;
     this.code = errObj?.code || problem?.code || errStr || null;
+    this.i18nKey = this.code
+      ? errorKeyForCode(this.code)
+      : errorKeyForStatus(status);
   }
 }
 

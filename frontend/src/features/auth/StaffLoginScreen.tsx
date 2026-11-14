@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import type { AuthService, LoginSuccessSession } from "./types";
 import { defaultAuthService } from "./authService";
-import { GENERIC_AUTH_ERROR } from "./authStore";
+import { LanguageSwitcher } from "../../components/LanguageSwitcher";
 
 export interface StaffLoginScreenProps {
   tenantName?: string;
@@ -29,7 +29,7 @@ export function StaffLoginScreen({
   onTotpRequired,
   onTotpEnrollmentRequired,
 }: StaffLoginScreenProps): JSX.Element {
-  const { i18n } = useTranslation();
+  const { t } = useTranslation(["auth", "common"]);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -90,14 +90,10 @@ export function StaffLoginScreen({
         return;
       }
     } catch {
-      setError(GENERIC_AUTH_ERROR);
+      setError(t("auth:errors.generic"));
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handleLanguageChange = (lang: "en" | "ur"): void => {
-    void i18n.changeLanguage(lang);
   };
 
   return (
@@ -107,45 +103,22 @@ export function StaffLoginScreen({
 
       {/* Language Switcher */}
       <aside
-        aria-label="Language selection"
-        className="fixed top-6 right-6 z-50"
+        aria-label={t("auth:login.language_aria")}
+        className="fixed top-6 end-6 z-50"
       >
-        <div className="bg-slate-200/80 backdrop-blur-md p-1 rounded-lg shadow-sm flex items-center space-x-1">
-          <button
-            type="button"
-            onClick={() => handleLanguageChange("en")}
-            className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${
-              i18n.language === "en"
-                ? "bg-white text-[#131b2e] shadow-sm"
-                : "text-slate-600 hover:text-slate-900"
-            }`}
-          >
-            English
-          </button>
-          <button
-            type="button"
-            onClick={() => handleLanguageChange("ur")}
-            className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${
-              i18n.language === "ur"
-                ? "bg-white text-[#131b2e] shadow-sm"
-                : "text-slate-600 hover:text-slate-900"
-            }`}
-          >
-            اردو
-          </button>
-        </div>
+        <LanguageSwitcher className="bg-slate-200/80 backdrop-blur-md shadow-sm" />
       </aside>
 
       <main className="relative z-10 w-full max-w-[420px] bg-white rounded-xl shadow-sm border border-slate-100 p-8 flex flex-col">
         {/* Brand Header */}
         <header className="flex items-center justify-between mb-6">
-          <div className="flex items-center space-x-2.5">
+          <div className="flex items-center gap-2.5">
             <img
               src="/logo.svg"
               alt="LabFlow"
               className="w-9 h-9 object-contain"
             />
-            <div className="flex items-baseline space-x-1.5">
+            <div className="flex items-baseline gap-1.5">
               <span className="text-xl font-bold tracking-tight text-slate-900">
                 LabFlow
               </span>
@@ -155,14 +128,14 @@ export function StaffLoginScreen({
             </div>
           </div>
           <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-600 text-xs uppercase tracking-wider font-semibold">
-            Portal
+            {t("auth:login.portal")}
           </span>
         </header>
 
         {/* Tenant Banner (only rendered when tenant is resolved) */}
         {tenantName && (
           <section
-            aria-label="Lab node details"
+            aria-label={t("auth:login.lab_node_details")}
             className="mb-6 bg-slate-50 border border-slate-100 rounded-lg p-3"
           >
             <div className="flex items-start justify-between">
@@ -170,7 +143,9 @@ export function StaffLoginScreen({
                 <h1 className="text-sm font-semibold text-slate-900 flex items-center gap-1.5">
                   {tenantName}
                 </h1>
-                <p className="text-xs text-slate-500 mt-0.5">Staff sign in</p>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  {t("auth:login.staff_sign_in")}
+                </p>
               </div>
               {nodeId && (
                 <span className="inline-flex items-center gap-1 text-xs text-teal-800 px-1.5 py-0.5 rounded bg-teal-100/70 font-mono">
@@ -190,13 +165,13 @@ export function StaffLoginScreen({
           >
             <div className="flex items-center gap-2">
               <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0" />
-              <span>Your session has expired. Please sign in again.</span>
+              <span>{t("auth:login.session_expired")}</span>
             </div>
             <button
               type="button"
               onClick={() => setSessionExpiredNotice(false)}
               className="text-amber-700 hover:text-amber-900 font-semibold"
-              aria-label="Dismiss session expired alert"
+              aria-label={t("auth:login.dismiss_session_expired")}
             >
               ✕
             </button>
@@ -215,9 +190,9 @@ export function StaffLoginScreen({
               htmlFor="email"
               className="text-xs font-medium text-slate-800 flex justify-between items-center"
             >
-              <span>Email</span>
+              <span>{t("auth:login.email")}</span>
               <span className="text-[11px] text-slate-400">
-                Lab ID or Official Mail
+                {t("auth:login.email_hint")}
               </span>
             </label>
             <input
@@ -225,7 +200,7 @@ export function StaffLoginScreen({
               type="email"
               autoComplete="email"
               required
-              placeholder="staff@citylab.pk"
+              placeholder={t("auth:login.email_placeholder")}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full bg-white text-slate-900 text-sm rounded-lg border border-slate-200 px-3.5 py-2.5 outline-none transition-all focus:border-teal-600 focus:ring-1 focus:ring-teal-600 placeholder:text-slate-400 shadow-sm"
@@ -239,14 +214,14 @@ export function StaffLoginScreen({
                 htmlFor="password"
                 className="text-xs font-medium text-slate-800"
               >
-                Password
+                {t("auth:login.password")}
               </label>
               <button
                 type="button"
                 onClick={() => setShowResetNotice(true)}
                 className="text-xs text-teal-700 hover:text-teal-900 transition-colors"
               >
-                Reset via Lab Admin
+                {t("auth:login.reset_via_admin")}
               </button>
             </div>
             <div className="relative flex items-center">
@@ -255,16 +230,16 @@ export function StaffLoginScreen({
                 type={showPassword ? "text" : "password"}
                 autoComplete="current-password"
                 required
-                placeholder="Enter your security credentials"
+                placeholder={t("auth:login.password_placeholder")}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-white text-slate-900 text-sm rounded-lg border border-slate-200 pl-3.5 pr-10 py-2.5 outline-none transition-all focus:border-teal-600 focus:ring-1 focus:ring-teal-600 placeholder:text-slate-400 shadow-sm"
+                className="w-full bg-white text-slate-900 text-sm rounded-lg border border-slate-200 ps-3.5 pe-10 py-2.5 outline-none transition-all focus:border-teal-600 focus:ring-1 focus:ring-teal-600 placeholder:text-slate-400 shadow-sm text-start"
               />
               <button
                 type="button"
-                aria-label="Toggle password visibility"
+                aria-label={t("auth:login.toggle_password")}
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-2.5 p-1 rounded text-slate-400 hover:text-slate-700 focus:outline-none"
+                className="absolute end-2.5 p-1 rounded text-slate-400 hover:text-slate-700 focus:outline-none"
               >
                 {showPassword ? (
                   <EyeOff className="w-4 h-4" />
@@ -278,16 +253,13 @@ export function StaffLoginScreen({
           {/* Reset Notice Modal / Banner */}
           {showResetNotice && (
             <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-900 flex flex-col gap-1.5">
-              <p>
-                Please contact your Lab Supervisor or Technical Administrator to
-                trigger an authorized credential reissue.
-              </p>
+              <p>{t("auth:login.reset_help")}</p>
               <button
                 type="button"
                 onClick={() => setShowResetNotice(false)}
                 className="self-end text-[11px] text-amber-700 font-semibold underline hover:text-amber-900"
               >
-                Dismiss
+                {t("common:actions.dismiss")}
               </button>
             </div>
           )}
@@ -302,12 +274,12 @@ export function StaffLoginScreen({
               {isLoading ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Authenticating...</span>
+                  <span>{t("auth:login.authenticating")}</span>
                 </>
               ) : (
                 <>
-                  <span>Sign in</span>
-                  <ArrowRight className="w-4 h-4" />
+                  <span>{t("auth:login.sign_in")}</span>
+                  <ArrowRight className="w-4 h-4 rtl:rotate-180" />
                 </>
               )}
             </button>
@@ -330,12 +302,11 @@ export function StaffLoginScreen({
           <div className="flex items-center justify-center gap-1.5 text-slate-500 mb-1.5">
             <ShieldCheck className="w-3.5 h-3.5 text-teal-700" />
             <span className="text-[11px] font-semibold tracking-wide uppercase">
-              Secured Clinical Node
+              {t("auth:login.secured_node")}
             </span>
           </div>
           <p className="text-xs text-slate-500 leading-relaxed">
-            Authorized staff access only. Activity is monitored and logged under
-            ISO 15189 compliance.
+            {t("auth:login.compliance")}
           </p>
         </footer>
       </main>
