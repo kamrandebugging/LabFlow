@@ -143,8 +143,10 @@ function HomeScreen(): JSX.Element {
   }
 }
 
-function StaffLoginWrapper(): JSX.Element {
+export function StaffLoginWrapper(): JSX.Element {
   const navigate = useNavigate();
+  const accessToken = useAuthStore((state) => state.accessToken);
+  const user = useAuthStore((state) => state.user);
   const [tenantInfo, setTenantInfo] = useState<TenantContextInfo | null>(() =>
     getSubdomainTenant(),
   );
@@ -165,6 +167,11 @@ function StaffLoginWrapper(): JSX.Element {
     <StaffLoginScreen
       tenantName={tenantInfo?.name}
       nodeId={tenantInfo?.nodeId}
+      currentUser={accessToken && user ? user : null}
+      onContinue={() => navigate(roleHome(user?.role))}
+      onLogInAsSomeoneElse={async () => {
+        await useAuthStore.getState().logout();
+      }}
       onTotpRequired={(email, challengeToken) => {
         const query = new URLSearchParams({ email });
         if (challengeToken) query.set("challenge", challengeToken);

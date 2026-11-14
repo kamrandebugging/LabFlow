@@ -100,6 +100,9 @@ export function LabDetailScreen(): JSX.Element {
       ? `${window.location.protocol}//${primaryDomain}`
       : `https://${primaryDomain}`
     : null;
+  // Launch Console is only a link: it must land on the tenant login page so an
+  // existing staff session is surfaced instead of silently resumed.
+  const tenantConsoleUrl = tenantOrigin ? `${tenantOrigin}/login` : null;
   const storageMb = tenant.schema_size_bytes
     ? (tenant.schema_size_bytes / (1024 * 1024)).toFixed(1)
     : null;
@@ -235,10 +238,10 @@ export function LabDetailScreen(): JSX.Element {
           ) : null}
 
           <a
-            href={tenantOrigin ?? undefined}
+            href={tenantConsoleUrl ?? undefined}
             target="_blank"
             rel="noreferrer"
-            aria-disabled={!tenantOrigin}
+            aria-disabled={!tenantConsoleUrl}
             className="px-space-md py-space-xs bg-surface-container-low hover:bg-surface-container text-on-surface border border-outline-variant/60 rounded font-label-sm text-label-sm flex items-center gap-1 transition-colors"
           >
             <span>Launch Console</span>
