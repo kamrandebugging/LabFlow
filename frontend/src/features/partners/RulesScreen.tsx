@@ -429,7 +429,7 @@ export const RulesScreen: React.FC = () => {
                       {t("partners:rules.phone_label")}
                     </span>{" "}
                     <span className="font-mono font-medium text-slate-800">
-                      {partner.phone}
+                      <bdi dir="ltr">{partner.phone}</bdi>
                     </span>
                   </span>
                 )}

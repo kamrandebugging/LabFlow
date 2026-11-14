@@ -394,7 +394,7 @@ export const PartnersListScreen: React.FC = () => {
                     </td>
 
                     <td className="py-3.5 px-4 text-slate-600 font-mono text-xs">
-                      {partner.phone || "—"}
+                      <bdi dir="ltr">{partner.phone || "—"}</bdi>
                     </td>
 
                     <td className="py-3.5 px-4">

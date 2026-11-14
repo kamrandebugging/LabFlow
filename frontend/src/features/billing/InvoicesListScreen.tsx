@@ -76,34 +76,34 @@ export function InvoicesListScreen({
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
-            {statusLabel("invoice", "paid", t)}
+            {statusLabel("invoice", "paid", (key) => t(`common:${key}`))}
           </span>
         );
       case "unpaid":
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200">
             <span className="w-1.5 h-1.5 rounded-full bg-rose-600" />
-            {statusLabel("invoice", "unpaid", t)}
+            {statusLabel("invoice", "unpaid", (key) => t(`common:${key}`))}
           </span>
         );
       case "partial":
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
             <span className="w-1.5 h-1.5 rounded-full bg-amber-600" />
-            {statusLabel("invoice", "partial", t)}
+            {statusLabel("invoice", "partial", (key) => t(`common:${key}`))}
           </span>
         );
       case "refunded":
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-300">
             <span className="w-1.5 h-1.5 rounded-full bg-slate-500" />
-            {statusLabel("invoice", "refunded", t)}
+            {statusLabel("invoice", "refunded", (key) => t(`common:${key}`))}
           </span>
         );
       case "cancelled":
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-500 line-through border border-slate-200">
-            {statusLabel("invoice", "cancelled", t)}
+            {statusLabel("invoice", "cancelled", (key) => t(`common:${key}`))}
           </span>
         );
       default:
@@ -191,18 +191,24 @@ export function InvoicesListScreen({
               className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-600 cursor-pointer"
             >
               <option value="all">{t("billing:list.all_statuses")}</option>
-              <option value="paid">{statusLabel("invoice", "paid", t)}</option>
+              <option value="paid">
+                {statusLabel("invoice", "paid", (key) => t(`common:${key}`))}
+              </option>
               <option value="unpaid">
-                {statusLabel("invoice", "unpaid", t)}
+                {statusLabel("invoice", "unpaid", (key) => t(`common:${key}`))}
               </option>
               <option value="partial">
-                {statusLabel("invoice", "partial", t)}
+                {statusLabel("invoice", "partial", (key) => t(`common:${key}`))}
               </option>
               <option value="refunded">
-                {statusLabel("invoice", "refunded", t)}
+                {statusLabel("invoice", "refunded", (key) =>
+                  t(`common:${key}`),
+                )}
               </option>
               <option value="cancelled">
-                {statusLabel("invoice", "cancelled", t)}
+                {statusLabel("invoice", "cancelled", (key) =>
+                  t(`common:${key}`),
+                )}
               </option>
             </select>
           </div>
@@ -270,7 +276,7 @@ export function InvoicesListScreen({
                 <th className="py-3 px-4" scope="col">
                   {t("common:labels.date")}
                 </th>
-                <th className="py-3 px-4" scope="col">
+                <th className="py-3 px-4 hidden lg:table-cell" scope="col">
                   {t("billing:list.col_tests")}
                 </th>
                 <th className="py-3 px-4" scope="col">
@@ -322,7 +328,7 @@ export function InvoicesListScreen({
                       <bdi dir="ltr">{formatDate(inv.created_at)}</bdi>
                     </td>
                     <td
-                      className="py-3.5 px-4 text-slate-700 max-w-xs truncate"
+                      className="py-3.5 px-4 text-slate-700 max-w-xs truncate hidden lg:table-cell"
                       title={
                         inv.items_summary || t("billing:list.tests_fallback")
                       }
@@ -334,7 +340,7 @@ export function InvoicesListScreen({
                         {formatMoney(inv.total, lang)}
                       </span>
                     </td>
-                    <td className="py-3.5 px-4">
+                    <td className="py-3.5 px-4 whitespace-nowrap">
                       {getStatusBadge(inv.status)}
                     </td>
                     <td className="py-3.5 px-4 text-end">

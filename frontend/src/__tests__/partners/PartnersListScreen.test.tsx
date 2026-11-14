@@ -84,6 +84,11 @@ describe("Screen 36: PartnersListScreen (/partners)", () => {
     expect(screen.getByText("Total Partners")).toBeInTheDocument();
     expect(screen.getByText("Active Referrals")).toBeInTheDocument();
     expect(screen.getByText("Inactive / Paused")).toBeInTheDocument();
+
+    expect(screen.getByText("+92 300 4567890").closest("bdi")).toHaveAttribute(
+      "dir",
+      "ltr",
+    );
   });
 
   it("filters partners by search input", async () => {

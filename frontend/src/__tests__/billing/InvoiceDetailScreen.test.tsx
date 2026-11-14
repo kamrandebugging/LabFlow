@@ -6,6 +6,7 @@ import type {
   InvoiceDetail,
   PaymentRecord,
 } from "../../features/billing/types";
+import i18n from "../../i18n";
 
 vi.mock("../../features/billing/billingService", () => ({
   billingService: {
@@ -219,5 +220,20 @@ describe("Screen 15: Invoice Detail (15-invoice-detail.html & Doc 03 §5.3, §6.
         "Ordered by mistake",
       );
     });
+  });
+
+  it("renders the Urdu invoice status instead of a raw i18n key", async () => {
+    await i18n.changeLanguage("ur");
+    render(<InvoiceDetailScreen invoiceId={mockInvoiceDetail.id} />);
+
+    await waitFor(() => {
+      expect(
+        screen.getAllByText(i18n.t("status.invoice.partial")).length,
+      ).toBeGreaterThan(0);
+    });
+
+    expect(screen.queryByText(/status\.invoice\./)).not.toBeInTheDocument();
+
+    await i18n.changeLanguage("en");
   });
 });

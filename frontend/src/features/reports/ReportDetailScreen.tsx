@@ -464,7 +464,9 @@ export function ReportDetailScreen(): JSX.Element | null {
                   {report.patient.mrn}
                 </span>
                 <span className="text-slate-500">
-                  {report.patient.phone || t("reports:detail.no_phone")}
+                  <bdi dir="ltr">
+                    {report.patient.phone || t("reports:detail.no_phone")}
+                  </bdi>
                 </span>
               </div>
               <div>
@@ -485,7 +487,7 @@ export function ReportDetailScreen(): JSX.Element | null {
                   {t("reports:detail.reported_date")}
                 </span>
                 <span className="font-mono text-slate-800 block text-sm">
-                  {formatDate(report.created_at)}
+                  <bdi dir="ltr">{formatDate(report.created_at)}</bdi>
                 </span>
                 <span className="text-slate-500">
                   {report.current_version > 0

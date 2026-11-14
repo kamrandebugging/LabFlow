@@ -7,6 +7,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+import { statusLabel } from "../../lib/format";
 import {
   AlertCircle,
   Clock,
@@ -441,7 +442,15 @@ export function ExceptionsScreen(): JSX.Element {
                         </span>
                         <span className="text-slate-600 capitalize">
                           {t("common:labels.status")}:{" "}
-                          {getDetail(item.details, "sample_status", "pending")}
+                          {statusLabel(
+                            "sample",
+                            getDetail(
+                              item.details,
+                              "sample_status",
+                              "pending",
+                            ).toLowerCase(),
+                            (key) => t(`common:${key}`),
+                          )}
                         </span>
                       </div>
                       <div className="text-slate-500 mt-0.5">
