@@ -127,6 +127,37 @@ describe("Owner dashboard", () => {
     expect(screen.getByText("1 failed report deliveries")).toBeInTheDocument();
   });
 
+  it("renders every section and pairs the critical value with an icon", async () => {
+    vi.mocked(reportsService.getExceptions).mockResolvedValue({
+      results: [],
+      counts: {
+        total: 1,
+        failed_generation: 0,
+        failed_delivery: 0,
+        late_transfer: 0,
+        critical_unacknowledged: 1,
+        stuck_sample: 0,
+      },
+    });
+
+    render(
+      <MemoryRouter>
+        <OwnerDashboardScreen />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText("Samples by status")).toBeInTheDocument();
+    expect(screen.getByText("Settlements")).toBeInTheDocument();
+    expect(screen.getByText("Exceptions")).toBeInTheDocument();
+    expect(screen.getByText("Staff passwords")).toBeInTheDocument();
+    const critical = screen.getByText("1 critical result unacknowledged");
+    expect(critical).toBeInTheDocument();
+    // The critical row carries an icon/dot as a second, non-colour signal.
+    expect(
+      critical.parentElement?.querySelector('[aria-hidden="true"]'),
+    ).not.toBeNull();
+  });
+
   it("renders an em dash when the billing read fails", async () => {
     vi.mocked(billingService.listInvoices).mockRejectedValue(
       new Error("offline"),

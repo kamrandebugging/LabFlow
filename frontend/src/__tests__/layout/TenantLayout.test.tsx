@@ -8,6 +8,7 @@ import { TenantLayout } from "../../features/layout/TenantLayout";
 import { partnersService } from "../../features/partners/partnersService";
 import { reportsService } from "../../features/reports/reportsService";
 import { resultsService } from "../../features/results/resultsService";
+import { ThemeProvider } from "../../theme/ThemeProvider";
 
 vi.mock("../../features/auth/tenantContext", () => ({
   fetchTenantContext: vi.fn().mockResolvedValue({
@@ -29,15 +30,17 @@ vi.mock("../../features/reports/reportsService", () => ({
 
 function renderShell(): void {
   render(
-    <MemoryRouter initialEntries={["/"]}>
-      <Routes>
-        <Route element={<TenantLayout />}>
-          <Route path="/" element={<div>Dashboard outlet</div>} />
-        </Route>
-        <Route path="/login" element={<div>Login screen</div>} />
-        <Route path="/login/enroll" element={<div>Enroll screen</div>} />
-      </Routes>
-    </MemoryRouter>,
+    <ThemeProvider>
+      <MemoryRouter initialEntries={["/"]}>
+        <Routes>
+          <Route element={<TenantLayout />}>
+            <Route path="/" element={<div>Dashboard outlet</div>} />
+          </Route>
+          <Route path="/login" element={<div>Login screen</div>} />
+          <Route path="/login/enroll" element={<div>Enroll screen</div>} />
+        </Routes>
+      </MemoryRouter>
+    </ThemeProvider>,
   );
 }
 

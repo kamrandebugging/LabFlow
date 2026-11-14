@@ -47,8 +47,20 @@
   --color-error-tint: #fdecea;
   --color-error-border: #d9a29c;
 
+  /* Status — semantic, always paired with icon + words. */
+  --color-success: #0e6b3a;
+  --color-success-tint: #e3f0e8;
+  --color-success-border: #0e6b3a;
+  --color-warning: #7a5a00;
+  --color-warning-tint: #f7efd2;
   /* Warning border — dark amber so it clears 3:1 on the light well. */
-  --color-warning-border: #7a5c00;
+  --color-warning-border: #7a5a00;
+  --color-danger: #b42318;
+  --color-danger-tint: #fdecea;
+  --color-danger-border: #b42318;
+  --color-info: #175cd3;
+  --color-info-tint: #eaf1fe;
+  --color-info-border: #175cd3;
 
   /* Neumorphic shadows — light source top-left, always. */
   --shadow-neu-raised:
@@ -104,8 +116,20 @@
   --color-error-tint: rgba(255, 180, 171, 0.1);
   --color-error-border: rgba(255, 180, 171, 0.42);
 
+  /* Status — semantic, always paired with icon + words. */
+  --color-success: #52b788;
+  --color-success-tint: rgba(82, 183, 136, 0.14);
+  --color-success-border: #52b788;
+  --color-warning: #c9a227;
+  --color-warning-tint: rgba(201, 162, 39, 0.14);
   /* Warning border — gold clears 3:1 on the dark well. */
   --color-warning-border: #c9a227;
+  --color-danger: #f97066;
+  --color-danger-tint: rgba(249, 112, 102, 0.12);
+  --color-danger-border: #f97066;
+  --color-info: #84adff;
+  --color-info-tint: rgba(132, 173, 255, 0.12);
+  --color-info-border: #84adff;
 
   /* Neumorphic shadows — softer spread, surface lift carries the edge. */
   --shadow-neu-raised:

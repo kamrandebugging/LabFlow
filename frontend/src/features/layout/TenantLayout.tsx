@@ -22,6 +22,8 @@ import {
 } from "../auth/postLoginNotice";
 import { fetchTenantContext, getSubdomainTenant } from "../auth/tenantContext";
 import { PostLoginNotice } from "../../components/ui/PostLoginNotice";
+import { ThemeToggle } from "../../components/ui/ThemeToggle";
+import styles from "./TenantLayout.module.css";
 import { partnersService } from "../partners/partnersService";
 import { reportsService } from "../reports/reportsService";
 import { resultsService } from "../results/resultsService";
@@ -193,39 +195,38 @@ export function TenantLayout(): ReactElement {
   };
 
   const linkClass = (to: string) =>
-    `flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors ${
-      isLinkActive(to)
-        ? "bg-[#86f2e4]/70 text-[#005c55] font-semibold"
-        : "text-slate-700 hover:bg-slate-50 hover:text-slate-900"
-    }`;
+    `${styles.navLink} ${isLinkActive(to) ? styles.navLinkActive : ""}`;
 
   return (
-    <div className="bg-[#faf8ff] text-[#131b2e] antialiased min-h-screen">
+    <div className={styles.shell}>
       {/* Top Header */}
-      <header className="fixed top-0 start-0 end-0 h-16 bg-white border-b border-slate-200/80 z-50 px-6 flex items-center justify-between shadow-[0_1px_8px_rgba(0,0,0,0.02)]">
-        <div className="flex items-center gap-4">
+      <header className={styles.topbar}>
+        <div className={styles.brandBlock}>
           <Link
             to="/"
-            className="w-9 h-9 rounded-lg bg-[#005c55] flex items-center justify-center text-white shadow-sm hover:opacity-90 transition-opacity"
+            className={styles.brandLink}
             title={t("topbar.dashboard_title")}
           >
-            <span
+            <svg
               aria-hidden="true"
-              className="material-symbols-outlined text-[20px]"
+              className={styles.icon}
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
             >
-              science
-            </span>
+              <path d="M9 3h6" />
+              <path d="M10 3v6l-4.5 9.5A1.8 1.8 0 0 0 7.1 21h9.8a1.8 1.8 0 0 0 1.6-2.5L14 9V3" />
+            </svg>
           </Link>
-          <div>
-            <div className="flex items-center gap-1.5">
-              <span className="text-base text-slate-900 font-semibold tracking-tight">
-                {tenantName ?? "\u00a0"}
-              </span>
-              <span className="px-1.5 py-0.5 rounded text-[10px] uppercase font-semibold tracking-wider bg-[#86f2e4]/60 text-[#006f66]">
-                LabFlow
-              </span>
+          <div className={styles.brandText}>
+            <div className={styles.brandRow}>
+              <span className={styles.brandName}>{tenantName ?? "\u00a0"}</span>
+              <span className={styles.brandTag}>LabFlow</span>
             </div>
-            <p className="text-xs text-slate-400">
+            <p className={styles.brandMeta}>
               {user?.role === "owner" || user?.role === "pathologist"
                 ? t("topbar.all_branches")
                 : t("topbar.branch_workspace")}
@@ -234,65 +235,72 @@ export function TenantLayout(): ReactElement {
           </div>
         </div>
 
-        <div className="flex items-center gap-4">
-          <LanguageSwitcher compact />
-          <div className="h-6 w-px bg-slate-200" />
-          <div className="flex items-center gap-3 ps-1">
-            <div className="w-9 h-9 rounded-full bg-[#86f2e4] flex items-center justify-center text-xs font-bold text-[#006f66] ring-2 ring-[#005c55]/20">
-              {userInitials}
-            </div>
-            <div className="hidden sm:flex flex-col text-start">
-              <span className="text-xs font-semibold text-slate-900 leading-tight">
-                {displayName}
-              </span>
-              <span className="text-[11px] text-slate-500 leading-tight">
-                {userRole}
-              </span>
+        <div className={styles.topActions}>
+          <div className={styles.langWrap}>
+            <LanguageSwitcher compact />
+          </div>
+          <ThemeToggle />
+          <div className={styles.divider} />
+          <div className={styles.userChip}>
+            <div className={styles.avatar}>{userInitials}</div>
+            <div className={styles.userText}>
+              <span className={styles.userName}>{displayName}</span>
+              <span className={styles.userRole}>{userRole}</span>
             </div>
             <button
               onClick={handleLogout}
-              className="text-slate-400 hover:text-red-600 ms-1 p-1 rounded transition-colors flex items-center"
+              className={styles.logout}
               title={t("topbar.logout")}
               type="button"
             >
-              <span
+              <svg
                 aria-hidden="true"
-                className="material-symbols-outlined text-[20px]"
+                className={styles.icon}
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
               >
-                logout
-              </span>
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                <path d="M16 17l5-5-5-5" />
+                <path d="M21 12H9" />
+              </svg>
             </button>
           </div>
         </div>
       </header>
 
       {/* Left Sidebar */}
-      <aside className="fixed start-0 top-16 bottom-0 w-60 bg-white border-e border-slate-200/80 z-40 overflow-y-auto p-4 flex flex-col gap-6">
+      <aside className={styles.sidebar}>
         {navigation.operations.length > 0 && (
-          <div className="flex flex-col">
-            <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1 px-3">
-              {t("nav.operations")}
-            </div>
-            <nav className="flex flex-col gap-0.5">
+          <div className={styles.navSection}>
+            <p className={styles.navLabel}>{t("nav.operations")}</p>
+            <nav className={styles.nav}>
               {navigation.operations.map((item) => (
                 <Link key={item.to} to={item.to} className={linkClass(item.to)}>
-                  <div className="flex items-center gap-2.5">
+                  <span className={styles.navInner}>
                     <span
                       aria-hidden="true"
-                      className="material-symbols-outlined text-[18px]"
+                      className={`material-symbols-outlined ${styles.navIcon}`}
                     >
                       {item.icon}
                     </span>
-                    <span>{t(`nav.${item.labelKey}`)}</span>
-                  </div>
+                    <span className={styles.navText}>
+                      {t(`nav.${item.labelKey}`)}
+                    </span>
+                  </span>
                   {item.to === "/results/approvals" &&
                     badges.pendingApprovals > 0 && (
-                      <span className="text-[11px] px-2 py-0.5 rounded-full bg-slate-100 text-teal-800 font-semibold">
+                      <span className={styles.navBadge}>
                         {badges.pendingApprovals}
                       </span>
                     )}
                   {item.to === "/exceptions" && badges.exceptions > 0 && (
-                    <span className="text-[11px] px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-semibold">
+                    <span
+                      className={`${styles.navBadge} ${styles.navBadgeDanger}`}
+                    >
                       {badges.exceptions}
                     </span>
                   )}
@@ -303,25 +311,25 @@ export function TenantLayout(): ReactElement {
         )}
 
         {navigation.management.length > 0 && (
-          <div className="flex flex-col">
-            <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1 px-3">
-              {t("nav.management")}
-            </div>
-            <nav className="flex flex-col gap-0.5">
+          <div className={styles.navSection}>
+            <p className={styles.navLabel}>{t("nav.management")}</p>
+            <nav className={styles.nav}>
               {navigation.management.map((item) => (
                 <Link key={item.to} to={item.to} className={linkClass(item.to)}>
-                  <div className="flex items-center gap-2.5">
+                  <span className={styles.navInner}>
                     <span
                       aria-hidden="true"
-                      className="material-symbols-outlined text-[18px]"
+                      className={`material-symbols-outlined ${styles.navIcon}`}
                     >
                       {item.icon}
                     </span>
-                    <span>{t(`nav.${item.labelKey}`)}</span>
-                  </div>
+                    <span className={styles.navText}>
+                      {t(`nav.${item.labelKey}`)}
+                    </span>
+                  </span>
                   {item.to === "/settlements" &&
                     badges.draftSettlements > 0 && (
-                      <span className="text-[11px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 font-semibold">
+                      <span className={styles.navBadge}>
                         {badges.draftSettlements}
                       </span>
                     )}
@@ -333,8 +341,8 @@ export function TenantLayout(): ReactElement {
       </aside>
 
       {/* Main Content Area */}
-      <div className="ps-60 min-h-screen flex flex-col bg-[#f8f9ff]">
-        <main className="flex-1 pt-16">
+      <div className={styles.main}>
+        <main className={styles.content}>
           <Outlet />
         </main>
       </div>

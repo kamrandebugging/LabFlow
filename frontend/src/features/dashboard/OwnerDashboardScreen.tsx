@@ -9,6 +9,7 @@ import { reportsService } from "../reports/reportsService";
 import { resultsService } from "../results/resultsService";
 import { DashboardDateLine } from "./DashboardUI";
 import { StaffPasswordSection } from "./StaffPasswordSection";
+import styles from "./OwnerDashboardScreen.module.css";
 import {
   fetchSampleStatusCounts,
   formatCount,
@@ -137,66 +138,100 @@ export function OwnerDashboardScreen(): ReactElement {
     };
   }, [accessToken]);
 
+  const sampleRows = [
+    {
+      key: "collected",
+      label: t("status.sample.collected"),
+      value: stats.samples?.collected,
+      dot: styles.dotInfo,
+    },
+    {
+      key: "received",
+      label: t("status.sample.received"),
+      value: stats.samples?.received,
+      dot: styles.dotInfo,
+    },
+    {
+      key: "in_process",
+      label: t("status.sample.in_process"),
+      value: stats.samples?.inProcess,
+      dot: styles.dotWarning,
+    },
+    {
+      key: "ready",
+      label: t("status.sample.ready"),
+      value: stats.samples?.ready,
+      dot: styles.dotSuccess,
+    },
+    {
+      key: "rejected",
+      label: t("status.sample.rejected"),
+      value: stats.samples?.rejected,
+      dot: styles.dotDanger,
+    },
+    {
+      key: "cancelled",
+      label: t("status.sample.cancelled"),
+      value: stats.samples?.cancelled,
+      dot: styles.dotMuted,
+    },
+  ];
+
   return (
-    <div className="p-8">
-      <div className="flex flex-col w-full max-w-7xl mx-auto">
-        <div className="mb-6 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+    <div className={styles.page}>
+      <div className={styles.container}>
+        <div className={styles.header}>
           <div>
-            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-              {t("dashboard.owner.title")}
-            </h1>
-            <p className="text-sm text-slate-500 font-normal mt-1">
+            <h1 className={styles.title}>{t("dashboard.owner.title")}</h1>
+            <p className={styles.subtitle}>
               <DashboardDateLine />
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-slate-100 text-slate-700 font-mono">
-              <span
-                aria-hidden="true"
-                className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"
-              />
-              {t("dashboard.live_data")}
-            </span>
-          </div>
+          <span className={styles.liveBadge}>
+            <span className={styles.liveDot} aria-hidden="true" />
+            {t("dashboard.live_data")}
+          </span>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 lg:col-span-2 flex flex-col justify-between">
+        <div className={styles.grid}>
+          <div className={`${styles.card} ${styles.cardWide}`}>
             <div>
-              <div className="text-base font-semibold text-slate-900 mb-4 flex items-center justify-between">
-                <span>{t("dashboard.owner.today_business")}</span>
-                <span className="text-xs font-normal text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
+              <div className={styles.cardTitleRow}>
+                <h2 className={styles.cardTitle}>
+                  {t("dashboard.owner.today_business")}
+                </h2>
+                <span className={styles.pill}>
                   {t("dashboard.owner.day_to_date_batch")}
                 </span>
               </div>
-              <div className="space-y-3.5">
-                <div className="flex items-center justify-between py-2 border-b border-slate-100">
-                  <span className="text-sm font-medium text-slate-600">
+              <div className={styles.rows}>
+                <div className={styles.row}>
+                  <span className={styles.rowLabel}>
                     {t("dashboard.owner.invoices_label")}
                   </span>
-                  <span className="text-lg font-bold text-slate-900">
+                  <span className={styles.rowValue}>
                     {formatCount(stats.invoicesCount)}
                   </span>
                 </div>
-                <div className="flex items-center justify-between py-2 border-b border-slate-100">
-                  <span className="text-sm font-medium text-slate-600">
+                <div className={styles.row}>
+                  <span className={styles.rowLabel}>
                     {t("dashboard.owner.invoiced_total")}
                   </span>
-                  <span className="bg-slate-50 border border-slate-200 px-3 py-1.5 rounded font-mono text-sm font-semibold text-black tracking-tight select-all">
+                  <span className={styles.moneyValue}>
                     {formatPkr(stats.invoicedTotal, lang)}
                   </span>
                 </div>
-                <div className="flex items-center justify-between py-2">
-                  <span className="text-sm font-medium text-slate-600">
+                <div className={styles.row}>
+                  <span className={styles.rowLabel}>
                     {t("dashboard.owner.collections_today")}
                   </span>
-                  <span className="bg-slate-50 border border-slate-200 px-3 py-1.5 rounded font-mono text-sm font-semibold text-black tracking-tight select-all">
+                  <span className={styles.moneyValue}>
                     {formatPkr(stats.collectionsTotal, lang)}
                   </span>
                 </div>
               </div>
             </div>
-            <div className="text-xs text-slate-400 mt-4 pt-2 border-t border-slate-50">
+            <div className={styles.footer}>
               <Trans
                 i18nKey="dashboard.owner.business_footer"
                 components={{ zone: <bdi dir="ltr" /> }}
@@ -204,69 +239,35 @@ export function OwnerDashboardScreen(): ReactElement {
             </div>
           </div>
 
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col justify-between">
+          <div className={styles.card}>
             <div>
-              <div className="text-base font-semibold text-slate-900 mb-4">
-                {t("dashboard.samples_by_status")}
+              <div className={styles.cardTitleRow}>
+                <h2 className={styles.cardTitle}>
+                  {t("dashboard.samples_by_status")}
+                </h2>
               </div>
               {stats.samples ? (
-                <div className="space-y-2.5">
-                  {[
-                    [
-                      t("status.sample.collected"),
-                      stats.samples.collected,
-                      "bg-blue-600",
-                    ],
-                    [
-                      t("status.sample.received"),
-                      stats.samples.received,
-                      "bg-cyan-600",
-                    ],
-                    [
-                      t("status.sample.in_process"),
-                      stats.samples.inProcess,
-                      "bg-orange-600",
-                    ],
-                    [
-                      t("status.sample.ready"),
-                      stats.samples.ready,
-                      "bg-green-600",
-                    ],
-                    [
-                      t("status.sample.rejected"),
-                      stats.samples.rejected,
-                      "bg-red-600",
-                    ],
-                    [
-                      t("status.sample.cancelled"),
-                      stats.samples.cancelled,
-                      "bg-slate-500",
-                    ],
-                  ].map(([label, value, colour]) => (
-                    <div
-                      key={String(label)}
-                      className="flex items-center justify-between py-1"
-                    >
-                      <span className="inline-flex items-center gap-2 text-xs font-medium text-slate-700 bg-slate-50 px-2 py-1 rounded">
+                <div className={styles.samples}>
+                  {sampleRows.map((row) => (
+                    <div key={row.key} className={styles.sampleRow}>
+                      <span className={styles.sampleLabel}>
                         <span
                           aria-hidden="true"
-                          className={`w-2 h-2 rounded-full ${colour}`}
+                          className={`${styles.dot} ${row.dot}`}
                         />
-                        {label}
+                        {row.label}
                       </span>
-                      <span className="font-medium text-slate-900 font-mono text-sm">
-                        {value}
-                      </span>
+                      <span className={styles.sampleValue}>{row.value}</span>
                     </div>
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-slate-500">
+                <p className={styles.hint}>
                   {t("dashboard.unavailable.samples")}
                 </p>
               )}
             </div>
-            <div className="text-[11px] text-slate-400 mt-3 pt-2 border-t border-slate-50">
+            <div className={styles.footer}>
               {stats.samples ? (
                 <Trans
                   i18nKey="dashboard.samples.total_accessions_scope"
@@ -279,83 +280,78 @@ export function OwnerDashboardScreen(): ReactElement {
             </div>
           </div>
 
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col justify-between">
+          <div className={styles.card}>
             <div>
-              <div className="text-base font-semibold text-slate-900 mb-3">
-                {t("dashboard.stat.pending_approvals")}
+              <div className={styles.cardTitleRow}>
+                <h2 className={styles.cardTitle}>
+                  {t("dashboard.stat.pending_approvals")}
+                </h2>
               </div>
-              <div className="flex items-baseline gap-3">
-                <span className="text-4xl font-bold text-slate-900">
+              <div className={styles.cardTitleRow}>
+                <span className={styles.bigNumber}>
                   {formatCount(stats.pendingApprovals)}
                 </span>
-                <span className="inline-flex items-center text-xs font-semibold px-2 py-0.5 rounded tracking-wide uppercase border border-amber-200 bg-[#fef3c7] text-[#b45309]">
+                <span
+                  className={`${styles.statusBadge} ${styles.statusWarning}`}
+                >
+                  <span className={styles.badgeIcon} aria-hidden="true" />
                   {t("dashboard.owner.review_badge")}
                 </span>
               </div>
-              <p className="text-sm text-slate-600 mt-2 leading-relaxed">
-                {t("dashboard.owner.pending_hint")}
-              </p>
+              <p className={styles.hint}>{t("dashboard.owner.pending_hint")}</p>
             </div>
-            <Link
-              to="/results/approvals"
-              className="text-sm font-medium text-teal-700 hover:text-teal-800 mt-4 inline-flex items-center gap-1 group transition-colors"
-            >
+            <Link to="/results/approvals" className={styles.link}>
               <span>{t("dashboard.links.open_approvals")}</span>
-              <span
-                aria-hidden="true"
-                className="group-hover:translate-x-0.5 transition-transform rtl:-scale-x-100"
-              >
+              <span className={styles.linkArrow} aria-hidden="true">
                 →
               </span>
             </Link>
           </div>
 
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col justify-between">
+          <div className={styles.card}>
             <div>
-              <div className="text-base font-semibold text-slate-900 mb-3">
-                {t("dashboard.owner.settlements")}
+              <div className={styles.cardTitleRow}>
+                <h2 className={styles.cardTitle}>
+                  {t("dashboard.owner.settlements")}
+                </h2>
               </div>
-              <div className="text-4xl font-bold text-slate-900">
+              <div className={styles.bigNumber}>
                 {formatCount(stats.draftSettlements)}
               </div>
-              <p className="text-sm text-slate-600 mt-2 leading-relaxed">
+              <p className={styles.hint}>
                 {t("dashboard.owner.draft_settlements")}
               </p>
-              <p className="text-xs text-slate-400 mt-1">
+              <p className={styles.footer}>
                 {t("dashboard.owner.counts_only")}
               </p>
             </div>
-            <Link
-              to="/settlements"
-              className="text-sm font-medium text-teal-700 hover:text-teal-800 mt-4 inline-flex items-center gap-1 group transition-colors"
-            >
+            <Link to="/settlements" className={styles.link}>
               <span>{t("dashboard.links.review_settlements")}</span>
-              <span
-                aria-hidden="true"
-                className="group-hover:translate-x-0.5 transition-transform rtl:-scale-x-100"
-              >
+              <span className={styles.linkArrow} aria-hidden="true">
                 →
               </span>
             </Link>
           </div>
 
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col justify-between">
+          <div className={styles.card}>
             <div>
-              <div className="text-base font-semibold text-slate-900 mb-3 flex items-center justify-between">
-                <span>{t("dashboard.exceptions")}</span>
-                <span className="text-xs px-2 py-0.5 rounded bg-red-50 text-red-700 font-medium">
+              <div className={styles.cardTitleRow}>
+                <h2 className={styles.cardTitle}>
+                  {t("dashboard.exceptions")}
+                </h2>
+                <span
+                  className={`${styles.statusBadge} ${styles.statusDanger}`}
+                >
+                  <span className={styles.badgeIcon} aria-hidden="true" />
                   {t("dashboard.requires_action")}
                 </span>
               </div>
-              <div className="text-4xl font-bold text-slate-900 mb-3">
+              <div className={styles.bigNumber}>
                 {formatCount(stats.exceptions?.total ?? null)}
               </div>
-              <div className="space-y-1">
-                <div className="text-sm text-slate-700 py-1 border-b border-slate-100 flex items-center gap-2">
-                  <span
-                    aria-hidden="true"
-                    className="w-1.5 h-1.5 rounded-full bg-slate-400"
-                  />
+              <div className={styles.exceptions}>
+                <div className={styles.exceptionRow}>
+                  <span className={styles.exceptionDot} aria-hidden="true" />
                   <span>
                     {stats.exceptions
                       ? t("dashboard.counts.late_transfers", {
@@ -364,11 +360,8 @@ export function OwnerDashboardScreen(): ReactElement {
                       : t("dashboard.counts.late_transfers_unknown")}
                   </span>
                 </div>
-                <div className="text-sm text-slate-700 py-1 border-b border-slate-100 flex items-center gap-2">
-                  <span
-                    aria-hidden="true"
-                    className="w-1.5 h-1.5 rounded-full bg-slate-400"
-                  />
+                <div className={styles.exceptionRow}>
+                  <span className={styles.exceptionDot} aria-hidden="true" />
                   <span>
                     {stats.exceptions
                       ? t("dashboard.counts.failed_deliveries", {
@@ -377,10 +370,12 @@ export function OwnerDashboardScreen(): ReactElement {
                       : t("dashboard.counts.failed_deliveries_unknown")}
                   </span>
                 </div>
-                <div className="text-sm text-red-600 font-medium py-1 flex items-center gap-2">
+                <div
+                  className={`${styles.exceptionRow} ${styles.exceptionCritical}`}
+                >
                   <span
+                    className={`${styles.exceptionDot} ${styles.exceptionDotCritical}`}
                     aria-hidden="true"
-                    className="w-1.5 h-1.5 rounded-full bg-red-600"
                   />
                   <span>
                     {stats.exceptions
@@ -392,15 +387,9 @@ export function OwnerDashboardScreen(): ReactElement {
                 </div>
               </div>
             </div>
-            <Link
-              to="/exceptions"
-              className="text-sm font-medium text-teal-700 hover:text-teal-800 mt-4 inline-flex items-center gap-1 group transition-colors"
-            >
+            <Link to="/exceptions" className={styles.link}>
               <span>{t("dashboard.view_all")}</span>
-              <span
-                aria-hidden="true"
-                className="group-hover:translate-x-0.5 transition-transform rtl:-scale-x-100"
-              >
+              <span className={styles.linkArrow} aria-hidden="true">
                 →
               </span>
             </Link>
