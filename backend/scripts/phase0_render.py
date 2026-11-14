@@ -18,9 +18,7 @@ import sys
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings.test")
-os.environ.setdefault(
-    "DJANGO_SECRET_KEY", "phase0-proof-secret-key-32-chars-minimum"
-)
+os.environ.setdefault("DJANGO_SECRET_KEY", "phase0-proof-secret-key-32-chars-minimum")
 
 import django  # noqa: E402
 
