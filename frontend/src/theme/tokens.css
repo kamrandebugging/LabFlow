@@ -1,0 +1,121 @@
+/* ============================================================
+   LabFlow — neumorphism (hybrid) theme tokens.
+   Locked 2026-11-14. One file, one set of semantic names; the dark
+   theme is a retuned second theme, not an inversion.
+
+   Rules encoded here:
+   - soft dual shadows only on cards/containers;
+   - flat, 1px-bordered, high-contrast controls;
+   - text is exempt from the aesthetic (>= 4.5:1, aiming 7:1);
+   - no shadow-only and no colour-only state.
+   ============================================================ */
+
+:root {
+  color-scheme: light;
+
+  /* Surfaces */
+  --color-bg: #faf9f6;
+  --color-surface: #faf9f6;
+  --color-surface-raised: #faf9f6;
+  --color-well: #f1efea;
+  --color-overlay: rgba(8, 28, 21, 0.45);
+
+  /* Text */
+  --color-text: #081c15;
+  --color-text-muted: #35473d;
+  --color-text-subtle: #45564c;
+
+  /* Lines */
+  --color-border: #7c8a82;
+  --color-border-strong: #5a6a61;
+  --color-card-border: rgba(31, 68, 45, 0.12);
+
+  /* Glows — paired with a border, never carrying a state alone. */
+  --glow-brand: rgba(14, 107, 58, 0.28);
+  --glow-leaf: rgba(82, 183, 136, 0.45);
+
+  /* Brand — emerald reads as text on paper only in light. */
+  --color-brand: #0e6b3a;
+  --color-brand-fill: #0e6b3a;
+  --color-on-brand-fill: #ffffff;
+  --color-leaf: #52b788;
+  --color-gold: #c9a227;
+  --color-on-gold: #081c15;
+
+  /* Error — existing hue, remapped through tokens only. */
+  --color-error: #b3261e;
+  --color-error-tint: #fdecea;
+  --color-error-border: #d9a29c;
+
+  /* Warning border — dark amber so it clears 3:1 on the light well. */
+  --color-warning-border: #7a5c00;
+
+  /* Neumorphic shadows — light source top-left, always. */
+  --shadow-neu-raised:
+    -8px -8px 18px rgba(255, 255, 255, 0.85), 8px 8px 18px #dbdad7;
+  --shadow-neu-inset:
+    inset 3px 3px 8px #dbdad7, inset -3px -3px 8px rgba(255, 255, 255, 0.8);
+  --shadow-neu-card:
+    24px 24px 48px rgba(31, 68, 45, 0.18), -24px -24px 48px #ffffff;
+  --shadow-focus: 0 0 0 3px rgba(14, 107, 58, 0.35);
+
+  --ring-color: #0e6b3a;
+
+  /* Type */
+  --font-heading: "Rajdhani", "Inter", system-ui, sans-serif;
+  --font-body: "Inter", system-ui, sans-serif;
+  --font-mono: "Share Tech Mono", ui-monospace, "Courier New", monospace;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  /* Surfaces — page and card are two retuned steps, not an inversion. */
+  --color-bg: #081c15;
+  --color-surface: #12291d;
+  --color-surface-raised: #12291d;
+  --color-well: #0b1f14;
+  --color-overlay: rgba(0, 0, 0, 0.6);
+
+  /* Text */
+  --color-text: #f2f7f3;
+  --color-text-muted: #c3d6c9;
+  --color-text-subtle: #a8bfb1;
+
+  /* Lines */
+  --color-border: #6e8a79;
+  --color-border-strong: #8fae9c;
+  --color-card-border: rgba(82, 183, 136, 0.1);
+
+  /* Glows */
+  --glow-brand: rgba(82, 183, 136, 0.35);
+  --glow-leaf: rgba(82, 183, 136, 0.5);
+
+  /* Brand — leaf is the only legible accent text in dark. */
+  --color-brand: #52b788;
+  --color-brand-fill: #52b788;
+  --color-on-brand-fill: #081c15;
+  --color-leaf: #52b788;
+  --color-gold: #c9a227;
+  --color-on-gold: #081c15;
+
+  /* Error */
+  --color-error: #ffb4ab;
+  --color-error-tint: rgba(255, 180, 171, 0.1);
+  --color-error-border: rgba(255, 180, 171, 0.42);
+
+  /* Warning border — gold clears 3:1 on the dark well. */
+  --color-warning-border: #c9a227;
+
+  /* Neumorphic shadows — softer spread, surface lift carries the edge. */
+  --shadow-neu-raised:
+    -5px -5px 12px rgba(255, 255, 255, 0.04), 5px 5px 12px rgba(0, 0, 0, 0.5);
+  --shadow-neu-inset:
+    inset 3px 3px 8px rgba(0, 0, 0, 0.5),
+    inset -3px -3px 8px rgba(255, 255, 255, 0.05);
+  --shadow-neu-card:
+    -5px -5px 12px rgba(255, 255, 255, 0.04), 5px 5px 12px rgba(0, 0, 0, 0.5);
+  --shadow-focus: 0 0 0 3px rgba(82, 183, 136, 0.4);
+
+  --ring-color: #52b788;
+}

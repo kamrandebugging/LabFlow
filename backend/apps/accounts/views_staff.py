@@ -250,3 +250,55 @@ class StaffResetPasswordView(StaffWriteThrottleMixin, APIView):
         except StaffError as exc:
             return _staff_error(exc)
         return Response(payload, status=status.HTTP_200_OK)
+
+
+class StaffResetTotpView(StaffWriteThrottleMixin, APIView):
+    """POST /api/v1/staff/{id}/reset-totp — clear 2FA, re-enrolment optional."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request: Request, staff_id: uuid.UUID) -> Response:
+        actor = cast(StaffUser, request.user)
+        try:
+            payload = StaffService.reset_totp(
+                actor,
+                staff_id,
+                ip=_get_client_ip(request),
+                user_agent=_user_agent(request),
+            )
+        except StaffError as exc:
+            return _staff_error(exc)
+        return Response(payload, status=status.HTTP_200_OK)
+
+
+class StaffPasswordRequestListView(APIView):
+    """GET /api/v1/staff/password-requests — pending staff reset requests."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request: Request) -> Response:
+        actor = cast(StaffUser, request.user)
+        try:
+            rows = StaffService.list_password_reset_requests(actor)
+        except StaffError as exc:
+            return _staff_error(exc)
+        return Response({"requests": rows}, status=status.HTTP_200_OK)
+
+
+class StaffPasswordRequestResolveView(StaffWriteThrottleMixin, APIView):
+    """POST /api/v1/staff/password-requests/{id}/resolve."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request: Request, request_id: uuid.UUID) -> Response:
+        actor = cast(StaffUser, request.user)
+        try:
+            payload = StaffService.resolve_password_reset_request(
+                actor,
+                request_id,
+                ip=_get_client_ip(request),
+                user_agent=_user_agent(request),
+            )
+        except StaffError as exc:
+            return _staff_error(exc)
+        return Response(payload, status=status.HTTP_200_OK)

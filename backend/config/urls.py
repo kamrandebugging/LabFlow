@@ -16,8 +16,11 @@ from apps.accounts.views_staff import (
     StaffCollectionView,
     StaffDeactivateView,
     StaffDetailView,
+    StaffPasswordRequestListView,
+    StaffPasswordRequestResolveView,
     StaffReactivateView,
     StaffResetPasswordView,
+    StaffResetTotpView,
 )
 from apps.platform.tls import tls_check_view
 
@@ -102,6 +105,36 @@ urlpatterns = [
         StaffResetPasswordView.as_view(),
         name="staff-reset-password-slash",
     ),
+    path(
+        "api/v1/staff/<uuid:staff_id>/reset-totp",
+        StaffResetTotpView.as_view(),
+        name="staff-totp-reset",
+    ),
+    path(
+        "api/v1/staff/<uuid:staff_id>/reset-totp/",
+        StaffResetTotpView.as_view(),
+        name="staff-totp-reset-slash",
+    ),
+    path(
+        "api/v1/staff/password-requests",
+        StaffPasswordRequestListView.as_view(),
+        name="staff-password-requests",
+    ),
+    path(
+        "api/v1/staff/password-requests/",
+        StaffPasswordRequestListView.as_view(),
+        name="staff-password-requests-slash",
+    ),
+    path(
+        "api/v1/staff/password-requests/<uuid:request_id>/resolve",
+        StaffPasswordRequestResolveView.as_view(),
+        name="staff-password-request-resolve",
+    ),
+    path(
+        "api/v1/staff/password-requests/<uuid:request_id>/resolve/",
+        StaffPasswordRequestResolveView.as_view(),
+        name="staff-password-request-resolve-slash",
+    ),
     # Staff branch assignments (Doc 04 §8.4, §15, KAN-159 / LAB-34)
     path(
         "api/v1/staff/<uuid:staff_id>/branches",
@@ -112,21 +145,6 @@ urlpatterns = [
         "api/v1/staff/<uuid:staff_id>/branches/",
         StaffBranchesView.as_view(),
         name="staff-branches-slash",
-    ),
-    # Staff Administration & TOTP Recovery (Doc 04 §15.2, Doc 08 §4.4, LAB-52)
-    path(
-        "api/v1/staff/<uuid:user_id>/reset-totp",
-        __import__(
-            "apps.accounts.views_auth", fromlist=["StaffTotpResetView"]
-        ).StaffTotpResetView.as_view(),
-        name="staff-totp-reset",
-    ),
-    path(
-        "api/v1/staff/<uuid:user_id>/reset-totp/",
-        __import__(
-            "apps.accounts.views_auth", fromlist=["StaffTotpResetView"]
-        ).StaffTotpResetView.as_view(),
-        name="staff-totp-reset-slash",
     ),
     # Webhook callbacks from n8n (Doc 06 §10, KAN-264 / LAB-45) — the only
     # endpoints an external service calls. No JWT/session; the callback key

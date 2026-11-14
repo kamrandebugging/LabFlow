@@ -9,7 +9,17 @@ import { partnersService } from "../../features/partners/partnersService";
 import { reportsService } from "../../features/reports/reportsService";
 import { resultsService } from "../../features/results/resultsService";
 import { sampleService } from "../../features/samples/sampleService";
+import { staffService } from "../../features/staff/staffService";
 
+vi.mock("../../features/staff/staffService", () => ({
+  staffService: {
+    list: vi.fn(),
+    listPasswordRequests: vi.fn(),
+    resetPassword: vi.fn(),
+    resetTotp: vi.fn(),
+    resolvePasswordRequest: vi.fn(),
+  },
+}));
 vi.mock("../../features/billing/billingService", () => ({
   billingService: { listInvoices: vi.fn() },
 }));
@@ -38,6 +48,18 @@ describe("Owner dashboard", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     useAuthStore.getState().setSession("token", owner);
+    vi.mocked(staffService.list).mockResolvedValue({
+      owner: null,
+      results: [],
+      next_cursor: null,
+      staff_count: 0,
+      plan_staff_limit: null,
+      enabled_roles: [],
+      branches: [],
+    } as never);
+    vi.mocked(staffService.listPasswordRequests).mockResolvedValue({
+      requests: [],
+    });
     vi.mocked(billingService.listInvoices).mockResolvedValue({
       results: [
         {

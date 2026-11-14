@@ -12,6 +12,7 @@ import { useAuthStore } from "./features/auth/authStore";
 import { refreshSession } from "./lib/apiClient";
 import i18n, { applyDocumentLanguage, isPlatformRoute } from "./i18n";
 import { StaffLoginScreen } from "./features/auth/StaffLoginScreen";
+import { clearNoticeDismissals } from "./features/auth/postLoginNotice";
 import { TenantEnrollScreen } from "./features/auth/TenantEnrollScreen";
 import { TwoFactorAuthScreen } from "./features/auth/TwoFactorAuthScreen";
 import { PatientListScreen } from "./features/patients/PatientListScreen";
@@ -177,11 +178,9 @@ export function StaffLoginWrapper(): JSX.Element {
         if (challengeToken) query.set("challenge", challengeToken);
         navigate(`/login/2fa?${query.toString()}`);
       }}
-      onTotpEnrollmentRequired={(session) => {
-        useAuthStore.getState().setSession(session.access, session.user);
-        navigate("/login/enroll");
-      }}
       onSuccess={(session) => {
+        // D1/D2: each fresh login re-arms the dismissible post-login notices.
+        clearNoticeDismissals();
         useAuthStore.getState().setSession(session.access, session.user);
         navigate(roleHome(session.user?.role));
       }}
@@ -219,6 +218,7 @@ function TwoFactorAuthWrapper(): JSX.Element {
       terminalId={tenantInfo?.terminalId}
       onBack={() => navigate("/login")}
       onSuccess={(session) => {
+        clearNoticeDismissals();
         useAuthStore.getState().setSession(session.access, session.user);
         navigate(roleHome(session.user?.role));
       }}
@@ -699,7 +699,7 @@ function App(): JSX.Element {
       };
     }
 
-    refreshSession(isPlatformRoute ? "platform" : "staff")
+    refreshSession(isPlatformRoute ? "platform" : "staff", { silent: true })
       .then((token) => {
         if (!active) return;
         if (token) return;
@@ -710,7 +710,8 @@ function App(): JSX.Element {
           path.startsWith("/report-access") ||
           path.startsWith("/link-expired");
         if (!isPublicRoute) {
-          window.location.replace("/login?reason=session_expired");
+          // No restored session on a first visit is not an expiry.
+          window.location.replace("/login");
           return;
         }
         finish();

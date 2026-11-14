@@ -60,6 +60,10 @@ class StaffUser(models.Model):
     # surfaces this via ``must_change_password``; the flag is cleared on
     # password change.
     password_is_temporary = models.BooleanField(default=False)
+    # 24-hour expiry for a one-time temporary password issued by the Lab Owner,
+    # a Manager (Receptionist/Technician only) or the Platform Owner. Null for
+    # accounts that are not on a temporary credential.
+    temp_password_expires_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -104,6 +108,43 @@ class StaffUser(models.Model):
                 branch__deleted_at__isnull=True,
             ).values_list("branch_id", flat=True)
         )
+
+
+class StaffPasswordResetRequest(models.Model):
+    """Staff-initiated "I forgot my password" request for the Lab Owner.
+
+    Created from the unauthenticated login screen. It is a notification only:
+    no credential is issued here, and the public call never reveals whether the
+    email exists. The Owner/Manager resolves it by issuing a temp password from
+    the dashboard.
+    """
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending"
+        RESOLVED = "resolved", "Resolved"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    email = models.EmailField(max_length=255)
+    display_name = models.CharField(max_length=255, blank=True, default="")
+    status = models.CharField(
+        max_length=20, choices=Status.choices, default=Status.PENDING
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    resolved_at = models.DateTimeField(null=True, blank=True)
+    resolved_by = models.UUIDField(null=True, blank=True)
+
+    class Meta:
+        db_table = "staff_password_reset_request"
+        indexes = [
+            models.Index(
+                fields=["status", "created_at"],
+                name="idx_staff_pwreset_status",
+            ),
+            models.Index(fields=["email"], name="idx_staff_pwreset_email"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.email} ({self.status})"
 
 
 class StaffBranch(models.Model):

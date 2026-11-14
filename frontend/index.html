@@ -4,11 +4,27 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light dark" />
     <title>LabFlow LIS</title>
+    <script>
+      // Resolve the theme before first paint. LabFlow defaults to Light on
+      // every screen; only an explicit stored Dark preference wins.
+      (function () {
+        try {
+          var stored = localStorage.getItem("labflow.theme");
+          document.documentElement.setAttribute(
+            "data-theme",
+            stored === "dark" ? "dark" : "light",
+          );
+        } catch (error) {
+          document.documentElement.setAttribute("data-theme", "light");
+        }
+      })();
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@700;800&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@700;800&family=Rajdhani:wght@600;700&family=Share+Tech+Mono&display=swap"
       rel="stylesheet"
     />
     <link

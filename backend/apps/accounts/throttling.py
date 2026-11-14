@@ -190,6 +190,62 @@ def check_and_record_password_reset_throttle(
         return True, PASSWORD_RESET_WINDOW_SECONDS
 
 
+STAFF_REQUEST_EMAIL_WINDOW_SECONDS: Final[int] = 60 * 60  # 1 hour
+MAX_STAFF_REQUEST_PER_EMAIL: Final[int] = 3
+STAFF_REQUEST_IP_WINDOW_SECONDS: Final[int] = 15 * 60  # 15 minutes
+MAX_STAFF_REQUEST_PER_IP: Final[int] = 5
+
+
+def check_and_record_staff_request_throttle(
+    tenant_id: str,
+    email: str,
+    ip: str,
+) -> tuple[bool, int]:
+    """Rate-limit the public ``staff-request`` endpoint (Doc 08 §10.1).
+
+    - 3 requests / hour per (tenant, email)
+    - 5 requests / 15 minutes per (tenant, IP)
+
+    Returns ``(is_throttled, retry_after_seconds)``. A Redis outage fails
+    CLOSED: the caller answers 429 rather than leaving the endpoint unthrottled.
+    """
+    clean_email = email.strip().lower()
+    clean_ip = ip.strip() if ip else "unknown_ip"
+
+    email_key = f"auth:throttle:staff_request:email:{tenant_id}:{clean_email}"
+    ip_key = f"auth:throttle:staff_request:ip:{tenant_id}:{clean_ip}"
+    time_email_key = f"{email_key}:start"
+    time_ip_key = f"{ip_key}:start"
+
+    try:
+        now = time.time()
+
+        # Atomic admission: create the window start + zero counter once, then
+        # INCR and compare the returned value. Concurrent requests each get a
+        # distinct count, so a burst cannot all observe "below the limit".
+        cache.add(time_email_key, now, timeout=STAFF_REQUEST_EMAIL_WINDOW_SECONDS)
+        cache.add(time_ip_key, now, timeout=STAFF_REQUEST_IP_WINDOW_SECONDS)
+        cache.add(email_key, 0, timeout=STAFF_REQUEST_EMAIL_WINDOW_SECONDS)
+        cache.add(ip_key, 0, timeout=STAFF_REQUEST_IP_WINDOW_SECONDS)
+
+        email_count = int(cache.incr(email_key))
+        ip_count = int(cache.incr(ip_key))
+
+        if email_count > MAX_STAFF_REQUEST_PER_EMAIL:
+            start_time = float(cache.get(time_email_key) or now)
+            return True, _get_retry_after(
+                start_time, STAFF_REQUEST_EMAIL_WINDOW_SECONDS
+            )
+        if ip_count > MAX_STAFF_REQUEST_PER_IP:
+            start_time = float(cache.get(time_ip_key) or now)
+            return True, _get_retry_after(start_time, STAFF_REQUEST_IP_WINDOW_SECONDS)
+
+        return False, 0
+    except Exception:
+        # Fail closed: an unreadable counter must not become an open endpoint.
+        return True, STAFF_REQUEST_EMAIL_WINDOW_SECONDS
+
+
 def check_and_record_generic_throttle(
     key_prefix: str,
     identifier: str,

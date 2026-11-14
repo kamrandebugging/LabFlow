@@ -9,6 +9,7 @@ import { patientService } from "../../features/patients/patientService";
 import { reportsService } from "../../features/reports/reportsService";
 import { resultsService } from "../../features/results/resultsService";
 import { sampleService } from "../../features/samples/sampleService";
+import { staffService } from "../../features/staff/staffService";
 import type { ApprovalQueueItem } from "../../features/results/types";
 import type { SampleSummary } from "../../features/samples/types";
 
@@ -26,6 +27,15 @@ vi.mock("../../features/reports/reportsService", () => ({
 }));
 vi.mock("../../features/samples/sampleService", () => ({
   sampleService: { listSamples: vi.fn() },
+}));
+vi.mock("../../features/staff/staffService", () => ({
+  staffService: {
+    list: vi.fn(),
+    listPasswordRequests: vi.fn(),
+    resetPassword: vi.fn(),
+    resetTotp: vi.fn(),
+    resolvePasswordRequest: vi.fn(),
+  },
 }));
 
 const manager = {
@@ -130,6 +140,49 @@ describe("Manager dashboard", () => {
       sample("5", "ready"),
       sample("6", "rejected"),
     ];
+    vi.mocked(staffService.list).mockResolvedValue({
+      owner: null,
+      results: [
+        {
+          id: "s1",
+          display_name: "Sana Reception",
+          email: "reception@lab.pk",
+          role: "reception",
+          role_label: "Receptionist",
+          is_owner: false,
+          branch: null,
+          status: "active",
+          is_active: true,
+          totp_status: "disabled",
+          totp_enabled: false,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        },
+        {
+          id: "s2",
+          display_name: "Usman Technician",
+          email: "technician@lab.pk",
+          role: "technician",
+          role_label: "Lab Technician",
+          is_owner: false,
+          branch: null,
+          status: "active",
+          is_active: true,
+          totp_status: "enabled",
+          totp_enabled: true,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        },
+      ],
+      next_cursor: null,
+      staff_count: 3,
+      plan_staff_limit: null,
+      enabled_roles: [],
+      branches: [],
+    } as never);
+    vi.mocked(staffService.listPasswordRequests).mockResolvedValue({
+      requests: [],
+    });
     vi.mocked(sampleService.listSamples).mockImplementation(
       async ({ status } = {}) => {
         const rows = status
@@ -214,5 +267,25 @@ describe("Manager dashboard", () => {
     expect(
       screen.queryByRole("link", { name: /approvals/i }),
     ).not.toBeInTheDocument();
+  });
+
+  it("renders the Manager-scoped Staff passwords section", async () => {
+    render(
+      <MemoryRouter>
+        <ManagerDashboardScreen />
+      </MemoryRouter>,
+    );
+
+    expect(
+      await screen.findByRole("heading", { name: "Staff passwords" }),
+    ).toBeInTheDocument();
+    expect(await screen.findByText("Sana Reception")).toBeInTheDocument();
+    expect(screen.getByText("Usman Technician")).toBeInTheDocument();
+    expect(
+      screen.getAllByRole("button", { name: /issue temp password/i }).length,
+    ).toBeGreaterThan(0);
+    expect(
+      screen.getAllByRole("button", { name: /reset 2fa/i }).length,
+    ).toBeGreaterThan(0);
   });
 });

@@ -8,6 +8,7 @@ import { partnersService } from "../partners/partnersService";
 import { reportsService } from "../reports/reportsService";
 import { resultsService } from "../results/resultsService";
 import { DashboardDateLine } from "./DashboardUI";
+import { StaffPasswordSection } from "./StaffPasswordSection";
 import {
   fetchSampleStatusCounts,
   formatCount,
@@ -405,6 +406,8 @@ export function OwnerDashboardScreen(): ReactElement {
             </Link>
           </div>
         </div>
+
+        <StaffPasswordSection />
       </div>
     </div>
   );

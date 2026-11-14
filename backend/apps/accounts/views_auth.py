@@ -27,6 +27,7 @@ from apps.accounts.throttling import (
     check_account_lockout,
     check_and_record_login_throttle,
     check_and_record_password_reset_throttle,
+    check_and_record_staff_request_throttle,
     record_throttle_violation,
     reset_login_throttle,
 )
@@ -847,6 +848,69 @@ class StaffTotpResetView(APIView):
         )
 
 
+class StaffPasswordRequestView(APIView):
+    """POST /api/v1/auth/password-reset/staff-request.
+
+    Records a staff "forgot password" request for the Lab Owner/Manager to
+    review on the dashboard. Non-enumerating: a well-formed request always
+    answers 202, whether or not the account exists. No credential is issued
+    and no email is sent by this call.
+
+    Rate limits (Doc 08 §10.1): 3/hour per (tenant, email) and 5/15 minutes
+    per (tenant, IP). A limit hit answers 429 + ``Retry-After``; a Redis
+    outage fails closed with the same 429 (never an open endpoint).
+    """
+
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request: Request) -> Response:
+        data = request.data if isinstance(request.data, dict) else {}
+        accepted = Response({"accepted": True}, status=status.HTTP_202_ACCEPTED)
+
+        email = str(data.get("email", "")).strip().lower()
+        display_name = str(data.get("display_name", "")).strip()[:255]
+        if not email or "@" not in email:
+            return accepted
+
+        tenant = getattr(request, "tenant", None)
+        schema = getattr(tenant, "schema_name", "public")
+        if not tenant or schema == "public":
+            return accepted
+
+        tenant_id = _get_tenant_id(request)
+        ip = _get_client_ip(request)
+        try:
+            is_throttled, retry_after = check_and_record_staff_request_throttle(
+                tenant_id=tenant_id,
+                email=email,
+                ip=ip,
+            )
+        except Exception:  # pragma: no cover - the helper already fails closed
+            is_throttled, retry_after = True, 3600
+        if is_throttled:
+            limited = Response(
+                {
+                    "error": {
+                        "code": "rate_limited",
+                        "message": "Too many reset requests. Please try again later.",
+                    }
+                },
+                status=status.HTTP_429_TOO_MANY_REQUESTS,
+            )
+            limited["Retry-After"] = str(retry_after)
+            return limited
+
+        try:
+            from apps.accounts.staff_service import StaffService
+
+            # The service writes a row only when a staff account with this
+            # email exists; either way the public answer stays identical.
+            StaffService.create_password_reset_request(email, display_name)
+        except Exception as exc:  # pragma: no cover - fail closed silently
+            logger.warning("Staff password request could not be stored: %s", exc)
+        return accepted
+
+
 class PasswordResetRequestView(APIView):
     """POST /api/v1/auth/password-reset/request (Doc 08 §4.5, §17 A-26).
 
@@ -981,7 +1045,18 @@ class PasswordResetConfirmView(APIView):
                     candidate_id=candidate.id,
                 )
                 user.password_hash = make_password(new_password)
-                user.save(update_fields=["password_hash", "updated_at"])
+                # A completed reset ends any temporary-password state; the
+                # platform registry mirror is cleared below in the same flow.
+                user.password_is_temporary = False
+                user.temp_password_expires_at = None
+                user.save(
+                    update_fields=[
+                        "password_hash",
+                        "password_is_temporary",
+                        "temp_password_expires_at",
+                        "updated_at",
+                    ]
+                )
         except InvalidResetTokenError:
             return invalid_token_response
 
@@ -989,6 +1064,12 @@ class PasswordResetConfirmView(APIView):
         tenant_id = _get_tenant_id(request)
         ip = _get_client_ip(request)
         user_agent = request.META.get("HTTP_USER_AGENT", "")
+
+        # Keep the platform registry mirror in lock-step only for the Owner:
+        # the mirror is the Owner's provisioning credential, so a staff token
+        # reset must not erase a still-live Owner one-time password.
+        if user.role == "owner":
+            AuthService._clear_tenant_temp_password(tenant_id)
 
         AuthService.revoke_all_sessions(
             staff_user_id=user.id,

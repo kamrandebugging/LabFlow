@@ -118,6 +118,22 @@ export const platformService = {
     );
   },
 
+  issueOwnerTempPassword(
+    id: string,
+  ): Promise<{ temp_password: string; expires_at: string }> {
+    return apiRequest<{ temp_password: string; expires_at: string }>(
+      `/platform/tenants/${id}/owner/temp-password`,
+      { method: "POST", session: "platform", body: {} },
+    );
+  },
+
+  resetOwnerTotp(id: string): Promise<{ totp_enabled: boolean }> {
+    return apiRequest<{ totp_enabled: boolean }>(
+      `/platform/tenants/${id}/owner/reset-2fa`,
+      { method: "POST", session: "platform", body: {} },
+    );
+  },
+
   /* =======================================================================
    * Phase 2 Methods
    * ======================================================================= */

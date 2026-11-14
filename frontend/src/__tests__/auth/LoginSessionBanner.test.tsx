@@ -7,6 +7,7 @@ import { StaffLoginWrapper } from "../../App";
 import { useAuthStore } from "../../features/auth/authStore";
 import { defaultAuthService } from "../../features/auth/authService";
 import type { AuthUser } from "../../features/auth/types";
+import { ThemeProvider } from "../../theme/ThemeProvider";
 
 vi.mock("../../features/auth/authService", () => ({
   defaultAuthService: {
@@ -31,12 +32,14 @@ const Zahra: AuthUser = {
 
 function renderLogin() {
   return render(
-    <MemoryRouter initialEntries={["/login"]}>
-      <Routes>
-        <Route path="/login" element={<StaffLoginWrapper />} />
-        <Route path="/" element={<div>Dashboard home</div>} />
-      </Routes>
-    </MemoryRouter>,
+    <ThemeProvider>
+      <MemoryRouter initialEntries={["/login"]}>
+        <Routes>
+          <Route path="/login" element={<StaffLoginWrapper />} />
+          <Route path="/" element={<div>Dashboard home</div>} />
+        </Routes>
+      </MemoryRouter>
+    </ThemeProvider>,
   );
 }
 

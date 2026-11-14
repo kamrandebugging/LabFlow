@@ -9,15 +9,19 @@ import {
 } from "react-router-dom";
 
 import { useAuthStore } from "../auth/authStore";
-import { ForcedPasswordChangeScreen } from "../auth/ForcedPasswordChangeScreen";
 import {
   canAccessPath,
   isRoleEnabled,
   navForRole,
-  needsTotpEnrolment,
   roleHome,
 } from "../auth/access";
+import {
+  dismissNotice,
+  isNoticeDismissed,
+  type PostLoginNoticeKind,
+} from "../auth/postLoginNotice";
 import { fetchTenantContext, getSubdomainTenant } from "../auth/tenantContext";
+import { PostLoginNotice } from "../../components/ui/PostLoginNotice";
 import { partnersService } from "../partners/partnersService";
 import { reportsService } from "../reports/reportsService";
 import { resultsService } from "../results/resultsService";
@@ -36,6 +40,7 @@ export function TenantLayout(): ReactElement {
   // real brand. Render the resolved tenant name only.
   const [tenantName, setTenantName] = useState<string | null>(null);
   const [tenantCity, setTenantCity] = useState<string>("");
+  const [noticeDismissedLocally, setNoticeDismissedLocally] = useState(false);
   const [badges, setBadges] = useState({
     pendingApprovals: 0,
     draftSettlements: 0,
@@ -146,15 +151,8 @@ export function TenantLayout(): ReactElement {
     return <Navigate to="/login" replace />;
   }
 
-  // S7: the temporary-password flow is a hard gate, not a dismissible modal.
-  if (user?.must_change_password) {
-    return <ForcedPasswordChangeScreen />;
-  }
-
-  // S6: a mandatory-TOTP role cannot reach the shell before enrolment.
-  if (needsTotpEnrolment(user?.role, user?.totp_enabled)) {
-    return <Navigate to="/login/enroll" replace />;
-  }
+  // D1/D2: a temporary password and a missing TOTP enrolment are dismissible
+  // post-login notices, never gates. The dashboard always loads.
 
   // S3/S15: owner-only screens never render for staff. The API refuses them
   // independently; this only prevents a dead-end screen.
@@ -166,6 +164,18 @@ export function TenantLayout(): ReactElement {
     logout();
     navigate("/login", { replace: true });
   };
+
+  // D1/D2: one dismissible notice per login. If both apply, the password
+  // notice shows first; the 2FA notice waits for the next login.
+  const noticeKind: PostLoginNoticeKind | null = user.must_change_password
+    ? "password"
+    : !user.totp_enabled
+      ? "totp"
+      : null;
+  const showNotice =
+    noticeKind !== null &&
+    !noticeDismissedLocally &&
+    !isNoticeDismissed(noticeKind, user.id);
 
   const isLinkActive = (to: string) => {
     if (to === "/") {
@@ -328,6 +338,41 @@ export function TenantLayout(): ReactElement {
           <Outlet />
         </main>
       </div>
+
+      {showNotice && noticeKind === "password" && (
+        <PostLoginNotice
+          title="Change Your Password"
+          body={t("auth:modal.body")}
+          primaryLabel="Change Now"
+          onPrimary={() => {
+            // Taking the action closes the notice for the rest of this login;
+            // the next login re-arms it if the password is still temporary.
+            dismissNotice("password", user.id);
+            setNoticeDismissedLocally(true);
+            navigate("/settings/account");
+          }}
+          onDismiss={() => {
+            dismissNotice("password", user.id);
+            setNoticeDismissedLocally(true);
+          }}
+        />
+      )}
+
+      {showNotice && noticeKind === "totp" && (
+        <PostLoginNotice
+          title="Enable 2FA on Your Account"
+          primaryLabel="Enable Now"
+          onPrimary={() => {
+            dismissNotice("totp", user.id);
+            setNoticeDismissedLocally(true);
+            navigate("/settings/account");
+          }}
+          onDismiss={() => {
+            dismissNotice("totp", user.id);
+            setNoticeDismissedLocally(true);
+          }}
+        />
+      )}
     </div>
   );
 }

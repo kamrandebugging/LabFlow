@@ -311,10 +311,10 @@ class TestLAB12TotpEnrolmentAndVerification:
             assert rec.totp_secret_encrypted is None
             assert rec.totp_backup_codes_hash is None
 
-            # Verify audit log
+            # Verify audit log (staff-management reset path)
             audit = AuditLog.objects.filter(
                 actor_id=owner.id,
-                action="auth.totp_reset",
+                action="staff.totp_reset",
             ).first()
             assert audit is not None
             assert str(audit.entity_id) == str(receptionist.id)

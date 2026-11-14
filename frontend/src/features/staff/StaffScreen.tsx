@@ -11,6 +11,7 @@ import type {
   StaffTempPasswordResponse,
 } from "./types";
 import { staffService } from "./staffService";
+import { useAuthStore } from "../auth/authStore";
 import { ApiError } from "../../lib/apiClient";
 import { messageForError } from "../../lib/errors";
 
@@ -21,7 +22,20 @@ const ROLE_HELP_KEYS: Record<StaffRole, string> = {
   pathologist: "settings:staff.role_help_pathologist",
 };
 
-type BusyAction = "create" | "edit" | "deactivate" | "reactivate" | "reset";
+/** Mirrors the server rule: Manager resets Receptionist/Technician only. */
+function canResetAccount(
+  actorRole: string | undefined,
+  row: Pick<StaffRow, "role" | "is_owner">,
+): boolean {
+  if (actorRole === "owner") return !row.is_owner;
+  if (actorRole === "manager") {
+    return row.role === "reception" || row.role === "technician";
+  }
+  return false;
+}
+
+type BusyAction =
+  "create" | "edit" | "deactivate" | "reactivate" | "reset" | "resetTotp";
 
 function Modal({
   title,
@@ -521,6 +535,7 @@ function DetailPanel({ detail }: { detail: StaffDetail }): ReactElement {
 
 export function StaffScreen(): ReactElement {
   const { t } = useTranslation(["settings", "common"]);
+  const actorRole = useAuthStore((state) => state.user?.role);
   const [data, setData] = useState<StaffListResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -638,6 +653,33 @@ export function StaffScreen(): ReactElement {
         err instanceof ApiError
           ? messageForError(err, (key, options) => t(`common:${key}`, options))
           : t("settings:staff.error_reset"),
+      );
+    } finally {
+      setBusyRow(null);
+      setBusyAction(null);
+    }
+  };
+
+  const handleResetTotp = async (row: StaffRow): Promise<void> => {
+    if (
+      !window.confirm(
+        `Reset two-factor authentication for ${row.display_name}? They will be asked to enrol again (optional).`,
+      )
+    ) {
+      return;
+    }
+    setBusyRow(row.id);
+    setBusyAction("resetTotp");
+    setError(null);
+    try {
+      await staffService.resetTotp(row.id);
+      setNotice(`Two-factor authentication reset for ${row.display_name}.`);
+      void load();
+    } catch (err: unknown) {
+      setError(
+        err instanceof ApiError
+          ? messageForError(err, (key, options) => t(`common:${key}`, options))
+          : "Could not reset two-factor authentication.",
       );
     } finally {
       setBusyRow(null);
@@ -945,16 +987,30 @@ export function StaffScreen(): ReactElement {
                           >
                             {t("common:actions.edit")}
                           </button>
-                          <button
-                            type="button"
-                            disabled={busyRow === row.id}
-                            onClick={() => void handleReset(row)}
-                            className="rounded px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-50"
-                          >
-                            {busyRow === row.id && busyAction === "reset"
-                              ? t("settings:staff.resetting")
-                              : t("settings:staff.reset_password")}
-                          </button>
+                          {canResetAccount(actorRole, row) && (
+                            <button
+                              type="button"
+                              disabled={busyRow === row.id}
+                              onClick={() => void handleReset(row)}
+                              className="rounded px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-50"
+                            >
+                              {busyRow === row.id && busyAction === "reset"
+                                ? t("settings:staff.resetting")
+                                : t("settings:staff.reset_password")}
+                            </button>
+                          )}
+                          {canResetAccount(actorRole, row) && (
+                            <button
+                              type="button"
+                              disabled={busyRow === row.id}
+                              onClick={() => void handleResetTotp(row)}
+                              className="rounded px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-50"
+                            >
+                              {busyRow === row.id && busyAction === "resetTotp"
+                                ? "Resetting…"
+                                : "Reset 2FA"}
+                            </button>
+                          )}
                           <button
                             type="button"
                             disabled={busyRow === row.id}
