@@ -67,6 +67,11 @@
     -8px -8px 18px rgba(255, 255, 255, 0.85), 8px 8px 18px #dbdad7;
   --shadow-neu-inset:
     inset 3px 3px 8px #dbdad7, inset -3px -3px 8px rgba(255, 255, 255, 0.8);
+  /* Control-scale shadows: controls cap blur at 8px, cards at 12px. */
+  --shadow-neu-control:
+    -3px -3px 8px rgba(255, 255, 255, 0.9), 3px 3px 8px #dbdad7;
+  --shadow-neu-control-pressed:
+    inset 2px 2px 5px #dbdad7, inset -2px -2px 5px rgba(255, 255, 255, 0.8);
   --shadow-neu-card:
     24px 24px 48px rgba(31, 68, 45, 0.18), -24px -24px 48px #ffffff;
   --shadow-focus: 0 0 0 3px rgba(14, 107, 58, 0.35);
@@ -137,6 +142,11 @@
   --shadow-neu-inset:
     inset 3px 3px 8px rgba(0, 0, 0, 0.5),
     inset -3px -3px 8px rgba(255, 255, 255, 0.05);
+  --shadow-neu-control:
+    -3px -3px 6px rgba(255, 255, 255, 0.04), 3px 3px 6px rgba(0, 0, 0, 0.5);
+  --shadow-neu-control-pressed:
+    inset 2px 2px 5px rgba(0, 0, 0, 0.5),
+    inset -2px -2px 5px rgba(255, 255, 255, 0.05);
   --shadow-neu-card:
     -5px -5px 12px rgba(255, 255, 255, 0.04), 5px 5px 12px rgba(0, 0, 0, 0.5);
   --shadow-focus: 0 0 0 3px rgba(82, 183, 136, 0.4);

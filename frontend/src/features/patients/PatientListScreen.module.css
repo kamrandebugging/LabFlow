@@ -1,0 +1,544 @@
+/* Patients list — hybrid neumorphism, tokens only.
+   Tables are flat; cards/containers carry soft dual shadows only. */
+
+.page {
+  min-height: 100vh;
+  padding: 32px;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+.container {
+  width: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.title {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: clamp(26px, 3vw, 34px);
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: 0.01em;
+  color: var(--color-text);
+}
+
+.subtitle {
+  margin: 6px 0 0;
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--color-text-muted);
+}
+
+/* Flat status pill: tint + full-contrast text + icon. Never raised. */
+.syncBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid var(--color-success-border);
+  background: var(--color-success-tint);
+  color: var(--color-success);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+/* Keeps the existing 2s pulse timing; the dot became the status icon. */
+.syncIcon {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.searchWrap {
+  position: relative;
+  width: 100%;
+  max-width: 420px;
+}
+
+.searchIcon {
+  position: absolute;
+  inset-inline-start: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 18px;
+  height: 18px;
+  color: var(--color-text-muted);
+  pointer-events: none;
+}
+
+.searchInput {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 14px;
+  padding-inline-start: 42px;
+  border-radius: 12px;
+  border: 1px solid var(--color-border);
+  background: var(--color-well);
+  box-shadow: var(--shadow-neu-inset);
+  color: var(--color-text);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+.searchInput::placeholder {
+  color: var(--color-text-muted);
+  opacity: 0.9;
+}
+
+.searchInput:focus-visible {
+  outline: 2px solid var(--ring-color);
+  outline-offset: 3px;
+  border-color: var(--ring-color);
+}
+
+.toolbarActions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-inline-start: auto;
+}
+
+/* Secondary icon control: raised neumorphic, control-scale blur only. */
+.iconButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-neu-control);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease;
+}
+
+.iconButton:hover {
+  border-color: var(--color-border-strong);
+  background: var(--color-well);
+  color: var(--color-text);
+}
+
+.iconButton:active {
+  box-shadow: var(--shadow-neu-control-pressed);
+}
+
+.iconButton:focus-visible {
+  outline: 2px solid var(--ring-color);
+  outline-offset: 3px;
+}
+
+/* Primary CTA: flat fill, no raised shadow. */
+.primaryButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 18px;
+  border-radius: 12px;
+  border: 1px solid var(--color-brand-fill);
+  background: var(--color-brand-fill);
+  color: var(--color-on-brand-fill);
+  font-family: var(--font-body);
+  font-size: 16px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease;
+}
+
+.primaryButton:hover {
+  border-color: var(--color-text);
+}
+
+.primaryButton:active {
+  border-color: var(--color-text);
+  background: var(--color-text);
+  color: var(--color-surface);
+}
+
+.primaryButton:focus-visible {
+  outline: 2px solid var(--ring-color);
+  outline-offset: 3px;
+}
+
+.alert {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--color-danger-border);
+  background: var(--color-danger-tint);
+  color: var(--color-danger);
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+.alertBody {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.alertIcon {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+}
+
+.retry {
+  min-height: 44px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-danger);
+  font-family: var(--font-body);
+  font-size: 16px;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.retry:focus-visible {
+  outline: 2px solid var(--ring-color);
+  outline-offset: 3px;
+}
+
+/* Data table: flat card, 1px separators, bold ink header, no row shadows. */
+.tableCard {
+  border: 1px solid var(--color-border);
+  border-radius: 18px;
+  background: var(--color-surface);
+  overflow: hidden;
+}
+
+.tableScroll {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: start;
+}
+
+.th {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--color-border-strong);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  line-height: 1.5;
+  text-align: start;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.thEnd {
+  text-align: end;
+}
+
+.row {
+  transition: background-color 160ms ease;
+}
+
+.row:hover {
+  background: var(--color-well);
+}
+
+.rowClickable {
+  cursor: pointer;
+}
+
+.td {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--color-card-border);
+  color: var(--color-text-muted);
+  font-size: 16px;
+  line-height: 1.5;
+  vertical-align: middle;
+}
+
+.row:last-child .td {
+  border-bottom: 0;
+}
+
+.patientName {
+  display: block;
+  color: var(--color-text);
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.patientMeta {
+  display: block;
+  color: var(--color-text-subtle);
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+.mrn {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--color-border);
+  background: var(--color-well);
+  color: var(--color-text);
+  font-family: var(--font-mono);
+  font-size: 16px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.phone {
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: 16px;
+  white-space: nowrap;
+}
+
+.branchBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid var(--color-warning-border);
+  background: var(--color-warning-tint);
+  color: var(--color-warning);
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.branchIcon {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+}
+
+.lastVisit {
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: 15px;
+  white-space: nowrap;
+}
+
+.cellEnd {
+  text-align: end;
+}
+
+.viewButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 10px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--color-brand);
+  font-family: var(--font-body);
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease;
+}
+
+.viewButton:hover {
+  border-color: var(--color-brand);
+  background: var(--color-well);
+  color: var(--color-text);
+}
+
+.viewButton:focus-visible {
+  outline: 2px solid var(--ring-color);
+  outline-offset: 3px;
+}
+
+.arrow {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+}
+
+:global([dir="rtl"]) .arrow {
+  transform: scaleX(-1);
+}
+
+.loading {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: var(--color-text-muted);
+  font-size: 16px;
+}
+
+.spin {
+  width: 20px;
+  height: 20px;
+  color: inherit;
+  animation: spin 1s linear infinite;
+}
+
+.spinBrand {
+  color: var(--color-brand);
+}
+
+/* Refresh icon only spins while a request is in flight (existing behaviour). */
+.spinHidden {
+  animation: none;
+}
+
+.buttonIcon {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+}
+
+/* Empty state: flat card, icon + words + existing helper line. */
+.emptyCell {
+  padding: 32px 16px;
+  text-align: center;
+}
+
+.emptyPanel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  max-width: 420px;
+  margin: 0 auto;
+  padding: 28px 24px;
+  border-radius: 16px;
+  border: 1px solid var(--color-border);
+  background: var(--color-well);
+  color: var(--color-text-muted);
+}
+
+.emptyIcon {
+  width: 32px;
+  height: 32px;
+  color: var(--color-text-subtle);
+}
+
+.emptyTitle {
+  margin: 0;
+  color: var(--color-text);
+  font-family: var(--font-heading);
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.emptyHint {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 760px) {
+  .page {
+    padding: 18px 14px;
+  }
+}
+
+@media (max-width: 640px) {
+  .toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .searchWrap {
+    max-width: none;
+  }
+  .toolbarActions {
+    justify-content: flex-end;
+  }
+  .syncBadge {
+    min-height: 36px;
+    padding: 0 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .syncIcon,
+  .spin {
+    animation: none;
+  }
+  .primaryButton,
+  .iconButton,
+  .row,
+  .viewButton {
+    transition: none;
+  }
+}
