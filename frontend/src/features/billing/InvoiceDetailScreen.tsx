@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   CheckCircle2,
@@ -13,6 +13,7 @@ import {
 import { billingService } from "./billingService";
 import { formatMoney, statusLabel } from "../../lib/format";
 import { messageForError } from "../../lib/errors";
+import { useDialogFocus } from "../../lib/dialogFocus";
 import styles from "./InvoiceDetailScreen.module.css";
 import type { InvoiceDetail, InvoiceStatus, PaymentMethod } from "./types";
 
@@ -128,22 +129,35 @@ export function InvoiceDetailScreen({
   const [refundMethod, setRefundMethod] = useState<PaymentMethod>("cash");
   const [refundReason, setRefundReason] = useState<string>("");
   const [submittingRefund, setSubmittingRefund] = useState(false);
+  const [showRefundForm, setShowRefundForm] = useState(false);
+  const [showRefundModal, setShowRefundModal] = useState(false);
 
   // Cancel Modal State
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancelReason, setCancelReason] = useState<string>("");
   const [submittingCancel, setSubmittingCancel] = useState(false);
 
+  const cancelTriggerRef = useRef<HTMLButtonElement>(null);
+  const refundTriggerRef = useRef<HTMLButtonElement>(null);
+  const cancelPanelRef = useDialogFocus<HTMLDivElement>(
+    showCancelModal,
+    () => setShowCancelModal(false),
+    cancelTriggerRef,
+  );
+  const refundPanelRef = useDialogFocus<HTMLDivElement>(
+    showRefundModal,
+    () => setShowRefundModal(false),
+    refundTriggerRef,
+  );
+
   const fetchInvoice = useCallback(async () => {
     try {
       setLoading(true);
       const data = await billingService.getInvoice(invoiceId);
       setInvoice(data);
-      // Pre-fill payment amount with balance due if any
-      const totalNum = parseFloat(data.total || "0") || 0;
-      const netPaidNum = parseFloat(data.net_paid || "0") || 0;
-      const balance = Math.max(0, totalNum - netPaidNum);
-      setPayAmount(balance > 0 ? balance.toFixed(2) : "");
+      // Amount is left empty on load: the "Pay full balance" chip fills it in
+      // one deliberate tap instead of silently pre-populating the field.
+      setPayAmount("");
     } catch (err) {
       setErrorMessage(messageForError(err, t));
     } finally {
@@ -200,7 +214,7 @@ export function InvoiceDetailScreen({
     }
   };
 
-  const handleRecordRefund = async (e: React.FormEvent) => {
+  const handleRecordRefund = (e: React.FormEvent) => {
     e.preventDefault();
     if (!invoice) return;
     setErrorMessage(null);
@@ -226,6 +240,15 @@ export function InvoiceDetailScreen({
       return;
     }
 
+    // Validation passed — review the restated values before the call fires.
+    setShowRefundModal(true);
+  };
+
+  const handleConfirmRefund = async () => {
+    if (!invoice) return;
+    const amt = parseFloat(refundAmount);
+    if (isNaN(amt) || amt <= 0) return;
+
     try {
       setSubmittingRefund(true);
       await billingService.recordPayment(invoice.id, {
@@ -241,8 +264,10 @@ export function InvoiceDetailScreen({
       );
       setRefundAmount("");
       setRefundReason("");
+      setShowRefundModal(false);
       await fetchInvoice();
     } catch (err) {
+      setShowRefundModal(false);
       setErrorMessage(messageForError(err, t));
     } finally {
       setSubmittingRefund(false);
@@ -465,7 +490,7 @@ export function InvoiceDetailScreen({
                         <bdi dir="ltr">{it.description}</bdi>
                       </div>
                       <div className={styles.qty}>{it.quantity}</div>
-                      <div className={styles.lineTotal}>
+                      <div className={styles.lineTotal} dir="ltr">
                         {formatMoney(
                           parseFloat(
                             it.line_total || it.unit_price || "0",
@@ -488,7 +513,7 @@ export function InvoiceDetailScreen({
                   <span className={styles.calcLabel}>
                     {t("billing:detail.gross_subtotal")}
                   </span>
-                  <span className={styles.chip}>
+                  <span className={styles.chip} dir="ltr">
                     {formatMoney(subtotalNum.toFixed(2), lang)}
                   </span>
                 </div>
@@ -506,7 +531,7 @@ export function InvoiceDetailScreen({
                         </div>
                       )}
                     </div>
-                    <span className={styles.chip}>
+                    <span className={styles.chip} dir="ltr">
                       - {formatMoney(discountNum.toFixed(2), lang)}
                     </span>
                   </div>
@@ -515,7 +540,10 @@ export function InvoiceDetailScreen({
                   <span className={styles.calcLabelStrong}>
                     {t("billing:detail.net_payable")}
                   </span>
-                  <span className={`${styles.chip} ${styles.chipStrong}`}>
+                  <span
+                    className={`${styles.chip} ${styles.chipStrong}`}
+                    dir="ltr"
+                  >
                     {formatMoney(totalNum.toFixed(2), lang)}
                   </span>
                 </div>
@@ -523,7 +551,7 @@ export function InvoiceDetailScreen({
                   <span className={styles.calcLabel}>
                     {t("billing:detail.total_settled")}
                   </span>
-                  <span className={styles.chip}>
+                  <span className={styles.chip} dir="ltr">
                     {formatMoney(netPaidNum.toFixed(2), lang)}
                   </span>
                 </div>
@@ -546,6 +574,7 @@ export function InvoiceDetailScreen({
                         ? styles.balanceChipDue
                         : styles.balanceChipSettled
                     }
+                    dir="ltr"
                   >
                     {formatMoney(balanceDue.toFixed(2), lang)}
                   </div>
@@ -613,6 +642,7 @@ export function InvoiceDetailScreen({
                             className={`${styles.amountChip} ${
                               isRefund ? styles.amountChipRefund : ""
                             }`}
+                            dir="ltr"
                           >
                             {isRefund ? "-" : "+"}{" "}
                             {formatMoney(
@@ -678,7 +708,14 @@ export function InvoiceDetailScreen({
                     <span className={styles.hint}>
                       {t("billing:detail.max_payable", {
                         amount: formatMoney(balanceDue.toFixed(2), lang),
-                      })}
+                      })}{" "}
+                      <button
+                        type="button"
+                        onClick={() => setPayAmount(balanceDue.toFixed(2))}
+                        className={styles.fillChip}
+                      >
+                        Pay full balance
+                      </button>
                     </span>
                   </div>
 
@@ -757,107 +794,120 @@ export function InvoiceDetailScreen({
               </div>
             )}
 
-            {/* Card 2: Record refund */}
-            {invoice.status !== "cancelled" && netPaidNum > 0 && (
-              <div className={styles.formCard}>
-                <div className={styles.formHead}>
-                  <h2 className={styles.formTitle}>
-                    {t("billing:detail.record_refund_title")}
-                  </h2>
-                  <p className={styles.formHint}>
-                    {t("billing:detail.record_refund_hint")}
-                  </p>
-                </div>
-
-                <form onSubmit={handleRecordRefund} className={styles.form}>
-                  <div className={styles.field}>
-                    <label htmlFor={refundAmountId} className={styles.label}>
-                      {t("billing:detail.refund_amount_label")}{" "}
-                      <span className={styles.required}>*</span>
-                    </label>
-                    <input
-                      id={refundAmountId}
-                      type="number"
-                      step="0.01"
-                      min="0.01"
-                      max={netPaidNum}
-                      value={refundAmount}
-                      onChange={(e) => setRefundAmount(e.target.value)}
-                      placeholder={t("billing:new.amount_placeholder")}
-                      required
-                      className={styles.input}
-                    />
-                    <span className={styles.hint}>
-                      {t("billing:detail.refund_max", {
-                        amount: formatMoney(netPaidNum.toFixed(2), lang),
-                      })}
-                    </span>
+            {/* Card 2: Record refund. Collapsed behind a disclosure while a
+                balance is still due, so only settlement is expanded. */}
+            {invoice.status !== "cancelled" &&
+              netPaidNum > 0 &&
+              (balanceDue > 0 && !showRefundForm ? (
+                <button
+                  type="button"
+                  onClick={() => setShowRefundForm(true)}
+                  className={styles.refundToggle}
+                >
+                  <RotateCcw className={styles.buttonIcon} aria-hidden="true" />
+                  <span>Issue a refund…</span>
+                </button>
+              ) : (
+                <div className={styles.formCard}>
+                  <div className={styles.formHead}>
+                    <h2 className={styles.formTitle}>
+                      {t("billing:detail.record_refund_title")}
+                    </h2>
+                    <p className={styles.formHint}>
+                      {t("billing:detail.record_refund_hint")}
+                    </p>
                   </div>
 
-                  <div className={styles.field}>
-                    <label htmlFor={refundMethodId} className={styles.label}>
-                      {t("billing:detail.refund_method_label")}{" "}
-                      <span className={styles.required}>*</span>
-                    </label>
-                    <select
-                      id={refundMethodId}
-                      value={refundMethod}
-                      onChange={(e) =>
-                        setRefundMethod(e.target.value as PaymentMethod)
-                      }
-                      className={styles.select}
+                  <form onSubmit={handleRecordRefund} className={styles.form}>
+                    <div className={styles.field}>
+                      <label htmlFor={refundAmountId} className={styles.label}>
+                        {t("billing:detail.refund_amount_label")}{" "}
+                        <span className={styles.required}>*</span>
+                      </label>
+                      <input
+                        id={refundAmountId}
+                        type="number"
+                        step="0.01"
+                        min="0.01"
+                        max={netPaidNum}
+                        value={refundAmount}
+                        onChange={(e) => setRefundAmount(e.target.value)}
+                        placeholder={t("billing:new.amount_placeholder")}
+                        required
+                        className={styles.input}
+                      />
+                      <span className={styles.hint}>
+                        {t("billing:detail.refund_max", {
+                          amount: formatMoney(netPaidNum.toFixed(2), lang),
+                        })}
+                      </span>
+                    </div>
+
+                    <div className={styles.field}>
+                      <label htmlFor={refundMethodId} className={styles.label}>
+                        {t("billing:detail.refund_method_label")}{" "}
+                        <span className={styles.required}>*</span>
+                      </label>
+                      <select
+                        id={refundMethodId}
+                        value={refundMethod}
+                        onChange={(e) =>
+                          setRefundMethod(e.target.value as PaymentMethod)
+                        }
+                        className={styles.select}
+                      >
+                        <option value="cash">
+                          {t("billing:detail.refund_method.cash")}
+                        </option>
+                        <option value="bank_transfer">
+                          {t("billing:detail.refund_method.bank_transfer")}
+                        </option>
+                        <option value="easypaisa">
+                          {t("billing:detail.refund_method.easypaisa")}
+                        </option>
+                        <option value="jazzcash">
+                          {t("billing:detail.refund_method.jazzcash")}
+                        </option>
+                      </select>
+                    </div>
+
+                    <div className={styles.field}>
+                      <label htmlFor={refundReasonId} className={styles.label}>
+                        {t("billing:detail.reason_note_label")}{" "}
+                        <span className={styles.required}>*</span>
+                      </label>
+                      <input
+                        id={refundReasonId}
+                        type="text"
+                        value={refundReason}
+                        onChange={(e) => setRefundReason(e.target.value)}
+                        placeholder={t("billing:detail.reason_placeholder")}
+                        required
+                        className={styles.select}
+                      />
+                    </div>
+
+                    <button
+                      type="submit"
+                      ref={refundTriggerRef}
+                      disabled={submittingRefund}
+                      className={styles.textButton}
                     >
-                      <option value="cash">
-                        {t("billing:detail.refund_method.cash")}
-                      </option>
-                      <option value="bank_transfer">
-                        {t("billing:detail.refund_method.bank_transfer")}
-                      </option>
-                      <option value="easypaisa">
-                        {t("billing:detail.refund_method.easypaisa")}
-                      </option>
-                      <option value="jazzcash">
-                        {t("billing:detail.refund_method.jazzcash")}
-                      </option>
-                    </select>
-                  </div>
-
-                  <div className={styles.field}>
-                    <label htmlFor={refundReasonId} className={styles.label}>
-                      {t("billing:detail.reason_note_label")}{" "}
-                      <span className={styles.required}>*</span>
-                    </label>
-                    <input
-                      id={refundReasonId}
-                      type="text"
-                      value={refundReason}
-                      onChange={(e) => setRefundReason(e.target.value)}
-                      placeholder={t("billing:detail.reason_placeholder")}
-                      required
-                      className={styles.select}
-                    />
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={submittingRefund}
-                    className={styles.textButton}
-                  >
-                    {submittingRefund ? (
-                      <span>{t("billing:detail.recording_refund")}</span>
-                    ) : (
-                      <>
-                        <RotateCcw
-                          className={styles.buttonIcon}
-                          aria-hidden="true"
-                        />
-                        <span>{t("billing:detail.record_refund_title")}</span>
-                      </>
-                    )}
-                  </button>
-                </form>
-              </div>
-            )}
+                      {submittingRefund ? (
+                        <span>{t("billing:detail.recording_refund")}</span>
+                      ) : (
+                        <>
+                          <RotateCcw
+                            className={styles.buttonIcon}
+                            aria-hidden="true"
+                          />
+                          <span>{t("billing:detail.record_refund_title")}</span>
+                        </>
+                      )}
+                    </button>
+                  </form>
+                </div>
+              ))}
 
             {/* Card 3: Danger Zone / Cancel invoice */}
             <div className={styles.dangerCard}>
@@ -874,6 +924,7 @@ export function InvoiceDetailScreen({
               </p>
               <button
                 type="button"
+                ref={cancelTriggerRef}
                 onClick={() => setShowCancelModal(true)}
                 disabled={!canCancel}
                 className={styles.dangerButton}
@@ -894,7 +945,7 @@ export function InvoiceDetailScreen({
           aria-labelledby="cancel-dialog-title"
           className={styles.scrim}
         >
-          <div className={styles.modal}>
+          <div ref={cancelPanelRef} tabIndex={-1} className={styles.modal}>
             <h3 id="cancel-dialog-title" className={styles.modalTitle}>
               {t("billing:detail.cancel_modal_title")}
             </h3>
@@ -933,6 +984,72 @@ export function InvoiceDetailScreen({
                 {submittingCancel
                   ? t("billing:detail.cancelling")
                   : t("billing:detail.confirm_cancel")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Refund Confirmation Modal — same .scrim pattern as Cancel invoice. */}
+      {showRefundModal && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="refund-dialog-title"
+          className={styles.scrim}
+        >
+          <div ref={refundPanelRef} tabIndex={-1} className={styles.modal}>
+            <h3 id="refund-dialog-title" className={styles.modalTitle}>
+              Confirm Refund
+            </h3>
+            <p className={styles.modalText}>
+              {t("billing:detail.record_refund_hint")}
+            </p>
+            <dl className={styles.summaryList}>
+              <div className={styles.summaryRow}>
+                <dt className={styles.summaryLabel}>
+                  {t("billing:detail.refund_amount_label")}
+                </dt>
+                <dd className={styles.summaryValue} dir="ltr">
+                  {formatMoney(
+                    (parseFloat(refundAmount) || 0).toFixed(2),
+                    lang,
+                  )}
+                </dd>
+              </div>
+              <div className={styles.summaryRow}>
+                <dt className={styles.summaryLabel}>
+                  {t("billing:detail.refund_method_label")}
+                </dt>
+                <dd className={styles.summaryValue}>
+                  {t(`billing:detail.method.${refundMethod}`)}
+                </dd>
+              </div>
+              <div className={styles.summaryRow}>
+                <dt className={styles.summaryLabel}>
+                  {t("billing:detail.reason_note_label")}
+                </dt>
+                <dd className={styles.summaryValue}>{refundReason}</dd>
+              </div>
+            </dl>
+            <div className={styles.modalActions}>
+              <button
+                type="button"
+                onClick={() => setShowRefundModal(false)}
+                disabled={submittingRefund}
+                className={styles.textButton}
+              >
+                Back
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmRefund}
+                disabled={submittingRefund}
+                className={styles.confirmDanger}
+              >
+                {submittingRefund
+                  ? t("billing:detail.recording_refund")
+                  : "Confirm Refund"}
               </button>
             </div>
           </div>

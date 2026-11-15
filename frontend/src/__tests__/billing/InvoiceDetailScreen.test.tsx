@@ -119,6 +119,10 @@ describe("Screen 15: Invoice Detail (15-invoice-detail.html & Doc 03 §5.3, §6.
       ).toBeInTheDocument();
     });
 
+    // The amount is no longer pre-filled on load; the chip fills it in.
+    expect(screen.getByLabelText(/Amount \(PKR\)/i)).toHaveValue(null);
+    fireEvent.click(screen.getByRole("button", { name: /Pay full balance/i }));
+
     const payBtn = screen.getByRole("button", { name: /Record payment/i });
     fireEvent.click(payBtn);
 
@@ -150,9 +154,15 @@ describe("Screen 15: Invoice Detail (15-invoice-detail.html & Doc 03 §5.3, §6.
 
     await waitFor(() => {
       expect(
-        screen.getByPlaceholderText(/Clinical or billing justification/i),
+        screen.getByRole("button", { name: /Issue a refund/i }),
       ).toBeInTheDocument();
     });
+
+    // Balance still due → the refund form starts collapsed.
+    expect(
+      screen.queryByPlaceholderText(/Clinical or billing justification/i),
+    ).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Issue a refund/i }));
 
     const refundAmountInput = screen.getByPlaceholderText("0.00");
     fireEvent.change(refundAmountInput, { target: { value: "200.00" } });
@@ -166,6 +176,10 @@ describe("Screen 15: Invoice Detail (15-invoice-detail.html & Doc 03 §5.3, §6.
 
     const refundBtn = screen.getByRole("button", { name: /Record refund/i });
     fireEvent.click(refundBtn);
+
+    // The call is gated behind the confirmation modal.
+    expect(billingService.recordPayment).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: /Confirm Refund/i }));
 
     await waitFor(() => {
       expect(billingService.recordPayment).toHaveBeenCalledWith(

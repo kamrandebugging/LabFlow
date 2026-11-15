@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   AlertCircle,
@@ -42,6 +42,15 @@ export const RegisterPatientScreen: React.FC<RegisterPatientScreenProps> = ({
   const [duplicateCandidates, setDuplicateCandidates] = useState<
     PatientCandidate[] | null
   >(null);
+  const alertRef = useRef<HTMLDivElement | null>(null);
+
+  // Move keyboard focus to a freshly rendered alert so a failed submit is
+  // announced and visible instead of leaving focus on the submit button.
+  useEffect(() => {
+    if (formError || (duplicateCandidates?.length ?? 0) > 0) {
+      alertRef.current?.focus();
+    }
+  }, [formError, duplicateCandidates]);
 
   const handleSubmit = async (confirmDuplicate = false) => {
     setFormError(null);
@@ -131,6 +140,8 @@ export const RegisterPatientScreen: React.FC<RegisterPatientScreenProps> = ({
           <div
             role="alert"
             data-testid="duplicate-warning-banner"
+            ref={alertRef}
+            tabIndex={-1}
             className={styles.alertWarning}
           >
             <div className={styles.alertHead}>
@@ -194,7 +205,12 @@ export const RegisterPatientScreen: React.FC<RegisterPatientScreenProps> = ({
 
         {/* General Error Alert */}
         {formError && (
-          <div role="alert" className={styles.alert}>
+          <div
+            role="alert"
+            ref={alertRef}
+            tabIndex={-1}
+            className={styles.alert}
+          >
             <AlertCircle className={styles.alertIcon} />
             <span>{formError}</span>
           </div>
@@ -204,6 +220,7 @@ export const RegisterPatientScreen: React.FC<RegisterPatientScreenProps> = ({
         <div className={styles.card}>
           <form
             id="patientRegistrationForm"
+            aria-busy={isLoading}
             onSubmit={(e) => {
               e.preventDefault();
               handleSubmit(false);
@@ -229,6 +246,7 @@ export const RegisterPatientScreen: React.FC<RegisterPatientScreenProps> = ({
                   name="fullName"
                   type="text"
                   required
+                  readOnly={isLoading}
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder={t("patients:register.full_name_placeholder")}
@@ -249,6 +267,7 @@ export const RegisterPatientScreen: React.FC<RegisterPatientScreenProps> = ({
                     type="tel"
                     dir="ltr"
                     required
+                    readOnly={isLoading}
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     placeholder={t("patients:register.phone_placeholder")}
@@ -279,7 +298,10 @@ export const RegisterPatientScreen: React.FC<RegisterPatientScreenProps> = ({
                         name="sex"
                         value="M"
                         checked={sex === "M"}
-                        onChange={() => setSex("M")}
+                        readOnly={isLoading}
+                        onChange={() => {
+                          if (!isLoading) setSex("M");
+                        }}
                         className={styles.radioInput}
                       />
                       <span className={styles.radioDot} aria-hidden="true" />
@@ -295,7 +317,10 @@ export const RegisterPatientScreen: React.FC<RegisterPatientScreenProps> = ({
                         name="sex"
                         value="F"
                         checked={sex === "F"}
-                        onChange={() => setSex("F")}
+                        readOnly={isLoading}
+                        onChange={() => {
+                          if (!isLoading) setSex("F");
+                        }}
                         className={styles.radioInput}
                       />
                       <span className={styles.radioDot} aria-hidden="true" />
@@ -314,6 +339,7 @@ export const RegisterPatientScreen: React.FC<RegisterPatientScreenProps> = ({
                   id="dateOfBirth"
                   name="dateOfBirth"
                   type="date"
+                  readOnly={isLoading}
                   value={dateOfBirth}
                   onChange={(e) => setDateOfBirth(e.target.value)}
                   className={`${styles.input} ${styles.inputDate}`}
@@ -332,14 +358,26 @@ export const RegisterPatientScreen: React.FC<RegisterPatientScreenProps> = ({
 
               {/* WhatsApp */}
               <div className={styles.field}>
-                <label htmlFor="whatsappNumber" className={styles.label}>
-                  {t("patients:register.whatsapp")}
-                </label>
+                <div className={styles.labelRow}>
+                  <label htmlFor="whatsappNumber" className={styles.label}>
+                    {t("patients:register.whatsapp")}
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setWhatsappNumber(phone)}
+                    disabled={!phone.trim() || isLoading}
+                    aria-disabled={!phone.trim() || isLoading}
+                    className={styles.chipButton}
+                  >
+                    Use primary phone
+                  </button>
+                </div>
                 <input
                   id="whatsappNumber"
                   name="whatsappNumber"
                   type="tel"
                   dir="ltr"
+                  readOnly={isLoading}
                   value={whatsappNumber}
                   onChange={(e) => setWhatsappNumber(e.target.value)}
                   placeholder={t("patients:register.whatsapp_placeholder")}
@@ -358,7 +396,10 @@ export const RegisterPatientScreen: React.FC<RegisterPatientScreenProps> = ({
                     name="consentReports"
                     type="checkbox"
                     checked={consentReports}
-                    onChange={(e) => setConsentReports(e.target.checked)}
+                    readOnly={isLoading}
+                    onChange={(e) => {
+                      if (!isLoading) setConsentReports(e.target.checked);
+                    }}
                     className={styles.checkbox}
                   />
                   <span className={styles.checkboxText}>
@@ -373,6 +414,7 @@ export const RegisterPatientScreen: React.FC<RegisterPatientScreenProps> = ({
               <button
                 type="button"
                 onClick={onCancel}
+                disabled={isLoading}
                 className={styles.cancelButton}
               >
                 {t("common:actions.cancel")}

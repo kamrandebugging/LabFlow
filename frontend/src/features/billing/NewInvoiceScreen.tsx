@@ -403,40 +403,64 @@ export function NewInvoiceScreen({
                   </div>
 
                   {/* Search Dropdown Results */}
-                  {showPatientDropdown && patientResults.length > 0 && (
-                    <div className={styles.dropdown}>
-                      {patientResults.map((p) => (
-                        <button
-                          key={p.id}
-                          type="button"
-                          onClick={() => {
-                            setSelectedPatient(p);
-                            setShowPatientDropdown(false);
-                            setPatientQuery("");
-                          }}
-                          className={styles.dropdownItem}
-                        >
-                          <div>
-                            <span className={styles.dropdownName}>
-                              {p.name}
+                  {showPatientDropdown &&
+                    !isSearchingPatient &&
+                    (patientResults.length > 0 ||
+                      patientQuery.trim().length >= 2) && (
+                      <div className={styles.dropdown}>
+                        {patientResults.length > 0 ? (
+                          patientResults.map((p) => (
+                            <button
+                              key={p.id}
+                              type="button"
+                              onClick={() => {
+                                setSelectedPatient(p);
+                                setShowPatientDropdown(false);
+                                setPatientQuery("");
+                              }}
+                              className={styles.dropdownItem}
+                            >
+                              <div>
+                                <span className={styles.dropdownName}>
+                                  {p.name}
+                                </span>
+                                <span className={styles.dropdownMrn} dir="ltr">
+                                  {p.mrn}
+                                </span>
+                                <div className={styles.dropdownMeta}>
+                                  {t("billing:new.patient_meta", {
+                                    sex: p.sex,
+                                    phone:
+                                      p.phone || t("billing:new.not_available"),
+                                  })}
+                                </div>
+                              </div>
+                              <ArrowRight
+                                className={styles.dropdownArrow}
+                                aria-hidden="true"
+                              />
+                            </button>
+                          ))
+                        ) : (
+                          // Zero results: one non-selectable status row so the
+                          // user can tell "no match" from "still searching".
+                          <div className={styles.dropdownStatus} role="status">
+                            <span>
+                              No patients found for '{patientQuery.trim()}'.
                             </span>
-                            <span className={styles.dropdownMrn}>{p.mrn}</span>
-                            <div className={styles.dropdownMeta}>
-                              {t("billing:new.patient_meta", {
-                                sex: p.sex,
-                                phone:
-                                  p.phone || t("billing:new.not_available"),
-                              })}
-                            </div>
+                            {onRegisterPatient && (
+                              <button
+                                type="button"
+                                onClick={onRegisterPatient}
+                                className={styles.dropdownStatusAction}
+                              >
+                                + Register new patient
+                              </button>
+                            )}
                           </div>
-                          <ArrowRight
-                            className={styles.dropdownArrow}
-                            aria-hidden="true"
-                          />
-                        </button>
-                      ))}
-                    </div>
-                  )}
+                        )}
+                      </div>
+                    )}
                 </div>
               )}
             </div>
@@ -477,7 +501,7 @@ export function NewInvoiceScreen({
                           <bdi dir="ltr">{item.code}</bdi>
                         </div>
                       </div>
-                      <div className={styles.itemPrice}>
+                      <div className={styles.itemPrice} dir="ltr">
                         {formatMoney(item.price.toFixed(2), lang)}
                       </div>
                       <button
@@ -599,16 +623,24 @@ export function NewInvoiceScreen({
                   <label htmlFor={discountAmountId} className={styles.label}>
                     {t("billing:new.discount_amount_label")}
                   </label>
-                  <input
-                    id={discountAmountId}
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={discountAmount}
-                    onChange={(e) => setDiscountAmount(e.target.value)}
-                    className={styles.input}
-                    placeholder={t("billing:new.amount_placeholder")}
-                  />
+                  <div className={styles.inputWithPrefix}>
+                    <span className={styles.inputPrefix} aria-hidden="true">
+                      PKR
+                    </span>
+                    <input
+                      id={discountAmountId}
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={discountAmount}
+                      onChange={(e) => setDiscountAmount(e.target.value)}
+                      className={`${styles.input} ${styles.inputPrefixed}`}
+                      placeholder={t("billing:new.amount_placeholder")}
+                    />
+                  </div>
+                  <p className={styles.maxHelper}>
+                    Max: {formatMoney(subtotal.toFixed(2), lang)}
+                  </p>
                 </div>
 
                 <div className={styles.field}>
@@ -637,13 +669,14 @@ export function NewInvoiceScreen({
                 <span
                   className={styles.totalValue}
                   data-testid="invoice-subtotal"
+                  dir="ltr"
                 >
                   {formatMoney(subtotal.toFixed(2), lang)}
                 </span>
               </div>
               <div className={styles.totalRow}>
                 <span>{t("billing:new.discount")}</span>
-                <span className={styles.totalValue}>
+                <span className={styles.totalValue} dir="ltr">
                   - {formatMoney(discountVal.toFixed(2), lang)}
                 </span>
               </div>
@@ -651,14 +684,26 @@ export function NewInvoiceScreen({
                 <span className={styles.grandLabel}>
                   {t("common:labels.total")}
                 </span>
-                <span className={styles.grandValue} data-testid="invoice-total">
+                <span
+                  className={styles.grandValue}
+                  data-testid="invoice-total"
+                  dir="ltr"
+                >
                   {formatMoney(netTotal.toFixed(2), lang)}
                 </span>
               </div>
             </div>
 
-            {/* 5. FOOTER CONTROLS */}
+            {/* 5. FOOTER CONTROLS — secondary first, primary on the inline-end. */}
             <div className={styles.footer}>
+              <button
+                type="button"
+                onClick={onCancel}
+                disabled={submitting}
+                className={styles.cancelButton}
+              >
+                {t("common:actions.cancel")}
+              </button>
               <button
                 type="submit"
                 disabled={submitting}
@@ -678,14 +723,6 @@ export function NewInvoiceScreen({
                     <span>{t("billing:new.create")}</span>
                   </>
                 )}
-              </button>
-              <button
-                type="button"
-                onClick={onCancel}
-                disabled={submitting}
-                className={styles.cancelButton}
-              >
-                {t("common:actions.cancel")}
               </button>
             </div>
           </form>

@@ -81,7 +81,12 @@
   /* Type */
   --font-heading: "Rajdhani", "Inter", system-ui, sans-serif;
   --font-body: "Inter", system-ui, sans-serif;
+  /* Money inputs (amounts, totals, PKR) use --font-mono with tabular figures;
+     all other text uses --font-body. The tabular figures are inherited from
+     this root, because font-variant-numeric cannot live inside the font stack
+     declared by --font-mono — putting it there would invalidate the family. */
   --font-mono: "Share Tech Mono", ui-monospace, "Courier New", monospace;
+  font-variant-numeric: tabular-nums;
 }
 
 [data-theme="dark"] {

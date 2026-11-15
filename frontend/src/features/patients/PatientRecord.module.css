@@ -154,6 +154,19 @@
   gap: 10px;
 }
 
+/* Destructive control sits apart from the primary CTA on desktop. */
+.dangerSeparator {
+  display: inline-flex;
+}
+
+@media (min-width: 1024px) {
+  .dangerSeparator {
+    margin-inline-start: 12px;
+    padding-inline-start: 12px;
+    border-inline-start: 1px solid var(--color-border);
+  }
+}
+
 .secondaryButton {
   display: inline-flex;
   align-items: center;
@@ -532,6 +545,131 @@
   text-align: center;
 }
 
+.alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid var(--color-danger-border);
+  background: var(--color-danger-tint);
+  color: var(--color-danger);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+/* Confirmation modal — same scrim/card pattern as the invoice screens. */
+.scrim {
+  position: fixed;
+  inset: 0;
+  /* Above the fixed 64px shell header (z-index 50) so the dialog blocks the
+     whole screen, not just the content column. */
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: var(--color-overlay);
+}
+
+.modal {
+  width: 100%;
+  max-width: 460px;
+  padding: 24px;
+  border-radius: 18px;
+  border: 1px solid var(--color-card-border);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-neu-card);
+}
+
+.modalTitle {
+  margin: 0 0 8px;
+  font-family: var(--font-heading);
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.modalText {
+  margin: 0 0 16px;
+  color: var(--color-text-muted);
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.modalIdentity {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0 0 16px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border);
+  background: var(--color-well);
+}
+
+.modalIdentityRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.modalIdentityLabel {
+  color: var(--color-text-muted);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.modalIdentityValue {
+  margin: 0;
+  color: var(--color-text);
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.modalActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.modalDanger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 10px;
+  border: 1px solid var(--color-danger);
+  background: var(--color-danger);
+  color: var(--color-bg);
+  font-family: var(--font-body);
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.modalDanger:hover {
+  border-color: var(--color-danger-border);
+}
+
+.modalDanger:focus-visible {
+  outline: 2px solid var(--ring-color);
+  outline-offset: 3px;
+}
+
+.modalDanger:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .errorIcon {
   display: inline-flex;
   align-items: center;
@@ -568,9 +706,19 @@
   }
 }
 
-/* Existing 2s status pulse, now carried by the badge icon. */
-.pulse {
-  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+/* Existing 2s status pulse, now carried by the badge icon. Runs only when the
+   user has not requested reduced motion (WCAG 2.2 SC 2.2.2). */
+@media (prefers-reduced-motion: no-preference) {
+  .pulse {
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pulse {
+    animation: none;
+    opacity: 1;
+  }
 }
 
 @keyframes pulse {

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ArrowLeft,
@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { messageForError } from "../../lib/errors";
 import { formatDate } from "../../lib/format";
+import { useDialogFocus } from "../../lib/dialogFocus";
 import styles from "./PatientRecord.module.css";
 import { patientService } from "./patientService";
 import type { PatientDetail } from "./types";
@@ -46,6 +47,14 @@ export const PatientDetailsScreen: React.FC<PatientDetailsScreenProps> = ({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const deleteTriggerRef = useRef<HTMLButtonElement>(null);
+  const deletePanelRef = useDialogFocus<HTMLDivElement>(
+    showDeleteModal,
+    () => setShowDeleteModal(false),
+    deleteTriggerRef,
+  );
 
   useEffect(() => {
     let isMounted = true;
@@ -74,14 +83,16 @@ export const PatientDetailsScreen: React.FC<PatientDetailsScreenProps> = ({
     };
   }, [patientId, service, t]);
 
-  const handleDelete = async () => {
-    if (!window.confirm(t("patients:details.confirm_delete"))) return;
+  const handleConfirmDelete = async () => {
     setIsDeleting(true);
+    setDeleteError(null);
     try {
       await service.deletePatient(patientId);
+      setShowDeleteModal(false);
       onBack?.();
     } catch (err: unknown) {
-      alert(
+      setShowDeleteModal(false);
+      setDeleteError(
         err && typeof err === "object" && ("code" in err || "status" in err)
           ? messageForError(err, t)
           : t("patients:details.errors.delete"),
@@ -201,16 +212,19 @@ export const PatientDetailsScreen: React.FC<PatientDetailsScreenProps> = ({
               <span>{t("patients:details.new_accession")}</span>
             </button>
             {canDelete ? (
-              <button
-                type="button"
-                onClick={handleDelete}
-                disabled={isDeleting}
-                title={t("patients:details.delete_patient_aria")}
-                aria-label={t("patients:details.delete_patient_aria")}
-                className={styles.dangerButton}
-              >
-                <Trash2 className={styles.buttonIcon} aria-hidden="true" />
-              </button>
+              <span className={styles.dangerSeparator}>
+                <button
+                  type="button"
+                  ref={deleteTriggerRef}
+                  onClick={() => setShowDeleteModal(true)}
+                  disabled={isDeleting}
+                  title={t("patients:details.delete_patient_aria")}
+                  aria-label={t("patients:details.delete_patient_aria")}
+                  className={styles.dangerButton}
+                >
+                  <Trash2 className={styles.buttonIcon} aria-hidden="true" />
+                </button>
+              </span>
             ) : null}
           </div>
         </div>
@@ -319,7 +333,68 @@ export const PatientDetailsScreen: React.FC<PatientDetailsScreenProps> = ({
             </div>
           </div>
         </div>
+
+        {/* Delete failure (replaces the old blocking alert) */}
+        {deleteError && (
+          <div role="alert" className={styles.alert}>
+            <AlertCircle className={styles.statusIcon} aria-hidden="true" />
+            <span>{deleteError}</span>
+          </div>
+        )}
       </div>
+
+      {/* Delete confirmation modal — same .scrim pattern as Cancel invoice. */}
+      {showDeleteModal && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-patient-title"
+          className={styles.scrim}
+        >
+          <div ref={deletePanelRef} tabIndex={-1} className={styles.modal}>
+            <h2 id="delete-patient-title" className={styles.modalTitle}>
+              Delete Patient Record?
+            </h2>
+            <p className={styles.modalText}>
+              {t("patients:details.confirm_delete")}
+            </p>
+            <dl className={styles.modalIdentity}>
+              <div className={styles.modalIdentityRow}>
+                <dt className={styles.modalIdentityLabel}>
+                  {t("patients:details.field_full_name")}
+                </dt>
+                <dd className={styles.modalIdentityValue}>{patient.name}</dd>
+              </div>
+              <div className={styles.modalIdentityRow}>
+                <dt className={styles.modalIdentityLabel}>
+                  {t("patients:mrn")}
+                </dt>
+                <dd className={styles.modalIdentityValue} dir="ltr">
+                  {patient.mrn}
+                </dd>
+              </div>
+            </dl>
+            <div className={styles.modalActions}>
+              <button
+                type="button"
+                onClick={() => setShowDeleteModal(false)}
+                disabled={isDeleting}
+                className={styles.secondaryButton}
+              >
+                Keep patient
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDelete}
+                disabled={isDeleting}
+                className={styles.modalDanger}
+              >
+                Confirm Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

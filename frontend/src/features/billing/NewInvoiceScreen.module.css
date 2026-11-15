@@ -340,8 +340,18 @@
   font-size: 13px;
 }
 
-.pulseText {
-  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+/* "Searching…" breathes only when the user has not asked for reduced motion. */
+@media (prefers-reduced-motion: no-preference) {
+  .pulseText {
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pulseText {
+    animation: none;
+    opacity: 1;
+  }
 }
 
 @keyframes pulse {
@@ -373,6 +383,35 @@
   outline: 2px solid var(--ring-color);
   outline-offset: 3px;
   border-color: var(--ring-color);
+}
+
+/* Decorative currency prefix inside the control; never part of the value. */
+.inputWithPrefix {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.inputPrefix {
+  position: absolute;
+  inset-inline-start: 12px;
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.inputPrefixed {
+  padding-inline-start: 52px;
+}
+
+.maxHelper {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.5;
 }
 
 .dropdown {
@@ -442,6 +481,44 @@
   height: 18px;
   color: var(--color-text-muted);
   flex: 0 0 auto;
+}
+
+/* Zero-results state: a status row, never a selectable patient option. */
+.dropdownStatus {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 14px 16px;
+  color: var(--color-text-muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.dropdownStatusAction {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 4px 8px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-brand);
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.dropdownStatusAction:hover {
+  text-decoration: underline;
+}
+
+.dropdownStatusAction:focus-visible {
+  outline: 2px solid var(--ring-color);
+  outline-offset: 2px;
 }
 
 .emptyPanel {
@@ -675,6 +752,7 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
+  justify-content: flex-end;
   gap: 12px;
 }
 
@@ -760,6 +838,18 @@
 @media (min-width: 768px) {
   .grid2 {
     grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* Mobile: stack the footer with the primary CTA on top and full-width. */
+@media (max-width: 640px) {
+  .footer {
+    flex-direction: column-reverse;
+    align-items: stretch;
+  }
+  .footer > button {
+    width: 100%;
+    min-height: 48px;
   }
 }
 
