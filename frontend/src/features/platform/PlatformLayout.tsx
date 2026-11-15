@@ -56,6 +56,8 @@ export function PlatformLayout({
   const [searchQuery, setSearchQuery] = useState("");
 
   const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // IME guard: Enter that ends an in-progress composition must not submit.
+    if (e.nativeEvent.isComposing || e.nativeEvent.keyCode === 229) return;
     if (e.key === "Enter" && searchQuery.trim()) {
       navigate(`/platform/tenants?q=${encodeURIComponent(searchQuery.trim())}`);
     }
