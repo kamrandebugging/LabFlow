@@ -6,6 +6,7 @@ import {
   History,
   Phone,
   ShieldCheck,
+  ShieldX,
   User,
   Trash2,
   RefreshCw,
@@ -13,6 +14,7 @@ import {
 } from "lucide-react";
 import { messageForError } from "../../lib/errors";
 import { formatDate } from "../../lib/format";
+import styles from "./PatientRecord.module.css";
 import { patientService } from "./patientService";
 import type { PatientDetail } from "./types";
 
@@ -91,32 +93,24 @@ export const PatientDetailsScreen: React.FC<PatientDetailsScreenProps> = ({
 
   if (isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[400px] text-slate-500 gap-3">
-        <RefreshCw className="w-6 h-6 animate-spin text-teal-600" />
-        <span className="text-sm font-medium">
-          {t("patients:details.loading")}
-        </span>
+      <div className={styles.loading}>
+        <RefreshCw className={`${styles.statusIcon} ${styles.spin}`} />
+        <span>{t("patients:details.loading")}</span>
       </div>
     );
   }
 
   if (error || !patient) {
     return (
-      <div className="max-w-2xl mx-auto p-6 text-center space-y-4">
-        <div className="w-12 h-12 bg-red-50 text-red-600 rounded-full flex items-center justify-center mx-auto">
-          <AlertCircle className="w-6 h-6" />
-        </div>
-        <h2 className="text-lg font-bold text-slate-900">
+      <div className={styles.errorState}>
+        <span className={styles.errorIcon}>
+          <AlertCircle className={styles.statusIcon} />
+        </span>
+        <h2 className={styles.errorTitle}>
           {t("patients:details.unavailable_title")}
         </h2>
-        <p className="text-sm text-slate-600">
-          {error || t("patients:not_found")}
-        </p>
-        <button
-          type="button"
-          onClick={onBack}
-          className="px-4 py-2 bg-slate-900 text-white rounded-lg text-sm font-medium hover:bg-slate-800"
-        >
+        <p className={styles.errorText}>{error || t("patients:not_found")}</p>
+        <button type="button" onClick={onBack} className={styles.primaryButton}>
           {t("patients:return_to_patients")}
         </button>
       </div>
@@ -133,188 +127,194 @@ export const PatientDetailsScreen: React.FC<PatientDetailsScreenProps> = ({
   const hasDigitalConsent = patient.consents?.some((c) => !c.revoked_at);
 
   return (
-    <div className="max-w-6xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
-      {/* 1. Header & Actions */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div className="space-y-1">
-          <nav
-            aria-label={t("patients:breadcrumb_aria")}
-            className="flex items-center gap-2 text-xs text-slate-500 mb-1"
-          >
-            <button
-              type="button"
-              onClick={onBack}
-              className="hover:text-slate-800 transition-colors inline-flex items-center gap-1"
-            >
-              <ArrowLeft className="w-3.5 h-3.5 rtl:rotate-180" />
-              <span>{t("common:nav.patients")}</span>
-            </button>
-            <span className="text-slate-300">/</span>
-            <span dir="ltr" className="font-mono text-slate-700 font-semibold">
-              {patient.mrn}
-            </span>
-          </nav>
-          <div className="flex items-center flex-wrap gap-3">
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 font-headline">
-              {patient.name}
-            </h1>
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
-              {t("patients:details.active")}
-            </span>
-            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-700">
-              {patient.branch_name || t("patients:main_branch")}
-            </span>
-          </div>
-          <p className="text-xs text-slate-400 font-mono">
-            {t("patients:mrn")}:{" "}
-            <strong className="text-slate-700">
-              <bdi dir="ltr">{patient.mrn}</bdi>
-            </strong>{" "}
-            · {t("patients:details.registered")}{" "}
-            <bdi dir="ltr">{formatDate(patient.created_at)}</bdi>
-          </p>
-        </div>
-
-        {/* Action Buttons */}
-        <div className="flex items-center flex-wrap gap-2.5">
-          {canManage && onEdit ? (
-            <button
-              type="button"
-              onClick={() => onEdit(patient.id)}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 text-sm font-medium transition-colors shadow-sm"
-            >
-              <Edit className="w-4 h-4 text-slate-400" />
-              <span>{t("patients:edit_demographics")}</span>
-            </button>
-          ) : null}
-          <button
-            type="button"
-            onClick={() => onViewHistory?.(patient.id)}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 text-sm font-medium transition-colors shadow-sm"
-          >
-            <History className="w-4 h-4 text-slate-400" />
-            <span>{t("patients:details.audit_history")}</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => onNewVisit?.(patient.id)}
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#005c55] text-white hover:bg-[#0f766e] text-sm font-semibold transition-colors shadow-sm"
-          >
-            <span>{t("patients:details.new_accession")}</span>
-          </button>
-          {canDelete ? (
-            <button
-              type="button"
-              onClick={handleDelete}
-              disabled={isDeleting}
-              title={t("patients:details.delete_patient_aria")}
-              aria-label={t("patients:details.delete_patient_aria")}
-              className="p-2 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
-          ) : null}
-        </div>
-      </div>
-
-      {/* 2. Demographics & Record Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Core Identity Card */}
-        <div className="lg:col-span-2 bg-white rounded-xl border border-slate-200 p-6 shadow-sm space-y-4">
-          <div className="border-b border-slate-100 pb-3 flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-slate-900 uppercase tracking-wider flex items-center gap-2">
-              <User className="w-4 h-4 text-teal-600" />
-              <span>{t("patients:demographics")}</span>
-            </h2>
-            <span className="text-xs font-mono text-slate-400">
-              {t("patients:details.id")}:{" "}
-              <bdi dir="ltr">{patient.id.slice(0, 8)}</bdi>
-            </span>
+    <div className={styles.page}>
+      <div className={styles.container}>
+        {/* 1. Header & Actions */}
+        <div className={styles.header}>
+          <div>
+            <nav aria-label={t("patients:breadcrumb_aria")}>
+              <ol className={styles.breadcrumb}>
+                <li>
+                  <button
+                    type="button"
+                    onClick={onBack}
+                    className={styles.breadcrumbLink}
+                  >
+                    <ArrowLeft className={styles.crumbIcon} />
+                    <span>{t("common:nav.patients")}</span>
+                  </button>
+                </li>
+                <li className={styles.crumbSep}>/</li>
+                <li dir="ltr" className={styles.crumbMrn}>
+                  {patient.mrn}
+                </li>
+              </ol>
+            </nav>
+            <div className={styles.nameRow}>
+              <h1 className={styles.title}>{patient.name}</h1>
+              <span className={styles.activeBadge}>
+                <ShieldCheck
+                  className={`${styles.statusIcon} ${styles.pulse}`}
+                  aria-hidden="true"
+                />
+                {t("patients:details.active")}
+              </span>
+              <span className={styles.branchPill}>
+                {patient.branch_name || t("patients:main_branch")}
+              </span>
+            </div>
+            <p className={styles.metaLine}>
+              {t("patients:mrn")}:{" "}
+              <strong className={styles.metaStrong}>
+                <bdi dir="ltr">{patient.mrn}</bdi>
+              </strong>{" "}
+              · {t("patients:details.registered")}{" "}
+              <bdi dir="ltr">{formatDate(patient.created_at)}</bdi>
+            </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-            <div>
-              <span className="text-xs text-slate-400 block mb-0.5">
-                {t("patients:details.field_full_name")}
-              </span>
-              <span className="font-semibold text-slate-900">
-                {patient.name}
-              </span>
-            </div>
-            <div>
-              <span className="text-xs text-slate-400 block mb-0.5">
-                {t("patients:details.field_sex")}
-              </span>
-              <span className="font-medium text-slate-800">
-                {patient.sex === "M"
-                  ? t("patients:sex.male")
-                  : patient.sex === "F"
-                    ? t("patients:sex.female")
-                    : t("patients:sex.other")}
-              </span>
-            </div>
-            <div>
-              <span className="text-xs text-slate-400 block mb-0.5">
-                {t("patients:details.field_dob")}
-              </span>
-              <span className="font-medium text-slate-800">
-                {patient.date_of_birth ? (
-                  <bdi dir="ltr">{formatDate(patient.date_of_birth)}</bdi>
-                ) : (
-                  t("common:labels.not_recorded")
-                )}
-              </span>
-            </div>
-            <div>
-              <span className="text-xs text-slate-400 block mb-0.5">
-                {t("patients:details.field_phone")}
-              </span>
-              <span className="font-mono text-slate-800 flex items-center gap-1.5">
-                <Phone className="w-3.5 h-3.5 text-slate-400" />
-                <bdi dir="ltr">{primaryPhone}</bdi>
-              </span>
-            </div>
+          {/* Action Buttons */}
+          <div className={styles.actions}>
+            {canManage && onEdit ? (
+              <button
+                type="button"
+                onClick={() => onEdit(patient.id)}
+                className={styles.secondaryButton}
+              >
+                <Edit className={styles.buttonIcon} aria-hidden="true" />
+                <span>{t("patients:edit_demographics")}</span>
+              </button>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => onViewHistory?.(patient.id)}
+              className={styles.secondaryButton}
+            >
+              <History className={styles.buttonIcon} aria-hidden="true" />
+              <span>{t("patients:details.audit_history")}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => onNewVisit?.(patient.id)}
+              className={styles.primaryButton}
+            >
+              <span>{t("patients:details.new_accession")}</span>
+            </button>
+            {canDelete ? (
+              <button
+                type="button"
+                onClick={handleDelete}
+                disabled={isDeleting}
+                title={t("patients:details.delete_patient_aria")}
+                aria-label={t("patients:details.delete_patient_aria")}
+                className={styles.dangerButton}
+              >
+                <Trash2 className={styles.buttonIcon} aria-hidden="true" />
+              </button>
+            ) : null}
           </div>
         </div>
 
-        {/* Digital Consent & Comms Card */}
-        <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm space-y-4">
-          <div className="border-b border-slate-100 pb-3">
-            <h2 className="text-sm font-semibold text-slate-900 uppercase tracking-wider flex items-center gap-2">
-              <ShieldCheck className="w-4 h-4 text-teal-600" />
-              <span>{t("patients:details.consent_title")}</span>
-            </h2>
+        {/* 2. Demographics & Record Grid */}
+        <div className={styles.grid}>
+          {/* Core Identity Card */}
+          <div className={styles.card}>
+            <div className={styles.cardHead}>
+              <h2 className={styles.cardTitle}>
+                <User className={styles.cardIcon} aria-hidden="true" />
+                <span>{t("patients:demographics")}</span>
+              </h2>
+              <span className={styles.idText}>
+                {t("patients:details.id")}:{" "}
+                <bdi dir="ltr">{patient.id.slice(0, 8)}</bdi>
+              </span>
+            </div>
+
+            <div className={styles.fieldGrid}>
+              <div className={styles.field}>
+                <span className={styles.fieldLabel}>
+                  {t("patients:details.field_full_name")}
+                </span>
+                <span className={styles.fieldValue}>{patient.name}</span>
+              </div>
+              <div className={styles.field}>
+                <span className={styles.fieldLabel}>
+                  {t("patients:details.field_sex")}
+                </span>
+                <span className={styles.fieldValue}>
+                  {patient.sex === "M"
+                    ? t("patients:sex.male")
+                    : patient.sex === "F"
+                      ? t("patients:sex.female")
+                      : t("patients:sex.other")}
+                </span>
+              </div>
+              <div className={styles.field}>
+                <span className={styles.fieldLabel}>
+                  {t("patients:details.field_dob")}
+                </span>
+                <span className={styles.fieldValue}>
+                  {patient.date_of_birth ? (
+                    <bdi dir="ltr">{formatDate(patient.date_of_birth)}</bdi>
+                  ) : (
+                    t("common:labels.not_recorded")
+                  )}
+                </span>
+              </div>
+              <div className={styles.field}>
+                <span className={styles.fieldLabel}>
+                  {t("patients:details.field_phone")}
+                </span>
+                <span className={styles.monoValue}>
+                  <Phone className={styles.inlineIcon} aria-hidden="true" />
+                  <bdi dir="ltr">{primaryPhone}</bdi>
+                </span>
+              </div>
+            </div>
           </div>
 
-          <div className="space-y-3 text-sm">
-            <div>
-              <span className="text-xs text-slate-400 block mb-0.5">
+          {/* Digital Consent & Comms Card */}
+          <div className={styles.card}>
+            <div className={styles.cardHead}>
+              <h2 className={styles.cardTitle}>
+                <ShieldCheck className={styles.cardIcon} aria-hidden="true" />
+                <span>{t("patients:details.consent_title")}</span>
+              </h2>
+            </div>
+
+            <div className={styles.field}>
+              <span className={styles.fieldLabel}>
                 {t("patients:details.digital_delivery")}
               </span>
               <span
-                className={`inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded font-medium ${
-                  hasDigitalConsent
-                    ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
-                    : "bg-slate-100 text-slate-600"
-                }`}
+                className={
+                  hasDigitalConsent ? styles.consentOn : styles.consentOff
+                }
               >
+                {hasDigitalConsent ? (
+                  <ShieldCheck
+                    className={styles.statusIcon}
+                    aria-hidden="true"
+                  />
+                ) : (
+                  <ShieldX className={styles.statusIcon} aria-hidden="true" />
+                )}
                 {hasDigitalConsent
                   ? t("patients:details.consent_granted")
                   : t("patients:details.consent_none")}
               </span>
             </div>
             {whatsappContact && (
-              <div>
-                <span className="text-xs text-slate-400 block mb-0.5">
+              <div className={styles.field}>
+                <span className={styles.fieldLabel}>
                   {t("patients:details.whatsapp_channel")}
                 </span>
-                <span className="font-mono text-slate-700 text-xs">
+                <span className={styles.monoValue}>
                   <bdi dir="ltr">{whatsappContact}</bdi>
                 </span>
               </div>
             )}
-            <div className="pt-2 border-t border-slate-100 text-xs text-slate-400">
+            <div className={styles.compliance}>
               {t("patients:details.compliance_note")}
             </div>
           </div>
