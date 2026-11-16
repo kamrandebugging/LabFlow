@@ -1,0 +1,188 @@
+/* Veyla waffle — "Checks per day". Squares only, four DESIGN.md colours. */
+
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.legendBucket {
+  font-weight: 600;
+  font-family: var(--font-mono);
+}
+
+.legendGroups {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+}
+
+.legendItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+}
+
+.swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  display: inline-block;
+}
+
+.passed {
+  background: var(--veyla-teal);
+}
+
+.review {
+  background: rgba(18, 16, 17, 0.55);
+}
+
+.declined {
+  background: var(--veyla-black);
+}
+
+.capacity {
+  background: var(--veyla-well);
+}
+
+[data-theme="dark"] .review {
+  background: rgba(241, 242, 242, 0.45);
+}
+
+[data-theme="dark"] .declined {
+  background: var(--color-surface);
+}
+
+.scroller {
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.grid {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(34px, 1fr);
+  gap: 8px;
+  min-width: 320px;
+  transition: opacity var(--motion-fast) var(--ease-out);
+}
+
+.gridOut {
+  opacity: 0;
+}
+
+.col {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 4px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: background-color var(--motion-fast) var(--ease-out);
+}
+
+.col:hover,
+.col[data-active="true"] {
+  background: color-mix(in srgb, var(--veyla-teal) 24%, transparent);
+}
+
+.col:focus-visible {
+  outline: 2px solid var(--color-accent-text);
+  outline-offset: 2px;
+}
+
+.colIn {
+  animation: waffleColIn var(--motion-base) var(--ease-out) both;
+}
+
+@keyframes waffleColIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Bottom-up stack: the first child sits at the bottom of the column. */
+.stack {
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: center;
+  gap: 3px;
+  width: 100%;
+}
+
+.tile {
+  width: 100%;
+  max-width: 26px;
+  aspect-ratio: 1 / 1;
+  border-radius: 4px;
+  display: block;
+}
+
+.dayLabel {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.tooltip {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--veyla-black);
+  color: var(--color-surface);
+  font-size: 11px;
+  line-height: 1.35;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: var(--shadow-veyla-dropdown);
+}
+
+.tooltip strong {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+[data-theme="dark"] .tooltip {
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .grid,
+  .col {
+    transition: none;
+  }
+  .colIn {
+    animation: none;
+  }
+}

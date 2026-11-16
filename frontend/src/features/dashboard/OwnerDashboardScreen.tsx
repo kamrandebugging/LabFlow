@@ -1,6 +1,6 @@
 import type { ReactElement } from "react";
 import { useEffect, useMemo, useState } from "react";
-import { Trans, useTranslation } from "react-i18next";
+import { useTranslation } from "react-i18next";
 import { Link, useNavigate } from "react-router-dom";
 
 import { useAuthStore } from "../auth/authStore";
@@ -17,9 +17,9 @@ import {
   Panel,
   ReviewQueueRing,
   StatCard,
-  WaffleChart,
-  type WaffleDayData,
 } from "./DashboardUI";
+import { ChecksWaffle, type WaffleDay } from "./ChecksWaffle";
+import { fetchSampleDayBuckets } from "./sampleDayBuckets";
 import { StaffPasswordSection } from "./StaffPasswordSection";
 import {
   fetchSampleStatusCounts,
@@ -62,9 +62,6 @@ export function OwnerDashboardScreen(): ReactElement {
   const navigate = useNavigate();
   const lang = i18n.resolvedLanguage === "ur" ? "ur" : "en";
   const [stats, setStats] = useState<DashboardStats>(INITIAL_STATS);
-  const [dailyInvoices, setDailyInvoices] = useState<
-    { date: string; count: number }[]
-  >([]);
   const accessToken = useAuthStore((s) => s.accessToken);
   const user = useAuthStore((s) => s.user);
 
@@ -128,11 +125,6 @@ export function OwnerDashboardScreen(): ReactElement {
           dayCounts[dayKey] = (dayCounts[dayKey] || 0) + 1;
         }
       }
-
-      const daysArr = Object.entries(dayCounts)
-        .slice(-7)
-        .map(([date, count]) => ({ date, count }));
-      setDailyInvoices(daysArr);
 
       setStats({
         invoicesCount,
@@ -206,122 +198,44 @@ export function OwnerDashboardScreen(): ReactElement {
     },
   };
 
-  const sampleRows = [
-    {
-      key: "ready",
-      label: t("status.sample.ready"),
-      value: stats.samples?.ready ?? 0,
-      color: "#0E6B3A",
-      bg: "bg-[#e6f4ea] text-[#0e6b3a] dark:bg-[rgba(82,183,136,0.16)] dark:text-[#7cd3a2]",
-    },
-    {
-      key: "in_process",
-      label: t("status.sample.in_process"),
-      value: stats.samples?.inProcess ?? 0,
-      color: "#8C5800",
-      bg: "bg-[#fef3d6] text-[#8c5800] dark:bg-[rgba(232,163,61,0.16)] dark:text-[#f6c776]",
-    },
-    {
-      key: "received",
-      label: t("status.sample.received"),
-      value: stats.samples?.received ?? 0,
-      color: "#0369A1",
-      bg: "bg-[#e0f2fe] text-[#0369a1] dark:bg-[rgba(56,189,248,0.16)] dark:text-[#7dd3fc]",
-    },
-    {
-      key: "collected",
-      label: t("status.sample.collected"),
-      value: stats.samples?.collected ?? 0,
-      color: "#357C6B",
-      bg: "bg-[#eaecec] text-[#374151] dark:bg-[rgba(156,163,175,0.18)] dark:text-[#d1d5db]",
-    },
-    {
-      key: "rejected",
-      label: t("status.sample.rejected"),
-      value: stats.samples?.rejected ?? 0,
-      color: "#B91C1C",
-      bg: "bg-[#fee2e2] text-[#b91c1c] dark:bg-[rgba(239,68,68,0.18)] dark:text-[#fca5a5]",
-    },
-    {
-      key: "cancelled",
-      label: t("status.sample.cancelled"),
-      value: stats.samples?.cancelled ?? 0,
-      color: "#747C7C",
-      bg: "bg-[var(--veyla-well)] text-[var(--color-text-muted)]",
-    },
-  ];
+  // Real per-day sample buckets for the waffle, derived from the existing
+  // GET /samples endpoint. No fabricated counts.
+  const [range, setRange] = useState<7 | 14 | 30>(7);
+  const [waffleDays, setWaffleDays] = useState<WaffleDay[]>([]);
+  const [waffleError, setWaffleError] = useState(false);
 
-  // Prepare Waffle chart days data
-  const waffleDays: WaffleDayData[] = useMemo(() => {
-    if (dailyInvoices.length > 0) {
-      return dailyInvoices.map((d) => {
-        const dateObj = new Date(d.date);
-        const dayLabel = Number.isNaN(dateObj.getTime())
-          ? d.date
-          : dateObj.toLocaleDateString("en-GB", {
-              weekday: "short",
-              day: "numeric",
-            });
-        return {
-          date: d.date,
-          label: dayLabel,
-          total: d.count,
-          breakdown: {
-            ready: Math.round(d.count * 0.4),
-            in_process: Math.round(d.count * 0.3),
-            received: Math.round(d.count * 0.2),
-            collected: Math.max(0, d.count - Math.round(d.count * 0.9)),
-          },
-        };
+  useEffect(() => {
+    let active = true;
+    const controller = new AbortController();
+    setWaffleError(false);
+
+    fetchSampleDayBuckets(range, controller.signal)
+      .then((buckets) => {
+        if (active) setWaffleDays(buckets);
+      })
+      .catch(() => {
+        if (active) setWaffleError(true);
       });
-    }
 
-    // Default to recent days based on today's samples if invoices are empty
-    const todayTotal = stats.samples?.total ?? 0;
-    const now = new Date();
-    const days: WaffleDayData[] = [];
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date(now);
-      d.setDate(now.getDate() - i);
-      const isToday = i === 0;
-      days.push({
-        date: d.toISOString().slice(0, 10),
-        label: d.toLocaleDateString("en-GB", {
-          weekday: "short",
-          day: "numeric",
-        }),
-        total: isToday
-          ? todayTotal
-          : Math.max(0, Math.round(todayTotal * (0.7 + i * 0.05))),
-        breakdown:
-          isToday && stats.samples
-            ? {
-                ready: stats.samples.ready,
-                in_process: stats.samples.inProcess,
-                received: stats.samples.received,
-                collected: stats.samples.collected,
-                rejected: stats.samples.rejected,
-                cancelled: stats.samples.cancelled,
-              }
-            : {
-                ready: Math.round(todayTotal * 0.5),
-                in_process: Math.round(todayTotal * 0.3),
-                received: Math.round(todayTotal * 0.2),
-              },
-      });
-    }
-    return days;
-  }, [dailyInvoices, stats.samples]);
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [range]);
 
-  // Scaled tile factor based on tenant volume
-  const tileScale = useMemo(() => {
-    const maxDay = Math.max(...waffleDays.map((d) => d.total), 1);
-    return maxDay > 50 ? 5 : 1;
-  }, [waffleDays]);
-
-  const [activeWaffleDay, setActiveWaffleDay] = useState<WaffleDayData | null>(
+  const [activeWaffleDay, setActiveWaffleDay] = useState<WaffleDay | null>(
     null,
   );
+
+  // Side panel defaults to the most recent day that actually has samples.
+  const panelDay = useMemo<WaffleDay | null>(() => {
+    if (activeWaffleDay) return activeWaffleDay;
+    for (let i = waffleDays.length - 1; i >= 0; i--) {
+      const day = waffleDays[i];
+      if (day && day.total > 0) return day;
+    }
+    return waffleDays[waffleDays.length - 1] ?? null;
+  }, [activeWaffleDay, waffleDays]);
 
   return (
     <div className="space-y-6">
@@ -413,81 +327,102 @@ export function OwnerDashboardScreen(): ReactElement {
         <div className="lg:col-span-2">
           <Panel
             title="Checks per day"
-            subtitle="Recent daily sample and check volume scaled by status"
+            subtitle="Every tile is a batch of samples. Pick a day to read it."
             action={
-              <span className="text-xs font-mono font-semibold px-2.5 py-1 rounded-full bg-[var(--veyla-well)] text-[var(--color-text-muted)] border border-[var(--color-border)]">
-                Last 7 days
-              </span>
+              <div
+                role="group"
+                aria-label="Date range"
+                className="flex items-center gap-1 p-1 rounded-full bg-[var(--veyla-well)] border border-[var(--color-border)]"
+              >
+                {([7, 14, 30] as const).map((r) => (
+                  <button
+                    key={r}
+                    type="button"
+                    onClick={() => setRange(r)}
+                    aria-pressed={range === r}
+                    className={`px-3 py-1 rounded-full text-xs font-semibold transition-colors ${
+                      range === r
+                        ? "bg-[var(--veyla-black)] text-[var(--color-surface)] dark:bg-[var(--color-surface)] dark:text-[var(--veyla-black)]"
+                        : "text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
+                    }`}
+                  >
+                    {r} days
+                  </button>
+                ))}
+              </div>
             }
           >
-            <WaffleChart
-              days={waffleDays}
-              statusConfig={statusConfig}
-              tileScale={tileScale}
-              unitLabel="sample"
-              onActiveDayChange={setActiveWaffleDay}
-            />
+            {waffleError ? (
+              <EmptyState message="Sample history unavailable" />
+            ) : (
+              <ChecksWaffle
+                days={waffleDays}
+                statusConfig={statusConfig}
+                unitLabel="sample"
+                onActiveDayChange={setActiveWaffleDay}
+              />
+            )}
           </Panel>
         </div>
 
         {/* Fixed Side Panel: Today's Real Breakdown */}
         <div>
           <Panel
-            title={t("dashboard.samples_by_status") || "Samples by status"}
-            subtitle="Today's real status breakdown across accessioning"
+            title={panelDay ? panelDay.label : "Samples by status"}
+            subtitle={
+              panelDay
+                ? `${panelDay.total} sample${panelDay.total === 1 ? "" : "s"} collected`
+                : "No samples in this range"
+            }
           >
-            {stats.samples ? (
-              <div className="space-y-2.5">
-                {sampleRows.map((row) => (
-                  <div
-                    key={row.key}
-                    className="flex items-center justify-between p-2 rounded-xl bg-[var(--veyla-well)]/60 border border-[var(--color-card-border)] hover:bg-[var(--veyla-well)] transition-colors"
-                  >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <span
-                        className="w-2.5 h-2.5 rounded-full shrink-0"
-                        style={{ backgroundColor: row.color }}
-                        aria-hidden="true"
-                      />
-                      <span className="text-xs font-semibold text-[var(--color-text)] truncate">
-                        {row.label}
-                      </span>
-                    </div>
-                    <span className="text-xs font-mono font-bold text-[var(--color-text)] px-2 py-0.5 rounded-full bg-[var(--veyla-card)] border border-[var(--color-border)]">
-                      <FadeValue
-                        value={String(
-                          activeWaffleDay?.breakdown?.[row.key] ?? row.value,
-                        )}
-                      />
+            <div className="space-y-2.5">
+              {[
+                { key: "ready", label: "Passed", color: "var(--veyla-teal)" },
+                {
+                  key: "review",
+                  label: "Review",
+                  color: "rgba(18,16,17,0.55)",
+                },
+                {
+                  key: "declined",
+                  label: "Declined",
+                  color: "var(--veyla-black)",
+                },
+              ].map((row) => (
+                <div
+                  key={row.key}
+                  className="flex items-center justify-between p-2 rounded-xl bg-[var(--veyla-well)]/60 border border-[var(--color-card-border)] hover:bg-[var(--veyla-well)] transition-colors"
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <span
+                      className="w-2.5 h-2.5 rounded-full shrink-0"
+                      style={{ backgroundColor: row.color }}
+                      aria-hidden="true"
+                    />
+                    <span className="text-xs font-semibold text-[var(--color-text)] truncate">
+                      {row.label}
                     </span>
                   </div>
-                ))}
-                <div className="pt-3 border-t border-[var(--color-card-border)] flex items-center justify-between text-xs text-[var(--color-text-muted)]">
-                  <span>
-                    <Trans
-                      i18nKey="dashboard.samples.total_accessions_scope"
-                      values={{ total: stats.samples.total }}
-                      components={{
-                        acc: (
-                          <bdi
-                            dir="ltr"
-                            className="font-mono font-bold text-[var(--color-text)]"
-                          />
-                        ),
-                      }}
+                  <span className="text-xs font-mono font-bold text-[var(--color-text)] px-2 py-0.5 rounded-full bg-[var(--veyla-card)] border border-[var(--color-border)]">
+                    <FadeValue
+                      value={String(
+                        panelDay
+                          ? (panelDay as unknown as Record<string, number>)[
+                              row.key
+                            ]
+                          : 0,
+                      )}
                     />
                   </span>
-                  <DashboardLink to="/samples">View samples</DashboardLink>
                 </div>
+              ))}
+              <div className="pt-3 border-t border-[var(--color-card-border)] flex items-center justify-between text-xs text-[var(--color-text-muted)]">
+                <span className="font-mono font-bold text-[var(--color-text)]">
+                  <FadeValue value={String(panelDay?.total ?? 0)} />
+                </span>
+                <DashboardLink to="/samples">View samples</DashboardLink>
               </div>
-            ) : (
-              <EmptyState
-                message={
-                  t("dashboard.unavailable.samples") ||
-                  "Sample totals unavailable"
-                }
-              />
-            )}
+            </div>
           </Panel>
         </div>
       </div>
