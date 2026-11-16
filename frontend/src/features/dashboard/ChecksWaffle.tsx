@@ -55,7 +55,10 @@ export function ChecksWaffle({
     () => Math.max(0, ...days.map((d) => d.total)),
     [days],
   );
-  const bucket = maxTotal > 50 ? Math.ceil(maxTotal / 40) : 1;
+  // Veyla keeps the column height fixed: derive the bucket from the busiest
+  // day so the grid never grows past TARGET_ROWS tiles.
+  const TARGET_ROWS = 12;
+  const bucket = Math.max(1, Math.ceil(maxTotal / TARGET_ROWS));
   const rows = Math.min(
     40,
     Math.max(

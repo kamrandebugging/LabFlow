@@ -322,9 +322,9 @@ export function OwnerDashboardScreen(): ReactElement {
       </div>
 
       {/* Main Analysis Row: Checks per day Waffle Chart + Fixed Side Panel */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 gap-6">
         {/* Checks per day (Waffle Chart) */}
-        <div className="lg:col-span-2">
+        <div className="w-full">
           <Panel
             title="Checks per day"
             subtitle="Every tile is a batch of samples. Pick a day to read it."
@@ -355,74 +355,88 @@ export function OwnerDashboardScreen(): ReactElement {
             {waffleError ? (
               <EmptyState message="Sample history unavailable" />
             ) : (
-              <ChecksWaffle
-                days={waffleDays}
-                statusConfig={statusConfig}
-                unitLabel="sample"
-                onActiveDayChange={setActiveWaffleDay}
-              />
-            )}
-          </Panel>
-        </div>
+              <div className="grid grid-cols-1 xl:grid-cols-[1fr_230px] gap-5 items-start">
+                <ChecksWaffle
+                  days={waffleDays}
+                  statusConfig={statusConfig}
+                  unitLabel="sample"
+                  onActiveDayChange={setActiveWaffleDay}
+                />
 
-        {/* Fixed Side Panel: Today's Real Breakdown */}
-        <div>
-          <Panel
-            title={panelDay ? panelDay.label : "Samples by status"}
-            subtitle={
-              panelDay
-                ? `${panelDay.total} sample${panelDay.total === 1 ? "" : "s"} collected`
-                : "No samples in this range"
-            }
-          >
-            <div className="space-y-2.5">
-              {[
-                { key: "ready", label: "Passed", color: "var(--veyla-teal)" },
-                {
-                  key: "review",
-                  label: "Review",
-                  color: "rgba(18,16,17,0.55)",
-                },
-                {
-                  key: "declined",
-                  label: "Declined",
-                  color: "var(--veyla-black)",
-                },
-              ].map((row) => (
-                <div
-                  key={row.key}
-                  className="flex items-center justify-between p-2 rounded-xl bg-[var(--veyla-well)]/60 border border-[var(--color-card-border)] hover:bg-[var(--veyla-well)] transition-colors"
-                >
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <span
-                      className="w-2.5 h-2.5 rounded-full shrink-0"
-                      style={{ backgroundColor: row.color }}
-                      aria-hidden="true"
-                    />
-                    <span className="text-xs font-semibold text-[var(--color-text)] truncate">
-                      {row.label}
-                    </span>
+                {/* Veyla day summary — plain numbers, no boxes. */}
+                <div className="rounded-2xl bg-[var(--veyla-well)] p-4 flex flex-col gap-3 min-h-[220px]">
+                  <p className="text-[11px] font-medium text-[var(--color-text-muted)]">
+                    {panelDay
+                      ? `${panelDay.label} · so far`
+                      : "No samples in this range"}
+                  </p>
+                  <div>
+                    <p className="text-3xl font-extrabold tracking-tight text-[var(--color-text)] leading-none">
+                      <FadeValue value={String(panelDay?.total ?? 0)} />
+                    </p>
+                    <p className="text-[11px] text-[var(--color-text-muted)] mt-1">
+                      samples
+                    </p>
                   </div>
-                  <span className="text-xs font-mono font-bold text-[var(--color-text)] px-2 py-0.5 rounded-full bg-[var(--veyla-card)] border border-[var(--color-border)]">
-                    <FadeValue
-                      value={String(
-                        panelDay
-                          ? (panelDay as unknown as Record<string, number>)[
-                              row.key
-                            ]
-                          : 0,
-                      )}
-                    />
-                  </span>
+
+                  <div className="flex flex-col gap-2.5 mt-1">
+                    {[
+                      {
+                        key: "ready",
+                        label: "Passed",
+                        color: "var(--veyla-teal)",
+                      },
+                      {
+                        key: "review",
+                        label: "Review",
+                        color: "rgba(18,16,17,0.55)",
+                      },
+                      {
+                        key: "declined",
+                        label: "Declined",
+                        color: "var(--veyla-black)",
+                      },
+                    ].map((row) => {
+                      const total = panelDay?.total ?? 0;
+                      const value =
+                        (panelDay as unknown as Record<string, number>)?.[
+                          row.key
+                        ] ?? 0;
+                      const pct = total > 0 ? (value / total) * 100 : 0;
+                      return (
+                        <div
+                          key={row.key}
+                          className="flex items-start justify-between gap-2"
+                        >
+                          <div className="flex items-start gap-2 min-w-0">
+                            <span
+                              className="w-2.5 h-2.5 rounded-full shrink-0 mt-1"
+                              style={{ backgroundColor: row.color }}
+                              aria-hidden="true"
+                            />
+                            <div className="min-w-0">
+                              <p className="text-xs font-semibold text-[var(--color-text)] leading-tight">
+                                {row.label}
+                              </p>
+                              <p className="text-[10px] font-mono text-[var(--color-text-muted)] leading-tight">
+                                {pct.toFixed(1)}%
+                              </p>
+                            </div>
+                          </div>
+                          <span className="text-xs font-mono font-bold text-[var(--color-text)] shrink-0">
+                            <FadeValue value={String(value)} />
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div className="mt-auto pt-3 border-t border-[var(--color-border)] flex items-center justify-between text-[11px] text-[var(--color-text-muted)]">
+                    <DashboardLink to="/samples">View samples</DashboardLink>
+                  </div>
                 </div>
-              ))}
-              <div className="pt-3 border-t border-[var(--color-card-border)] flex items-center justify-between text-xs text-[var(--color-text-muted)]">
-                <span className="font-mono font-bold text-[var(--color-text)]">
-                  <FadeValue value={String(panelDay?.total ?? 0)} />
-                </span>
-                <DashboardLink to="/samples">View samples</DashboardLink>
               </div>
-            </div>
+            )}
           </Panel>
         </div>
       </div>
