@@ -16,7 +16,7 @@ import { useDialogFocus } from "../../lib/dialogFocus";
 import { FadeValue } from "../../components/ui/FadeValue";
 import styles from "./PatientForm.module.css";
 import { DuplicatePatientError, patientService } from "./patientService";
-import { PatientRegisterDrawer } from "./PatientRegisterDrawer";
+import { VeylaDrawer as PatientRegisterDrawer } from "./VeylaDrawer";
 import { calculatePatientAge } from "./patientAge";
 import type {
   PatientCandidate,

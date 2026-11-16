@@ -12,11 +12,8 @@ import {
 } from "lucide-react";
 import { messageForError } from "../../lib/errors";
 import { formatDate } from "../../lib/format";
-import { useAuthStore } from "../auth/authStore";
-import { settingsService } from "../settings/settingsService";
 import { patientService } from "./patientService";
-import { RegisterPatientScreen } from "./RegisterPatientScreen";
-import { PatientRegisterDrawer } from "./PatientRegisterDrawer";
+import { usePatientsDrawer } from "./patientsDrawerContext";
 import { calculatePatientAge } from "./patientAge";
 import type { PatientSummary } from "./types";
 import styles from "./PatientListScreen.module.css";
@@ -48,12 +45,16 @@ export const PatientListScreen: React.FC<PatientListScreenProps> = ({
   const [animateRows, setAnimateRows] = useState(false);
   const entrancePlayed = useRef(false);
 
-  // Veyla side drawer state.
-  const [isRegisterOpen, setIsRegisterOpen] = useState(false);
-  const [branchId, setBranchId] = useState<string | null>(null);
-  const [branchError, setBranchError] = useState<string | null>(null);
+  // Veyla side drawers are owned by the tenant shell so exactly one panel
+  // exists at a time, outside the animated page layers.
+  const {
+    openRegister,
+    setRegisterTrigger,
+    registerRevision,
+    openDetail,
+    setDetailTrigger,
+  } = usePatientsDrawer();
 
-  const user = useAuthStore((state) => state.user);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const newPatientButtonRef = useRef<HTMLButtonElement | null>(null);
 
@@ -90,33 +91,17 @@ export const PatientListScreen: React.FC<PatientListScreenProps> = ({
     return () => window.clearTimeout(timer);
   }, [isLoading]);
 
-  // Resolve the branch the patient is registered into. Mirrors the
-  // /patients/new route: the caller's own branch when branch-scoped,
-  // otherwise the main branch.
+  // Register the "New patient" button as the drawer's focus-return target.
   useEffect(() => {
-    if (!isRegisterOpen) return;
-    let active = true;
-    setBranchError(null);
+    setRegisterTrigger(newPatientButtonRef.current);
+  }, [setRegisterTrigger]);
 
-    settingsService
-      .getBranches()
-      .then((branches) => {
-        if (!active) return;
-        const preferred =
-          branches.find((b) => user?.branch_ids?.includes(b.id)) ??
-          branches.find((b) => b.code === "HQ1") ??
-          branches[0];
-        if (preferred) setBranchId(preferred.id);
-        else setBranchError("No active branch is available for registration.");
-      })
-      .catch(() => {
-        if (active) setBranchError("Could not load the branch list.");
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [isRegisterOpen, user?.branch_ids]);
+  // A successful registration refreshes the list behind the drawer; its
+  // scroll position, search query and filters are untouched.
+  useEffect(() => {
+    if (registerRevision === 0) return;
+    void fetchPatients(searchQuery);
+  }, [registerRevision, fetchPatients, searchQuery]);
 
   // "/" focuses the patient search field. Local to this screen.
   useEffect(() => {
@@ -146,17 +131,15 @@ export const PatientListScreen: React.FC<PatientListScreenProps> = ({
   };
 
   const openRegisterDrawer = () => {
-    setIsRegisterOpen(true);
+    openRegister();
   };
 
-  const closeRegisterDrawer = () => {
-    setIsRegisterOpen(false);
-  };
-
-  const handleRegistered = () => {
-    // Refresh the list behind the drawer; its scroll position, search query
-    // and filters are untouched.
-    void fetchPatients(searchQuery);
+  // Opening a record keeps the list mounted behind the drawer: scroll
+  // position, search query and filters are preserved.
+  const openPatient = (patientId: string, trigger: HTMLElement | null) => {
+    setDetailTrigger(trigger);
+    openDetail(patientId);
+    onSelectPatient?.(patientId);
   };
 
   const formatSex = (sex?: string) => {
@@ -341,6 +324,9 @@ export const PatientListScreen: React.FC<PatientListScreenProps> = ({
                     return (
                       <tr
                         key={patient.id}
+                        role="button"
+                        tabIndex={0}
+                        aria-label={patient.name}
                         className={`${styles.row} ${styles.rowClickable}${
                           animateRows ? ` ${styles.rowEnter}` : ""
                         }`}
@@ -351,7 +337,16 @@ export const PatientListScreen: React.FC<PatientListScreenProps> = ({
                               }
                             : undefined
                         }
-                        onClick={() => onSelectPatient?.(patient.id)}
+                        onClick={(event) =>
+                          openPatient(patient.id, event.currentTarget)
+                        }
+                        onKeyDown={(event) => {
+                          if (event.key !== "Enter" && event.key !== " ") {
+                            return;
+                          }
+                          event.preventDefault();
+                          openPatient(patient.id, event.currentTarget);
+                        }}
                       >
                         <td className={styles.td}>
                           <span className={styles.patientName}>
@@ -404,7 +399,10 @@ export const PatientListScreen: React.FC<PatientListScreenProps> = ({
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation();
-                              onSelectPatient?.(patient.id);
+                              openPatient(
+                                patient.id,
+                                e.currentTarget.closest("tr"),
+                              );
                             }}
                             className={styles.viewButton}
                           >
@@ -424,41 +422,6 @@ export const PatientListScreen: React.FC<PatientListScreenProps> = ({
           </div>
         </div>
       </div>
-
-      {/* Veyla side drawer — registration happens over the list. */}
-      {isRegisterOpen ? (
-        branchId ? (
-          <RegisterPatientScreen
-            variant="drawer"
-            branchId={branchId}
-            service={service}
-            onSuccess={handleRegistered}
-            onCancel={closeRegisterDrawer}
-          />
-        ) : (
-          <PatientRegisterDrawer
-            open
-            onClose={closeRegisterDrawer}
-            title={t("patients:register.title")}
-            subtitle={t("patients:register.iso_badge")}
-            triggerRef={newPatientButtonRef}
-          >
-            {branchError ? (
-              <div role="alert" className={styles.alert}>
-                <div className={styles.alertBody}>
-                  <AlertCircle
-                    className={styles.alertIcon}
-                    aria-hidden="true"
-                  />
-                  <span>{branchError}</span>
-                </div>
-              </div>
-            ) : (
-              <p className={styles.loading}>{t("common:empty.loading")}</p>
-            )}
-          </PatientRegisterDrawer>
-        )
-      ) : null}
     </div>
   );
 };

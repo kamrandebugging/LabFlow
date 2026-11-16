@@ -6,7 +6,7 @@ import { useDialogFocus } from "../../lib/dialogFocus";
 import { motionDurationMs, prefersReducedMotion } from "../../lib/motion";
 import styles from "./PatientForm.module.css";
 
-interface PatientRegisterDrawerProps {
+export interface VeylaDrawerProps {
   /** The drawer is mounted only while open; this drives the focus trap. */
   open: boolean;
   /** Called on Escape, the close button, or a backdrop click. */
@@ -15,6 +15,11 @@ interface PatientRegisterDrawerProps {
   title: string;
   /** Optional supporting line under the heading. */
   subtitle?: string;
+  /**
+   * Replaces the default heading block. Use it when the header carries more
+   * than a title (identity card, status chips, metadata).
+   */
+  header?: ReactNode;
   /**
    * The element that opened the drawer. Focus returns to it when the drawer
    * closes (WCAG 2.2 focus management).
@@ -26,6 +31,8 @@ interface PatientRegisterDrawerProps {
    * before the nested dialog could.
    */
   suspendFocusTrap?: boolean;
+  /** Panel width. The register form needs room; the record drawer is narrow. */
+  width?: "wide" | "narrow";
   /** Form body. */
   children: ReactNode;
   /** Sticky footer actions. */
@@ -33,23 +40,30 @@ interface PatientRegisterDrawerProps {
 }
 
 /**
- * Veyla side-panel drawer: a right-hand panel over the patient list.
+ * Veyla side-panel drawer: a right-hand panel over the page behind it.
  *
- * The list underneath keeps its scroll position, search query and filters
- * while a patient is being registered, which is what the reception desk
- * needs when registering a queue of patients.
+ * This is the single drawer primitive in the tenant app. The register form
+ * and the patient record drawer both use it, so there is exactly one panel,
+ * one backdrop and one focus trap in the DOM at any time.
+ *
+ * The drawer must be mounted OUTSIDE any element that is transformed during
+ * the page transition. A transformed ancestor turns `position: fixed`
+ * descendants into viewport-relative boxes, which is what used to push the
+ * panel off-screen and clip its backdrop while the page was cross-fading.
  *
  * Focus management is delegated to the shared `useDialogFocus` hook, which
  * traps Tab inside the panel, closes on Escape and restores focus to the
  * trigger on close.
  */
-export const PatientRegisterDrawer: React.FC<PatientRegisterDrawerProps> = ({
+export const VeylaDrawer: React.FC<VeylaDrawerProps> = ({
   open,
   onClose,
   title,
   subtitle,
+  header,
   triggerRef,
   suspendFocusTrap = false,
+  width = "wide",
   children,
   footer,
 }) => {
@@ -94,7 +108,7 @@ export const PatientRegisterDrawer: React.FC<PatientRegisterDrawerProps> = ({
     requestClose,
     triggerRef,
   );
-  const headingId = "patient-register-drawer-title";
+  const headingId = "veyla-drawer-title";
 
   if (!open) return null;
 
@@ -113,19 +127,25 @@ export const PatientRegisterDrawer: React.FC<PatientRegisterDrawerProps> = ({
         tabIndex={-1}
         role="dialog"
         aria-modal="true"
-        aria-labelledby={headingId}
+        aria-labelledby={header ? undefined : headingId}
+        aria-label={header ? title : undefined}
         data-state={isClosing ? "closing" : "open"}
+        data-width={width}
         className={`${styles.drawerPanel} veyla-drawer-panel`}
       >
         <header className={styles.drawerHeader}>
-          <div className={styles.drawerHeading}>
-            <h2 id={headingId} className={styles.drawerTitle}>
-              {title}
-            </h2>
-            {subtitle ? (
-              <span className={styles.drawerSubtitle}>{subtitle}</span>
-            ) : null}
-          </div>
+          {header ? (
+            header
+          ) : (
+            <div className={styles.drawerHeading}>
+              <h2 id={headingId} className={styles.drawerTitle}>
+                {title}
+              </h2>
+              {subtitle ? (
+                <span className={styles.drawerSubtitle}>{subtitle}</span>
+              ) : null}
+            </div>
+          )}
           <button
             type="button"
             onClick={requestClose}
@@ -147,4 +167,4 @@ export const PatientRegisterDrawer: React.FC<PatientRegisterDrawerProps> = ({
   );
 };
 
-export default PatientRegisterDrawer;
+export default VeylaDrawer;

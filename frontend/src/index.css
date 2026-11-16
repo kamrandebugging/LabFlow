@@ -77,6 +77,41 @@
   font-display: swap;
 }
 
+/* ============================================================
+   Self-hosted icon font — Material Symbols Outlined, subset to the
+   icons this app actually uses. The icons are ligature text, so the
+   font MUST be available locally: when it came from a CDN and the
+   CDN was unreachable, the raw ligature names ("personal_injury",
+   "receipt_long", ...) rendered as visible text over the page.
+   Source: Google Fonts CSS2 API with an explicit icon_names list.
+   ============================================================ */
+@font-face {
+  font-family: "Material Symbols Outlined";
+  src: url("/fonts/MaterialSymbolsOutlined-subset.woff2") format("woff2");
+  font-weight: 100 700;
+  font-style: normal;
+  font-display: block;
+}
+
+/* The icon class itself used to come from the Google Fonts stylesheet.
+   It is declared here now that the stylesheet is no longer linked. */
+.material-symbols-outlined {
+  font-family: "Material Symbols Outlined";
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-feature-settings: "liga";
+  font-feature-settings: "liga";
+  -webkit-font-smoothing: antialiased;
+}
+
 /* Per-locale line-height token (Doc 07 §9.2): Urdu is looser than English.
    Set once here, never per screen. */
 html {

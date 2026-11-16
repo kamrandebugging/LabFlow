@@ -1,11 +1,6 @@
 import type { ReactElement } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  Link,
-  Navigate,
-  useLocation,
-  useNavigate,
-} from "react-router-dom";
+import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 
 import { useAuthStore } from "../auth/authStore";
@@ -29,6 +24,7 @@ import { reportsService } from "../reports/reportsService";
 import { resultsService } from "../results/resultsService";
 import { LanguageSwitcher } from "../../components/LanguageSwitcher";
 import { revealThemeChange } from "../../lib/motion";
+import { PatientsDrawerProvider } from "../patients/PatientDrawerHost";
 import { PageTransition } from "./PageTransition";
 
 const DESK_PATHS = [
@@ -99,9 +95,9 @@ export function TenantLayout(): ReactElement {
   // Group permitted items Veyla-style: DESK (daily work) vs CONTROLS (config)
   const deskNav = useMemo(() => {
     const all = [...navigation.operations, ...navigation.management];
-    return DESK_PATHS.map((path) => all.find((item) => item.to === path)).filter(
-      (item): item is NavItem => Boolean(item),
-    );
+    return DESK_PATHS.map((path) =>
+      all.find((item) => item.to === path),
+    ).filter((item): item is NavItem => Boolean(item));
   }, [navigation]);
 
   const controlsNav = useMemo(() => {
@@ -194,21 +190,36 @@ export function TenantLayout(): ReactElement {
   // Compute breadcrumb label
   const breadcrumb = useMemo(() => {
     const p = location.pathname;
-    if (p === "/") return { section: "Desk", page: t("nav.home") || "Overview" };
-    if (p.startsWith("/patients")) return { section: "Desk", page: t("nav.patients") };
-    if (p.startsWith("/invoices")) return { section: "Desk", page: t("nav.invoices") };
-    if (p.startsWith("/samples")) return { section: "Desk", page: t("nav.samples") };
-    if (p.startsWith("/worklist")) return { section: "Desk", page: t("nav.worklist") };
-    if (p.startsWith("/results")) return { section: "Desk", page: t("nav.approvals") };
-    if (p.startsWith("/exceptions")) return { section: "Desk", page: t("nav.exceptions") };
-    if (p.startsWith("/reports")) return { section: "Controls", page: t("nav.reports") };
-    if (p.startsWith("/catalog")) return { section: "Controls", page: t("nav.catalog") };
-    if (p.startsWith("/settings/staff")) return { section: "Controls", page: t("nav.staff") };
-    if (p.startsWith("/settings/branches")) return { section: "Controls", page: t("nav.branches") };
-    if (p.startsWith("/settings/account")) return { section: "Controls", page: t("nav.account") };
-    if (p.startsWith("/settings")) return { section: "Controls", page: t("nav.settings") };
-    if (p.startsWith("/settlements")) return { section: "Controls", page: t("nav.settlements") };
-    if (p.startsWith("/partners")) return { section: "Controls", page: t("nav.partners") };
+    if (p === "/")
+      return { section: "Desk", page: t("nav.home") || "Overview" };
+    if (p.startsWith("/patients"))
+      return { section: "Desk", page: t("nav.patients") };
+    if (p.startsWith("/invoices"))
+      return { section: "Desk", page: t("nav.invoices") };
+    if (p.startsWith("/samples"))
+      return { section: "Desk", page: t("nav.samples") };
+    if (p.startsWith("/worklist"))
+      return { section: "Desk", page: t("nav.worklist") };
+    if (p.startsWith("/results"))
+      return { section: "Desk", page: t("nav.approvals") };
+    if (p.startsWith("/exceptions"))
+      return { section: "Desk", page: t("nav.exceptions") };
+    if (p.startsWith("/reports"))
+      return { section: "Controls", page: t("nav.reports") };
+    if (p.startsWith("/catalog"))
+      return { section: "Controls", page: t("nav.catalog") };
+    if (p.startsWith("/settings/staff"))
+      return { section: "Controls", page: t("nav.staff") };
+    if (p.startsWith("/settings/branches"))
+      return { section: "Controls", page: t("nav.branches") };
+    if (p.startsWith("/settings/account"))
+      return { section: "Controls", page: t("nav.account") };
+    if (p.startsWith("/settings"))
+      return { section: "Controls", page: t("nav.settings") };
+    if (p.startsWith("/settlements"))
+      return { section: "Controls", page: t("nav.settlements") };
+    if (p.startsWith("/partners"))
+      return { section: "Controls", page: t("nav.partners") };
     return { section: "Desk", page: "Overview" };
   }, [location.pathname, t]);
 
@@ -268,7 +279,9 @@ export function TenantLayout(): ReactElement {
               <Link
                 key={item.to}
                 to={item.to}
-                title={isSidebarCollapsed ? t(`nav.${item.labelKey}`) : undefined}
+                title={
+                  isSidebarCollapsed ? t(`nav.${item.labelKey}`) : undefined
+                }
                 onClick={() => setIsMobileMenuOpen(false)}
                 className={`group flex items-center justify-between px-3 py-2 rounded-full text-xs font-semibold transition-colors ${
                   active
@@ -284,7 +297,9 @@ export function TenantLayout(): ReactElement {
                     {item.icon}
                   </span>
                   {!isSidebarCollapsed ? (
-                    <span className="truncate">{t(`nav.${item.labelKey}`)}</span>
+                    <span className="truncate">
+                      {t(`nav.${item.labelKey}`)}
+                    </span>
                   ) : null}
                 </div>
                 {!isSidebarCollapsed ? (
@@ -374,7 +389,9 @@ export function TenantLayout(): ReactElement {
           <button
             type="button"
             onClick={() => setIsSidebarCollapsed((prev) => !prev)}
-            aria-label={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            aria-label={
+              isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"
+            }
             className="hidden lg:flex w-7 h-7 rounded-full items-center justify-center text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--veyla-well)] transition-colors"
           >
             <span
@@ -483,10 +500,17 @@ export function TenantLayout(): ReactElement {
               </span>
             </button>
 
-            <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-xs text-[var(--color-text-muted)] truncate">
-              <span className="font-semibold text-[var(--color-text)]">{breadcrumb.section}</span>
+            <nav
+              aria-label="Breadcrumb"
+              className="flex items-center gap-1.5 text-xs text-[var(--color-text-muted)] truncate"
+            >
+              <span className="font-semibold text-[var(--color-text)]">
+                {breadcrumb.section}
+              </span>
               <span>/</span>
-              <span className="text-[var(--color-text-muted)] truncate">{breadcrumb.page}</span>
+              <span className="text-[var(--color-text-muted)] truncate">
+                {breadcrumb.page}
+              </span>
             </nav>
           </div>
 
@@ -575,7 +599,9 @@ export function TenantLayout(): ReactElement {
 
         {/* Content Outlet — only the content area animates on navigation. */}
         <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto">
-          <PageTransition />
+          <PatientsDrawerProvider>
+            <PageTransition />
+          </PatientsDrawerProvider>
         </main>
       </div>
 

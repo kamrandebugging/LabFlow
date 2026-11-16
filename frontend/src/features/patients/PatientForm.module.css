@@ -143,6 +143,13 @@
     width: 50vw;
     max-width: 760px;
   }
+
+  /* The patient record drawer is a reading panel, not a form: 500px sits
+     inside the 480–520px Veyla range. */
+  .drawerPanel[data-width="narrow"] {
+    width: 500px;
+    max-width: 500px;
+  }
 }
 
 .drawerHeader {

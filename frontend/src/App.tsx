@@ -16,8 +16,8 @@ import { clearNoticeDismissals } from "./features/auth/postLoginNotice";
 import { TenantEnrollScreen } from "./features/auth/TenantEnrollScreen";
 import { TwoFactorAuthScreen } from "./features/auth/TwoFactorAuthScreen";
 import { PatientListScreen } from "./features/patients/PatientListScreen";
+import { usePatientsDrawer } from "./features/patients/patientsDrawerContext";
 import { RegisterPatientScreen } from "./features/patients/RegisterPatientScreen";
-import { PatientDetailsScreen } from "./features/patients/PatientDetailsScreen";
 import { PatientEditScreen } from "./features/patients/PatientEditScreen";
 import { PatientHistoryScreen } from "./features/patients/PatientHistoryScreen";
 import { TestCatalogScreen } from "./features/catalog/TestCatalogScreen";
@@ -227,14 +227,35 @@ function TwoFactorAuthWrapper(): JSX.Element {
 }
 
 function PatientListWrapper(): JSX.Element {
-  const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
   const canRegister = canAccessPath(user?.role, "/patients/new");
   return (
     <main className="min-h-screen bg-slate-50">
       <PatientListScreen
-        onNewPatient={canRegister ? () => navigate("/patients/new") : undefined}
-        onSelectPatient={(id) => navigate(`/patients/${id}`)}
+        onNewPatient={canRegister ? () => undefined : undefined}
+      />
+    </main>
+  );
+}
+
+/**
+ * Direct load of /patients/:id must show the list with the record drawer
+ * already open, not a full-page record. The list stays mounted behind it.
+ */
+function PatientDetailRouteWrapper(): JSX.Element {
+  const { id } = useParams<{ id: string }>();
+  const { openDetail } = usePatientsDrawer();
+  const user = useAuthStore((state) => state.user);
+  const canRegister = canAccessPath(user?.role, "/patients/new");
+
+  useEffect(() => {
+    if (id) openDetail(id);
+  }, [id, openDetail]);
+
+  return (
+    <main className="min-h-screen bg-slate-50">
+      <PatientListScreen
+        onNewPatient={canRegister ? () => undefined : undefined}
       />
     </main>
   );
@@ -283,29 +304,6 @@ function RegisterPatientWrapper(): JSX.Element {
           {branchError ?? "Loading branch…"}
         </div>
       )}
-    </main>
-  );
-}
-
-function PatientDetailsWrapper(): JSX.Element {
-  const navigate = useNavigate();
-  const { id } = useParams<{ id: string }>();
-  const user = useAuthStore((state) => state.user);
-  const canManage = canAccessPath(user?.role, `/patients/${id}/edit`);
-  const canDelete = user?.role === "owner" || user?.role === "manager";
-  return (
-    <main className="min-h-screen bg-slate-50 py-6">
-      <PatientDetailsScreen
-        patientId={id || ""}
-        canManage={canManage}
-        canDelete={canDelete}
-        onBack={() => navigate("/patients")}
-        onEdit={(patientId) => navigate(`/patients/${patientId}/edit`)}
-        onViewHistory={(patientId) =>
-          navigate(`/patients/${patientId}/history`)
-        }
-        onNewVisit={() => navigate("/patients")}
-      />
     </main>
   );
 }
@@ -763,7 +761,7 @@ function App(): JSX.Element {
           />
           <Route path="/patients" element={<PatientListWrapper />} />
           <Route path="/patients/new" element={<RegisterPatientWrapper />} />
-          <Route path="/patients/:id" element={<PatientDetailsWrapper />} />
+          <Route path="/patients/:id" element={<PatientDetailRouteWrapper />} />
           <Route path="/patients/:id/edit" element={<PatientEditWrapper />} />
           <Route
             path="/patients/:id/history"
