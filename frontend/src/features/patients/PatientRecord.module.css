@@ -850,3 +850,61 @@
     flex-wrap: wrap;
   }
 }
+
+/* ---------------------------------------------------------------- drawer tabs --
+   Segmented control at the top of the record drawer. Pill geometry, Veyla
+   tokens only, near-black active state like the sidebar.
+   ----------------------------------------------------------------------------- */
+.drawerTabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 999px;
+  background: var(--veyla-well);
+  border: 1px solid var(--color-border);
+}
+
+.drawerTab {
+  min-height: 34px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition:
+    background-color var(--motion-fast) var(--ease-out),
+    color var(--motion-fast) var(--ease-out);
+}
+
+.drawerTab:hover {
+  color: var(--color-text);
+}
+
+.drawerTab:focus-visible {
+  outline: 2px solid var(--color-accent-text);
+  outline-offset: 2px;
+}
+
+.drawerTabActive,
+.drawerTabActive:hover {
+  background: var(--veyla-black);
+  color: var(--color-surface);
+  box-shadow: var(--shadow-veyla-pill);
+}
+
+[data-theme="dark"] .drawerTabActive,
+[data-theme="dark"] .drawerTabActive:hover {
+  background: var(--color-surface);
+  color: var(--veyla-black);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .drawerTab {
+    transition: none;
+  }
+}

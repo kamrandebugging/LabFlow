@@ -69,6 +69,8 @@
     "registered": "رجسٹرڈ",
     "id": "ID",
     "audit_history": "آڈٹ ہسٹری",
+    "tab_overview": "\u062e\u0644\u0627\u0635\u06c1",
+    "tab_history": "\u062a\u0627\u0631\u06cc\u062e",
     "new_accession": "+ نیا accession",
     "delete_patient_aria": "مریض حذف کریں",
     "confirm_delete": "کیا آپ واقعی اس مریض کا ریکارڈ حذف کرنا چاہتے ہیں؟",

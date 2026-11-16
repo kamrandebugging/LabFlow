@@ -18,12 +18,18 @@ interface PatientHistoryScreenProps {
   patientId: string;
   onBack?: () => void;
   service?: typeof patientService;
+  /**
+   * "page" is the standalone history route. "drawer" renders only the audit
+   * notice and the timeline, for the record drawer's History tab.
+   */
+  variant?: "page" | "drawer";
 }
 
 export const PatientHistoryScreen: React.FC<PatientHistoryScreenProps> = ({
   patientId,
   onBack,
   service = patientService,
+  variant = "page",
 }) => {
   const { t } = useTranslation(["patients", "common"]);
   const [patient, setPatient] = useState<PatientDetail | null>(null);
@@ -83,6 +89,105 @@ export const PatientHistoryScreen: React.FC<PatientHistoryScreenProps> = ({
     );
   }
 
+  const notice = (
+    <div className={styles.notice}>
+      <Activity className={styles.noticeIcon} aria-hidden="true" />
+      <div className={styles.noticeText}>
+        <span className={styles.noticeLabel}>
+          {t("patients:history.ledger_scope_label")}
+        </span>{" "}
+        <Trans
+          i18nKey="patients:history.ledger_scope_body"
+          values={{ mrn: patient.mrn }}
+          components={{
+            strong: <strong dir="ltr" className={styles.inlineMono} />,
+          }}
+        />
+      </div>
+    </div>
+  );
+
+  const timeline = (
+    <div className={styles.timeline}>
+      {/* Registration event */}
+      <div className={styles.event}>
+        <div className={styles.eventHead}>
+          <div className={styles.eventTitleRow}>
+            <span className={styles.dot} aria-hidden="true" />
+            <span className={styles.eventTitle}>
+              {t("patients:history.event_registration")}
+            </span>
+          </div>
+          <span className={styles.eventDate}>
+            <bdi dir="ltr">{formatDate(patient.created_at)}</bdi>
+          </span>
+        </div>
+
+        <div className={styles.eventGrid}>
+          <div className={styles.field}>
+            <span className={styles.eventLabel}>
+              {t("patients:history.system_mrn")}
+            </span>
+            <span className={styles.monoValue}>
+              <bdi dir="ltr">{patient.mrn}</bdi>
+            </span>
+          </div>
+          <div className={styles.field}>
+            <span className={styles.eventLabel}>
+              {t("patients:history.home_branch")}
+            </span>
+            <span className={styles.eventValue}>
+              {patient.branch_name || t("patients:main_branch")}
+            </span>
+          </div>
+          <div className={styles.field}>
+            <span className={styles.eventLabel}>
+              {t("patients:history.iso_status")}
+            </span>
+            <span className={styles.verified}>
+              <CheckCircle2 className={styles.statusIcon} aria-hidden="true" />
+              {t("patients:history.verified_active")}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Subsequent visit summary card */}
+      <div className={styles.event}>
+        <div className={styles.eventHead}>
+          <div className={styles.eventTitleRow}>
+            <span className={styles.dotMuted} aria-hidden="true" />
+            <span className={styles.eventTitle}>
+              {t("patients:history.event_visit")}
+            </span>
+          </div>
+          <span className={styles.eventDate}>
+            {patient.last_visit ? (
+              <bdi dir="ltr">{patient.last_visit}</bdi>
+            ) : (
+              t("patients:history.recent_visit")
+            )}
+          </span>
+        </div>
+
+        <div className={styles.note}>{t("patients:history.visit_note")}</div>
+      </div>
+    </div>
+  );
+
+  /* -------------------------------------------------------------- drawer -- */
+
+  if (variant === "drawer") {
+    return (
+      <>
+        {notice}
+        {timeline}
+      </>
+    );
+  }
+
+  /* ---------------------------------------------------------------- page -- */
+
   return (
     <div className={styles.page}>
       <div className={styles.container}>
@@ -141,94 +246,8 @@ export const PatientHistoryScreen: React.FC<PatientHistoryScreenProps> = ({
           </div>
         </div>
 
-        {/* Info notice */}
-        <div className={styles.notice}>
-          <Activity className={styles.noticeIcon} aria-hidden="true" />
-          <div className={styles.noticeText}>
-            <span className={styles.noticeLabel}>
-              {t("patients:history.ledger_scope_label")}
-            </span>{" "}
-            <Trans
-              i18nKey="patients:history.ledger_scope_body"
-              values={{ mrn: patient.mrn }}
-              components={{
-                strong: <strong dir="ltr" className={styles.inlineMono} />,
-              }}
-            />
-          </div>
-        </div>
-
-        {/* Timeline of Clinical Episodes */}
-        <div className={styles.timeline}>
-          {/* Registration event */}
-          <div className={styles.event}>
-            <div className={styles.eventHead}>
-              <div className={styles.eventTitleRow}>
-                <span className={styles.dot} aria-hidden="true" />
-                <span className={styles.eventTitle}>
-                  {t("patients:history.event_registration")}
-                </span>
-              </div>
-              <span className={styles.eventDate}>
-                <bdi dir="ltr">{formatDate(patient.created_at)}</bdi>
-              </span>
-            </div>
-
-            <div className={styles.eventGrid}>
-              <div className={styles.field}>
-                <span className={styles.eventLabel}>
-                  {t("patients:history.system_mrn")}
-                </span>
-                <span className={styles.monoValue}>
-                  <bdi dir="ltr">{patient.mrn}</bdi>
-                </span>
-              </div>
-              <div className={styles.field}>
-                <span className={styles.eventLabel}>
-                  {t("patients:history.home_branch")}
-                </span>
-                <span className={styles.eventValue}>
-                  {patient.branch_name || t("patients:main_branch")}
-                </span>
-              </div>
-              <div className={styles.field}>
-                <span className={styles.eventLabel}>
-                  {t("patients:history.iso_status")}
-                </span>
-                <span className={styles.verified}>
-                  <CheckCircle2
-                    className={styles.statusIcon}
-                    aria-hidden="true"
-                  />
-                  {t("patients:history.verified_active")}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Subsequent visit summary card */}
-          <div className={styles.event}>
-            <div className={styles.eventHead}>
-              <div className={styles.eventTitleRow}>
-                <span className={styles.dotMuted} aria-hidden="true" />
-                <span className={styles.eventTitle}>
-                  {t("patients:history.event_visit")}
-                </span>
-              </div>
-              <span className={styles.eventDate}>
-                {patient.last_visit ? (
-                  <bdi dir="ltr">{patient.last_visit}</bdi>
-                ) : (
-                  t("patients:history.recent_visit")
-                )}
-              </span>
-            </div>
-
-            <div className={styles.note}>
-              {t("patients:history.visit_note")}
-            </div>
-          </div>
-        </div>
+        {notice}
+        {timeline}
       </div>
     </div>
   );

@@ -69,6 +69,8 @@
     "registered": "Registered",
     "id": "ID",
     "audit_history": "Audit history",
+    "tab_overview": "Overview",
+    "tab_history": "History",
     "new_accession": "+ New accession",
     "delete_patient_aria": "Delete patient",
     "confirm_delete": "Are you sure you want to soft-delete this patient record?",

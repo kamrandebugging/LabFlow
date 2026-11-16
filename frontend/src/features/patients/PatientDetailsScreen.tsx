@@ -19,6 +19,7 @@ import { useDialogFocus } from "../../lib/dialogFocus";
 import styles from "./PatientRecord.module.css";
 import { patientService } from "./patientService";
 import { VeylaDrawer } from "./VeylaDrawer";
+import { PatientHistoryScreen } from "./PatientHistoryScreen";
 import type { PatientDetail } from "./types";
 
 interface PatientDetailsScreenProps {
@@ -34,6 +35,9 @@ interface PatientDetailsScreenProps {
   service?: typeof patientService;
   /** Element focus returns to when the drawer closes (drawer variant). */
   triggerRef?: React.RefObject<HTMLElement>;
+  /** Which drawer tab is showing. Drawer variant only. */
+  tab?: "overview" | "history";
+  onTabChange?: (tab: "overview" | "history") => void;
   /**
    * "page" is the standalone record route. "drawer" renders the same record
    * inside the shared Veyla side drawer over the patient list.
@@ -52,6 +56,8 @@ export const PatientDetailsScreen: React.FC<PatientDetailsScreenProps> = ({
   service = patientService,
   variant = "page",
   triggerRef,
+  tab = "overview",
+  onTabChange,
 }) => {
   const { t } = useTranslation(["patients", "common"]);
   const [patient, setPatient] = useState<PatientDetail | null>(null);
@@ -388,7 +394,54 @@ export const PatientDetailsScreen: React.FC<PatientDetailsScreenProps> = ({
           triggerRef={triggerRef}
         >
           <div className={styles.drawerShell}>
-            {isLoading ? loadingBlock : error || !patient ? errorBlock : cards}
+            {isLoading || error || !patient ? (
+              isLoading ? (
+                loadingBlock
+              ) : (
+                errorBlock
+              )
+            ) : (
+              <>
+                <div
+                  className={styles.drawerTabs}
+                  role="tablist"
+                  aria-label={t("patients:details.tab_overview")}
+                >
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={tab === "overview"}
+                    onClick={() => onTabChange?.("overview")}
+                    className={`${styles.drawerTab} ${
+                      tab === "overview" ? styles.drawerTabActive : ""
+                    }`}
+                  >
+                    {t("patients:details.tab_overview")}
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={tab === "history"}
+                    onClick={() => onTabChange?.("history")}
+                    className={`${styles.drawerTab} ${
+                      tab === "history" ? styles.drawerTabActive : ""
+                    }`}
+                  >
+                    {t("patients:details.tab_history")}
+                  </button>
+                </div>
+
+                {tab === "history" ? (
+                  <PatientHistoryScreen
+                    variant="drawer"
+                    patientId={patientId}
+                    service={service}
+                  />
+                ) : (
+                  cards
+                )}
+              </>
+            )}
             {deleteError && (
               <div role="alert" className={styles.alert}>
                 <AlertCircle className={styles.statusIcon} aria-hidden="true" />

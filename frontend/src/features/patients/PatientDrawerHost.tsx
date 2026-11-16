@@ -53,6 +53,9 @@ export function PatientsDrawerProvider({
 
   const [detailPatientId, setDetailPatientId] = useState<string | null>(null);
   const [detailMode, setDetailMode] = useState<"view" | "edit">("view");
+  const [detailTab, setDetailTab] = useState<"overview" | "history">(
+    "overview",
+  );
   const [detailRevision, setDetailRevision] = useState(0);
   const detailTriggerRef = useRef<HTMLElement | null>(null);
 
@@ -64,6 +67,7 @@ export function PatientsDrawerProvider({
 
   const openDetail = useCallback((patientId: string) => {
     setDetailMode("view");
+    setDetailTab("overview");
     setDetailPatientId(patientId);
     // Update the address bar without a router navigation, so the page
     // transition does not replay. Direct loads of the same URL are handled
@@ -143,6 +147,8 @@ export function PatientsDrawerProvider({
       <DetailDrawerHost
         patientId={detailPatientId}
         mode={detailMode}
+        tab={detailTab}
+        onTabChange={setDetailTab}
         revision={detailRevision}
         triggerRef={detailTriggerRef}
         onClose={closeDetail}
@@ -245,6 +251,8 @@ export function RegisterDrawerHost({
 interface DetailDrawerHostProps {
   patientId: string | null;
   mode: "view" | "edit";
+  tab: "overview" | "history";
+  onTabChange: (tab: "overview" | "history") => void;
   revision: number;
   triggerRef: React.MutableRefObject<HTMLElement | null>;
   onClose: () => void;
@@ -257,6 +265,8 @@ interface DetailDrawerHostProps {
 function DetailDrawerHost({
   patientId,
   mode,
+  tab,
+  onTabChange,
   revision,
   triggerRef,
   onClose,
@@ -293,7 +303,9 @@ function DetailDrawerHost({
       triggerRef={triggerRef}
       onBack={onClose}
       onEdit={onEdit}
-      onViewHistory={(id) => navigate(`/patients/${id}/history`)}
+      tab={tab}
+      onTabChange={onTabChange}
+      onViewHistory={() => onTabChange("history")}
       onNewVisit={() => {
         onClose();
         navigate("/patients");
