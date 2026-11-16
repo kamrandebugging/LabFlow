@@ -72,10 +72,11 @@
 
 .grid {
   display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: 30px;
-  gap: 8px;
-  min-width: 320px;
+  /* One flexible column per day: the tile grows with the column, the gap
+     stays 5px. No fixed pixel column or tile size anywhere. */
+  grid-template-columns: repeat(var(--waffle-cols, 7), minmax(0, 1fr));
+  gap: 5px;
+  width: 100%;
   transition: opacity var(--motion-fast) var(--ease-out);
 }
 
@@ -130,8 +131,11 @@
 }
 
 .tile {
-  width: 26px;
-  height: 26px;
+  /* Square, driven by the column width, capped so a 7-day column (1fr on a
+     wide card) cannot blow the card up to a thousand pixels tall. */
+  width: 100%;
+  max-width: 26px;
+  aspect-ratio: 1 / 1;
   border-radius: 3px;
   display: block;
   flex: 0 0 auto;
@@ -143,6 +147,16 @@
   font-weight: 600;
   color: var(--color-text-muted);
   white-space: nowrap;
+  align-self: stretch;
+  text-align: center;
+}
+
+.col:first-child .dayLabel {
+  text-align: start;
+}
+
+.col:last-child .dayLabel {
+  text-align: end;
 }
 
 .tooltip {

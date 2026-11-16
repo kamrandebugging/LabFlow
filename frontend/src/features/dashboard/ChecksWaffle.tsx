@@ -123,7 +123,10 @@ export function ChecksWaffle({
       <div className={styles.scroller} onMouseLeave={() => setActive(null)}>
         <div
           className={`${styles.grid} ${leaving ? styles.gridOut : ""}`}
-          style={{ ["--waffle-rows" as string]: rows }}
+          style={{
+            ["--waffle-cols" as string]: renderedDays.length,
+            ["--waffle-rows" as string]: rows,
+          }}
         >
           {renderedDays.map((day, index) => {
             const filled = Math.min(rows, Math.ceil(day.total / bucket));
@@ -192,7 +195,17 @@ export function ChecksWaffle({
                   ))}
                 </div>
 
-                <span className={styles.dayLabel}>{day.label}</span>
+                <span className={styles.dayLabel}>
+                  {index %
+                    (renderedDays.length > 20
+                      ? 5
+                      : renderedDays.length > 10
+                        ? 2
+                        : 1) ===
+                    0 || index === renderedDays.length - 1
+                    ? day.label
+                    : "\u00A0"}
+                </span>
               </div>
             );
           })}
