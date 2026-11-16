@@ -23,7 +23,6 @@ import {
   PatientsDrawerContext,
   type PatientsDrawerContextValue,
 } from "./patientsDrawerContext";
-import styles from "./PatientForm.module.css";
 import listStyles from "./PatientListScreen.module.css";
 
 interface PatientsDrawerProviderProps {
@@ -190,7 +189,6 @@ export function RegisterDrawerHost({
   const [branchError, setBranchError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!open) return;
     let active = true;
     setBranchError(null);
 
@@ -212,38 +210,46 @@ export function RegisterDrawerHost({
     return () => {
       active = false;
     };
-  }, [open, user?.branch_ids]);
+  }, [user?.branch_ids]);
 
   if (!open) return null;
 
-  return branchId ? (
-    <RegisterPatientScreen
-      variant="drawer"
-      branchId={branchId}
-      service={patientService}
-      onSuccess={onRegistered}
-      onCancel={onClose}
-    />
-  ) : (
-    <VeylaDrawer
-      open
-      onClose={onClose}
-      title={t("patients:register.title")}
-      subtitle={t("patients:register.iso_badge")}
-      triggerRef={triggerRef}
-    >
-      {branchError ? (
+  // The form owns the drawer. Rendering a placeholder drawer while the branch
+  // list resolves made the panel animate in twice: once empty, then again with
+  // the form. Resolve the branch first (prefetched above) and mount the drawer
+  // once.
+  if (branchId) {
+    return (
+      <RegisterPatientScreen
+        variant="drawer"
+        branchId={branchId}
+        service={patientService}
+        onSuccess={onRegistered}
+        onCancel={onClose}
+      />
+    );
+  }
+
+  if (branchError) {
+    return (
+      <VeylaDrawer
+        open
+        onClose={onClose}
+        title={t("patients:register.title")}
+        subtitle={t("patients:register.iso_badge")}
+        triggerRef={triggerRef}
+      >
         <div role="alert" className={listStyles.alert}>
           <div className={listStyles.alertBody}>
             <AlertCircle className={listStyles.alertIcon} aria-hidden="true" />
             <span>{branchError}</span>
           </div>
         </div>
-      ) : (
-        <p className={styles.drawerLoading}>{t("common:empty.loading")}</p>
-      )}
-    </VeylaDrawer>
-  );
+      </VeylaDrawer>
+    );
+  }
+
+  return null;
 }
 
 /* --------------------------------------------------------- detail drawer -- */

@@ -89,6 +89,8 @@ export const PatientHistoryScreen: React.FC<PatientHistoryScreenProps> = ({
     );
   }
 
+  // Legacy page variant only. The record drawer intentionally omits this
+  // banner: the drawer header already carries the identity and MRN.
   const notice = (
     <div className={styles.notice}>
       <Activity className={styles.noticeIcon} aria-hidden="true" />
@@ -178,12 +180,7 @@ export const PatientHistoryScreen: React.FC<PatientHistoryScreenProps> = ({
   /* -------------------------------------------------------------- drawer -- */
 
   if (variant === "drawer") {
-    return (
-      <>
-        {notice}
-        {timeline}
-      </>
-    );
+    return timeline;
   }
 
   /* ---------------------------------------------------------------- page -- */
