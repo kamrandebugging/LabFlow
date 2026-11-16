@@ -1,6 +1,8 @@
 import { createContext, useContext } from "react";
 
 export interface PatientsDrawerContextValue {
+  /** False when no shell provider is mounted (standalone render). */
+  hasProvider: boolean;
   /** Register-patient drawer. */
   registerOpen: boolean;
   openRegister: () => void;
@@ -24,6 +26,7 @@ export interface PatientsDrawerContextValue {
 const noop = () => undefined;
 
 export const PatientsDrawerContext = createContext<PatientsDrawerContextValue>({
+  hasProvider: false,
   registerOpen: false,
   openRegister: noop,
   closeRegister: noop,

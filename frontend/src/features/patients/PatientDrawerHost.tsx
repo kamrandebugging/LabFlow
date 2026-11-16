@@ -102,6 +102,7 @@ export function PatientsDrawerProvider({
 
   const value = useMemo<PatientsDrawerContextValue>(
     () => ({
+      hasProvider: true,
       registerOpen,
       openRegister,
       closeRegister,
@@ -153,7 +154,12 @@ interface RegisterDrawerHostProps {
   onRegistered: () => void;
 }
 
-function RegisterDrawerHost({
+/**
+ * The register drawer itself. Rendered once by the shell provider; also used
+ * as the standalone fallback so a page rendered without the shell still gets
+ * the same single drawer instead of nothing.
+ */
+export function RegisterDrawerHost({
   open,
   triggerRef,
   onClose,

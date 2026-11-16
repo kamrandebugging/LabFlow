@@ -14,6 +14,7 @@ import { messageForError } from "../../lib/errors";
 import { formatDate } from "../../lib/format";
 import { patientService } from "./patientService";
 import { usePatientsDrawer } from "./patientsDrawerContext";
+import { RegisterDrawerHost } from "./PatientDrawerHost";
 import { calculatePatientAge } from "./patientAge";
 import type { PatientSummary } from "./types";
 import styles from "./PatientListScreen.module.css";
@@ -48,12 +49,19 @@ export const PatientListScreen: React.FC<PatientListScreenProps> = ({
   // Veyla side drawers are owned by the tenant shell so exactly one panel
   // exists at a time, outside the animated page layers.
   const {
+    hasProvider,
     openRegister,
     setRegisterTrigger,
     registerRevision,
     openDetail,
     setDetailTrigger,
   } = usePatientsDrawer();
+
+  // Standalone render (no tenant shell): the same drawer is mounted locally so
+  // the page still works on its own. The shell path never uses this.
+  const [localRegisterOpen, setLocalRegisterOpen] = useState(false);
+  const localTriggerRef = useRef<HTMLElement | null>(null);
+  const usesLocalDrawer = !hasProvider;
 
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const newPatientButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -93,6 +101,7 @@ export const PatientListScreen: React.FC<PatientListScreenProps> = ({
 
   // Register the "New patient" button as the drawer's focus-return target.
   useEffect(() => {
+    localTriggerRef.current = newPatientButtonRef.current;
     setRegisterTrigger(newPatientButtonRef.current);
   }, [setRegisterTrigger]);
 
@@ -131,6 +140,10 @@ export const PatientListScreen: React.FC<PatientListScreenProps> = ({
   };
 
   const openRegisterDrawer = () => {
+    if (usesLocalDrawer) {
+      setLocalRegisterOpen(true);
+      return;
+    }
     openRegister();
   };
 
@@ -422,6 +435,15 @@ export const PatientListScreen: React.FC<PatientListScreenProps> = ({
           </div>
         </div>
       </div>
+
+      {usesLocalDrawer ? (
+        <RegisterDrawerHost
+          open={localRegisterOpen}
+          triggerRef={localTriggerRef}
+          onClose={() => setLocalRegisterOpen(false)}
+          onRegistered={() => void fetchPatients(searchQuery)}
+        />
+      ) : null}
     </div>
   );
 };
