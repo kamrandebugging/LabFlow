@@ -121,3 +121,45 @@ Applied via `data-theme="dark"` on `<html>`. Activated via circular-reveal view 
   - Dark: `bg-[#282B2C]`
 - **Strictly NO shimmer or moving gradient**.
 - `animation: none;` per LabFlow core performance and motion guidelines.
+
+---
+
+## 8. Motion
+
+Motion is CSS + the View Transitions API only. No motion library is used.
+
+### 8.1 Tokens
+
+```css
+--motion-fast: 150ms;      /* value cross-fades, row hover */
+--motion-base: 200ms;      /* modals, backdrops, drawer exit, toasts */
+--motion-drawer: 280ms;    /* drawer entry */
+--motion-theme: 500ms;     /* circular theme reveal */
+--ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+--ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+```
+
+Component CSS must not hard-code a duration or curve; it resolves these
+tokens. Tokens are durations and easings only — never colour.
+
+### 8.2 Shared implementations
+
+- Theme reveal: `src/lib/motion.ts` → `revealThemeChange`. One helper for
+  every trigger. Falls back to an instant swap when
+  `document.startViewTransition` is unavailable.
+- Drawer, modal and backdrop transitions: the `.veyla-drawer-*`,
+  `.veyla-modal-*` utilities in `index.css`. No component module duplicates
+  the keyframes.
+- Value cross-fade: `src/components/ui/FadeValue.tsx` (150ms opacity).
+
+### 8.3 Reduced motion
+
+`@media (prefers-reduced-motion: reduce)` removes every animation and
+transition globally, including the theme reveal. Nothing is shortened to a
+near-zero duration: reveals, staggers and blurs do not run at all.
+
+### 8.4 Banned in this system
+
+- Count-up numbers, bounce / elastic / back easings.
+- Shimmer, blur-to-sharp transitions and whole-page cross-fades.
+- Duplicate animation implementations per screen.

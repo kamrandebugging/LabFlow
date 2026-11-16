@@ -97,6 +97,16 @@
   --radius-pill: 9999px;
   --radius-sm: 8px;
 
+  /* Motion — durations and easings only. Every animation in the Veyla
+     surfaces resolves through these tokens; component CSS never hard-codes
+     a duration or a curve. */
+  --motion-fast: 150ms;
+  --motion-base: 200ms;
+  --motion-drawer: 280ms;
+  --motion-theme: 500ms;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+
   /* Typography */
   --font-heading: "Inter", system-ui, -apple-system, sans-serif;
   --font-body: "Inter", system-ui, -apple-system, sans-serif;

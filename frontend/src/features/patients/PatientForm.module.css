@@ -122,7 +122,7 @@
   display: flex;
   justify-content: flex-end;
   background: var(--color-overlay);
-  animation: drawerFade 160ms ease-out;
+  /* Entry/exit animation: shared .veyla-drawer-scrim in index.css. */
 }
 
 .drawerPanel {
@@ -133,7 +133,7 @@
   background: var(--color-surface);
   border-inline-start: 1px solid var(--color-card-border);
   box-shadow: var(--shadow-veyla-dropdown);
-  animation: drawerSlide 200ms ease-out;
+  /* Entry/exit animation: shared .veyla-drawer-panel in index.css. */
 }
 
 /* Half-screen on the desktop: the whole form stays visible without any
@@ -238,26 +238,6 @@
   padding: 48px 20px;
   color: var(--color-text-muted);
   font-size: 15px;
-}
-
-@keyframes drawerFade {
-  from {
-    opacity: 0;
-  }
-}
-
-@keyframes drawerSlide {
-  from {
-    transform: translateX(16px);
-    opacity: 0;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .drawerScrim,
-  .drawerPanel {
-    animation: none;
-  }
 }
 
 /* ---------------------------------------------------------------- card ---- */

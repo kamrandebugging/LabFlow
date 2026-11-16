@@ -283,7 +283,7 @@
 }
 
 .row {
-  transition: background-color 160ms ease;
+  transition: background-color var(--motion-fast) var(--ease-out);
 }
 
 .row:hover {
@@ -292,6 +292,23 @@
 
 .rowClickable {
   cursor: pointer;
+}
+
+/* First load only: rows fade + slide up 4px. Filter/search swaps never
+   replay this class because the screen adds it once per mount. */
+.rowEnter {
+  animation: rowEnter var(--motion-fast) var(--ease-out) both;
+}
+
+@keyframes rowEnter {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .td {
@@ -604,6 +621,9 @@
 @media (prefers-reduced-motion: reduce) {
   .syncIcon,
   .spin {
+    animation: none;
+  }
+  .rowEnter {
     animation: none;
   }
   .primaryButton,

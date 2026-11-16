@@ -239,6 +239,95 @@ html[lang="ur"] .text-slate-400 {
 }
 
 /* ============================================================
+   Shared motion utilities — the single source for the register drawer,
+   the patient modals and the backdrop fade. Durations and curves come
+   from tokens.css; no component module re-implements these keyframes.
+   ============================================================ */
+.veyla-drawer-scrim {
+  animation: veyla-fade-in var(--motion-base) var(--ease-out) both;
+}
+
+.veyla-drawer-panel {
+  animation: veyla-drawer-in var(--motion-drawer) var(--ease-out) both;
+}
+
+.veyla-drawer-scrim[data-state="closing"] {
+  animation: veyla-fade-out var(--motion-base) var(--ease-out) both;
+}
+
+.veyla-drawer-panel[data-state="closing"] {
+  animation: veyla-drawer-out var(--motion-base) var(--ease-out) both;
+}
+
+[dir="rtl"] .veyla-drawer-panel {
+  animation-name: veyla-drawer-in-rtl;
+}
+
+[dir="rtl"] .veyla-drawer-panel[data-state="closing"] {
+  animation-name: veyla-drawer-out-rtl;
+}
+
+.veyla-modal-scrim {
+  animation: veyla-fade-in var(--motion-base) var(--ease-out) both;
+}
+
+.veyla-modal {
+  transform-origin: top right;
+  animation: veyla-modal-in var(--motion-base) var(--ease-out) both;
+}
+
+[dir="rtl"] .veyla-modal {
+  transform-origin: top left;
+}
+
+@keyframes veyla-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes veyla-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes veyla-drawer-in {
+  from {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes veyla-drawer-out {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes veyla-drawer-in-rtl {
+  from {
+    transform: translateX(-100%);
+  }
+}
+
+@keyframes veyla-drawer-out-rtl {
+  to {
+    transform: translateX(-100%);
+  }
+}
+
+@keyframes veyla-modal-in {
+  from {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* ============================================================
    Circular Reveal View Transitions (Top-Bar Theme Toggle)
    ============================================================ */
 ::view-transition-old(root),
@@ -251,4 +340,18 @@ html[lang="ur"] .text-slate-400 {
 }
 ::view-transition-new(root) {
   z-index: 9999;
+}
+
+/* ============================================================
+   Reduced motion — one global override. Every transition, reveal,
+   stagger and blur is removed, not merely shortened.
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
 }

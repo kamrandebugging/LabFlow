@@ -1,0 +1,24 @@
+/* Waffle motion — old tiles leave fully before the new range arrives.
+   Durations and curves come from tokens.css. */
+.waffleGrid {
+  transition: opacity var(--motion-fast) var(--ease-out);
+}
+
+.waffleGridOut {
+  opacity: 0;
+}
+
+.waffleDayIn {
+  animation: waffleDayIn var(--motion-base) var(--ease-out) both;
+}
+
+@keyframes waffleDayIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}

@@ -1,9 +1,12 @@
 import type { ReactNode } from "react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 
+import { FadeValue } from "../../components/ui/FadeValue";
+import { motionDurationMs, prefersReducedMotion } from "../../lib/motion";
 import { pktDateLabel } from "./dashboardService";
+import styles from "./DashboardUI.module.css";
 
 export interface DashboardHeaderProps {
   title: string;
@@ -80,6 +83,8 @@ export interface StatCardProps {
   hint?: ReactNode;
   icon?: string;
   tone?: "default" | "warning" | "danger" | "success" | "worst";
+  /** Cross-fade the value when it changes (Veyla dashboard KPIs). */
+  animateValue?: boolean;
   delta?: {
     value: string;
     positive?: boolean;
@@ -107,6 +112,7 @@ export function StatCard({
   hint,
   icon,
   tone = "default",
+  animateValue = false,
   delta,
 }: StatCardProps): JSX.Element {
   return (
@@ -123,7 +129,7 @@ export function StatCard({
             <span
               className={`text-3xl font-extrabold tracking-tight font-mono ${TONE_TEXT_CLASSES[tone]}`}
             >
-              {value}
+              {animateValue ? <FadeValue value={value} /> : value}
             </span>
             {delta ? (
               <span
@@ -299,6 +305,55 @@ export function WaffleChart({
   unitLabel = "sample",
 }: WaffleChartProps): JSX.Element {
   const [activeDay, setActiveDay] = useState<WaffleDayData | null>(null);
+  const [renderedDays, setRenderedDays] = useState(days);
+  const [leaving, setLeaving] = useState(false);
+  const [entering, setEntering] = useState(false);
+
+  // The dashboard has no 7d/14d/30d control yet; the only range-like change
+  // it can receive is fresh daily data. Old tiles leave fully first, then the
+  // new set fades in one tile at a time.
+  const signature = days.map((day) => `${day.date}:${day.total}`).join("|");
+  const lastSignature = useRef(signature);
+
+  useEffect(() => {
+    if (signature === lastSignature.current) return;
+    lastSignature.current = signature;
+
+    if (prefersReducedMotion()) {
+      setRenderedDays(days);
+      setLeaving(false);
+      setEntering(false);
+      setActiveDay(null);
+      return;
+    }
+
+    setLeaving(true);
+    setEntering(false);
+    setActiveDay(null);
+    const swap = window.setTimeout(
+      () => {
+        setRenderedDays(days);
+        setLeaving(false);
+        setEntering(true);
+        setActiveDay(null);
+      },
+      motionDurationMs("--motion-fast", 150),
+    );
+
+    return () => window.clearTimeout(swap);
+  }, [days, signature]);
+
+  const enteringCount = renderedDays.length;
+  useEffect(() => {
+    if (!entering) return;
+    const settle = window.setTimeout(
+      () => setEntering(false),
+      motionDurationMs("--motion-base", 200) +
+        Math.min(enteringCount, 10) * 15 +
+        40,
+    );
+    return () => window.clearTimeout(settle);
+  }, [entering, enteringCount]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -329,14 +384,25 @@ export function WaffleChart({
         className="overflow-x-auto pb-2 relative"
         onMouseLeave={() => setActiveDay(null)}
       >
-        <div className="grid grid-flow-col auto-cols-[minmax(28px,1fr)] gap-2 min-w-[320px]">
-          {days.map((day) => {
+        <div
+          className={`grid grid-flow-col auto-cols-[minmax(28px,1fr)] gap-2 min-w-[320px] ${styles.waffleGrid} ${
+            leaving ? styles.waffleGridOut : ""
+          }`}
+        >
+          {renderedDays.map((day, index) => {
             const tilesCount = Math.max(1, Math.ceil(day.total / tileScale));
             const isHovered = activeDay?.date === day.date;
             return (
               <div
                 key={day.date}
-                className="flex flex-col items-center gap-1 cursor-pointer group"
+                className={`flex flex-col items-center gap-1 cursor-pointer group ${
+                  entering ? styles.waffleDayIn : ""
+                }`}
+                style={
+                  entering
+                    ? { animationDelay: `${Math.min(index, 9) * 15}ms` }
+                    : undefined
+                }
                 onMouseEnter={() => setActiveDay(day)}
                 tabIndex={0}
                 role="button"
@@ -455,7 +521,7 @@ export function ReviewQueueRing({
           strokeDasharray={circumference}
           strokeDashoffset={strokeDashoffset}
           strokeLinecap="round"
-          className="text-[var(--color-brand)] transition-all duration-500 ease-out"
+          className="text-[var(--color-brand)]"
           fill="none"
         />
       </svg>

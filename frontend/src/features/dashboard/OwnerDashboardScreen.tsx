@@ -338,6 +338,7 @@ export function OwnerDashboardScreen(): ReactElement {
           value={formatCount(stats.invoicesCount)}
           hint={t("dashboard.owner.day_to_date_batch") || "Day to date"}
           icon="receipt_long"
+          animateValue
         />
         <StatCard
           testId="kpi-invoiced-total"
@@ -345,6 +346,7 @@ export function OwnerDashboardScreen(): ReactElement {
           value={formatPkr(stats.invoicedTotal, lang)}
           hint="Total billed across branches today"
           icon="payments"
+          animateValue
         />
         <StatCard
           testId="kpi-collections-today"
@@ -353,6 +355,7 @@ export function OwnerDashboardScreen(): ReactElement {
           hint="Net settled collections today"
           icon="account_balance_wallet"
           tone="success"
+          animateValue
         />
         <StatCard
           testId="kpi-pending-approvals"
@@ -361,6 +364,7 @@ export function OwnerDashboardScreen(): ReactElement {
           hint={t("dashboard.owner.pending_hint") || "Results awaiting pathologist sign-off"}
           icon="verified"
           tone={stats.pendingApprovals && stats.pendingApprovals > 0 ? "warning" : "default"}
+          animateValue
         />
       </div>
 

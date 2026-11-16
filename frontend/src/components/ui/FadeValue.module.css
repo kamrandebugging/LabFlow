@@ -1,0 +1,14 @@
+/* Value cross-fade — opacity only, tokens only. No count-up, no layout. */
+.fadeValue {
+  display: inline-block;
+  animation: fadeValue var(--motion-fast) var(--ease-out);
+}
+
+@keyframes fadeValue {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}

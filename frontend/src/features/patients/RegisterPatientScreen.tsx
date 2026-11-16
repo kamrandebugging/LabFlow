@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { messageForError } from "../../lib/errors";
 import { useDialogFocus } from "../../lib/dialogFocus";
+import { FadeValue } from "../../components/ui/FadeValue";
 import styles from "./PatientForm.module.css";
 import { DuplicatePatientError, patientService } from "./patientService";
 import { PatientRegisterDrawer } from "./PatientRegisterDrawer";
@@ -496,26 +497,32 @@ export const RegisterPatientScreen: React.FC<RegisterPatientScreenProps> = ({
             <dt className={styles.previewLabel}>
               {t("patients:field_full_name")}
             </dt>
-            <dd className={styles.previewValue}>{name.trim() || "—"}</dd>
+            <dd className={styles.previewValue}>
+              <FadeValue value={name.trim() || "—"} />
+            </dd>
           </div>
           <div className={styles.previewRow}>
             <dt className={styles.previewLabel}>{t("common:labels.age")}</dt>
             <dd className={styles.previewValue}>
-              {age !== null
-                ? t("patients:list.age_years", { age })
-                : t("common:labels.not_recorded")}
+              <FadeValue
+                value={
+                  age !== null
+                    ? t("patients:list.age_years", { age })
+                    : t("common:labels.not_recorded")
+                }
+              />
             </dd>
           </div>
           <div className={styles.previewRow}>
             <dt className={styles.previewLabel}>{t("common:labels.phone")}</dt>
             <dd className={`${styles.previewValue} ${styles.previewValueMono}`}>
-              {phone || "—"}
+              <FadeValue value={phone || "—"} />
             </dd>
           </div>
           <div className={styles.previewRow}>
             <dt className={styles.previewLabel}>{t("patients:mrn")}</dt>
             <dd className={`${styles.previewValue} ${styles.previewValueMono}`}>
-              {savedPatient?.mrn || "—"}
+              <FadeValue value={savedPatient?.mrn || "—"} />
             </dd>
           </div>
           <div className={`${styles.previewRow} ${styles.previewRowWide}`}>
@@ -594,7 +601,7 @@ export const RegisterPatientScreen: React.FC<RegisterPatientScreenProps> = ({
             role="dialog"
             aria-modal="true"
             aria-labelledby="duplicate-patient-title"
-            className={styles.drawerScrim}
+            className={`${styles.drawerScrim} veyla-modal-scrim`}
             onMouseDown={(event) => {
               if (event.target === event.currentTarget) {
                 setDuplicateCandidates(null);
@@ -605,7 +612,7 @@ export const RegisterPatientScreen: React.FC<RegisterPatientScreenProps> = ({
               ref={setDuplicatePanel}
               tabIndex={-1}
               data-testid="duplicate-warning-banner"
-              className={styles.card}
+              className={`${styles.card} veyla-modal`}
             >
               <div className={styles.alertHead}>
                 <AlertTriangle

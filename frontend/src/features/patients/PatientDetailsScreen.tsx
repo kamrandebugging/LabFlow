@@ -349,9 +349,13 @@ export const PatientDetailsScreen: React.FC<PatientDetailsScreenProps> = ({
           role="dialog"
           aria-modal="true"
           aria-labelledby="delete-patient-title"
-          className={styles.scrim}
+          className={`${styles.scrim} veyla-modal-scrim`}
         >
-          <div ref={deletePanelRef} tabIndex={-1} className={styles.modal}>
+          <div
+            ref={deletePanelRef}
+            tabIndex={-1}
+            className={`${styles.modal} veyla-modal`}
+          >
             <h2 id="delete-patient-title" className={styles.modalTitle}>
               Delete Patient Record?
             </h2>

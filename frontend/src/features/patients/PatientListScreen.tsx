@@ -43,6 +43,10 @@ export const PatientListScreen: React.FC<PatientListScreenProps> = ({
   const [searchQuery, setSearchQuery] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // First successful load only: rows fade + slide up once. Search and filter
+  // swaps stay instant and never replay the stagger.
+  const [animateRows, setAnimateRows] = useState(false);
+  const entrancePlayed = useRef(false);
 
   // Veyla side drawer state.
   const [isRegisterOpen, setIsRegisterOpen] = useState(false);
@@ -76,6 +80,15 @@ export const PatientListScreen: React.FC<PatientListScreenProps> = ({
   useEffect(() => {
     fetchPatients(searchQuery);
   }, [fetchPatients, searchQuery]);
+
+  // Patient rows enter once, on the first load after mount.
+  useEffect(() => {
+    if (isLoading || entrancePlayed.current) return;
+    entrancePlayed.current = true;
+    setAnimateRows(true);
+    const timer = window.setTimeout(() => setAnimateRows(false), 600);
+    return () => window.clearTimeout(timer);
+  }, [isLoading]);
 
   // Resolve the branch the patient is registered into. Mirrors the
   // /patients/new route: the caller's own branch when branch-scoped,
@@ -320,7 +333,7 @@ export const PatientListScreen: React.FC<PatientListScreenProps> = ({
                     </td>
                   </tr>
                 ) : (
-                  patients.map((patient) => {
+                  patients.map((patient, index) => {
                     const age = calculatePatientAge(
                       patient.date_of_birth,
                       patient.year_of_birth,
@@ -328,7 +341,16 @@ export const PatientListScreen: React.FC<PatientListScreenProps> = ({
                     return (
                       <tr
                         key={patient.id}
-                        className={`${styles.row} ${styles.rowClickable}`}
+                        className={`${styles.row} ${styles.rowClickable}${
+                          animateRows ? ` ${styles.rowEnter}` : ""
+                        }`}
+                        style={
+                          animateRows
+                            ? {
+                                animationDelay: `${Math.min(index, 9) * 20}ms`,
+                              }
+                            : undefined
+                        }
                         onClick={() => onSelectPatient?.(patient.id)}
                       >
                         <td className={styles.td}>

@@ -29,6 +29,7 @@ import { partnersService } from "../partners/partnersService";
 import { reportsService } from "../reports/reportsService";
 import { resultsService } from "../results/resultsService";
 import { LanguageSwitcher } from "../../components/LanguageSwitcher";
+import { revealThemeChange } from "../../lib/motion";
 
 const DESK_PATHS = [
   "/",
@@ -177,45 +178,15 @@ export function TenantLayout(): ReactElement {
     };
   }, [location.pathname, accessToken, user?.role, user?.enabled_roles]);
 
-  // Circular reveal theme toggle
+  // Circular reveal theme toggle — the shared helper owns the View
+  // Transition, the clip-path origin and the reduced-motion fallback.
   const toggleTheme = useCallback(
     (event: React.MouseEvent<HTMLButtonElement>) => {
       const next = resolved === "dark" ? "light" : "dark";
-      const doc = document as unknown as {
-        startViewTransition?: (cb: () => void) => { ready: Promise<void> };
-      };
-
-      if (!doc.startViewTransition) {
-        setPreference(next);
-        return;
-      }
-
-      const x = event.clientX;
-      const y = event.clientY;
-      const endRadius = Math.hypot(
-        Math.max(x, window.innerWidth - x),
-        Math.max(y, window.innerHeight - y),
+      revealThemeChange(
+        { clientX: event.clientX, clientY: event.clientY },
+        () => setPreference(next),
       );
-
-      const transition = doc.startViewTransition(() => {
-        setPreference(next);
-      });
-
-      void transition.ready.then(() => {
-        document.documentElement.animate(
-          {
-            clipPath: [
-              `circle(0px at ${x}px ${y}px)`,
-              `circle(${endRadius}px at ${x}px ${y}px)`,
-            ],
-          },
-          {
-            duration: 380,
-            easing: "ease-out",
-            pseudoElement: "::view-transition-new(root)",
-          },
-        );
-      });
     },
     [resolved, setPreference],
   );

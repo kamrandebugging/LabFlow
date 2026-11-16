@@ -1,8 +1,9 @@
-import React from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactNode, RefObject } from "react";
 import { useTranslation } from "react-i18next";
 import { X } from "lucide-react";
 import { useDialogFocus } from "../../lib/dialogFocus";
+import { motionDurationMs, prefersReducedMotion } from "../../lib/motion";
 import styles from "./PatientForm.module.css";
 
 interface PatientRegisterDrawerProps {
@@ -53,9 +54,44 @@ export const PatientRegisterDrawer: React.FC<PatientRegisterDrawerProps> = ({
   footer,
 }) => {
   const { t } = useTranslation(["common", "patients"]);
+  const [isClosing, setIsClosing] = useState(false);
+  const closingRef = useRef(false);
+  const closeTimerRef = useRef<number | null>(null);
+
+  // Closing plays the 200ms slide-out first; the parent unmounts the drawer
+  // only after the animation finishes. Escape, the close button and the
+  // backdrop all go through this one handler, so focus behaviour is unchanged.
+  const requestClose = useCallback(() => {
+    if (closingRef.current) return;
+
+    if (prefersReducedMotion()) {
+      onClose();
+      return;
+    }
+
+    closingRef.current = true;
+    setIsClosing(true);
+    closeTimerRef.current = window.setTimeout(
+      () => {
+        closeTimerRef.current = null;
+        onClose();
+      },
+      motionDurationMs("--motion-base", 200),
+    );
+  }, [onClose]);
+
+  useEffect(
+    () => () => {
+      if (closeTimerRef.current !== null) {
+        window.clearTimeout(closeTimerRef.current);
+      }
+    },
+    [],
+  );
+
   const panelRef = useDialogFocus<HTMLDivElement>(
     open && !suspendFocusTrap,
-    onClose,
+    requestClose,
     triggerRef,
   );
   const headingId = "patient-register-drawer-title";
@@ -64,11 +100,12 @@ export const PatientRegisterDrawer: React.FC<PatientRegisterDrawerProps> = ({
 
   return (
     <div
-      className={styles.drawerScrim}
+      className={`${styles.drawerScrim} veyla-drawer-scrim`}
+      data-state={isClosing ? "closing" : "open"}
       onMouseDown={(event) => {
         // Only a click that starts on the backdrop itself closes the drawer;
         // a drag that ends outside the panel must not dismiss it.
-        if (event.target === event.currentTarget) onClose();
+        if (event.target === event.currentTarget) requestClose();
       }}
     >
       <div
@@ -77,7 +114,8 @@ export const PatientRegisterDrawer: React.FC<PatientRegisterDrawerProps> = ({
         role="dialog"
         aria-modal="true"
         aria-labelledby={headingId}
-        className={styles.drawerPanel}
+        data-state={isClosing ? "closing" : "open"}
+        className={`${styles.drawerPanel} veyla-drawer-panel`}
       >
         <header className={styles.drawerHeader}>
           <div className={styles.drawerHeading}>
@@ -90,7 +128,7 @@ export const PatientRegisterDrawer: React.FC<PatientRegisterDrawerProps> = ({
           </div>
           <button
             type="button"
-            onClick={onClose}
+            onClick={requestClose}
             className={styles.drawerClose}
             aria-label={t("common:actions.close")}
             title={t("common:actions.close")}
