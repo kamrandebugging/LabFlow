@@ -16,6 +16,7 @@ import type { UserRole } from "../auth/types";
 import { settingsService } from "../settings/settingsService";
 import { RegisterPatientScreen } from "./RegisterPatientScreen";
 import { PatientDetailsScreen } from "./PatientDetailsScreen";
+import { PatientEditScreen } from "./PatientEditScreen";
 import { VeylaDrawer } from "./VeylaDrawer";
 import { patientService } from "./patientService";
 import {
@@ -51,6 +52,8 @@ export function PatientsDrawerProvider({
   const registerTriggerRef = useRef<HTMLElement | null>(null);
 
   const [detailPatientId, setDetailPatientId] = useState<string | null>(null);
+  const [detailMode, setDetailMode] = useState<"view" | "edit">("view");
+  const [detailRevision, setDetailRevision] = useState(0);
   const detailTriggerRef = useRef<HTMLElement | null>(null);
 
   const openRegister = useCallback(() => setRegisterOpen(true), []);
@@ -60,6 +63,7 @@ export function PatientsDrawerProvider({
   }, []);
 
   const openDetail = useCallback((patientId: string) => {
+    setDetailMode("view");
     setDetailPatientId(patientId);
     // Update the address bar without a router navigation, so the page
     // transition does not replay. Direct loads of the same URL are handled
@@ -78,6 +82,7 @@ export function PatientsDrawerProvider({
 
   const closeDetail = useCallback(() => {
     setDetailPatientId(null);
+    setDetailMode("view");
     if (
       typeof window !== "undefined" &&
       window.location.pathname.startsWith("/patients/")
@@ -137,8 +142,16 @@ export function PatientsDrawerProvider({
       />
       <DetailDrawerHost
         patientId={detailPatientId}
+        mode={detailMode}
+        revision={detailRevision}
         triggerRef={detailTriggerRef}
         onClose={closeDetail}
+        onEdit={() => setDetailMode("edit")}
+        onEditCancel={() => setDetailMode("view")}
+        onEditSaved={() => {
+          setDetailMode("view");
+          setDetailRevision((n) => n + 1);
+        }}
         role={user?.role}
       />
     </PatientsDrawerContext.Provider>
@@ -231,32 +244,55 @@ export function RegisterDrawerHost({
 
 interface DetailDrawerHostProps {
   patientId: string | null;
+  mode: "view" | "edit";
+  revision: number;
   triggerRef: React.MutableRefObject<HTMLElement | null>;
   onClose: () => void;
+  onEdit: () => void;
+  onEditCancel: () => void;
+  onEditSaved: () => void;
   role?: UserRole;
 }
 
 function DetailDrawerHost({
   patientId,
+  mode,
+  revision,
   triggerRef,
   onClose,
+  onEdit,
+  onEditCancel,
+  onEditSaved,
   role,
 }: DetailDrawerHostProps): JSX.Element | null {
   const navigate = useNavigate();
 
   if (!patientId) return null;
 
+  // Edit runs in the same right-side drawer as the record, never as a page.
+  if (mode === "edit") {
+    return (
+      <PatientEditScreen
+        key={`edit-${patientId}`}
+        variant="drawer"
+        patientId={patientId}
+        onCancel={onEditCancel}
+        onSuccess={onEditSaved}
+      />
+    );
+  }
+
   const canManage = canAccessPath(role, `/patients/${patientId}/edit`);
   const canDelete = role === "owner" || role === "manager";
 
   return (
     <PatientDetailsScreen
-      key={patientId}
+      key={`${patientId}-${revision}`}
       variant="drawer"
       patientId={patientId}
       triggerRef={triggerRef}
       onBack={onClose}
-      onEdit={(id) => navigate(`/patients/${id}/edit`)}
+      onEdit={onEdit}
       onViewHistory={(id) => navigate(`/patients/${id}/history`)}
       onNewVisit={() => {
         onClose();

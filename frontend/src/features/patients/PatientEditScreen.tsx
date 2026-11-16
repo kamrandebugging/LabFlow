@@ -4,6 +4,7 @@ import { ArrowLeft, Check, Loader2, AlertCircle } from "lucide-react";
 import { messageForError } from "../../lib/errors";
 import styles from "./PatientForm.module.css";
 import { patientService } from "./patientService";
+import { VeylaDrawer } from "./VeylaDrawer";
 import type { PatientDetail, PatientUpdateInput } from "./types";
 
 interface PatientEditScreenProps {
@@ -12,13 +13,21 @@ interface PatientEditScreenProps {
   onSuccess?: () => void;
   onCancel?: () => void;
   service?: typeof patientService;
+  /**
+   * "page" is the standalone edit route. "drawer" renders the same form in
+   * the shared Veyla side drawer, over the patient list.
+   */
+  variant?: "page" | "drawer";
 }
+
+const FORM_ID = "patient-edit-form";
 
 export const PatientEditScreen: React.FC<PatientEditScreenProps> = ({
   patientId,
   onSuccess,
   onCancel,
   service = patientService,
+  variant = "page",
 }) => {
   const { t } = useTranslation(["patients", "common"]);
   const [patient, setPatient] = useState<PatientDetail | null>(null);
@@ -68,28 +77,14 @@ export const PatientEditScreen: React.FC<PatientEditScreenProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-
-    const trimmedName = name.trim();
-    if (trimmedName.length < 2 || trimmedName.length > 120) {
-      setError(t("patients:edit.validation.name"));
-      return;
-    }
-
-    const cleanPhone = phone.replace(/[\s\-()+]/g, "");
-    if (!/^\d{10,15}$/.test(cleanPhone)) {
-      setError(t("patients:validation.phone"));
-      return;
-    }
-
     setIsSaving(true);
+    const payload: PatientUpdateInput = {
+      name,
+      phone,
+      sex,
+      date_of_birth: dateOfBirth || null,
+    };
     try {
-      const payload: PatientUpdateInput = {
-        name: trimmedName,
-        phone: cleanPhone,
-        sex,
-        date_of_birth: dateOfBirth || null,
-      };
-
       await service.updatePatient(patientId, payload, patient?.version);
       onSuccess?.();
     } catch (err: unknown) {
@@ -111,6 +106,175 @@ export const PatientEditScreen: React.FC<PatientEditScreenProps> = ({
       </div>
     );
   }
+
+  const errorAlert = error ? (
+    <div role="alert" className={styles.alert}>
+      <AlertCircle className={styles.alertIcon} />
+      <span className={styles.alertText}>
+        <span className={styles.alertHeadText}>
+          {t("patients:edit.save_failed")}
+        </span>
+        <span className={styles.alertDetail}>{error}</span>
+      </span>
+    </div>
+  ) : null;
+
+  const fields = (
+    <>
+      <div className={styles.section}>
+        <div className={styles.field}>
+          <label htmlFor="editFullName" className={styles.label}>
+            {t("patients:field_full_name")}{" "}
+            <span className={styles.required}>*</span>
+          </label>
+          <input
+            id="editFullName"
+            name="name"
+            type="text"
+            required
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className={styles.input}
+          />
+        </div>
+
+        <div className={styles.grid2}>
+          <div className={styles.field}>
+            <label htmlFor="editPhone" className={styles.label}>
+              {t("patients:edit.field_phone")}{" "}
+              <span className={styles.required}>*</span>
+            </label>
+            <input
+              id="editPhone"
+              name="phone"
+              type="tel"
+              dir="ltr"
+              required
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              className={styles.input}
+            />
+          </div>
+
+          <div className={styles.field}>
+            <span className={styles.label}>
+              {t("patients:edit.field_sex")}{" "}
+              <span className={styles.required}>*</span>
+            </span>
+            <div
+              role="radiogroup"
+              aria-label={t("patients:edit.field_sex")}
+              className={styles.radioTrack}
+            >
+              <label
+                className={`${styles.radioOption} ${
+                  sex === "M" ? styles.radioOptionSelected : ""
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="editSex"
+                  value="M"
+                  checked={sex === "M"}
+                  onChange={() => setSex("M")}
+                  className={styles.radioInput}
+                />
+                <span className={styles.radioDot} aria-hidden="true" />
+                <span>{t("patients:sex.male")}</span>
+              </label>
+              <label
+                className={`${styles.radioOption} ${
+                  sex === "F" ? styles.radioOptionSelected : ""
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="editSex"
+                  value="F"
+                  checked={sex === "F"}
+                  onChange={() => setSex("F")}
+                  className={styles.radioInput}
+                />
+                <span className={styles.radioDot} aria-hidden="true" />
+                <span>{t("patients:sex.female")}</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div className={styles.field}>
+          <label htmlFor="editDob" className={styles.label}>
+            {t("common:labels.dob")}
+          </label>
+          <input
+            id="editDob"
+            name="dateOfBirth"
+            type="date"
+            value={dateOfBirth}
+            onChange={(e) => setDateOfBirth(e.target.value)}
+            className={`${styles.input} ${styles.inputDate}`}
+          />
+        </div>
+      </div>
+    </>
+  );
+
+  const saveLabel = isSaving
+    ? t("common:actions.saving")
+    : t("patients:edit.save");
+
+  /* -------------------------------------------------------------- drawer -- */
+
+  if (variant === "drawer") {
+    return (
+      <VeylaDrawer
+        open
+        onClose={() => onCancel?.()}
+        title={t("patients:edit.title")}
+        header={
+          <div className={styles.titleRow}>
+            <h2 className={styles.title}>{t("patients:edit.title")}</h2>
+            {patient?.mrn && (
+              <span dir="ltr" className={styles.mrnBadge}>
+                {patient.mrn}
+              </span>
+            )}
+          </div>
+        }
+        footer={
+          <>
+            <button
+              type="button"
+              onClick={onCancel}
+              className={styles.cancelButton}
+            >
+              {t("common:actions.cancel")}
+            </button>
+            <button
+              type="submit"
+              form={FORM_ID}
+              disabled={isSaving}
+              className={styles.primaryButton}
+            >
+              {isSaving ? (
+                <Loader2 className={`${styles.buttonIcon} ${styles.spin}`} />
+              ) : (
+                <Check className={styles.buttonIcon} />
+              )}
+              <span>{saveLabel}</span>
+            </button>
+          </>
+        }
+      >
+        {errorAlert}
+        <form id={FORM_ID} onSubmit={handleSubmit} className={styles.form}>
+          {fields}
+        </form>
+      </VeylaDrawer>
+    );
+  }
+
+  /* ---------------------------------------------------------------- page -- */
 
   return (
     <div className={styles.page}>
@@ -148,117 +312,12 @@ export const PatientEditScreen: React.FC<PatientEditScreenProps> = ({
           </div>
         </div>
 
-        {/* Error alert */}
-        {error && (
-          <div role="alert" className={styles.alert}>
-            <AlertCircle className={styles.alertIcon} />
-            <span className={styles.alertText}>
-              <span className={styles.alertHeadText}>
-                {t("patients:edit.save_failed")}
-              </span>
-              <span className={styles.alertDetail}>{error}</span>
-            </span>
-          </div>
-        )}
+        {errorAlert}
 
         {/* Form Card */}
         <div className={styles.card}>
           <form onSubmit={handleSubmit} className={styles.form}>
-            <div className={styles.section}>
-              <div className={styles.field}>
-                <label htmlFor="editFullName" className={styles.label}>
-                  {t("patients:field_full_name")}{" "}
-                  <span className={styles.required}>*</span>
-                </label>
-                <input
-                  id="editFullName"
-                  name="name"
-                  type="text"
-                  required
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className={styles.input}
-                />
-              </div>
-
-              <div className={styles.grid2}>
-                <div className={styles.field}>
-                  <label htmlFor="editPhone" className={styles.label}>
-                    {t("patients:edit.field_phone")}{" "}
-                    <span className={styles.required}>*</span>
-                  </label>
-                  <input
-                    id="editPhone"
-                    name="phone"
-                    type="tel"
-                    dir="ltr"
-                    required
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    className={styles.input}
-                  />
-                </div>
-
-                <div className={styles.field}>
-                  <span className={styles.label}>
-                    {t("patients:edit.field_sex")}{" "}
-                    <span className={styles.required}>*</span>
-                  </span>
-                  <div
-                    role="radiogroup"
-                    aria-label={t("patients:edit.field_sex")}
-                    className={styles.radioTrack}
-                  >
-                    <label
-                      className={`${styles.radioOption} ${
-                        sex === "M" ? styles.radioOptionSelected : ""
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name="editSex"
-                        value="M"
-                        checked={sex === "M"}
-                        onChange={() => setSex("M")}
-                        className={styles.radioInput}
-                      />
-                      <span className={styles.radioDot} aria-hidden="true" />
-                      <span>{t("patients:sex.male")}</span>
-                    </label>
-                    <label
-                      className={`${styles.radioOption} ${
-                        sex === "F" ? styles.radioOptionSelected : ""
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name="editSex"
-                        value="F"
-                        checked={sex === "F"}
-                        onChange={() => setSex("F")}
-                        className={styles.radioInput}
-                      />
-                      <span className={styles.radioDot} aria-hidden="true" />
-                      <span>{t("patients:sex.female")}</span>
-                    </label>
-                  </div>
-                </div>
-              </div>
-
-              <div className={styles.field}>
-                <label htmlFor="editDob" className={styles.label}>
-                  {t("common:labels.dob")}
-                </label>
-                <input
-                  id="editDob"
-                  name="dateOfBirth"
-                  type="date"
-                  value={dateOfBirth}
-                  onChange={(e) => setDateOfBirth(e.target.value)}
-                  className={`${styles.input} ${styles.inputDate}`}
-                />
-              </div>
-            </div>
+            {fields}
 
             <div className={styles.footer}>
               <button
@@ -278,11 +337,7 @@ export const PatientEditScreen: React.FC<PatientEditScreenProps> = ({
                 ) : (
                   <Check className={styles.buttonIcon} />
                 )}
-                <span>
-                  {isSaving
-                    ? t("common:actions.saving")
-                    : t("patients:edit.save")}
-                </span>
+                <span>{saveLabel}</span>
               </button>
             </div>
           </form>
