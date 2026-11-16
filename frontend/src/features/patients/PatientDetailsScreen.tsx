@@ -228,10 +228,6 @@ export const PatientDetailsScreen: React.FC<PatientDetailsScreenProps> = ({
             <User className={styles.cardIcon} aria-hidden="true" />
             <span>{t("patients:demographics")}</span>
           </h2>
-          <span className={styles.idText}>
-            {t("patients:details.id")}:{" "}
-            <bdi dir="ltr">{patient.id.slice(0, 8)}</bdi>
-          </span>
         </div>
 
         <div className={styles.fieldGrid}>
@@ -253,27 +249,27 @@ export const PatientDetailsScreen: React.FC<PatientDetailsScreenProps> = ({
                   : t("patients:sex.other")}
             </span>
           </div>
-          <div className={styles.field}>
-            <span className={styles.fieldLabel}>
-              {t("patients:details.field_dob")}
-            </span>
-            <span className={styles.fieldValue}>
-              {patient.date_of_birth ? (
+          {patient.date_of_birth ? (
+            <div className={styles.field}>
+              <span className={styles.fieldLabel}>
+                {t("patients:details.field_dob")}
+              </span>
+              <span className={styles.fieldValue}>
                 <bdi dir="ltr">{formatDate(patient.date_of_birth)}</bdi>
-              ) : (
-                t("common:labels.not_recorded")
-              )}
-            </span>
-          </div>
-          <div className={styles.field}>
-            <span className={styles.fieldLabel}>
-              {t("patients:details.field_phone")}
-            </span>
-            <span className={styles.monoValue}>
-              <Phone className={styles.inlineIcon} aria-hidden="true" />
-              <bdi dir="ltr">{primaryPhone}</bdi>
-            </span>
-          </div>
+              </span>
+            </div>
+          ) : null}
+          {primaryPhone !== "—" ? (
+            <div className={styles.field}>
+              <span className={styles.fieldLabel}>
+                {t("patients:details.field_phone")}
+              </span>
+              <span className={styles.monoValue}>
+                <Phone className={styles.inlineIcon} aria-hidden="true" />
+                <bdi dir="ltr">{primaryPhone}</bdi>
+              </span>
+            </div>
+          ) : null}
         </div>
       </div>
 
@@ -313,9 +309,6 @@ export const PatientDetailsScreen: React.FC<PatientDetailsScreenProps> = ({
             </span>
           </div>
         )}
-        <div className={styles.compliance}>
-          {t("patients:details.compliance_note")}
-        </div>
       </div>
     </div>
   ) : null;
@@ -395,13 +388,15 @@ export const PatientDetailsScreen: React.FC<PatientDetailsScreenProps> = ({
           width="narrow"
           triggerRef={triggerRef}
         >
-          {isLoading ? loadingBlock : error || !patient ? errorBlock : cards}
-          {deleteError && (
-            <div role="alert" className={styles.alert}>
-              <AlertCircle className={styles.statusIcon} aria-hidden="true" />
-              <span>{deleteError}</span>
-            </div>
-          )}
+          <div className={styles.drawerShell}>
+            {isLoading ? loadingBlock : error || !patient ? errorBlock : cards}
+            {deleteError && (
+              <div role="alert" className={styles.alert}>
+                <AlertCircle className={styles.statusIcon} aria-hidden="true" />
+                <span>{deleteError}</span>
+              </div>
+            )}
+          </div>
         </VeylaDrawer>
         {deleteModal}
       </>

@@ -765,3 +765,40 @@
     animation: none;
   }
 }
+
+/* -------------------------------------------------------------- record drawer --
+   The record drawer is a narrow single column at EVERY viewport width. The
+   page grid's 2fr/1fr and the field grid's two-column media queries are
+   viewport-based, so they used to split the cards inside a 500px panel and
+   wrap the labels ("Biological / Sex", "Date of / Birth").
+   ---------------------------------------------------------------------------- */
+.drawerShell {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.drawerShell .grid {
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+
+.drawerShell .fieldGrid {
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+
+.draweShell .card {
+  padding: 24px;
+}
+
+.drawerShell .fieldLabel {
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.drawerShell .fieldValue,
+.drawerShell .monoValue {
+  font-size: 14px;
+  line-height: 1.45;
+}
