@@ -775,21 +775,34 @@
 .drawerShell {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
+  min-height: 100%;
 }
 
+/* The card column fills the body so the last card meets the footer instead of
+   leaving a large white gap above the actions. */
 .drawerShell .grid {
   grid-template-columns: 1fr;
-  gap: 16px;
+  grid-template-rows: auto 1fr;
+  gap: 12px;
+  flex: 1 1 auto;
 }
 
+/* Two label/value columns inside the cards: the panel is 640px, so labels
+   like "Biological Sex" and "Date of Birth" stay on one line and the card
+   stops leaving half its width empty. */
 .drawerShell .fieldGrid {
-  grid-template-columns: 1fr;
-  gap: 16px;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 20px;
 }
 
-.draweShell .card {
-  padding: 24px;
+.drawerShell .card {
+  padding: 18px 20px;
+  gap: 10px;
+}
+
+.drawerShell .cardHead {
+  padding-bottom: 10px;
 }
 
 .drawerShell .fieldLabel {
@@ -801,4 +814,39 @@
 .drawerShell .monoValue {
   font-size: 14px;
   line-height: 1.45;
+}
+
+/* -------------------------------------------------- drawer footer alignment --
+   All four actions sit on ONE right-aligned row in the drawer footer.
+   --------------------------------------------------------------------------- */
+.drawerFooterActions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.drawerFooterActions .actions {
+  flex-wrap: nowrap;
+  justify-content: flex-end;
+  margin-inline-start: auto;
+  width: 100%;
+}
+
+/* Footer buttons keep their natural width: no shrinking, no wrapped labels. */
+.drawerFooterActions .actions > * {
+  flex: 0 0 auto;
+}
+
+.drawerFooterActions button {
+  white-space: nowrap;
+  padding-inline: 14px;
+}
+
+@media (max-width: 560px) {
+  .drawerFooterActions .actions {
+    flex-wrap: wrap;
+  }
 }

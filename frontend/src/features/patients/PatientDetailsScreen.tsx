@@ -384,8 +384,7 @@ export const PatientDetailsScreen: React.FC<PatientDetailsScreenProps> = ({
           onClose={() => onBack?.()}
           title={patient?.name ?? t("patients:details.loading")}
           header={identity}
-          footer={actions}
-          width="narrow"
+          footer={<div className={styles.drawerFooterActions}>{actions}</div>}
           triggerRef={triggerRef}
         >
           <div className={styles.drawerShell}>
