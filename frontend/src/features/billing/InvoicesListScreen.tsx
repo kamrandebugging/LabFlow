@@ -41,6 +41,7 @@ export function InvoicesListScreen({
   const { t } = useTranslation(["billing", "common"]);
   const [invoices, setInvoices] = useState<InvoiceSummary[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedStatus, setSelectedStatus] = useState<string>("all");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [dailyTotal, setDailyTotal] = useState<string | null>(null);
@@ -51,7 +52,9 @@ export function InvoicesListScreen({
     setIsLoading(true);
     setError(null);
     try {
-      const data = await service.listInvoices({});
+      const data = await service.listInvoices({
+        status: selectedStatus === "all" ? undefined : selectedStatus,
+      });
       setInvoices(data.results);
       setDailyTotal(data.daily_total ?? null);
     } catch (err: unknown) {
@@ -59,7 +62,7 @@ export function InvoicesListScreen({
     } finally {
       setIsLoading(false);
     }
-  }, [service, t]);
+  }, [selectedStatus, service, t]);
 
   useEffect(() => {
     void fetchInvoices();
@@ -75,8 +78,9 @@ export function InvoicesListScreen({
 
   const filteredInvoices = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
-    if (!q) return invoices;
-    return invoices.filter(
+    const rows = invoices;
+    if (!q) return rows;
+    return rows.filter(
       (inv) =>
         inv.id.toLowerCase().includes(q) ||
         (inv.patient_name && inv.patient_name.toLowerCase().includes(q)) ||
@@ -118,12 +122,14 @@ export function InvoicesListScreen({
           </div>
           <span className={styles.syncBadge}>
             <CircleCheck className={styles.syncIcon} aria-hidden="true" />
-            {dailyTotal !== null
-              ? `${t("billing:list.daily_total")}: ${formatMoney(
-                  dailyTotal,
-                  "en",
-                )}`
-              : t("billing:list.daily_total")}
+            {dailyTotal !== null ? (
+              <>
+                <span>{t("billing:list.daily_total")}</span>
+                <span>{formatMoney(dailyTotal, "en")}</span>
+              </>
+            ) : (
+              "\u2014"
+            )}
           </span>
         </div>
 
@@ -142,6 +148,21 @@ export function InvoicesListScreen({
               autoComplete="off"
             />
           </div>
+          <select
+            aria-label={t("billing:list.status_filter_aria")}
+            value={selectedStatus}
+            onChange={(e) => setSelectedStatus(e.target.value)}
+            className={styles.searchInput}
+            style={{ maxWidth: 180 }}
+          >
+            <option value="all">{t("billing:list.all_statuses")}</option>
+            <option value="draft">Draft</option>
+            <option value="unpaid">Unpaid</option>
+            <option value="partial">Partial</option>
+            <option value="paid">Paid</option>
+            <option value="refunded">Refunded</option>
+            <option value="cancelled">Cancelled</option>
+          </select>
           <div className={styles.toolbarActions}>
             <button
               type="button"
@@ -335,7 +356,10 @@ export function InvoicesListScreen({
                             dir="ltr"
                             style={{ whiteSpace: "nowrap" }}
                           >
-                            {formatMoney(inv.total, "en")}
+                            {formatMoney(
+                              Number(inv.total || 0).toFixed(2),
+                              "en",
+                            )}
                           </span>
                           {balance !== null && balance > 0 ? (
                             <span className={styles.patientMeta}>
@@ -370,10 +394,36 @@ export function InvoicesListScreen({
           </div>
         </div>
 
-        {!isLoading && filteredInvoices.length > 0 ? (
+        {!isLoading ? (
           <div className={styles.footerCount}>
             <CreditCard size={14} aria-hidden="true" />
-            {t("billing:list.showing", { count: filteredInvoices.length })}
+            {t("billing:list.showing", { total: filteredInvoices.length })}
+            <span
+              style={{
+                marginInlineStart: "auto",
+                display: "inline-flex",
+                gap: 6,
+              }}
+            >
+              <button
+                type="button"
+                aria-label={t("common:actions.previous")}
+                disabled
+                aria-disabled="true"
+                className={styles.iconButton}
+              >
+                ‹
+              </button>
+              <button
+                type="button"
+                aria-label={t("common:actions.next")}
+                disabled
+                aria-disabled="true"
+                className={styles.iconButton}
+              >
+                ›
+              </button>
+            </span>
           </div>
         ) : null}
       </div>
