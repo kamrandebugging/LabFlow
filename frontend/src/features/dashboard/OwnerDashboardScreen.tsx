@@ -4,6 +4,7 @@ import { Trans, useTranslation } from "react-i18next";
 import { Link, useNavigate } from "react-router-dom";
 
 import { useAuthStore } from "../auth/authStore";
+import { FadeValue } from "../../components/ui/FadeValue";
 import { partnersService } from "../partners/partnersService";
 import { reportsService } from "../reports/reportsService";
 import { resultsService } from "../results/resultsService";
@@ -61,7 +62,9 @@ export function OwnerDashboardScreen(): ReactElement {
   const navigate = useNavigate();
   const lang = i18n.resolvedLanguage === "ur" ? "ur" : "en";
   const [stats, setStats] = useState<DashboardStats>(INITIAL_STATS);
-  const [dailyInvoices, setDailyInvoices] = useState<{ date: string; count: number }[]>([]);
+  const [dailyInvoices, setDailyInvoices] = useState<
+    { date: string; count: number }[]
+  >([]);
   const accessToken = useAuthStore((s) => s.accessToken);
   const user = useAuthStore((s) => s.user);
 
@@ -142,7 +145,8 @@ export function OwnerDashboardScreen(): ReactElement {
             ? approvalsResult.value.length
             : null,
         approvalQueue:
-          approvalsResult.status === "fulfilled" && Array.isArray(approvalsResult.value)
+          approvalsResult.status === "fulfilled" &&
+          Array.isArray(approvalsResult.value)
             ? approvalsResult.value
             : [],
         draftSettlements:
@@ -180,11 +184,26 @@ export function OwnerDashboardScreen(): ReactElement {
   // Status mapping for LabFlow real categories
   const statusConfig: Record<string, { label: string; color: string }> = {
     ready: { label: t("status.sample.ready") || "Ready", color: "#0E6B3A" },
-    in_process: { label: t("status.sample.in_process") || "In Process", color: "#8C5800" },
-    received: { label: t("status.sample.received") || "Received", color: "#0369A1" },
-    collected: { label: t("status.sample.collected") || "Collected", color: "#357C6B" },
-    rejected: { label: t("status.sample.rejected") || "Rejected", color: "#B91C1C" },
-    cancelled: { label: t("status.sample.cancelled") || "Cancelled", color: "#747C7C" },
+    in_process: {
+      label: t("status.sample.in_process") || "In Process",
+      color: "#8C5800",
+    },
+    received: {
+      label: t("status.sample.received") || "Received",
+      color: "#0369A1",
+    },
+    collected: {
+      label: t("status.sample.collected") || "Collected",
+      color: "#357C6B",
+    },
+    rejected: {
+      label: t("status.sample.rejected") || "Rejected",
+      color: "#B91C1C",
+    },
+    cancelled: {
+      label: t("status.sample.cancelled") || "Cancelled",
+      color: "#747C7C",
+    },
   };
 
   const sampleRows = [
@@ -239,7 +258,10 @@ export function OwnerDashboardScreen(): ReactElement {
         const dateObj = new Date(d.date);
         const dayLabel = Number.isNaN(dateObj.getTime())
           ? d.date
-          : dateObj.toLocaleDateString("en-GB", { weekday: "short", day: "numeric" });
+          : dateObj.toLocaleDateString("en-GB", {
+              weekday: "short",
+              day: "numeric",
+            });
         return {
           date: d.date,
           label: dayLabel,
@@ -264,22 +286,28 @@ export function OwnerDashboardScreen(): ReactElement {
       const isToday = i === 0;
       days.push({
         date: d.toISOString().slice(0, 10),
-        label: d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric" }),
-        total: isToday ? todayTotal : Math.max(0, Math.round(todayTotal * (0.7 + i * 0.05))),
-        breakdown: isToday && stats.samples
-          ? {
-              ready: stats.samples.ready,
-              in_process: stats.samples.inProcess,
-              received: stats.samples.received,
-              collected: stats.samples.collected,
-              rejected: stats.samples.rejected,
-              cancelled: stats.samples.cancelled,
-            }
-          : {
-              ready: Math.round(todayTotal * 0.5),
-              in_process: Math.round(todayTotal * 0.3),
-              received: Math.round(todayTotal * 0.2),
-            },
+        label: d.toLocaleDateString("en-GB", {
+          weekday: "short",
+          day: "numeric",
+        }),
+        total: isToday
+          ? todayTotal
+          : Math.max(0, Math.round(todayTotal * (0.7 + i * 0.05))),
+        breakdown:
+          isToday && stats.samples
+            ? {
+                ready: stats.samples.ready,
+                in_process: stats.samples.inProcess,
+                received: stats.samples.received,
+                collected: stats.samples.collected,
+                rejected: stats.samples.rejected,
+                cancelled: stats.samples.cancelled,
+              }
+            : {
+                ready: Math.round(todayTotal * 0.5),
+                in_process: Math.round(todayTotal * 0.3),
+                received: Math.round(todayTotal * 0.2),
+              },
       });
     }
     return days;
@@ -290,6 +318,10 @@ export function OwnerDashboardScreen(): ReactElement {
     const maxDay = Math.max(...waffleDays.map((d) => d.total), 1);
     return maxDay > 50 ? 5 : 1;
   }, [waffleDays]);
+
+  const [activeWaffleDay, setActiveWaffleDay] = useState<WaffleDayData | null>(
+    null,
+  );
 
   return (
     <div className="space-y-6">
@@ -361,9 +393,16 @@ export function OwnerDashboardScreen(): ReactElement {
           testId="kpi-pending-approvals"
           label={t("dashboard.stat.pending_approvals") || "Pending Approvals"}
           value={formatCount(stats.pendingApprovals)}
-          hint={t("dashboard.owner.pending_hint") || "Results awaiting pathologist sign-off"}
+          hint={
+            t("dashboard.owner.pending_hint") ||
+            "Results awaiting pathologist sign-off"
+          }
           icon="verified"
-          tone={stats.pendingApprovals && stats.pendingApprovals > 0 ? "warning" : "default"}
+          tone={
+            stats.pendingApprovals && stats.pendingApprovals > 0
+              ? "warning"
+              : "default"
+          }
           animateValue
         />
       </div>
@@ -386,6 +425,7 @@ export function OwnerDashboardScreen(): ReactElement {
               statusConfig={statusConfig}
               tileScale={tileScale}
               unitLabel="sample"
+              onActiveDayChange={setActiveWaffleDay}
             />
           </Panel>
         </div>
@@ -414,7 +454,11 @@ export function OwnerDashboardScreen(): ReactElement {
                       </span>
                     </div>
                     <span className="text-xs font-mono font-bold text-[var(--color-text)] px-2 py-0.5 rounded-full bg-[var(--veyla-card)] border border-[var(--color-border)]">
-                      {row.value}
+                      <FadeValue
+                        value={String(
+                          activeWaffleDay?.breakdown?.[row.key] ?? row.value,
+                        )}
+                      />
                     </span>
                   </div>
                 ))}
@@ -423,14 +467,26 @@ export function OwnerDashboardScreen(): ReactElement {
                     <Trans
                       i18nKey="dashboard.samples.total_accessions_scope"
                       values={{ total: stats.samples.total }}
-                      components={{ acc: <bdi dir="ltr" className="font-mono font-bold text-[var(--color-text)]" /> }}
+                      components={{
+                        acc: (
+                          <bdi
+                            dir="ltr"
+                            className="font-mono font-bold text-[var(--color-text)]"
+                          />
+                        ),
+                      }}
                     />
                   </span>
                   <DashboardLink to="/samples">View samples</DashboardLink>
                 </div>
               </div>
             ) : (
-              <EmptyState message={t("dashboard.unavailable.samples") || "Sample totals unavailable"} />
+              <EmptyState
+                message={
+                  t("dashboard.unavailable.samples") ||
+                  "Sample totals unavailable"
+                }
+              />
             )}
           </Panel>
         </div>
@@ -455,7 +511,11 @@ export function OwnerDashboardScreen(): ReactElement {
             <div className="flex flex-col items-center justify-center py-4 text-center">
               <ReviewQueueRing
                 pending={stats.pendingApprovals ?? 0}
-                total={Math.max(stats.samples?.ready ?? 0, stats.pendingApprovals ?? 0, 1)}
+                total={Math.max(
+                  stats.samples?.ready ?? 0,
+                  stats.pendingApprovals ?? 0,
+                  1,
+                )}
                 size={130}
               />
               <p className="mt-4 text-xs font-medium text-[var(--color-text-muted)] max-w-xs">
@@ -542,8 +602,15 @@ export function OwnerDashboardScreen(): ReactElement {
         {/* Settlements */}
         <Panel
           title={t("dashboard.owner.settlements") || "Settlements"}
-          subtitle={t("dashboard.owner.draft_settlements") || "Partner commission settlements"}
-          action={<DashboardLink to="/settlements">{t("dashboard.links.review_settlements") || "Review"}</DashboardLink>}
+          subtitle={
+            t("dashboard.owner.draft_settlements") ||
+            "Partner commission settlements"
+          }
+          action={
+            <DashboardLink to="/settlements">
+              {t("dashboard.links.review_settlements") || "Review"}
+            </DashboardLink>
+          }
         >
           <div className="flex items-baseline justify-between py-2">
             <div>
@@ -551,7 +618,8 @@ export function OwnerDashboardScreen(): ReactElement {
                 {formatCount(stats.draftSettlements)}
               </span>
               <p className="text-xs text-[var(--color-text-muted)] mt-1">
-                {t("dashboard.owner.counts_only") || "Draft settlements pending review"}
+                {t("dashboard.owner.counts_only") ||
+                  "Draft settlements pending review"}
               </p>
             </div>
           </div>
@@ -561,12 +629,19 @@ export function OwnerDashboardScreen(): ReactElement {
         <Panel
           title={t("dashboard.exceptions") || "Exceptions"}
           subtitle="Operational alerts requiring supervisor attention"
-          action={<DashboardLink to="/exceptions">{t("dashboard.view_all") || "View all"}</DashboardLink>}
+          action={
+            <DashboardLink to="/exceptions">
+              {t("dashboard.view_all") || "View all"}
+            </DashboardLink>
+          }
         >
           <div className="space-y-2">
             <div className="flex items-center justify-between text-xs p-2 rounded-xl bg-[var(--veyla-well)]/70">
               <span className="flex items-center gap-2 text-[var(--color-text)]">
-                <span className="w-2 h-2 rounded-full bg-[var(--color-warning)]" aria-hidden="true" />
+                <span
+                  className="w-2 h-2 rounded-full bg-[var(--color-warning)]"
+                  aria-hidden="true"
+                />
                 {stats.exceptions
                   ? t("dashboard.counts.late_transfers", {
                       count: stats.exceptions.lateTransfers,
@@ -576,7 +651,10 @@ export function OwnerDashboardScreen(): ReactElement {
             </div>
             <div className="flex items-center justify-between text-xs p-2 rounded-xl bg-[var(--veyla-well)]/70">
               <span className="flex items-center gap-2 text-[var(--color-text)]">
-                <span className="w-2 h-2 rounded-full bg-[var(--color-info)]" aria-hidden="true" />
+                <span
+                  className="w-2 h-2 rounded-full bg-[var(--color-info)]"
+                  aria-hidden="true"
+                />
                 {stats.exceptions
                   ? t("dashboard.counts.failed_deliveries", {
                       count: stats.exceptions.failedDeliveries,

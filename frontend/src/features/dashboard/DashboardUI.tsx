@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 
@@ -51,7 +51,10 @@ export function DashboardHeader({
     <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
       <div className="space-y-1">
         {breadcrumb ? (
-          <nav aria-label="Breadcrumb" className="text-xs font-medium text-[var(--color-text-muted)] mb-1">
+          <nav
+            aria-label="Breadcrumb"
+            className="text-xs font-medium text-[var(--color-text-muted)] mb-1"
+          >
             {breadcrumb}
           </nav>
         ) : null}
@@ -69,9 +72,15 @@ export function DashboardHeader({
             </span>
           ) : null}
         </div>
-        <p className="text-sm text-[var(--color-text-muted)] font-normal">{subtitle}</p>
+        <p className="text-sm text-[var(--color-text-muted)] font-normal">
+          {subtitle}
+        </p>
       </div>
-      {actions ? <div className="flex items-center gap-2.5 self-start sm:self-auto">{actions}</div> : null}
+      {actions ? (
+        <div className="flex items-center gap-2.5 self-start sm:self-auto">
+          {actions}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -141,7 +150,9 @@ export function StatCard({
               >
                 <span>{delta.positive ? "↑" : "↓"}</span>
                 <span>{delta.value}</span>
-                {delta.label ? <span className="opacity-75 ms-0.5">{delta.label}</span> : null}
+                {delta.label ? (
+                  <span className="opacity-75 ms-0.5">{delta.label}</span>
+                ) : null}
               </span>
             ) : null}
           </div>
@@ -267,12 +278,7 @@ export function VeylaSkeleton({
 }: {
   className?: string;
 }): JSX.Element {
-  return (
-    <div
-      aria-hidden="true"
-      className={`veyla-skeleton ${className}`}
-    />
-  );
+  return <div aria-hidden="true" className={`veyla-skeleton ${className}`} />;
 }
 
 /* ============================================================
@@ -296,6 +302,11 @@ export interface WaffleChartProps {
   >;
   tileScale?: number;
   unitLabel?: string;
+  /**
+   * Called when the hovered/focused day changes so the side panel can
+   * cross-fade its numbers in sync with the tooltip.
+   */
+  onActiveDayChange?: (day: WaffleDayData | null) => void;
 }
 
 export function WaffleChart({
@@ -303,11 +314,20 @@ export function WaffleChart({
   statusConfig,
   tileScale = 1,
   unitLabel = "sample",
+  onActiveDayChange,
 }: WaffleChartProps): JSX.Element {
-  const [activeDay, setActiveDay] = useState<WaffleDayData | null>(null);
+  const [activeDay, setActiveDayState] = useState<WaffleDayData | null>(null);
   const [renderedDays, setRenderedDays] = useState(days);
   const [leaving, setLeaving] = useState(false);
   const [entering, setEntering] = useState(false);
+
+  const setActiveDay = useCallback(
+    (day: WaffleDayData | null) => {
+      setActiveDayState(day);
+      onActiveDayChange?.(day);
+    },
+    [onActiveDayChange],
+  );
 
   // The dashboard has no 7d/14d/30d control yet; the only range-like change
   // it can receive is fresh daily data. Old tiles leave fully first, then the
@@ -341,7 +361,7 @@ export function WaffleChart({
     );
 
     return () => window.clearTimeout(swap);
-  }, [days, signature]);
+  }, [days, signature, setActiveDay]);
 
   const enteringCount = renderedDays.length;
   useEffect(() => {
@@ -419,20 +439,24 @@ export function WaffleChart({
                   }`}
                   style={{ minHeight: "120px" }}
                 >
-                  {Array.from({ length: Math.min(8, tilesCount) }).map((_, idx) => {
-                    const statusKeys = Object.keys(day.breakdown);
-                    const statusKey = statusKeys[idx % statusKeys.length] || "ready";
-                    const color = statusConfig[statusKey]?.color || "#0e6b3a";
-                    return (
-                      <span
-                        key={idx}
-                        className="w-full h-2.5 rounded-[4px] transition-transform group-hover:scale-105"
-                        style={{
-                          backgroundColor: day.total === 0 ? "rgba(18,16,17,0.08)" : color,
-                        }}
-                      />
-                    );
-                  })}
+                  {Array.from({ length: Math.min(8, tilesCount) }).map(
+                    (_, idx) => {
+                      const statusKeys = Object.keys(day.breakdown);
+                      const statusKey =
+                        statusKeys[idx % statusKeys.length] || "ready";
+                      const color = statusConfig[statusKey]?.color || "#0e6b3a";
+                      return (
+                        <span
+                          key={idx}
+                          className="w-full h-2.5 rounded-[4px] transition-transform group-hover:scale-105"
+                          style={{
+                            backgroundColor:
+                              day.total === 0 ? "rgba(18,16,17,0.08)" : color,
+                          }}
+                        />
+                      );
+                    },
+                  )}
                 </div>
                 {/* Day Label */}
                 <span className="text-[11px] font-mono font-medium text-[var(--color-text-muted)] truncate max-w-full">

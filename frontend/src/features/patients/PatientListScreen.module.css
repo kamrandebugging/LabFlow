@@ -294,8 +294,9 @@
   cursor: pointer;
 }
 
-/* First load only: rows fade + slide up 4px. Filter/search swaps never
-   replay this class because the screen adds it once per mount. */
+/* First load only: rows fade in. Filter/search swaps never replay this
+   class because the screen adds it once per mount. Transforms on <tr> are
+   ignored by browsers, so the motion is opacity only. */
 .rowEnter {
   animation: rowEnter var(--motion-fast) var(--ease-out) both;
 }
@@ -303,11 +304,9 @@
 @keyframes rowEnter {
   from {
     opacity: 0;
-    transform: translateY(4px);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
   }
 }
 

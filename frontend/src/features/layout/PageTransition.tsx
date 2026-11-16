@@ -25,6 +25,20 @@ import { motionDurationMs, prefersReducedMotion } from "../../lib/motion";
 
 type LayerState = "enter" | "idle" | "exit";
 
+function focusPageHeading(stack: HTMLElement | null): void {
+  if (!stack) return;
+  // Only focus the heading inside the entering layer. Never fall back to the
+  // exiting layer — focusing it would lose focus when that layer unmounts.
+  const layer = stack.querySelector('.lf-page-layer--enter');
+  if (!layer) return;
+  const h1 = layer.querySelector('h1');
+  if (!h1) return;
+  if (!h1.hasAttribute("tabindex")) {
+    h1.setAttribute("tabindex", "-1");
+  }
+  h1.focus({ preventScroll: true });
+}
+
 interface PageLayer {
   id: number;
   pathname: string;
@@ -46,10 +60,16 @@ export function PageTransition(): JSX.Element {
   const [layers, setLayers] = useState<PageLayer[]>(() => [
     { id: 0, pathname: location.pathname, element: outlet, state: "idle" },
   ]);
+  const stackRef = useRef<HTMLDivElement>(null);
 
   useLayoutEffect(() => {
     if (livePath.current === location.pathname) return;
     livePath.current = location.pathname;
+
+    // Cancel any pending timers from a previous transition so they do not
+    // mutate state after a new navigation has already started.
+    timers.current.forEach((timer) => window.clearTimeout(timer));
+    timers.current = [];
 
     const incoming: PageLayer = {
       id: nextId.current++,
@@ -74,6 +94,7 @@ export function PageTransition(): JSX.Element {
     if (prefersReducedMotion()) {
       setLayers([{ ...incoming, state: "idle" }]);
       window.scrollTo(0, 0);
+      window.requestAnimationFrame(() => focusPageHeading(stackRef.current));
       return;
     }
 
@@ -86,12 +107,18 @@ export function PageTransition(): JSX.Element {
 
     // The arriving page starts at the top of the content area.
     window.scrollTo(0, 0);
+    // Defer focus until React has committed the entering layer so we do not
+    // accidentally focus the exiting layer.
+    window.requestAnimationFrame(() => focusPageHeading(stackRef.current));
 
     const exitTimer = window.setTimeout(
       () => {
         setLayers((prev): PageLayer[] =>
           prev.filter((layer) => layer.state !== "exit"),
         );
+        // Re-focus as a safety net in case the browser moved focus to body
+        // when the exiting layer was removed.
+        window.requestAnimationFrame(() => focusPageHeading(stackRef.current));
       },
       motionDurationMs("--motion-fast", 150),
     );
@@ -118,7 +145,7 @@ export function PageTransition(): JSX.Element {
   );
 
   return (
-    <div className="lf-page-stack">
+    <div ref={stackRef} className="lf-page-stack">
       {layers.map((layer) => (
         <div
           key={layer.id}
