@@ -25,6 +25,7 @@ import { resultsService } from "../results/resultsService";
 import { LanguageSwitcher } from "../../components/LanguageSwitcher";
 import { revealThemeChange } from "../../lib/motion";
 import { PatientsDrawerProvider } from "../patients/PatientDrawerHost";
+import { InvoiceDrawerProvider } from "../billing/InvoiceDrawerHost";
 import { PageTransition } from "./PageTransition";
 
 const DESK_PATHS = [
@@ -600,7 +601,9 @@ export function TenantLayout(): ReactElement {
         {/* Content Outlet — only the content area animates on navigation. */}
         <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto">
           <PatientsDrawerProvider>
-            <PageTransition />
+            <InvoiceDrawerProvider>
+              <PageTransition />
+            </InvoiceDrawerProvider>
           </PatientsDrawerProvider>
         </main>
       </div>

@@ -17,6 +17,7 @@ import { TenantEnrollScreen } from "./features/auth/TenantEnrollScreen";
 import { TwoFactorAuthScreen } from "./features/auth/TwoFactorAuthScreen";
 import { PatientListScreen } from "./features/patients/PatientListScreen";
 import { usePatientsDrawer } from "./features/patients/patientsDrawerContext";
+import { useInvoiceDrawer } from "./features/billing/invoiceDrawerContext";
 import { RegisterPatientScreen } from "./features/patients/RegisterPatientScreen";
 import { PatientEditScreen } from "./features/patients/PatientEditScreen";
 import { PatientHistoryScreen } from "./features/patients/PatientHistoryScreen";
@@ -24,7 +25,6 @@ import { TestCatalogScreen } from "./features/catalog/TestCatalogScreen";
 import { TestPanelsScreen } from "./features/catalog/TestPanelsScreen";
 import { InvoicesListScreen } from "./features/billing/InvoicesListScreen";
 import { NewInvoiceScreen } from "./features/billing/NewInvoiceScreen";
-import { InvoiceDetailScreen } from "./features/billing/InvoiceDetailScreen";
 import {
   SampleAccessioningListScreen,
   CollectSampleStep1Screen,
@@ -355,13 +355,35 @@ function TestPanelsWrapper(): JSX.Element {
 }
 
 function InvoicesListWrapper(): JSX.Element {
-  const navigate = useNavigate();
+  const { openInvoice, openNew, listRevision } = useInvoiceDrawer();
+
+  // Refresh the list behind the drawer after a create.
   return (
     <main className="min-h-screen bg-slate-50">
       <InvoicesListScreen
-        onNewInvoice={() => navigate("/invoices/new")}
-        onSelectInvoice={(id) => navigate(`/invoices/${id}`)}
+        key={listRevision}
+        onNewInvoice={() => openNew()}
+        onSelectInvoice={(id) => openInvoice(id)}
       />
+    </main>
+  );
+}
+
+/**
+ * Direct load of /invoices/:id shows the list with the record drawer already
+ * open, exactly like /patients/:id.
+ */
+function InvoiceDetailRouteWrapper(): JSX.Element {
+  const { id } = useParams<{ id: string }>();
+  const { openInvoice } = useInvoiceDrawer();
+
+  useEffect(() => {
+    if (id) openInvoice(id);
+  }, [id, openInvoice]);
+
+  return (
+    <main className="min-h-screen bg-slate-50">
+      <InvoicesListScreen onSelectInvoice={() => undefined} />
     </main>
   );
 }
@@ -374,22 +396,6 @@ function NewInvoiceWrapper(): JSX.Element {
         onCancel={() => navigate("/invoices")}
         onSuccess={(inv) => navigate(`/invoices/${inv.id}`)}
         onRegisterPatient={() => navigate("/patients/new")}
-      />
-    </main>
-  );
-}
-
-function InvoiceDetailWrapper(): JSX.Element {
-  const navigate = useNavigate();
-  const { id } = useParams<{ id: string }>();
-  return (
-    <main className="min-h-screen bg-slate-50 py-6">
-      <InvoiceDetailScreen
-        invoiceId={id || ""}
-        onBack={() => navigate("/invoices")}
-        onProceedToSamples={(invoice) =>
-          navigate(`/samples/collect/step1?invoice_id=${invoice.id}`)
-        }
       />
     </main>
   );
@@ -773,7 +779,7 @@ function App(): JSX.Element {
           <Route path="/settings/panels" element={<TestPanelsWrapper />} />
           <Route path="/invoices" element={<InvoicesListWrapper />} />
           <Route path="/invoices/new" element={<NewInvoiceWrapper />} />
-          <Route path="/invoices/:id" element={<InvoiceDetailWrapper />} />
+          <Route path="/invoices/:id" element={<InvoiceDetailRouteWrapper />} />
 
           {/* Samples Management Suite (Screens 16–20) */}
           <Route path="/samples" element={<SamplesListWrapper />} />
