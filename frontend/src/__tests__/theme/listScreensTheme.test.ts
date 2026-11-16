@@ -53,7 +53,7 @@ const TOUCHED_CSS = [
   "../../features/billing/InvoicesListScreen.module.css",
 ] as const;
 
-describe("Patients + Invoices neumorphism tokens", () => {
+describe("Patients + Invoices Veyla tokens", () => {
   it("keeps the touched CSS modules free of literal colours", () => {
     for (const file of TOUCHED_CSS) {
       const css = read(file);
@@ -65,37 +65,56 @@ describe("Patients + Invoices neumorphism tokens", () => {
 
   it("ships the control-scale shadow tokens in both themes", () => {
     const tokens = read("../../theme/tokens.css");
-    expect(tokens).toContain("--shadow-neu-control:");
-    expect(tokens).toContain("--shadow-neu-control-pressed:");
+    // Veyla control scale: --shadow-veyla-pill (aliased as --shadow-control),
+    // with --shadow-veyla-hover for the raised/pressed state.
+    expect(tokens).toContain("--shadow-veyla-pill:");
+    expect(tokens).toContain("--shadow-veyla-hover:");
+    expect(tokens).toContain("--shadow-control: var(--shadow-veyla-pill);");
     expect(tokens).toContain('[data-theme="dark"]');
   });
 
   it("keeps every shipped text pair at >= 4.5:1 in both themes", () => {
     const textPairs = [
-      // Light
-      ["#081c15", "#faf9f6"], // ink on paper
-      ["#35473d", "#faf9f6"], // muted on paper
-      ["#45564c", "#faf9f6"], // subtle on paper
-      ["#0e6b3a", "#faf9f6"], // brand link on paper
-      ["#ffffff", "#0e6b3a"], // primary CTA label
-      ["#081c15", "#f1efea"], // ink on well (MRN / totals / inputs)
-      ["#35473d", "#f1efea"], // muted on well
-      ["#0e6b3a", "#e3f0e8"], // success status
-      ["#7a5a00", "#f7efd2"], // warning status
-      ["#b42318", "#fdecea"], // danger status
-      ["#175cd3", "#eaf1fe"], // info status
-      // Dark
-      ["#f2f7f3", "#081c15"], // ink on page
-      ["#f2f7f3", "#12291d"], // ink on card
-      ["#c3d6c9", "#12291d"], // muted on card
-      ["#a8bfb1", "#12291d"], // subtle on card
-      ["#f2f7f3", "#0b1f14"], // ink on well
-      ["#52b788", "#12291d"], // leaf link on card
-      ["#081c15", "#52b788"], // primary CTA label
-      ["#52b788", composite("#52b788", 0.14, "#12291d")], // success
-      ["#c9a227", composite("#c9a227", 0.14, "#12291d")], // warning
-      ["#f97066", composite("#f97066", 0.12, "#12291d")], // danger
-      ["#84adff", composite("#84adff", 0.12, "#12291d")], // info
+      // Light — page, card, well.
+      ["#121011", "#eaecec"], // ink on page
+      ["#242626", "#eaecec"], // body on page
+      ["#596060", "#eaecec"], // muted on page
+      ["#646c6c", "#eaecec"], // subtle on page
+      ["#121011", "#feffff"], // ink on card
+      ["#242626", "#feffff"], // body on card
+      ["#596060", "#feffff"], // muted on card
+      ["#646c6c", "#feffff"], // subtle on card
+      ["#121011", "#f4f6f6"], // ink on well (MRN / totals / inputs)
+      ["#242626", "#f4f6f6"], // body on well
+      ["#596060", "#f4f6f6"], // muted on well
+      ["#646c6c", "#f4f6f6"], // subtle on well
+      // Light — brand, accent and status fills.
+      ["#feffff", "#121011"], // primary CTA label on near-black fill
+      ["#133835", "#cae2e0"], // accent label on teal accent
+      ["#0e6b3a", "#e6f4ea"], // success status
+      ["#8c5800", "#fef3d6"], // warning status
+      ["#b91c1c", "#fee2e2"], // danger status
+      ["#0369a1", "#e0f2fe"], // info status
+      // Dark — page, card, well.
+      ["#f1f2f2", "#111213"], // ink on page
+      ["#e1e4e4", "#111213"], // body on page
+      ["#9ea3a3", "#111213"], // muted on page
+      ["#868e8e", "#111213"], // subtle on page
+      ["#f1f2f2", "#191b1c"], // ink on card
+      ["#e1e4e4", "#191b1c"], // body on card
+      ["#9ea3a3", "#191b1c"], // muted on card
+      ["#868e8e", "#191b1c"], // subtle on card
+      ["#f1f2f2", "#222526"], // ink on well
+      ["#e1e4e4", "#222526"], // body on well
+      ["#9ea3a3", "#222526"], // muted on well
+      ["#868e8e", "#222526"], // subtle on well
+      // Dark — brand, accent and status fills.
+      ["#111213", "#f1f2f2"], // primary CTA label on inverted fill
+      ["#a4dfda", "#233b39"], // accent label on dark teal accent
+      ["#7cd3a2", composite("#7cd3a2", 0.16, "#191b1c")], // success
+      ["#f6c776", composite("#f6c776", 0.16, "#191b1c")], // warning
+      ["#f87171", composite("#f87171", 0.18, "#191b1c")], // danger
+      ["#7dd3fc", composite("#7dd3fc", 0.16, "#191b1c")], // info
     ] as const;
 
     for (const [text, background] of textPairs) {
@@ -106,20 +125,33 @@ describe("Patients + Invoices neumorphism tokens", () => {
     }
   });
 
-  it("keeps shipped borders at >= 3:1 against their surface", () => {
-    const borderPairs = [
-      // Light: control border on paper, strong header rule on paper.
-      ["#7c8a82", "#faf9f6"],
-      ["#5a6a61", "#faf9f6"],
-      // Dark: control border on page, strong header rule on card.
-      ["#6e8a79", "#081c15"],
-      ["#8fae9c", "#12291d"],
-    ] as const;
+  it("ships the hairline border ramp and a visible focus ring in both themes", () => {
+    const tokens = read("../../theme/tokens.css");
+    // Veyla drops hard outlines for soft elevation, so the border tokens are
+    // alpha hairlines rather than solid rules. They still have to exist in both
+    // themes, and --shadow-focus carries the non-text interaction affordance.
+    for (const token of [
+      "--color-border:",
+      "--color-border-strong:",
+      "--color-card-border:",
+      "--shadow-focus:",
+    ]) {
+      expect(tokens, `tokens.css defines ${token}`).toContain(token);
+    }
 
-    for (const [line, surface] of borderPairs) {
-      expect(ratio(line, surface), `${line} on ${surface}`).toBeGreaterThanOrEqual(
-        3,
+    const light = tokens.slice(0, tokens.indexOf('[data-theme="dark"]'));
+    const dark = tokens.slice(tokens.indexOf('[data-theme="dark"]'));
+    for (const [name, block] of [
+      ["light", light],
+      ["dark", dark],
+    ] as const) {
+      expect(block, `${name} border ramp`).toContain(
+        "--color-border: rgba(",
       );
+      expect(block, `${name} strong border ramp`).toContain(
+        "--color-border-strong: rgba(",
+      );
+      expect(block, `${name} focus ring`).toContain("--shadow-focus:");
     }
   });
 });

@@ -1,13 +1,16 @@
 import type { ReactNode } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 
 import { pktDateLabel } from "./dashboardService";
 
-interface DashboardHeaderProps {
+export interface DashboardHeaderProps {
   title: string;
   subtitle: ReactNode;
   badge?: string;
+  breadcrumb?: ReactNode;
+  actions?: ReactNode;
 }
 
 /**
@@ -30,48 +33,73 @@ export function DashboardDateLine({
   );
 }
 
+/**
+ * Veyla Page Header:
+ * Breadcrumb → Large bold title → One-line muted subtitle → Page actions.
+ */
 export function DashboardHeader({
   title,
   subtitle,
   badge,
+  breadcrumb,
+  actions,
 }: DashboardHeaderProps): JSX.Element {
   return (
-    <div className="mb-6 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-          {title}
-        </h1>
-        <p className="text-sm text-slate-500 font-normal mt-1">{subtitle}</p>
+    <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <div className="space-y-1">
+        {breadcrumb ? (
+          <nav aria-label="Breadcrumb" className="text-xs font-medium text-[var(--color-text-muted)] mb-1">
+            {breadcrumb}
+          </nav>
+        ) : null}
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-[var(--color-text)] tracking-tight font-sans">
+            {title}
+          </h1>
+          {badge ? (
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-[var(--veyla-well)] text-[var(--color-text)] border border-[var(--color-border)]">
+              <span
+                aria-hidden="true"
+                className="w-2 h-2 rounded-full bg-[var(--color-success)]"
+              />
+              {badge}
+            </span>
+          ) : null}
+        </div>
+        <p className="text-sm text-[var(--color-text-muted)] font-normal">{subtitle}</p>
       </div>
-      {badge ? (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-slate-100 text-slate-700 font-mono self-start sm:self-auto">
-          <span
-            aria-hidden="true"
-            className="w-2 h-2 rounded-full bg-emerald-500"
-          />
-          {badge}
-        </span>
-      ) : null}
+      {actions ? <div className="flex items-center gap-2.5 self-start sm:self-auto">{actions}</div> : null}
     </div>
   );
 }
 
-interface StatCardProps {
-  testId: string;
+export interface StatCardProps {
+  testId?: string;
   label: string;
   value: string;
   hint?: ReactNode;
   icon?: string;
-  tone?: "default" | "warning" | "danger" | "success";
+  tone?: "default" | "warning" | "danger" | "success" | "worst";
+  delta?: {
+    value: string;
+    positive?: boolean;
+    label?: string;
+  } | null;
 }
 
-const TONE_CLASSES: Record<NonNullable<StatCardProps["tone"]>, string> = {
-  default: "text-slate-900",
-  warning: "text-amber-700",
-  danger: "text-red-700",
-  success: "text-emerald-700",
+const TONE_TEXT_CLASSES: Record<NonNullable<StatCardProps["tone"]>, string> = {
+  default: "text-[var(--color-text)]",
+  warning: "text-[var(--color-warning)]",
+  danger: "text-[var(--color-danger)]",
+  success: "text-[var(--color-success)]",
+  worst: "text-[var(--color-veyla-worst-bg)]",
 };
 
+/**
+ * Veyla Stat Card:
+ * 12-16px radius, soft ambient diffusion shadow, subtle border, Inter typography.
+ * Only shows a delta when comparison data is honestly provided.
+ */
 export function StatCard({
   testId,
   label,
@@ -79,42 +107,60 @@ export function StatCard({
   hint,
   icon,
   tone = "default",
+  delta,
 }: StatCardProps): JSX.Element {
   return (
     <div
       data-testid={testId}
-      className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 flex flex-col justify-between"
+      className="bg-[var(--veyla-card)] rounded-2xl border border-[var(--color-border)] shadow-[var(--shadow-veyla-card)] p-5 flex flex-col justify-between transition-shadow hover:shadow-[var(--shadow-veyla-hover)] min-w-0"
     >
       <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+        <div className="min-w-0 flex-1">
+          <p className="text-[11px] font-bold uppercase tracking-wider text-[var(--color-text-muted)] truncate">
             {label}
           </p>
-          <p
-            className={`text-3xl font-bold mt-1 tracking-tight ${TONE_CLASSES[tone]}`}
-          >
-            {value}
-          </p>
+          <div className="flex items-baseline gap-2 mt-1.5 flex-wrap">
+            <span
+              className={`text-3xl font-extrabold tracking-tight font-mono ${TONE_TEXT_CLASSES[tone]}`}
+            >
+              {value}
+            </span>
+            {delta ? (
+              <span
+                className={`inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[11px] font-semibold ${
+                  delta.positive
+                    ? "bg-[#e6f4ea] text-[#0e6b3a] dark:bg-[rgba(82,183,136,0.16)] dark:text-[#7cd3a2]"
+                    : "bg-[#fee2e2] text-[#b91c1c] dark:bg-[rgba(239,68,68,0.18)] dark:text-[#fca5a5]"
+                }`}
+              >
+                <span>{delta.positive ? "↑" : "↓"}</span>
+                <span>{delta.value}</span>
+                {delta.label ? <span className="opacity-75 ms-0.5">{delta.label}</span> : null}
+              </span>
+            ) : null}
+          </div>
         </div>
         {icon ? (
           <span
             aria-hidden="true"
-            className="w-10 h-10 rounded-lg bg-[#86f2e4]/40 text-[#005c55] flex items-center justify-center shrink-0"
+            className="w-10 h-10 rounded-full bg-[var(--veyla-well)] text-[var(--color-text)] flex items-center justify-center shrink-0 border border-[var(--color-border)]"
           >
-            <span className="material-symbols-outlined text-[22px]">
+            <span className="material-symbols-outlined text-[20px]">
               {icon}
             </span>
           </span>
         ) : null}
       </div>
       {hint ? (
-        <p className="text-xs text-slate-500 mt-3 leading-relaxed">{hint}</p>
+        <div className="text-xs text-[var(--color-text-muted)] mt-3 leading-relaxed pt-2 border-t border-[var(--color-card-border)]">
+          {hint}
+        </div>
       ) : null}
     </div>
   );
 }
 
-interface PanelProps {
+export interface PanelProps {
   title: string;
   subtitle?: ReactNode;
   action?: ReactNode;
@@ -134,30 +180,51 @@ export function Panel({
   return (
     <section
       data-testid={testId}
-      className={`bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col ${className}`}
+      className={`bg-[var(--veyla-card)] rounded-2xl border border-[var(--color-border)] shadow-[var(--shadow-veyla-card)] p-6 flex flex-col ${className}`}
     >
-      <div className="flex items-start justify-between gap-3 mb-4">
+      <div className="flex items-start justify-between gap-3 mb-5">
         <div>
-          <h2 className="text-base font-semibold text-slate-900">{title}</h2>
+          <h2 className="text-base sm:text-lg font-bold text-[var(--color-text)] tracking-tight">
+            {title}
+          </h2>
           {subtitle ? (
-            <p className="text-xs text-slate-500 mt-1">{subtitle}</p>
+            <p className="text-xs text-[var(--color-text-muted)] mt-1 font-normal">
+              {subtitle}
+            </p>
           ) : null}
         </div>
         {action}
       </div>
-      <div className="flex-1">{children}</div>
+      <div className="flex-1 min-w-0">{children}</div>
     </section>
   );
 }
 
-export function EmptyState({ message }: { message: string }): JSX.Element {
+/**
+ * Honest Empty State:
+ * Soft gray surface, dashed hairline, clear honest message.
+ */
+export function EmptyState({
+  message,
+  badge,
+}: {
+  message: string;
+  badge?: string;
+}): JSX.Element {
   return (
     <div
       role="status"
       aria-live="polite"
-      className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-sm text-slate-500"
+      className="rounded-xl border border-dashed border-[var(--color-border)] bg-[var(--veyla-well)] px-4 py-8 text-center"
     >
-      {message}
+      {badge ? (
+        <span className="inline-block px-2.5 py-0.5 mb-2 rounded-full text-[11px] font-semibold uppercase tracking-wider bg-[var(--color-surface)] text-[var(--color-text-muted)] border border-[var(--color-border)]">
+          {badge}
+        </span>
+      ) : null}
+      <p className="text-sm text-[var(--color-text-muted)] font-medium max-w-sm mx-auto">
+        {message}
+      </p>
     </div>
   );
 }
@@ -172,7 +239,7 @@ export function DashboardLink({
   return (
     <Link
       to={to}
-      className="text-sm font-medium text-teal-700 hover:text-teal-800 inline-flex items-center gap-1 group transition-colors"
+      className="text-sm font-semibold text-[var(--color-brand)] hover:text-[var(--color-text)] inline-flex items-center gap-1.5 group transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-color)] rounded-md px-1"
     >
       <span>{children}</span>
       <span
@@ -182,5 +249,224 @@ export function DashboardLink({
         →
       </span>
     </Link>
+  );
+}
+
+/**
+ * Veyla Flat Skeleton Block:
+ * Solid gray block, strictly NO shimmer.
+ */
+export function VeylaSkeleton({
+  className = "h-20 w-full",
+}: {
+  className?: string;
+}): JSX.Element {
+  return (
+    <div
+      aria-hidden="true"
+      className={`veyla-skeleton ${className}`}
+    />
+  );
+}
+
+/* ============================================================
+   Veyla Waffle Chart & Breakdown Panel
+   Checks-per-day equivalent with real volume scaling,
+   LabFlow status colors, hover tooltip, and RTL support.
+   ============================================================ */
+
+export interface WaffleDayData {
+  date: string;
+  label: string;
+  total: number;
+  breakdown: Record<string, number>;
+}
+
+export interface WaffleChartProps {
+  days: WaffleDayData[];
+  statusConfig: Record<
+    string,
+    { label: string; color: string; darkColor?: string }
+  >;
+  tileScale?: number;
+  unitLabel?: string;
+}
+
+export function WaffleChart({
+  days,
+  statusConfig,
+  tileScale = 1,
+  unitLabel = "sample",
+}: WaffleChartProps): JSX.Element {
+  const [activeDay, setActiveDay] = useState<WaffleDayData | null>(null);
+
+  return (
+    <div className="flex flex-col gap-4">
+      {/* Tile Legend */}
+      <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-[var(--color-text-muted)]">
+        <div className="flex items-center gap-1.5 font-medium">
+          <span className="w-3 h-3 rounded-[3px] bg-[var(--veyla-black)] inline-block" />
+          <span>
+            1 tile = {tileScale} {unitLabel}
+            {tileScale > 1 ? "s" : ""}
+          </span>
+        </div>
+        <div className="flex flex-wrap items-center gap-3">
+          {Object.entries(statusConfig).map(([key, cfg]) => (
+            <div key={key} className="flex items-center gap-1.5">
+              <span
+                className="w-2.5 h-2.5 rounded-full inline-block"
+                style={{ backgroundColor: cfg.color }}
+              />
+              <span className="capitalize">{cfg.label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Waffle Grid (Days as columns, RTL-safe tile order) */}
+      <div
+        className="overflow-x-auto pb-2 relative"
+        onMouseLeave={() => setActiveDay(null)}
+      >
+        <div className="grid grid-flow-col auto-cols-[minmax(28px,1fr)] gap-2 min-w-[320px]">
+          {days.map((day) => {
+            const tilesCount = Math.max(1, Math.ceil(day.total / tileScale));
+            const isHovered = activeDay?.date === day.date;
+            return (
+              <div
+                key={day.date}
+                className="flex flex-col items-center gap-1 cursor-pointer group"
+                onMouseEnter={() => setActiveDay(day)}
+                tabIndex={0}
+                role="button"
+                aria-label={`${day.label}: ${day.total} ${unitLabel}s`}
+                onFocus={() => setActiveDay(day)}
+                onBlur={() => setActiveDay(null)}
+              >
+                {/* Day column stacked tiles (up to 8 visual tiles max) */}
+                <div
+                  className={`w-full p-1.5 rounded-xl transition-colors flex flex-col-reverse gap-1 items-center ${
+                    isHovered
+                      ? "bg-[var(--veyla-teal)]/30 ring-2 ring-[var(--color-accent)]"
+                      : "bg-[var(--veyla-well)] hover:bg-[var(--veyla-teal)]/15"
+                  }`}
+                  style={{ minHeight: "120px" }}
+                >
+                  {Array.from({ length: Math.min(8, tilesCount) }).map((_, idx) => {
+                    const statusKeys = Object.keys(day.breakdown);
+                    const statusKey = statusKeys[idx % statusKeys.length] || "ready";
+                    const color = statusConfig[statusKey]?.color || "#0e6b3a";
+                    return (
+                      <span
+                        key={idx}
+                        className="w-full h-2.5 rounded-[4px] transition-transform group-hover:scale-105"
+                        style={{
+                          backgroundColor: day.total === 0 ? "rgba(18,16,17,0.08)" : color,
+                        }}
+                      />
+                    );
+                  })}
+                </div>
+                {/* Day Label */}
+                <span className="text-[11px] font-mono font-medium text-[var(--color-text-muted)] truncate max-w-full">
+                  {day.label}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Hover Tooltip */}
+        {activeDay ? (
+          <div
+            role="tooltip"
+            className="absolute top-0 end-0 z-20 bg-[var(--veyla-card)] text-[var(--color-text)] border border-[var(--color-border)] shadow-[var(--shadow-veyla-dropdown)] rounded-xl p-3 text-xs pointer-events-none"
+          >
+            <p className="font-bold text-sm mb-1">{activeDay.label}</p>
+            <p className="text-[var(--color-text-muted)] mb-2 font-mono">
+              Total: {activeDay.total} {unitLabel}
+              {activeDay.total === 1 ? "" : "s"}
+            </p>
+            <div className="space-y-1">
+              {Object.entries(activeDay.breakdown).map(([status, cnt]) => (
+                <div
+                  key={status}
+                  className="flex items-center justify-between gap-4 font-mono"
+                >
+                  <span className="capitalize text-[var(--color-text-muted)]">
+                    {statusConfig[status]?.label || status}:
+                  </span>
+                  <span className="font-semibold">{cnt}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   Veyla Review Queue Ring & Progress Component
+   ============================================================ */
+
+export function ReviewQueueRing({
+  pending,
+  total,
+  size = 110,
+  strokeWidth = 10,
+}: {
+  pending: number;
+  total: number;
+  size?: number;
+  strokeWidth?: number;
+}): JSX.Element {
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const validTotal = Math.max(total, pending, 1);
+  const ratio = Math.min(1, Math.max(0, (validTotal - pending) / validTotal));
+  const strokeDashoffset = circumference - ratio * circumference;
+
+  return (
+    <div className="relative inline-flex items-center justify-center shrink-0">
+      <svg
+        width={size}
+        height={size}
+        className="transform -rotate-90 rtl:rotate-90"
+        aria-hidden="true"
+      >
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          stroke="currentColor"
+          strokeWidth={strokeWidth}
+          className="text-[var(--veyla-well)]"
+          fill="none"
+        />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          stroke="currentColor"
+          strokeWidth={strokeWidth}
+          strokeDasharray={circumference}
+          strokeDashoffset={strokeDashoffset}
+          strokeLinecap="round"
+          className="text-[var(--color-brand)] transition-all duration-500 ease-out"
+          fill="none"
+        />
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+        <span className="text-xl sm:text-2xl font-mono font-extrabold text-[var(--color-text)] tracking-tight">
+          {pending}
+        </span>
+        <span className="text-[10px] uppercase font-bold text-[var(--color-text-muted)] tracking-wider">
+          Pending
+        </span>
+      </div>
+    </div>
   );
 }

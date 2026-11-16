@@ -44,7 +44,7 @@ const owner = {
   branch_ids: [] as string[],
 };
 
-describe("Owner dashboard", () => {
+describe("Owner dashboard (Veyla look)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     useAuthStore.getState().setSession("token", owner);
@@ -110,7 +110,7 @@ describe("Owner dashboard", () => {
     });
   });
 
-  it("renders the owner's real tenant figures", async () => {
+  it("renders the owner's real tenant figures with Veyla cards and waffle chart", async () => {
     render(
       <MemoryRouter>
         <OwnerDashboardScreen />
@@ -125,9 +125,20 @@ describe("Owner dashboard", () => {
     );
     expect(screen.getByText("2 late sample transfers")).toBeInTheDocument();
     expect(screen.getByText("1 failed report deliveries")).toBeInTheDocument();
+
+    // Veyla checks-per-day waffle chart
+    expect(screen.getByText("Checks per day")).toBeInTheDocument();
+    expect(screen.getByText("Start a check")).toBeInTheDocument();
+
+    // Veyla review queue and unconfigured telemetry cards
+    expect(screen.getByText("Review queue")).toBeInTheDocument();
+    expect(screen.getByText("Next up")).toBeInTheDocument();
+    expect(screen.getByText("Channel breakdown")).toBeInTheDocument();
+    expect(screen.getByText("Turnaround time by hour")).toBeInTheDocument();
+    expect(screen.getAllByText("Not configured").length).toBe(2);
   });
 
-  it("renders every section and pairs the critical value with an icon", async () => {
+  it("renders every section and pairs the critical value with an icon and urgent pill", async () => {
     vi.mocked(reportsService.getExceptions).mockResolvedValue({
       results: [],
       counts: {
@@ -156,6 +167,7 @@ describe("Owner dashboard", () => {
     expect(
       critical.parentElement?.querySelector('[aria-hidden="true"]'),
     ).not.toBeNull();
+    expect(screen.getByText("Urgent")).toBeInTheDocument();
   });
 
   it("renders an em dash when the billing read fails", async () => {

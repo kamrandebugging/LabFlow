@@ -44,7 +44,7 @@ function renderShell(): void {
   );
 }
 
-describe("TenantLayout role sidebar", () => {
+describe("TenantLayout role sidebar and Veyla shell", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(resultsService.getApprovalsQueue).mockResolvedValue([]);
@@ -65,7 +65,7 @@ describe("TenantLayout role sidebar", () => {
     });
   });
 
-  it("shows the manager only the nav items the policy allows", async () => {
+  it("shows the manager only the nav items the policy allows and groups into DESK and CONTROLS", async () => {
     useAuthStore.getState().setSession("token", {
       id: "m1",
       email: "manager@lab.pk",
@@ -77,7 +77,10 @@ describe("TenantLayout role sidebar", () => {
 
     renderShell();
 
-    expect(await screen.findByText("Test Lab")).toBeInTheDocument();
+    expect((await screen.findAllByText("Test Lab")).length).toBeGreaterThan(0);
+    expect(screen.getByText("DESK")).toBeInTheDocument();
+    expect(screen.getByText("CONTROLS")).toBeInTheDocument();
+
     expect(
       screen.getByRole("link", { name: /Invoices & Payments/i }),
     ).toBeInTheDocument();
@@ -103,6 +106,10 @@ describe("TenantLayout role sidebar", () => {
       screen.queryByRole("link", { name: /Catalog/i }),
     ).not.toBeInTheDocument();
 
+    // Veyla Topbar controls
+    expect(screen.getByRole("button", { name: /\+ New/i })).toBeInTheDocument();
+    expect(screen.getByText("Live • System normal")).toBeInTheDocument();
+
     // The manager badge loader must not probe the pathologist-only queue.
     expect(resultsService.getApprovalsQueue).not.toHaveBeenCalled();
     expect(partnersService.getSettlements).toHaveBeenCalled();
@@ -121,7 +128,7 @@ describe("TenantLayout role sidebar", () => {
 
     renderShell();
 
-    expect(await screen.findByText("Test Lab")).toBeInTheDocument();
+    expect((await screen.findAllByText("Test Lab")).length).toBeGreaterThan(0);
     expect(screen.getByRole("link", { name: /Worklist/i })).toBeInTheDocument();
     expect(
       screen.queryByRole("link", { name: /Invoices & Payments/i }),
