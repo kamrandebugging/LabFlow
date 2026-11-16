@@ -120,30 +120,6 @@ export function ChecksWaffle({
 
   return (
     <div className={styles.wrap}>
-      <div className={styles.legend}>
-        <span className={styles.legendBucket}>
-          {`1 tile = ${bucket} ${unitLabel}${bucket > 1 ? "s" : ""}`}
-        </span>
-        <div className={styles.legendGroups}>
-          <span className={styles.legendItem}>
-            <i className={`${styles.swatch} ${styles.passed}`} />
-            {t("dashboard:waffle.passed", "Passed")}
-          </span>
-          <span className={styles.legendItem}>
-            <i className={`${styles.swatch} ${styles.review}`} />
-            {t("dashboard:waffle.review", "Review")}
-          </span>
-          <span className={styles.legendItem}>
-            <i className={`${styles.swatch} ${styles.declined}`} />
-            {t("dashboard:waffle.declined", "Declined")}
-          </span>
-          <span className={styles.legendItem}>
-            <i className={`${styles.swatch} ${styles.capacity}`} />
-            {t("dashboard:waffle.capacity", "Capacity")}
-          </span>
-        </div>
-      </div>
-
       <div className={styles.scroller} onMouseLeave={() => setActive(null)}>
         <div
           className={`${styles.grid} ${leaving ? styles.gridOut : ""}`}
@@ -220,6 +196,31 @@ export function ChecksWaffle({
               </div>
             );
           })}
+        </div>
+      </div>
+
+      {/* Legend sits under the grid, Veyla order: bucket first, then swatches. */}
+      <div className={styles.legend}>
+        <span className={styles.legendBucket}>
+          {`1 tile = ${bucket} ${unitLabel}${bucket > 1 ? "s" : ""}`}
+        </span>
+        <div className={styles.legendGroups}>
+          <span className={styles.legendItem}>
+            <i className={`${styles.swatch} ${styles.passed}`} />
+            {t("dashboard:waffle.passed", "Passed")}
+          </span>
+          <span className={styles.legendItem}>
+            <i className={`${styles.swatch} ${styles.review}`} />
+            {t("dashboard:waffle.review", "Review")}
+          </span>
+          <span className={styles.legendItem}>
+            <i className={`${styles.swatch} ${styles.declined}`} />
+            {t("dashboard:waffle.declined", "Declined")}
+          </span>
+          <span className={styles.legendItem}>
+            <i className={`${styles.swatch} ${styles.capacity}`} />
+            {t("dashboard:waffle.capacity", "Capacity")}
+          </span>
         </div>
       </div>
     </div>
