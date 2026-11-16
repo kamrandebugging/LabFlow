@@ -1,5 +1,8 @@
-/* Patients list — hybrid neumorphism, tokens only.
-   Tables are flat; cards/containers carry soft dual shadows only. */
+/* Patients list — Veyla look, tokens only.
+
+   Soft elevation over hard borders: the table card carries a hairline
+   border and a diffusion shadow rather than a heavy outline. Row separators
+   are hairlines. Loading rows are flat grey skeletons (strictly no shimmer). */
 
 .page {
   min-height: 100vh;
@@ -34,7 +37,7 @@
   font-size: clamp(26px, 3vw, 34px);
   font-weight: 700;
   line-height: 1.15;
-  letter-spacing: 0.01em;
+  letter-spacing: -0.01em;
   color: var(--color-text);
 }
 
@@ -51,14 +54,14 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  min-height: 44px;
+  min-height: 36px;
   padding: 0 14px;
   border-radius: 999px;
   border: 1px solid var(--color-success-border);
   background: var(--color-success-tint);
   color: var(--color-success);
   font-family: var(--font-mono);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   letter-spacing: 0.02em;
   white-space: nowrap;
@@ -66,8 +69,8 @@
 
 /* Keeps the existing 2s pulse timing; the dot became the status icon. */
 .syncIcon {
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   flex: 0 0 auto;
   animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
@@ -102,10 +105,9 @@
   min-height: 44px;
   padding: 10px 14px;
   padding-inline-start: 42px;
-  border-radius: 12px;
+  border-radius: var(--radius-sm);
   border: 1px solid var(--color-border);
   background: var(--color-well);
-  box-shadow: var(--shadow-neu-inset);
   color: var(--color-text);
   font-family: var(--font-body);
   font-size: 16px;
@@ -130,17 +132,17 @@
   margin-inline-start: auto;
 }
 
-/* Secondary icon control: raised neumorphic, control-scale blur only. */
+/* Secondary icon control: soft elevation, control-scale blur only. */
 .iconButton {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 44px;
   height: 44px;
-  border-radius: 12px;
+  border-radius: 999px;
   border: 1px solid var(--color-border);
   background: var(--color-surface);
-  box-shadow: var(--shadow-neu-control);
+  box-shadow: var(--shadow-control);
   color: var(--color-text-muted);
   cursor: pointer;
   transition:
@@ -156,7 +158,8 @@
 }
 
 .iconButton:active {
-  box-shadow: var(--shadow-neu-control-pressed);
+  box-shadow: none;
+  background: var(--color-well);
 }
 
 .iconButton:focus-visible {
@@ -172,7 +175,7 @@
   gap: 8px;
   min-height: 44px;
   padding: 0 18px;
-  border-radius: 12px;
+  border-radius: 999px;
   border: 1px solid var(--color-brand-fill);
   background: var(--color-brand-fill);
   color: var(--color-on-brand-fill);
@@ -191,12 +194,6 @@
   border-color: var(--color-text);
 }
 
-.primaryButton:active {
-  border-color: var(--color-text);
-  background: var(--color-text);
-  color: var(--color-surface);
-}
-
 .primaryButton:focus-visible {
   outline: 2px solid var(--ring-color);
   outline-offset: 3px;
@@ -208,7 +205,7 @@
   justify-content: space-between;
   gap: 12px;
   padding: 12px 16px;
-  border-radius: 12px;
+  border-radius: var(--radius-panel);
   border: 1px solid var(--color-danger-border);
   background: var(--color-danger-tint);
   color: var(--color-danger);
@@ -247,11 +244,12 @@
   outline-offset: 3px;
 }
 
-/* Data table: flat card, 1px separators, bold ink header, no row shadows. */
+/* Data table: flat card, hairline separators, bold ink header. */
 .tableCard {
-  border: 1px solid var(--color-border);
-  border-radius: 18px;
+  border: 1px solid var(--color-card-border);
+  border-radius: var(--radius-card);
   background: var(--color-surface);
+  box-shadow: var(--shadow-veyla-card);
   overflow: hidden;
 }
 
@@ -268,10 +266,10 @@
 .th {
   padding: 14px 16px;
   border-bottom: 1px solid var(--color-border-strong);
-  background: var(--color-surface);
+  background: var(--color-well);
   color: var(--color-text);
   font-family: var(--font-mono);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 700;
   letter-spacing: 0.06em;
   line-height: 1.5;
@@ -319,7 +317,7 @@
 .patientMeta {
   display: block;
   color: var(--color-text-subtle);
-  font-size: 16px;
+  font-size: 14px;
   line-height: 1.5;
 }
 
@@ -331,7 +329,7 @@
   background: var(--color-well);
   color: var(--color-text);
   font-family: var(--font-mono);
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 600;
   white-space: nowrap;
 }
@@ -339,7 +337,7 @@
 .phone {
   color: var(--color-text-muted);
   font-family: var(--font-mono);
-  font-size: 16px;
+  font-size: 15px;
   white-space: nowrap;
 }
 
@@ -347,14 +345,14 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  min-height: 28px;
-  padding: 0 10px;
+  min-height: 32px;
+  padding: 0 12px;
   border-radius: 999px;
   border: 1px solid var(--color-warning-border);
   background: var(--color-warning-tint);
   color: var(--color-warning);
   font-family: var(--font-body);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 700;
   white-space: nowrap;
 }
@@ -368,7 +366,7 @@
 .lastVisit {
   color: var(--color-text-muted);
   font-family: var(--font-mono);
-  font-size: 15px;
+  font-size: 14px;
   white-space: nowrap;
 }
 
@@ -383,12 +381,12 @@
   gap: 6px;
   min-height: 44px;
   padding: 0 10px;
-  border-radius: 10px;
+  border-radius: 999px;
   border: 1px solid transparent;
   background: transparent;
   color: var(--color-brand);
   font-family: var(--font-body);
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 700;
   cursor: pointer;
   transition:
@@ -449,30 +447,76 @@
   flex: 0 0 auto;
 }
 
-/* Empty state: flat card, icon + words + existing helper line. */
+/* ------------------------------------------------- flat skeleton rows ---- */
+
+/* Strictly flat grey blocks. No shimmer, no gradient, no animation — per
+   the standing LabFlow rule and DESIGN.md §7. */
+.skeletonRow {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--color-card-border);
+}
+
+.skeletonBlock {
+  height: 14px;
+  border-radius: 6px;
+  background: var(--color-well);
+  animation: none;
+}
+
+.skeletonName {
+  width: 180px;
+}
+
+.skeletonMono {
+  width: 120px;
+}
+
+.skeletonShort {
+  width: 90px;
+}
+
+.skeletonCircle {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--color-well);
+  animation: none;
+}
+
+/* --------------------------------------------------- empty state row ----- */
+
+/* Full-bleed inside the table card: no nested bordered panel. */
 .emptyCell {
-  padding: 32px 16px;
+  padding: 40px 16px;
   text-align: center;
 }
 
-.emptyPanel {
+.emptyInner {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   max-width: 420px;
   margin: 0 auto;
-  padding: 28px 24px;
-  border-radius: 16px;
-  border: 1px solid var(--color-border);
-  background: var(--color-well);
-  color: var(--color-text-muted);
+}
+
+.emptyIconCircle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  color: var(--color-accent-text);
 }
 
 .emptyIcon {
-  width: 32px;
-  height: 32px;
-  color: var(--color-text-subtle);
+  width: 26px;
+  height: 26px;
 }
 
 .emptyTitle {
@@ -489,6 +533,33 @@
   color: var(--color-text-muted);
   font-size: 16px;
   line-height: 1.5;
+}
+
+.emptyAction {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  margin-top: 6px;
+  padding: 0 18px;
+  border-radius: 999px;
+  border: 1px solid var(--color-brand-fill);
+  background: var(--color-brand-fill);
+  color: var(--color-on-brand-fill);
+  font-family: var(--font-body);
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.emptyAction:hover {
+  border-color: var(--color-text);
+}
+
+.emptyAction:focus-visible {
+  outline: 2px solid var(--ring-color);
+  outline-offset: 3px;
 }
 
 @keyframes pulse {
@@ -525,7 +596,7 @@
     justify-content: flex-end;
   }
   .syncBadge {
-    min-height: 36px;
+    min-height: 32px;
     padding: 0 12px;
   }
 }

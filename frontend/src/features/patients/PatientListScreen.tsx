@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   AlertTriangle,
@@ -12,11 +12,22 @@ import {
 } from "lucide-react";
 import { messageForError } from "../../lib/errors";
 import { formatDate } from "../../lib/format";
+import { useAuthStore } from "../auth/authStore";
+import { settingsService } from "../settings/settingsService";
 import { patientService } from "./patientService";
+import { RegisterPatientScreen } from "./RegisterPatientScreen";
+import { PatientRegisterDrawer } from "./PatientRegisterDrawer";
+import { calculatePatientAge } from "./patientAge";
 import type { PatientSummary } from "./types";
 import styles from "./PatientListScreen.module.css";
 
 interface PatientListScreenProps {
+  /**
+   * Retained for host compatibility: when it is provided the user is allowed
+   * to register a patient. The registration itself now happens in the Veyla
+   * side drawer so the list keeps its scroll position, search query and
+   * filters while a patient is being registered.
+   */
   onNewPatient?: () => void;
   onSelectPatient?: (patientId: string) => void;
   service?: typeof patientService;
@@ -32,6 +43,15 @@ export const PatientListScreen: React.FC<PatientListScreenProps> = ({
   const [searchQuery, setSearchQuery] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Veyla side drawer state.
+  const [isRegisterOpen, setIsRegisterOpen] = useState(false);
+  const [branchId, setBranchId] = useState<string | null>(null);
+  const [branchError, setBranchError] = useState<string | null>(null);
+
+  const user = useAuthStore((state) => state.user);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const newPatientButtonRef = useRef<HTMLButtonElement | null>(null);
 
   const fetchPatients = useCallback(
     async (query?: string) => {
@@ -57,21 +77,73 @@ export const PatientListScreen: React.FC<PatientListScreenProps> = ({
     fetchPatients(searchQuery);
   }, [fetchPatients, searchQuery]);
 
+  // Resolve the branch the patient is registered into. Mirrors the
+  // /patients/new route: the caller's own branch when branch-scoped,
+  // otherwise the main branch.
+  useEffect(() => {
+    if (!isRegisterOpen) return;
+    let active = true;
+    setBranchError(null);
+
+    settingsService
+      .getBranches()
+      .then((branches) => {
+        if (!active) return;
+        const preferred =
+          branches.find((b) => user?.branch_ids?.includes(b.id)) ??
+          branches.find((b) => b.code === "HQ1") ??
+          branches[0];
+        if (preferred) setBranchId(preferred.id);
+        else setBranchError("No active branch is available for registration.");
+      })
+      .catch(() => {
+        if (active) setBranchError("Could not load the branch list.");
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [isRegisterOpen, user?.branch_ids]);
+
+  // "/" focuses the patient search field. Local to this screen.
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "/" || event.metaKey || event.ctrlKey || event.altKey) {
+        return;
+      }
+      const target = event.target as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.isContentEditable)
+      ) {
+        return;
+      }
+      event.preventDefault();
+      searchInputRef.current?.focus();
+    };
+
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, []);
+
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(e.target.value);
   };
 
-  const calculateAge = (dobString?: string | null, yob?: number | null) => {
-    if (dobString) {
-      const birth = new Date(dobString);
-      const diff = Date.now() - birth.getTime();
-      const ageDate = new Date(diff);
-      return Math.abs(ageDate.getUTCFullYear() - 1970);
-    }
-    if (yob) {
-      return new Date().getFullYear() - yob;
-    }
-    return null;
+  const openRegisterDrawer = () => {
+    setIsRegisterOpen(true);
+  };
+
+  const closeRegisterDrawer = () => {
+    setIsRegisterOpen(false);
+  };
+
+  const handleRegistered = () => {
+    // Refresh the list behind the drawer; its scroll position, search query
+    // and filters are untouched.
+    void fetchPatients(searchQuery);
   };
 
   const formatSex = (sex?: string) => {
@@ -102,6 +174,7 @@ export const PatientListScreen: React.FC<PatientListScreenProps> = ({
             <Search className={styles.searchIcon} aria-hidden="true" />
             <input
               id="patient-search-input"
+              ref={searchInputRef}
               type="search"
               value={searchQuery}
               onChange={handleSearchChange}
@@ -127,7 +200,8 @@ export const PatientListScreen: React.FC<PatientListScreenProps> = ({
             {onNewPatient ? (
               <button
                 type="button"
-                onClick={onNewPatient}
+                ref={newPatientButtonRef}
+                onClick={openRegisterDrawer}
                 className={styles.primaryButton}
               >
                 <Plus className={styles.buttonIcon} aria-hidden="true" />
@@ -182,22 +256,43 @@ export const PatientListScreen: React.FC<PatientListScreenProps> = ({
               </thead>
               <tbody>
                 {isLoading ? (
-                  <tr className={styles.row}>
-                    <td colSpan={6} className={styles.td}>
-                      <div className={styles.loading}>
-                        <RefreshCw
-                          className={`${styles.spin} ${styles.spinBrand}`}
+                  /* Flat grey skeleton rows. Strictly no shimmer. */
+                  [0, 1, 2, 3].map((row) => (
+                    <tr key={row} className={styles.row}>
+                      <td colSpan={6} className={styles.td}>
+                        <div
+                          className={styles.skeletonRow}
                           aria-hidden="true"
-                        />
-                        <span>{t("patients:list.loading")}</span>
-                      </div>
-                    </td>
-                  </tr>
+                          data-testid="patient-skeleton-row"
+                        >
+                          <span
+                            className={`${styles.skeletonBlock} ${styles.skeletonCircle}`}
+                          />
+                          <span
+                            className={`${styles.skeletonBlock} ${styles.skeletonName}`}
+                          />
+                          <span
+                            className={`${styles.skeletonBlock} ${styles.skeletonMono}`}
+                          />
+                          <span
+                            className={`${styles.skeletonBlock} ${styles.skeletonShort}`}
+                          />
+                        </div>
+                      </td>
+                    </tr>
+                  ))
                 ) : patients.length === 0 ? (
+                  /* Full-bleed empty state inside the table card — no nested
+                     bordered panel. */
                   <tr className={styles.row}>
-                    <td colSpan={6} className={`${styles.td} ${styles.emptyCell}`}>
-                      <div className={styles.emptyPanel}>
-                        <User className={styles.emptyIcon} aria-hidden="true" />
+                    <td colSpan={6} className={styles.emptyCell}>
+                      <div className={styles.emptyInner}>
+                        <span className={styles.emptyIconCircle}>
+                          <User
+                            className={styles.emptyIcon}
+                            aria-hidden="true"
+                          />
+                        </span>
                         <p className={styles.emptyTitle}>
                           {t("patients:list.empty_title")}
                         </p>
@@ -208,12 +303,25 @@ export const PatientListScreen: React.FC<PatientListScreenProps> = ({
                               ? t("patients:list.empty_first")
                               : t("patients:list.empty_scope")}
                         </p>
+                        {onNewPatient ? (
+                          <button
+                            type="button"
+                            onClick={openRegisterDrawer}
+                            className={styles.emptyAction}
+                          >
+                            <Plus
+                              className={styles.buttonIcon}
+                              aria-hidden="true"
+                            />
+                            <span>{t("patients:register.title")}</span>
+                          </button>
+                        ) : null}
                       </div>
                     </td>
                   </tr>
                 ) : (
                   patients.map((patient) => {
-                    const age = calculateAge(
+                    const age = calculatePatientAge(
                       patient.date_of_birth,
                       patient.year_of_birth,
                     );
@@ -294,6 +402,41 @@ export const PatientListScreen: React.FC<PatientListScreenProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Veyla side drawer — registration happens over the list. */}
+      {isRegisterOpen ? (
+        branchId ? (
+          <RegisterPatientScreen
+            variant="drawer"
+            branchId={branchId}
+            service={service}
+            onSuccess={handleRegistered}
+            onCancel={closeRegisterDrawer}
+          />
+        ) : (
+          <PatientRegisterDrawer
+            open
+            onClose={closeRegisterDrawer}
+            title={t("patients:register.title")}
+            subtitle={t("patients:register.iso_badge")}
+            triggerRef={newPatientButtonRef}
+          >
+            {branchError ? (
+              <div role="alert" className={styles.alert}>
+                <div className={styles.alertBody}>
+                  <AlertCircle
+                    className={styles.alertIcon}
+                    aria-hidden="true"
+                  />
+                  <span>{branchError}</span>
+                </div>
+              </div>
+            ) : (
+              <p className={styles.loading}>{t("common:empty.loading")}</p>
+            )}
+          </PatientRegisterDrawer>
+        )
+      ) : null}
     </div>
   );
 };

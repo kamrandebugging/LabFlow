@@ -48,12 +48,29 @@ function composite(
     .join("")}`;
 }
 
+/**
+ * Every list stylesheet that must stay free of literal colours. The invoice
+ * list still ships with the pre-Veyla tokens, but it never hardcodes a
+ * colour, so the no-literal-colour rule already applies to it.
+ */
 const TOUCHED_CSS = [
   "../../features/patients/PatientListScreen.module.css",
   "../../features/billing/InvoicesListScreen.module.css",
 ] as const;
 
-describe("Patients + Invoices Veyla tokens", () => {
+/**
+ * Stylesheets converted to the Veyla token set.
+ *
+ * The invoice list is deliberately excluded: it is converted in the invoice
+ * batch, which follows this patient batch. Editing the invoice file here to
+ * satisfy a Veyla assertion is out of scope, so the Veyla assertions below
+ * only cover the patient list.
+ */
+const VEYLA_CSS = [
+  "../../features/patients/PatientListScreen.module.css",
+] as const;
+
+describe("Patients + Invoices list theme", () => {
   it("keeps the touched CSS modules free of literal colours", () => {
     for (const file of TOUCHED_CSS) {
       const css = read(file);
@@ -63,14 +80,67 @@ describe("Patients + Invoices Veyla tokens", () => {
     }
   });
 
-  it("ships the control-scale shadow tokens in both themes", () => {
+  it("routes the patient list surfaces through the Veyla tokens", () => {
+    for (const file of VEYLA_CSS) {
+      const css = read(file);
+      for (const token of [
+        "var(--color-surface)",
+        "var(--color-well)",
+        "var(--color-card-border)",
+        "var(--color-border)",
+        "var(--shadow-veyla-card)",
+        "var(--shadow-control)",
+        "var(--ring-color)",
+      ]) {
+        expect(css, `${file} uses ${token}`).toContain(token);
+      }
+    }
+  });
+
+  it("leaves no dead neumorphism token in the patient list", () => {
+    for (const file of VEYLA_CSS) {
+      const css = read(file);
+      for (const token of [
+        "--shadow-neu-raised",
+        "--shadow-neu-inset",
+        "--shadow-neu-control",
+        "--shadow-neu-control-pressed",
+        "--shadow-neu-card",
+      ]) {
+        expect(css, `${file} drops ${token}`).not.toContain(token);
+      }
+    }
+  });
+
+  it("ships the Veyla shadow and radius scale in both themes", () => {
     const tokens = read("../../theme/tokens.css");
     // Veyla control scale: --shadow-veyla-pill (aliased as --shadow-control),
-    // with --shadow-veyla-hover for the raised/pressed state.
+    // with --shadow-veyla-hover for the raised state.
+    expect(tokens).toContain("--shadow-veyla-card:");
     expect(tokens).toContain("--shadow-veyla-pill:");
     expect(tokens).toContain("--shadow-veyla-hover:");
+    expect(tokens).toContain("--shadow-veyla-dropdown:");
     expect(tokens).toContain("--shadow-control: var(--shadow-veyla-pill);");
+    expect(tokens).toContain("--radius-card: 16px;");
+    expect(tokens).toContain("--radius-pill: 9999px;");
     expect(tokens).toContain('[data-theme="dark"]');
+  });
+
+  it("gives every interactive control a 44px hit target and a 2px focus ring", () => {
+    for (const file of VEYLA_CSS) {
+      const css = read(file);
+      expect(css, `${file} control height`).toContain("min-height: 44px");
+      const minHeights = css.match(/min-height: (\d+)px/g) ?? [];
+      expect(minHeights.length, `${file} hit targets`).toBeGreaterThan(0);
+      for (const rule of minHeights) {
+        const value = Number.parseInt(rule.replace(/\D/g, ""), 10);
+        expect(value, `${file} ${rule}`).toBeGreaterThanOrEqual(32);
+      }
+      expect(css, `${file} focus ring`).toMatch(
+        /:focus-visible\s*\{[^}]*outline: 2px solid var\(--ring-color\)/,
+      );
+      expect(css, `${file} focus offset`).toMatch(/outline-offset: [3-4]px/);
+    }
   });
 
   it("keeps every shipped text pair at >= 4.5:1 in both themes", () => {
@@ -84,7 +154,7 @@ describe("Patients + Invoices Veyla tokens", () => {
       ["#242626", "#feffff"], // body on card
       ["#596060", "#feffff"], // muted on card
       ["#646c6c", "#feffff"], // subtle on card
-      ["#121011", "#f4f6f6"], // ink on well (MRN / totals / inputs)
+      ["#121011", "#f4f6f6"], // ink on well
       ["#242626", "#f4f6f6"], // body on well
       ["#596060", "#f4f6f6"], // muted on well
       ["#646c6c", "#f4f6f6"], // subtle on well
@@ -125,31 +195,40 @@ describe("Patients + Invoices Veyla tokens", () => {
     }
   });
 
-  it("ships the hairline border ramp and a visible focus ring in both themes", () => {
-    const tokens = read("../../theme/tokens.css");
-    // Veyla drops hard outlines for soft elevation, so the border tokens are
-    // alpha hairlines rather than solid rules. They still have to exist in both
-    // themes, and --shadow-focus carries the non-text interaction affordance.
-    for (const token of [
-      "--color-border:",
-      "--color-border-strong:",
-      "--color-card-border:",
-      "--shadow-focus:",
-    ]) {
-      expect(tokens, `tokens.css defines ${token}`).toContain(token);
-    }
+  it("keeps the focus affordance at >= 3:1 against the surfaces", () => {
+    // Veyla drops hard outlines for soft elevation, so the hairline border
+    // tokens are decorative separators rather than the sole identifier of a
+    // control. The 3:1 non-text affordance is carried by the focus ring, so
+    // that is what this guardrail measures.
+    const focusPairs = [
+      ["#121011", "#feffff"], // light ring on card
+      ["#121011", "#f4f6f6"], // light ring on well
+      ["#a4dfda", "#191b1c"], // dark ring on card
+      ["#a4dfda", "#222526"], // dark ring on well
+    ] as const;
 
+    for (const [line, surface] of focusPairs) {
+      expect(
+        ratio(line, surface),
+        `${line} on ${surface}`,
+      ).toBeGreaterThanOrEqual(3);
+    }
+  });
+
+  it("ships the hairline border ramp in both themes", () => {
+    const tokens = read("../../theme/tokens.css");
     const light = tokens.slice(0, tokens.indexOf('[data-theme="dark"]'));
     const dark = tokens.slice(tokens.indexOf('[data-theme="dark"]'));
     for (const [name, block] of [
       ["light", light],
       ["dark", dark],
     ] as const) {
-      expect(block, `${name} border ramp`).toContain(
-        "--color-border: rgba(",
-      );
+      expect(block, `${name} border ramp`).toContain("--color-border: rgba(");
       expect(block, `${name} strong border ramp`).toContain(
         "--color-border-strong: rgba(",
+      );
+      expect(block, `${name} card border ramp`).toContain(
+        "--color-card-border: rgba(",
       );
       expect(block, `${name} focus ring`).toContain("--shadow-focus:");
     }

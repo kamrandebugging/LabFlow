@@ -1,5 +1,5 @@
-/* Patient detail + audit history — hybrid neumorphism, tokens only.
-   Cards raised; badges, pills and timelines flat. */
+/* Patient detail + audit history — Veyla look, tokens only.
+   Cards carry soft elevation; badges, pills and timelines stay flat. */
 
 .page {
   min-height: 100vh;
@@ -173,16 +173,19 @@
   justify-content: center;
   gap: 6px;
   min-height: 44px;
-  padding: 0 14px;
-  border-radius: 10px;
+  padding: 0 16px;
+  border-radius: 999px;
   border: 1px solid var(--color-border);
   background: var(--color-surface);
-  box-shadow: var(--shadow-neu-control);
+  box-shadow: var(--shadow-control);
   color: var(--color-text);
   font-family: var(--font-body);
   font-size: 15px;
   font-weight: 600;
   cursor: pointer;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease;
 }
 
 .secondaryButton:hover {
@@ -190,7 +193,8 @@
 }
 
 .secondaryButton:active {
-  box-shadow: var(--shadow-neu-control-pressed);
+  box-shadow: none;
+  background: var(--color-well);
 }
 
 .secondaryButton:focus-visible {
@@ -204,8 +208,8 @@
   justify-content: center;
   gap: 6px;
   min-height: 44px;
-  padding: 0 16px;
-  border-radius: 10px;
+  padding: 0 18px;
+  border-radius: 999px;
   border: 1px solid var(--color-brand-fill);
   background: var(--color-brand-fill);
   color: var(--color-on-brand-fill);
@@ -226,7 +230,7 @@
   justify-content: center;
   width: 44px;
   height: 44px;
-  border-radius: 10px;
+  border-radius: 999px;
   border: 1px solid var(--color-danger-border);
   background: var(--color-danger-tint);
   color: var(--color-danger);
@@ -261,10 +265,10 @@
 
 .card {
   padding: 24px;
-  border-radius: 18px;
+  border-radius: var(--radius-card);
   border: 1px solid var(--color-card-border);
   background: var(--color-surface);
-  box-shadow: var(--shadow-neu-raised);
+  box-shadow: var(--shadow-veyla-card);
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -447,10 +451,10 @@
   flex-direction: column;
   gap: 12px;
   padding: 20px;
-  border-radius: 16px;
+  border-radius: var(--radius-card);
   border: 1px solid var(--color-card-border);
   background: var(--color-surface);
-  box-shadow: var(--shadow-neu-raised);
+  box-shadow: var(--shadow-veyla-card);
 }
 
 .eventHead {
@@ -577,10 +581,10 @@
   width: 100%;
   max-width: 460px;
   padding: 24px;
-  border-radius: 18px;
+  border-radius: var(--radius-card);
   border: 1px solid var(--color-card-border);
   background: var(--color-surface);
-  box-shadow: var(--shadow-neu-card);
+  box-shadow: var(--shadow-veyla-dropdown);
 }
 
 .modalTitle {
@@ -645,11 +649,11 @@
   align-items: center;
   justify-content: center;
   min-height: 44px;
-  padding: 0 16px;
-  border-radius: 10px;
+  padding: 0 18px;
+  border-radius: 999px;
   border: 1px solid var(--color-danger);
   background: var(--color-danger);
-  color: var(--color-bg);
+  color: var(--color-surface);
   font-family: var(--font-body);
   font-size: 15px;
   font-weight: 700;

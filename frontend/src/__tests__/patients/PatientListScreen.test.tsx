@@ -97,7 +97,7 @@ describe("Screen 08: Patient List (08-patient-list.html & Doc 03 §5.1)", () => 
     });
   });
 
-  it("triggers onNewPatient callback when clicking New Patient button", async () => {
+  it("opens the register drawer when clicking New Patient button", async () => {
     const user = userEvent.setup();
     render(
       <PatientListScreen
@@ -110,7 +110,13 @@ describe("Screen 08: Patient List (08-patient-list.html & Doc 03 §5.1)", () => 
     const newBtn = screen.getByRole("button", { name: /new patient/i });
     await user.click(newBtn);
 
-    expect(mockOnNewPatient).toHaveBeenCalledTimes(1);
+    // Veyla Batch 1: "New patient" opens the side drawer over the list so
+    // the list keeps its scroll position, search query and filters. The
+    // registration form lives inside that drawer.
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: /register patient/i }),
+    ).toBeInTheDocument();
   });
 
   it("triggers onSelectPatient callback when row is clicked", async () => {

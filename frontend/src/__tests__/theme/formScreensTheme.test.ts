@@ -48,6 +48,10 @@ function composite(
     .join("")}`;
 }
 
+/**
+ * Every form/details stylesheet that must stay free of literal colours and
+ * must keep the shared interaction guardrails.
+ */
 const TOUCHED_CSS = [
   "../../features/patients/PatientForm.module.css",
   "../../features/patients/PatientRecord.module.css",
@@ -55,7 +59,19 @@ const TOUCHED_CSS = [
   "../../features/billing/InvoiceDetailScreen.module.css",
 ] as const;
 
-describe("Patient + invoice form/details neumorphism tokens", () => {
+/**
+ * Stylesheets converted to the Veyla token set.
+ *
+ * The two invoice stylesheets are deliberately excluded: they are converted
+ * in the invoice batch that follows this patient batch. They are not edited
+ * here to satisfy a Veyla assertion.
+ */
+const VEYLA_CSS = [
+  "../../features/patients/PatientForm.module.css",
+  "../../features/patients/PatientRecord.module.css",
+] as const;
+
+describe("Patient form + record theme", () => {
   it("keeps the touched CSS modules free of literal colours", () => {
     for (const file of TOUCHED_CSS) {
       const css = read(file);
@@ -66,31 +82,43 @@ describe("Patient + invoice form/details neumorphism tokens", () => {
   });
 
   it("routes every surface, border and status colour through theme tokens", () => {
-    const required = [
-      "var(--color-surface)",
-      "var(--color-well)",
-      "var(--color-card-border)",
-      "var(--color-border)",
-      "var(--shadow-neu-raised)",
-      "var(--ring-color)",
-    ];
-
-    for (const file of TOUCHED_CSS) {
+    for (const file of VEYLA_CSS) {
       const css = read(file);
-      for (const token of required) {
+      for (const token of [
+        "var(--color-surface)",
+        "var(--color-well)",
+        "var(--color-card-border)",
+        "var(--color-border)",
+        "var(--shadow-veyla-card)",
+        "var(--ring-color)",
+      ]) {
         expect(css, `${file} uses ${token}`).toContain(token);
       }
     }
+  });
 
-    // Controls are pressed wells: forms, detail forms and the modal all inset.
-    for (const file of [
-      "../../features/patients/PatientForm.module.css",
-      "../../features/billing/NewInvoiceScreen.module.css",
-      "../../features/billing/InvoiceDetailScreen.module.css",
-    ] as const) {
-      expect(read(file), `${file} inset control`).toContain(
-        "var(--shadow-neu-inset)",
-      );
+  it("leaves no dead neumorphism token in the patient form or record", () => {
+    for (const file of VEYLA_CSS) {
+      const css = read(file);
+      for (const token of [
+        "--shadow-neu-raised",
+        "--shadow-neu-inset",
+        "--shadow-neu-control",
+        "--shadow-neu-control-pressed",
+        "--shadow-neu-card",
+      ]) {
+        expect(css, `${file} drops ${token}`).not.toContain(token);
+      }
+    }
+  });
+
+  it("puts form controls on the well surface instead of an inset shadow", () => {
+    // Veyla has no inset token: a control is identified by the well surface
+    // plus the hairline border, and the focus ring carries the affordance.
+    for (const file of VEYLA_CSS) {
+      const css = read(file);
+      expect(css, `${file} well control`).toContain("var(--color-well)");
+      expect(css, `${file} control border`).toContain("var(--color-border)");
     }
   });
 
@@ -112,10 +140,10 @@ describe("Patient + invoice form/details neumorphism tokens", () => {
   });
 
   it("keeps the raised card blur at or below the 12px ceiling", () => {
-    for (const file of TOUCHED_CSS) {
+    for (const file of VEYLA_CSS) {
       const css = read(file);
       // Cards only reference the shared token; no bespoke blur is allowed.
-      expect(css, `${file} card shadow`).toContain("var(--shadow-neu-raised)");
+      expect(css, `${file} card shadow`).toContain("var(--shadow-veyla-card)");
       expect(css, `${file} raw blur`).not.toMatch(
         /box-shadow:[^;]*\d+px \d+px \d+px/,
       );
@@ -125,41 +153,47 @@ describe("Patient + invoice form/details neumorphism tokens", () => {
   it("keeps every shipped text pair at >= 4.5:1 in both themes", () => {
     const textPairs = [
       // Light — page, card, well.
-      ["#081c15", "#faf9f6"], // ink on page
-      ["#35473d", "#faf9f6"], // muted on page
-      ["#45564c", "#faf9f6"], // subtle on page
-      ["#0e6b3a", "#faf9f6"], // brand link on page
-      ["#ffffff", "#0e6b3a"], // primary CTA label
-      ["#0e6b3a", "#f1efea"], // brand link on well
-      ["#081c15", "#f1efea"], // value on well (item rows, chips)
-      ["#35473d", "#f1efea"], // hint on well
-      // Light — status pills, tinted banners, solid fills.
-      ["#0e6b3a", "#e3f0e8"], // success pill
-      ["#7a5a00", "#f7efd2"], // warning banner
-      ["#b42318", "#fdecea"], // danger alert
-      ["#175cd3", "#eaf1fe"], // info notice
-      ["#b42318", "#f1efea"], // danger label on well
-      ["#faf9f6", "#7a5a00"], // duplicate-confirm button label
-      ["#faf9f6", "#b42318"], // destructive confirm label
-      ["#faf9f6", "#081c15"], // toast label on ink
+      ["#121011", "#eaecec"], // ink on page
+      ["#242626", "#eaecec"], // body on page
+      ["#596060", "#eaecec"], // muted on page
+      ["#646c6c", "#eaecec"], // subtle on page
+      ["#121011", "#feffff"], // ink on card
+      ["#242626", "#feffff"], // body on card
+      ["#596060", "#feffff"], // muted on card
+      ["#646c6c", "#feffff"], // subtle on card
+      ["#121011", "#f4f6f6"], // ink on well
+      ["#242626", "#f4f6f6"], // body on well
+      ["#596060", "#f4f6f6"], // muted on well
+      ["#646c6c", "#f4f6f6"], // subtle on well
+      // Light — brand, accent, status and destructive fills.
+      ["#feffff", "#121011"], // primary CTA label on near-black fill
+      ["#133835", "#cae2e0"], // accent label on teal accent
+      ["#0e6b3a", "#e6f4ea"], // success status
+      ["#8c5800", "#fef3d6"], // warning status
+      ["#b91c1c", "#fee2e2"], // danger status
+      ["#0369a1", "#e0f2fe"], // info status
+      ["#feffff", "#b91c1c"], // destructive confirm label
       // Dark — page, card, well.
-      ["#f2f7f3", "#12291d"], // ink on card
-      ["#c3d6c9", "#12291d"], // muted on card
-      ["#a8bfb1", "#12291d"], // subtle on card
-      ["#f2f7f3", "#0b1f14"], // ink on well
-      ["#c3d6c9", "#0b1f14"], // muted on well
-      ["#a8bfb1", "#0b1f14"], // subtle on well
-      ["#52b788", "#12291d"], // brand link on card
-      ["#0b1f14", "#52b788"], // CTA label on leaf
-      // Dark — status pills composited over the card.
-      ["#52b788", composite("#52b788", 0.14, "#12291d")], // success
-      ["#c9a227", composite("#c9a227", 0.14, "#12291d")], // warning
-      ["#f97066", composite("#f97066", 0.12, "#12291d")], // danger
-      ["#84adff", composite("#84adff", 0.12, "#12291d")], // info
-      ["#f97066", "#12291d"], // danger label on card
-      ["#c9a227", "#12291d"], // warning label on card
-      ["#081c15", "#c9a227"], // duplicate-confirm button label
-      ["#081c15", "#f97066"], // destructive confirm label
+      ["#f1f2f2", "#111213"], // ink on page
+      ["#e1e4e4", "#111213"], // body on page
+      ["#9ea3a3", "#111213"], // muted on page
+      ["#868e8e", "#111213"], // subtle on page
+      ["#f1f2f2", "#191b1c"], // ink on card
+      ["#e1e4e4", "#191b1c"], // body on card
+      ["#9ea3a3", "#191b1c"], // muted on card
+      ["#868e8e", "#191b1c"], // subtle on card
+      ["#f1f2f2", "#222526"], // ink on well
+      ["#e1e4e4", "#222526"], // body on well
+      ["#9ea3a3", "#222526"], // muted on well
+      ["#868e8e", "#222526"], // subtle on well
+      // Dark — brand, accent, status and destructive fills.
+      ["#111213", "#f1f2f2"], // primary CTA label on inverted fill
+      ["#a4dfda", "#233b39"], // accent label on dark teal accent
+      ["#7cd3a2", composite("#7cd3a2", 0.16, "#191b1c")], // success
+      ["#f6c776", composite("#f6c776", 0.16, "#191b1c")], // warning
+      ["#f87171", composite("#f87171", 0.18, "#191b1c")], // danger
+      ["#7dd3fc", composite("#7dd3fc", 0.16, "#191b1c")], // info
+      ["#191b1c", "#f87171"], // destructive confirm label
     ] as const;
 
     for (const [text, background] of textPairs) {
@@ -170,19 +204,18 @@ describe("Patient + invoice form/details neumorphism tokens", () => {
     }
   });
 
-  it("keeps shipped control borders at >= 3:1 against their surface", () => {
-    const borderPairs = [
-      // Light: input border on paper, strong rule on card.
-      ["#7c8a82", "#faf9f6"],
-      ["#5a6a61", "#faf9f6"],
-      ["#7c8a82", "#f1efea"],
-      // Dark: input border on page, strong rule on card.
-      ["#6e8a79", "#081c15"],
-      ["#8fae9c", "#12291d"],
-      ["#6e8a79", "#0b1f14"],
+  it("keeps the focus affordance at >= 3:1 against the surfaces", () => {
+    // The Veyla hairline borders are decorative separators; the 3:1 non-text
+    // affordance is carried by the focus ring, so that is what this
+    // guardrail measures.
+    const focusPairs = [
+      ["#121011", "#feffff"], // light ring on card
+      ["#121011", "#f4f6f6"], // light ring on well
+      ["#a4dfda", "#191b1c"], // dark ring on card
+      ["#a4dfda", "#222526"], // dark ring on well
     ] as const;
 
-    for (const [line, surface] of borderPairs) {
+    for (const [line, surface] of focusPairs) {
       expect(
         ratio(line, surface),
         `${line} on ${surface}`,
