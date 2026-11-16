@@ -17,6 +17,7 @@ import { messageForError } from "../../lib/errors";
 import { formatDate } from "../../lib/format";
 import { useDialogFocus } from "../../lib/dialogFocus";
 import styles from "./PatientRecord.module.css";
+import formStyles from "./PatientForm.module.css";
 import { patientService } from "./patientService";
 import { VeylaDrawer } from "./VeylaDrawer";
 import { PatientHistoryScreen } from "./PatientHistoryScreen";
@@ -66,6 +67,16 @@ export const PatientDetailsScreen: React.FC<PatientDetailsScreenProps> = ({
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  // Inline editing: the drawer edits the record in place. There is no
+  // separate edit panel.
+  const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editPhone, setEditPhone] = useState("");
+  const [editSex, setEditSex] = useState<"M" | "F">("M");
+  const [editDob, setEditDob] = useState("");
   const deleteTriggerRef = useRef<HTMLButtonElement>(null);
   const deletePanelRef = useDialogFocus<HTMLDivElement>(
     showDeleteModal,
@@ -116,6 +127,49 @@ export const PatientDetailsScreen: React.FC<PatientDetailsScreenProps> = ({
       );
     } finally {
       setIsDeleting(false);
+    }
+  };
+
+  const startEditing = () => {
+    if (!patient) return;
+    setEditName(patient.name || "");
+    setEditPhone(patient.phone || "");
+    setEditSex(patient.sex === "F" ? "F" : "M");
+    setEditDob(patient.date_of_birth ? patient.date_of_birth.slice(0, 10) : "");
+    setSaveError(null);
+    setIsEditing(true);
+  };
+
+  const cancelEditing = () => {
+    setIsEditing(false);
+    setSaveError(null);
+  };
+
+  const handleSave = async () => {
+    if (!patient) return;
+    setIsSaving(true);
+    setSaveError(null);
+    try {
+      const updated = await service.updatePatient(
+        patientId,
+        {
+          name: editName,
+          phone: editPhone,
+          sex: editSex,
+          date_of_birth: editDob || null,
+        },
+        patient.version,
+      );
+      setPatient(updated);
+      setIsEditing(false);
+    } catch (err: unknown) {
+      setSaveError(
+        err && typeof err === "object" && ("code" in err || "status" in err)
+          ? messageForError(err, t)
+          : t("patients:edit.errors.save"),
+      );
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -179,13 +233,18 @@ export const PatientDetailsScreen: React.FC<PatientDetailsScreenProps> = ({
     </div>
   ) : null;
 
-  // Actions: same handlers, same order in both variants.
+  const isDrawer = variant === "drawer";
+  const canEdit = canManage && (isDrawer || Boolean(onEdit));
+
+  // Actions: same order in both variants. In the drawer the Edit button
+  // flips the record into inline editing instead of opening a second panel.
   const actions = patient ? (
     <div className={styles.actions}>
-      {canManage && onEdit ? (
+      {canEdit ? (
         <button
           type="button"
-          onClick={() => onEdit(patient.id)}
+          onClick={() => (isDrawer ? startEditing() : onEdit?.(patient.id))}
+          disabled={isEditing}
           className={styles.secondaryButton}
         >
           <Edit className={styles.buttonIcon} aria-hidden="true" />
@@ -234,6 +293,18 @@ export const PatientDetailsScreen: React.FC<PatientDetailsScreenProps> = ({
             <User className={styles.cardIcon} aria-hidden="true" />
             <span>{t("patients:demographics")}</span>
           </h2>
+          {isDrawer && canEdit && !isEditing ? (
+            <button
+              type="button"
+              onClick={startEditing}
+              className={styles.cardEdit}
+              aria-label={t("patients:edit_demographics")}
+              title={t("patients:edit_demographics")}
+            >
+              <Edit className={styles.cardEditIcon} aria-hidden="true" />
+              <span>{t("patients:edit_demographics")}</span>
+            </button>
+          ) : null}
         </div>
 
         <div className={styles.fieldGrid}>
@@ -241,39 +312,110 @@ export const PatientDetailsScreen: React.FC<PatientDetailsScreenProps> = ({
             <span className={styles.fieldLabel}>
               {t("patients:details.field_full_name")}
             </span>
-            <span className={styles.fieldValue}>{patient.name}</span>
+            {isEditing ? (
+              <input
+                id="inlineFullName"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                className={formStyles.input}
+              />
+            ) : (
+              <span className={styles.fieldValue}>{patient.name}</span>
+            )}
           </div>
           <div className={styles.field}>
             <span className={styles.fieldLabel}>
               {t("patients:details.field_sex")}
             </span>
-            <span className={styles.fieldValue}>
-              {patient.sex === "M"
-                ? t("patients:sex.male")
-                : patient.sex === "F"
-                  ? t("patients:sex.female")
-                  : t("patients:sex.other")}
-            </span>
+            {isEditing ? (
+              <div
+                role="radiogroup"
+                aria-label={t("patients:details.field_sex")}
+                className={formStyles.radioTrack}
+              >
+                <label
+                  className={`${formStyles.radioOption} ${
+                    editSex === "M" ? formStyles.radioOptionSelected : ""
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="inlineSex"
+                    value="M"
+                    checked={editSex === "M"}
+                    onChange={() => setEditSex("M")}
+                    className={formStyles.radioInput}
+                  />
+                  <span className={formStyles.radioDot} aria-hidden="true" />
+                  <span>{t("patients:sex.male")}</span>
+                </label>
+                <label
+                  className={`${formStyles.radioOption} ${
+                    editSex === "F" ? formStyles.radioOptionSelected : ""
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="inlineSex"
+                    value="F"
+                    checked={editSex === "F"}
+                    onChange={() => setEditSex("F")}
+                    className={formStyles.radioInput}
+                  />
+                  <span className={formStyles.radioDot} aria-hidden="true" />
+                  <span>{t("patients:sex.female")}</span>
+                </label>
+              </div>
+            ) : (
+              <span className={styles.fieldValue}>
+                {patient.sex === "M"
+                  ? t("patients:sex.male")
+                  : patient.sex === "F"
+                    ? t("patients:sex.female")
+                    : t("patients:sex.other")}
+              </span>
+            )}
           </div>
-          {patient.date_of_birth ? (
+          {patient.date_of_birth || isEditing ? (
             <div className={styles.field}>
               <span className={styles.fieldLabel}>
                 {t("patients:details.field_dob")}
               </span>
-              <span className={styles.fieldValue}>
-                <bdi dir="ltr">{formatDate(patient.date_of_birth)}</bdi>
-              </span>
+              {isEditing ? (
+                <input
+                  id="inlineDob"
+                  type="date"
+                  value={editDob}
+                  onChange={(e) => setEditDob(e.target.value)}
+                  className={`${formStyles.input} ${formStyles.inputDate}`}
+                />
+              ) : (
+                <span className={styles.fieldValue}>
+                  <bdi dir="ltr">{formatDate(patient.date_of_birth!)}</bdi>
+                </span>
+              )}
             </div>
           ) : null}
-          {primaryPhone !== "—" ? (
+          {primaryPhone !== "—" || isEditing ? (
             <div className={styles.field}>
               <span className={styles.fieldLabel}>
                 {t("patients:details.field_phone")}
               </span>
-              <span className={styles.monoValue}>
-                <Phone className={styles.inlineIcon} aria-hidden="true" />
-                <bdi dir="ltr">{primaryPhone}</bdi>
-              </span>
+              {isEditing ? (
+                <input
+                  id="inlinePhone"
+                  type="tel"
+                  dir="ltr"
+                  value={editPhone}
+                  onChange={(e) => setEditPhone(e.target.value)}
+                  className={formStyles.input}
+                />
+              ) : (
+                <span className={styles.monoValue}>
+                  <Phone className={styles.inlineIcon} aria-hidden="true" />
+                  <bdi dir="ltr">{primaryPhone}</bdi>
+                </span>
+              )}
             </div>
           ) : null}
         </div>
@@ -390,7 +532,34 @@ export const PatientDetailsScreen: React.FC<PatientDetailsScreenProps> = ({
           onClose={() => onBack?.()}
           title={patient?.name ?? t("patients:details.loading")}
           header={identity}
-          footer={<div className={styles.drawerFooterActions}>{actions}</div>}
+          footer={
+            <div className={styles.drawerFooterActions}>
+              {isEditing ? (
+                <div className={styles.actions}>
+                  <button
+                    type="button"
+                    onClick={cancelEditing}
+                    disabled={isSaving}
+                    className={styles.secondaryButton}
+                  >
+                    {t("common:actions.cancel")}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSave}
+                    disabled={isSaving}
+                    className={styles.primaryButton}
+                  >
+                    {isSaving
+                      ? t("common:actions.saving")
+                      : t("patients:edit.save")}
+                  </button>
+                </div>
+              ) : (
+                actions
+              )}
+            </div>
+          }
           triggerRef={triggerRef}
         >
           <div className={styles.drawerShell}>
@@ -441,6 +610,12 @@ export const PatientDetailsScreen: React.FC<PatientDetailsScreenProps> = ({
                   cards
                 )}
               </>
+            )}
+            {saveError && (
+              <div role="alert" className={styles.alert}>
+                <AlertCircle className={styles.statusIcon} aria-hidden="true" />
+                <span>{saveError}</span>
+              </div>
             )}
             {deleteError && (
               <div role="alert" className={styles.alert}>

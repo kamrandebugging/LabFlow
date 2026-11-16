@@ -16,7 +16,6 @@ import type { UserRole } from "../auth/types";
 import { settingsService } from "../settings/settingsService";
 import { RegisterPatientScreen } from "./RegisterPatientScreen";
 import { PatientDetailsScreen } from "./PatientDetailsScreen";
-import { PatientEditScreen } from "./PatientEditScreen";
 import { VeylaDrawer } from "./VeylaDrawer";
 import { patientService } from "./patientService";
 import {
@@ -35,8 +34,8 @@ interface PatientsDrawerProviderProps {
  *
  * Why it lives here: `PageTransition` keeps the leaving page mounted for its
  * 150ms exit animation. A drawer rendered inside that page therefore existed
- * twice during a navigation — once in the leaving layer and once in the
- * arriving one — and the leaving copy was positioned against the transition's
+ * twice during a navigation ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â once in the leaving layer and once in the
+ * arriving one ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â and the leaving copy was positioned against the transition's
  * `transform`, which offset the panel and clipped its backdrop. Mounting the
  * drawers at the shell level means there is always exactly one panel, one
  * backdrop and one open state, and no page transition can duplicate them.
@@ -51,11 +50,9 @@ export function PatientsDrawerProvider({
   const registerTriggerRef = useRef<HTMLElement | null>(null);
 
   const [detailPatientId, setDetailPatientId] = useState<string | null>(null);
-  const [detailMode, setDetailMode] = useState<"view" | "edit">("view");
   const [detailTab, setDetailTab] = useState<"overview" | "history">(
     "overview",
   );
-  const [detailRevision, setDetailRevision] = useState(0);
   const detailTriggerRef = useRef<HTMLElement | null>(null);
 
   const openRegister = useCallback(() => setRegisterOpen(true), []);
@@ -65,7 +62,6 @@ export function PatientsDrawerProvider({
   }, []);
 
   const openDetail = useCallback((patientId: string) => {
-    setDetailMode("view");
     setDetailTab("overview");
     setDetailPatientId(patientId);
     // Update the address bar without a router navigation, so the page
@@ -85,7 +81,6 @@ export function PatientsDrawerProvider({
 
   const closeDetail = useCallback(() => {
     setDetailPatientId(null);
-    setDetailMode("view");
     if (
       typeof window !== "undefined" &&
       window.location.pathname.startsWith("/patients/")
@@ -145,18 +140,10 @@ export function PatientsDrawerProvider({
       />
       <DetailDrawerHost
         patientId={detailPatientId}
-        mode={detailMode}
         tab={detailTab}
         onTabChange={setDetailTab}
-        revision={detailRevision}
         triggerRef={detailTriggerRef}
         onClose={closeDetail}
-        onEdit={() => setDetailMode("edit")}
-        onEditCancel={() => setDetailMode("view")}
-        onEditSaved={() => {
-          setDetailMode("view");
-          setDetailRevision((n) => n + 1);
-        }}
         role={user?.role}
       />
     </PatientsDrawerContext.Provider>
@@ -256,59 +243,36 @@ export function RegisterDrawerHost({
 
 interface DetailDrawerHostProps {
   patientId: string | null;
-  mode: "view" | "edit";
   tab: "overview" | "history";
   onTabChange: (tab: "overview" | "history") => void;
-  revision: number;
   triggerRef: React.MutableRefObject<HTMLElement | null>;
   onClose: () => void;
-  onEdit: () => void;
-  onEditCancel: () => void;
-  onEditSaved: () => void;
   role?: UserRole;
 }
 
 function DetailDrawerHost({
   patientId,
-  mode,
   tab,
   onTabChange,
-  revision,
   triggerRef,
   onClose,
-  onEdit,
-  onEditCancel,
-  onEditSaved,
   role,
 }: DetailDrawerHostProps): JSX.Element | null {
   const navigate = useNavigate();
 
   if (!patientId) return null;
 
-  // Edit runs in the same right-side drawer as the record, never as a page.
-  if (mode === "edit") {
-    return (
-      <PatientEditScreen
-        key={`edit-${patientId}`}
-        variant="drawer"
-        patientId={patientId}
-        onCancel={onEditCancel}
-        onSuccess={onEditSaved}
-      />
-    );
-  }
-
+  // The record drawer edits in place; there is no separate edit panel.
   const canManage = canAccessPath(role, `/patients/${patientId}/edit`);
   const canDelete = role === "owner" || role === "manager";
 
   return (
     <PatientDetailsScreen
-      key={`${patientId}-${revision}`}
+      key={patientId}
       variant="drawer"
       patientId={patientId}
       triggerRef={triggerRef}
       onBack={onClose}
-      onEdit={onEdit}
       tab={tab}
       onTabChange={onTabChange}
       onViewHistory={() => onTabChange("history")}
