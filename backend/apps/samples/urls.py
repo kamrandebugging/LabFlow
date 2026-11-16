@@ -3,6 +3,7 @@ KAN-138 / LAB-22, KAN-143 / LAB-23)."""
 
 from django.urls import path
 
+from apps.samples.daily_stats import SampleDailyStatsView
 from apps.samples.views import (
     SampleCancelView,
     SampleCollectionView,
@@ -35,6 +36,16 @@ _TRANSFER_ACTIONS = [
 ]
 
 urlpatterns = [
+    path(
+        "samples/daily",
+        SampleDailyStatsView.as_view(),
+        name="sample-daily-stats",
+    ),
+    path(
+        "samples/daily/",
+        SampleDailyStatsView.as_view(),
+        name="sample-daily-stats-slash",
+    ),
     path("samples", SampleCollectionView.as_view(), name="sample-collection"),
     path(
         "samples/",
