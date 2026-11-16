@@ -3,7 +3,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Link,
   Navigate,
-  Outlet,
   useLocation,
   useNavigate,
 } from "react-router-dom";
@@ -30,6 +29,7 @@ import { reportsService } from "../reports/reportsService";
 import { resultsService } from "../results/resultsService";
 import { LanguageSwitcher } from "../../components/LanguageSwitcher";
 import { revealThemeChange } from "../../lib/motion";
+import { PageTransition } from "./PageTransition";
 
 const DESK_PATHS = [
   "/",
@@ -573,9 +573,9 @@ export function TenantLayout(): ReactElement {
           </div>
         </header>
 
-        {/* Content Outlet */}
+        {/* Content Outlet — only the content area animates on navigation. */}
         <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto">
-          <Outlet />
+          <PageTransition />
         </main>
       </div>
 

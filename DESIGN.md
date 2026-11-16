@@ -158,7 +158,25 @@ tokens. Tokens are durations and easings only — never colour.
 transition globally, including the theme reveal. Nothing is shortened to a
 near-zero duration: reveals, staggers and blurs do not run at all.
 
-### 8.4 Banned in this system
+### 8.4 Page transition (tenant shell)
+
+Every route change in the tenant shell plays one motion, implemented in
+`src/features/layout/PageTransition.tsx` and the `.lf-page-*` utilities in
+`index.css`:
+
+- The leaving page fades out (opacity 1 → 0) and lifts 4px over
+  `--motion-fast` (150ms), then unmounts.
+- The arriving page fades in (opacity 0 → 1) and settles from 8px over
+  `--motion-drawer` (280ms).
+- Both pages are briefly on screen: that overlap is the cross-fade.
+- The transition is keyed on `location.pathname`. A re-click on the same path
+  does nothing; a filter that only changes the query string does not replay it.
+- The sidebar and the top bar sit outside the animated container, so they
+  never animate and never re-mount.
+- `prefers-reduced-motion: reduce` makes the switch instant: one layer, no
+  animation, no cross-fade.
+
+### 8.5 Banned in this system
 
 - Count-up numbers, bounce / elastic / back easings.
 - Shimmer, blur-to-sharp transitions and whole-page cross-fades.

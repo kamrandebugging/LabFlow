@@ -343,6 +343,51 @@ html[lang="ur"] .text-slate-400 {
 }
 
 /* ============================================================
+   Page transition — the tenant shell swaps screens with one
+   shared motion: the leaving page fades out and lifts 4px, the
+   arriving page fades in and settles from 8px. Both are briefly
+   on screen. The sidebar and the top bar sit outside this
+   container, so they never animate and never re-mount.
+   ============================================================ */
+.lf-page-stack {
+  position: relative;
+}
+
+.lf-page-layer--enter {
+  animation: lfPageEnter var(--motion-drawer) var(--ease-out) both;
+}
+
+.lf-page-layer--exit {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  animation: lfPageExit var(--motion-fast) var(--ease-out) forwards;
+}
+
+@keyframes lfPageExit {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+@keyframes lfPageEnter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ============================================================
    Reduced motion — one global override. Every transition, reveal,
    stagger and blur is removed, not merely shortened.
    ============================================================ */
