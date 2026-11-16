@@ -293,18 +293,6 @@ export const PatientDetailsScreen: React.FC<PatientDetailsScreenProps> = ({
             <User className={styles.cardIcon} aria-hidden="true" />
             <span>{t("patients:demographics")}</span>
           </h2>
-          {isDrawer && canEdit && !isEditing ? (
-            <button
-              type="button"
-              onClick={startEditing}
-              className={styles.cardEdit}
-              aria-label={t("patients:edit_demographics")}
-              title={t("patients:edit_demographics")}
-            >
-              <Edit className={styles.cardEditIcon} aria-hidden="true" />
-              <span>{t("patients:edit_demographics")}</span>
-            </button>
-          ) : null}
         </div>
 
         <div className={styles.fieldGrid}>
