@@ -72,11 +72,13 @@
 
 .grid {
   display: grid;
-  /* One flexible column per day: the tile grows with the column, the gap
-     stays 5px. No fixed pixel column or tile size anywhere. */
-  grid-template-columns: repeat(var(--waffle-cols, 7), minmax(0, 1fr));
+  /* Packed, tile-sized columns: a column is exactly as wide as its tile and
+     the grid sizes to its content (N x 31px). No 1fr, no percentages. */
+  grid-auto-flow: column;
+  grid-auto-columns: 30px;
   gap: 5px;
-  width: 100%;
+  justify-content: start;
+  width: max-content;
   transition: opacity var(--motion-fast) var(--ease-out);
 }
 
@@ -131,11 +133,9 @@
 }
 
 .tile {
-  /* Square, driven by the column width, capped so a 7-day column (1fr on a
-     wide card) cannot blow the card up to a thousand pixels tall. */
-  width: 100%;
-  max-width: 26px;
-  aspect-ratio: 1 / 1;
+  /* Fixed 26px square, matching the 30px column pitch from 5ae6197. */
+  width: 26px;
+  height: 26px;
   border-radius: 3px;
   display: block;
   flex: 0 0 auto;

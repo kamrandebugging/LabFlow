@@ -200,7 +200,7 @@ export function OwnerDashboardScreen(): ReactElement {
 
   // Real per-day sample buckets for the waffle, derived from the existing
   // GET /samples endpoint. No fabricated counts.
-  const [range, setRange] = useState<7 | 14 | 30>(7);
+  const [range, setRange] = useState<7 | 14 | 30>(14);
   const [waffleDays, setWaffleDays] = useState<WaffleDay[]>([]);
   const [waffleError, setWaffleError] = useState(false);
 
@@ -365,6 +365,9 @@ export function OwnerDashboardScreen(): ReactElement {
 
                 {/* Veyla day summary — plain numbers, no boxes. */}
                 <div className="rounded-2xl bg-[var(--veyla-well)] p-4 flex flex-col gap-3 min-h-[220px]">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
+                    {t("dashboard.samples_by_status") || "Samples by status"}
+                  </p>
                   <p className="text-[11px] font-medium text-[var(--color-text-muted)]">
                     {panelDay
                       ? `${panelDay.label} · so far`

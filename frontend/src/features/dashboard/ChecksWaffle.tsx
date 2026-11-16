@@ -202,7 +202,7 @@ export function ChecksWaffle({
                       : renderedDays.length > 10
                         ? 2
                         : 1) ===
-                    0 || index === renderedDays.length - 1
+                  0
                     ? day.label
                     : "\u00A0"}
                 </span>
