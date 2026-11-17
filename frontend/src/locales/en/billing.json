@@ -156,6 +156,7 @@
     "error_cancel_reason": "Cancellation reason is required.",
     "toast_payment": "Payment of {{amount}} recorded successfully.",
     "toast_refund": "Refund of {{amount}} recorded successfully.",
-    "toast_cancelled": "Invoice has been successfully cancelled."
+    "toast_cancelled": "Invoice has been successfully cancelled.",
+    "cancel_invoice": "Cancel Invoice"
   }
 }

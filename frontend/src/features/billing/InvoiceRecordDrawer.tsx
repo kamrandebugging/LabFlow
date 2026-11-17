@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { AlertCircle, FlaskConical, Printer, Wallet } from "lucide-react";
+import { AlertCircle, Printer } from "lucide-react";
 
 import { billingService } from "./billingService";
 import type { InvoiceDetail, InvoiceStatus } from "./types";
@@ -14,7 +14,6 @@ interface InvoiceRecordDrawerProps {
   invoiceId: string;
   onClose: () => void;
   /** Opens the full invoice page for payment / refund / cancel actions. */
-  onProceedToSamples?: (invoice: InvoiceDetail) => void;
   service?: typeof billingService;
 }
 
@@ -34,16 +33,15 @@ const STATUS_CLASS: Record<InvoiceStatus, string | undefined> = {
 export function InvoiceRecordDrawer({
   invoiceId,
   onClose,
-  onProceedToSamples,
   service = billingService,
 }: InvoiceRecordDrawerProps): JSX.Element {
   const { t } = useTranslation(["billing", "common"]);
   const [invoice, setInvoice] = useState<InvoiceDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [tab, setTab] = useState<
-    "overview" | "settle" | "refund" | "payments"
-  >("overview");
+  const [tab, setTab] = useState<"overview" | "settle" | "refund" | "payments">(
+    "overview",
+  );
   const [amount, setAmount] = useState("");
   const [method, setMethod] = useState<
     "cash" | "card" | "bank_transfer" | "easypaisa" | "jazzcash" | "other"
@@ -71,7 +69,14 @@ export function InvoiceRecordDrawer({
       reload();
       setTab("payments");
     } catch (err: unknown) {
-      setActionError(messageForError(err, t));
+      const raw = messageForError(err, t);
+      setActionError(
+        /^[a-z_]+\.[a-z_]+/i.test(raw)
+          ? kind === "refund"
+            ? "Refund could not be processed — check the amount and the reason."
+            : "Payment could not be recorded — check the amount."
+          : raw,
+      );
     } finally {
       setBusy(false);
     }
@@ -366,14 +371,16 @@ export function InvoiceRecordDrawer({
 
                 <div className={record.field}>
                   <span className={record.fieldLabel}>
-                    {t("billing:detail.reference_label")}
+                    {t("common:labels.reason")}{" "}
+                    <span style={{ color: "var(--color-danger)" }}>*</span>
                   </span>
                   <input
                     type="text"
                     value={reference}
                     onChange={(e) => setReference(e.target.value)}
                     className={styles.input}
-                    dir="ltr"
+                    placeholder={t("common:labels.reason")}
+                    required
                   />
                 </div>
 
@@ -391,7 +398,8 @@ export function InvoiceRecordDrawer({
                       busy ||
                       !amount ||
                       Number(amount) <= 0 ||
-                      Number(amount) > Number(invoice.net_paid || 0)
+                      Number(amount) > Number(invoice.net_paid || 0) ||
+                      !reference.trim()
                     }
                     onClick={() => void submitSettle("refund")}
                     className={record.primaryButton}
@@ -513,6 +521,14 @@ export function InvoiceRecordDrawer({
                     width: "100%",
                   }}
                 >
+                  <button
+                    type="button"
+                    disabled={busy || !amount || Number(amount) <= 0}
+                    onClick={() => void submitSettle("payment")}
+                    className={record.primaryButton}
+                  >
+                    {t("billing:detail.record_payment_title")}
+                  </button>
                 </div>
               </div>
             )}
