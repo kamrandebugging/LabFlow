@@ -41,9 +41,9 @@ export function InvoiceRecordDrawer({
   const [invoice, setInvoice] = useState<InvoiceDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [tab, setTab] = useState<"overview" | "payments" | "settle">(
-    "overview",
-  );
+  const [tab, setTab] = useState<
+    "overview" | "settle" | "refund" | "payments"
+  >("overview");
   const [amount, setAmount] = useState("");
   const [method, setMethod] = useState<
     "cash" | "card" | "bank_transfer" | "easypaisa" | "jazzcash" | "other"
@@ -149,29 +149,23 @@ export function InvoiceRecordDrawer({
     <>
       <button
         type="button"
+        disabled={busy}
+        onClick={() => void cancelInvoice()}
+        className={record.secondaryButton}
+        style={{
+          color: "var(--color-danger)",
+          borderColor: "var(--color-danger)",
+        }}
+      >
+        {t("billing:detail.cancel_invoice") || "Cancel Invoice"}
+      </button>
+      <button
+        type="button"
         onClick={() => window.print()}
         className={record.secondaryButton}
       >
         <Printer className={record.buttonIcon} aria-hidden="true" />
         <span>{t("billing:detail.print_receipt")}</span>
-      </button>
-      {onProceedToSamples ? (
-        <button
-          type="button"
-          onClick={() => onProceedToSamples(invoice)}
-          className={record.secondaryButton}
-        >
-          <FlaskConical className={record.buttonIcon} aria-hidden="true" />
-          <span>{t("billing:detail.collect_samples")}</span>
-        </button>
-      ) : null}
-      <button
-        type="button"
-        onClick={() => setTab("settle")}
-        className={record.primaryButton}
-      >
-        <Wallet className={record.buttonIcon} aria-hidden="true" />
-        <span>{t("billing:detail.record_payment_title")}</span>
       </button>
     </>
   ) : undefined;
@@ -197,7 +191,7 @@ export function InvoiceRecordDrawer({
             <div
               className={record.drawerTabs}
               role="tablist"
-              style={{ gridTemplateColumns: "repeat(3, 1fr)" }}
+              style={{ gridTemplateColumns: "repeat(4, 1fr)" }}
             >
               <button
                 type="button"
@@ -211,20 +205,29 @@ export function InvoiceRecordDrawer({
               <button
                 type="button"
                 role="tab"
-                aria-selected={tab === "payments"}
-                onClick={() => setTab("payments")}
-                className={`${record.drawerTab} ${tab === "payments" ? record.drawerTabActive : ""}`}
-              >
-                {t("billing:detail.ledger_title")}
-              </button>
-              <button
-                type="button"
-                role="tab"
                 aria-selected={tab === "settle"}
                 onClick={() => setTab("settle")}
                 className={`${record.drawerTab} ${tab === "settle" ? record.drawerTabActive : ""}`}
               >
                 {t("billing:detail.record_payment_title")}
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={tab === "refund"}
+                onClick={() => setTab("refund")}
+                className={`${record.drawerTab} ${tab === "refund" ? record.drawerTabActive : ""}`}
+              >
+                {t("billing:detail.kind.refund")}
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={tab === "payments"}
+                onClick={() => setTab("payments")}
+                className={`${record.drawerTab} ${tab === "payments" ? record.drawerTabActive : ""}`}
+              >
+                {t("billing:detail.ledger_title")}
               </button>
             </div>
 
@@ -298,6 +301,105 @@ export function InvoiceRecordDrawer({
                   )}
                 </div>
               </>
+            ) : tab === "refund" ? (
+              <div className={record.card}>
+                <div className={record.cardHead}>
+                  <h2 className={record.cardTitle}>
+                    {t("billing:detail.kind.refund")}
+                  </h2>
+                  <span className={record.fieldLabel}>
+                    {t("billing:detail.total_settled")}:{" "}
+                    <bdi dir="ltr">{formatMoney(invoice.net_paid, "en")}</bdi>
+                  </span>
+                </div>
+
+                {actionError ? (
+                  <div role="alert" className={record.alert}>
+                    <AlertCircle
+                      className={record.statusIcon}
+                      aria-hidden="true"
+                    />
+                    <span>{actionError}</span>
+                  </div>
+                ) : null}
+
+                <div className={record.field}>
+                  <span className={record.fieldLabel}>
+                    {t("common:labels.amount")}
+                  </span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
+                    className={styles.input}
+                    dir="ltr"
+                  />
+                </div>
+
+                <div className={record.field}>
+                  <span className={record.fieldLabel}>
+                    {t("billing:detail.method.cash")}
+                  </span>
+                  <select
+                    value={method}
+                    onChange={(e) => setMethod(e.target.value as typeof method)}
+                    className={styles.input}
+                  >
+                    {(
+                      [
+                        "cash",
+                        "card",
+                        "bank_transfer",
+                        "easypaisa",
+                        "jazzcash",
+                        "other",
+                      ] as const
+                    ).map((m) => (
+                      <option key={m} value={m}>
+                        {t(`billing:detail.method.${m}`)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className={record.field}>
+                  <span className={record.fieldLabel}>
+                    {t("billing:detail.reference_label")}
+                  </span>
+                  <input
+                    type="text"
+                    value={reference}
+                    onChange={(e) => setReference(e.target.value)}
+                    className={styles.input}
+                    dir="ltr"
+                  />
+                </div>
+
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "center",
+                    gap: 10,
+                    marginTop: 8,
+                  }}
+                >
+                  <button
+                    type="button"
+                    disabled={
+                      busy ||
+                      !amount ||
+                      Number(amount) <= 0 ||
+                      Number(amount) > Number(invoice.net_paid || 0)
+                    }
+                    onClick={() => void submitSettle("refund")}
+                    className={record.primaryButton}
+                  >
+                    {t("billing:detail.kind.refund")}
+                  </button>
+                </div>
+              </div>
             ) : tab === "payments" ? (
               <div className={record.card}>
                 <div className={record.cardHead}>

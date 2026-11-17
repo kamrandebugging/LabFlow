@@ -14,6 +14,7 @@ import type { DiagnosticPanel, DiagnosticTest } from "../catalog/types";
 import { patientService } from "../patients/patientService";
 import type { PatientSummary } from "../patients/types";
 import { billingService } from "./billingService";
+import { SearchSelect } from "./SearchSelect";
 import { formatMoney } from "../../lib/format";
 import { messageForError } from "../../lib/errors";
 import styles from "./NewInvoiceScreen.module.css";
@@ -529,28 +530,21 @@ export function NewInvoiceScreen({
                     {t("billing:new.add_test_label")}
                   </label>
                   <div className={styles.addRow}>
-                    <select
-                      id={searchInputId}
-                      value={selectedTestToAdd}
-                      onChange={(e) => setSelectedTestToAdd(e.target.value)}
+                    <SearchSelect
+                      ariaLabel={t("billing:new.select_test_placeholder")}
+                      placeholder={t("billing:new.select_test_placeholder")}
                       disabled={catalogLoading}
                       className={styles.select}
-                    >
-                      <option value="">
-                        {t("billing:new.select_test_placeholder")}
-                      </option>
-                      {selectableTests.map((test) => (
-                        <option key={test.id} value={test.id}>
-                          {test.name} ({test.code}) -{" "}
-                          {test.price
-                            ? formatMoney(
-                                parseFloat(test.price).toFixed(2),
-                                lang,
-                              )
-                            : t("billing:new.price_not_configured")}
-                        </option>
-                      ))}
-                    </select>
+                      inputClassName={styles.select}
+                      options={selectableTests.map((test) => ({
+                        id: test.id,
+                        label: `${test.name} (${test.code})`,
+                        meta: test.price
+                          ? formatMoney(parseFloat(test.price).toFixed(2), lang)
+                          : "",
+                      }))}
+                      onSelect={(id) => setSelectedTestToAdd(id)}
+                    />
                     <button
                       type="button"
                       onClick={() => handleAddTest(selectedTestToAdd)}
@@ -573,32 +567,21 @@ export function NewInvoiceScreen({
                   <label htmlFor={panelSelectId} className={styles.fieldLabel}>
                     {t("billing:new.add_panel_label")}
                   </label>
-                  <select
-                    id={panelSelectId}
-                    onChange={(e) => {
-                      if (e.target.value) {
-                        handleAddPanel(e.target.value);
-                        e.target.value = "";
-                      }
-                    }}
+                  <SearchSelect
+                    ariaLabel={t("billing:new.select_panel_placeholder")}
+                    placeholder={t("billing:new.select_panel_placeholder")}
                     disabled={catalogLoading}
                     className={styles.select}
-                  >
-                    <option value="">
-                      {t("billing:new.select_panel_placeholder")}
-                    </option>
-                    {availablePanels.map((panel) => (
-                      <option key={panel.id} value={panel.id}>
-                        {panel.name} ({panel.code}) -{" "}
-                        {panel.price
-                          ? formatMoney(
-                              parseFloat(panel.price).toFixed(2),
-                              lang,
-                            )
-                          : t("billing:new.price_not_configured")}
-                      </option>
-                    ))}
-                  </select>
+                    inputClassName={styles.select}
+                    options={availablePanels.map((panel) => ({
+                      id: panel.id,
+                      label: `${panel.name} (${panel.code})`,
+                      meta: panel.price
+                        ? formatMoney(parseFloat(panel.price).toFixed(2), lang)
+                        : "",
+                    }))}
+                    onSelect={(id) => handleAddPanel(id)}
+                  />
                 </div>
               </div>
             </div>
