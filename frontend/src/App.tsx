@@ -295,7 +295,7 @@ function InvoicesListWrapper(): JSX.Element {
  */
 function InvoiceDetailRouteWrapper(): JSX.Element {
   const { id } = useParams<{ id: string }>();
-  const { openInvoice } = useInvoiceDrawer();
+  const { openInvoice, openNew } = useInvoiceDrawer();
 
   useEffect(() => {
     if (id) openInvoice(id);
@@ -303,7 +303,10 @@ function InvoiceDetailRouteWrapper(): JSX.Element {
 
   return (
     <main className="min-h-screen bg-slate-50">
-      <InvoicesListScreen onSelectInvoice={(id) => openInvoice(id)} />
+      <InvoicesListScreen
+        onNewInvoice={() => openNew()}
+        onSelectInvoice={(id) => openInvoice(id)}
+      />
     </main>
   );
 }

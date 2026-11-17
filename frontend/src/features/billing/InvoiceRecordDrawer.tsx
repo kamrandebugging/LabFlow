@@ -97,7 +97,12 @@ export function InvoiceRecordDrawer({
       );
       reload();
     } catch (err: unknown) {
-      setActionError(messageForError(err, t));
+      const raw = messageForError(err, t);
+      setActionError(
+        /^[a-z_]+\.[a-z_]+/i.test(raw) || /conflict/i.test(raw)
+          ? "This invoice cannot be cancelled — it already has payments or a settled balance. Use Refund instead."
+          : raw,
+      );
     } finally {
       setBusy(false);
     }
@@ -158,7 +163,12 @@ export function InvoiceRecordDrawer({
     <>
       <button
         type="button"
-        disabled={busy}
+        disabled={
+          busy ||
+          invoice.status === "paid" ||
+          invoice.status === "refunded" ||
+          invoice.status === "cancelled"
+        }
         onClick={() => void cancelInvoice()}
         className={record.secondaryButton}
         style={{
