@@ -21,6 +21,7 @@ import { useInvoiceDrawer } from "./features/billing/invoiceDrawerContext";
 import { TestCatalogScreen } from "./features/catalog/TestCatalogScreen";
 import { TestPanelsScreen } from "./features/catalog/TestPanelsScreen";
 import { InvoicesListScreen } from "./features/billing/InvoicesListScreen";
+import { InvoicePrintScreen } from "./features/billing/InvoicePrintScreen";
 import {
   SampleAccessioningListScreen,
   CollectSampleStep1Screen,
@@ -315,6 +316,16 @@ function InvoiceDetailRouteWrapper(): JSX.Element {
  * Full invoice page: payment, refund and cancel live here. The record drawer
  * links to it from Record payment, so those money flows stay on one screen.
  */
+
+/**
+ * Print window for one invoice. Deliberately registered outside the tenant
+ * shell (see the route list below): no sidebar, top bar, drawer or app
+ * chrome, so window.print() on this route emits receipt content only.
+ */
+function InvoicePrintWrapper(): JSX.Element {
+  const { id } = useParams<{ id: string }>();
+  return <InvoicePrintScreen invoiceId={id ?? ""} />;
+}
 
 function SamplesListWrapper(): JSX.Element {
   const navigate = useNavigate();
@@ -772,6 +783,13 @@ function App(): JSX.Element {
             element={<SettlementDetailWrapper />}
           />
         </Route>
+
+        {/* Standalone invoice print window — intentionally outside the
+            tenant shell so no app chrome is ever printed. */}
+        <Route
+          path="/invoices/:id/print"
+          element={<InvoicePrintWrapper />}
+        />
 
         {/* Platform Master Dashboard — Phase 1 (Command & Tenants) */}
         <Route

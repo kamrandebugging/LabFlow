@@ -180,7 +180,13 @@ export function InvoiceRecordDrawer({
       </button>
       <button
         type="button"
-        onClick={() => window.print()}
+        onClick={() =>
+          window.open(
+            `/invoices/${invoice.id}/print`,
+            "_blank",
+            "noopener,noreferrer",
+          )
+        }
         className={record.secondaryButton}
       >
         <Printer className={record.buttonIcon} aria-hidden="true" />
