@@ -194,7 +194,11 @@ export function InvoiceRecordDrawer({
           </div>
         ) : (
           <>
-            <div className={record.drawerTabs} role="tablist">
+            <div
+              className={record.drawerTabs}
+              role="tablist"
+              style={{ gridTemplateColumns: "repeat(3, 1fr)" }}
+            >
               <button
                 type="button"
                 role="tab"
@@ -345,7 +349,7 @@ export function InvoiceRecordDrawer({
 
                 <div className={record.field}>
                   <span className={record.fieldLabel}>
-                    {t("billing:detail.col_line_total")}
+                    {t("common:labels.amount")}
                   </span>
                   <input
                     type="number"
@@ -397,32 +401,16 @@ export function InvoiceRecordDrawer({
                   />
                 </div>
 
-                <div className={record.actions}>
-                  <button
-                    type="button"
-                    disabled={busy || !amount || balance <= 0}
-                    onClick={() => void submitSettle("payment")}
-                    className={record.primaryButton}
-                  >
-                    {t("billing:detail.record_payment_title")}
-                  </button>
-                  <button
-                    type="button"
-                    disabled={busy || !amount}
-                    onClick={() => void submitSettle("refund")}
-                    className={record.secondaryButton}
-                  >
-                    {t("billing:detail.entry_refunded")}
-                  </button>
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => void cancelInvoice()}
-                    className={record.dangerButton}
-                    aria-label={t("billing:detail.cancel_invoice")}
-                  >
-                    {t("billing:detail.cancel_invoice")}
-                  </button>
+                <div
+                  style={{
+                    display: "flex",
+                    flexWrap: "wrap",
+                    justifyContent: "center",
+                    gap: 10,
+                    marginTop: 8,
+                    width: "100%",
+                  }}
+                >
                 </div>
               </div>
             )}
