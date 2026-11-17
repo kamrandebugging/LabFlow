@@ -15,6 +15,8 @@ interface SearchSelectProps {
   onSelect: (id: string) => void;
   className?: string;
   inputClassName?: string;
+  /** Optional id so an external <label htmlFor> can target the input. */
+  inputId?: string;
 }
 
 /**
@@ -29,6 +31,7 @@ export function SearchSelect({
   onSelect,
   className,
   inputClassName,
+  inputId,
 }: SearchSelectProps): JSX.Element {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
@@ -66,6 +69,7 @@ export function SearchSelect({
       }}
     >
       <input
+        id={inputId}
         type="text"
         role="combobox"
         aria-expanded={open}

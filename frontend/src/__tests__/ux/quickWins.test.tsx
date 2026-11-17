@@ -169,15 +169,17 @@ describe("Item 1 — invoice footer aligns to the inline-end, Cancel first", () 
 
     render(<NewInvoiceScreen onSuccess={onSuccess} />);
 
+    const testSelect = screen.getByLabelText(/Add individual test/i);
+    await waitFor(() => expect(testSelect).toBeEnabled());
+    fireEvent.change(testSelect, { target: { value: "CBC" } });
     await waitFor(() => {
       expect(
         screen.getByRole("option", { name: /Complete Blood Count/ }),
       ).toBeInTheDocument();
     });
-
-    fireEvent.change(screen.getByLabelText(/Add individual test/i), {
-      target: { value: "test-01" },
-    });
+    fireEvent.click(
+      screen.getByRole("option", { name: /Complete Blood Count/ }),
+    );
     fireEvent.click(screen.getByRole("button", { name: /^Add$/i }));
 
     const footerButtons = screen
@@ -411,9 +413,17 @@ describe("Item 7 — Discount prefix and live Max helper", () => {
       expect(screen.getByText(/Muhammad Imran ·/i)).toBeInTheDocument(),
     );
 
-    fireEvent.change(screen.getByLabelText(/Add individual test/i), {
-      target: { value: "test-01" },
+    const testSelect7 = screen.getByLabelText(/Add individual test/i);
+    await waitFor(() => expect(testSelect7).toBeEnabled());
+    fireEvent.change(testSelect7, { target: { value: "CBC" } });
+    await waitFor(() => {
+      expect(
+        screen.getByRole("option", { name: /Complete Blood Count/ }),
+      ).toBeInTheDocument();
     });
+    fireEvent.click(
+      screen.getByRole("option", { name: /Complete Blood Count/ }),
+    );
     fireEvent.click(screen.getByRole("button", { name: /^Add$/i }));
 
     const prefix = container.querySelector('[aria-hidden="true"]');

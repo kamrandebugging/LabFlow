@@ -531,6 +531,7 @@ export function NewInvoiceScreen({
                   </label>
                   <div className={styles.addRow}>
                     <SearchSelect
+                      inputId={searchInputId}
                       ariaLabel={t("billing:new.select_test_placeholder")}
                       placeholder={t("billing:new.select_test_placeholder")}
                       disabled={catalogLoading}
@@ -568,6 +569,7 @@ export function NewInvoiceScreen({
                     {t("billing:new.add_panel_label")}
                   </label>
                   <SearchSelect
+                    inputId={panelSelectId}
                     ariaLabel={t("billing:new.select_panel_placeholder")}
                     placeholder={t("billing:new.select_panel_placeholder")}
                     disabled={catalogLoading}
