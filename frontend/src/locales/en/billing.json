@@ -156,6 +156,22 @@
     "error_cancel_reason": "Cancellation reason is required.",
     "toast_payment": "Payment of {{amount}} recorded successfully.",
     "toast_refund": "Refund of {{amount}} recorded successfully.",
-    "toast_cancelled": "Invoice has been successfully cancelled."
+    "toast_cancelled": "Invoice has been successfully cancelled.",
+    "cancel_invoice": "Cancel Invoice",
+    "refund_reason_required": "Reason is mandatory for a refund."
+  },
+  "print": {
+    "patient_label": "Patient",
+    "mrn_label": "MRN",
+    "datetime_label": "Date & Time",
+    "reporting_time_label": "Reporting Time",
+    "paid_label": "Paid",
+    "format_a5": "A5 Portrait",
+    "format_thermal": "80mm Thermal",
+    "hint_a5": "In the print dialog: Margins — None, Headers & footers — off.",
+    "hint_thermal": "80mm roll, 72mm printable width. In the print dialog: Margins — None, Headers & footers — off.",
+    "measuring": "Measuring paper height…",
+    "pickup_en": "Report will be issued after full payment. Bring this receipt to collect your report.",
+    "pickup_ur": "رپورٹ مکمل ادائیگی کے بعد جاری کی جائے گی۔ اپنی رپورٹ لینے کے لیے یہ رسید اپنے ساتھ لائیں۔"
   }
 }

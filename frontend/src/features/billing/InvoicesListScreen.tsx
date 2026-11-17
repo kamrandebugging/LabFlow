@@ -1,40 +1,52 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   AlertCircle,
-  Calendar,
-  ChevronLeft,
-  ChevronRight,
+  ArrowRight,
+  CircleCheck,
+  CreditCard,
   Plus,
   Receipt,
   RefreshCw,
   Search,
-  X,
 } from "lucide-react";
 import { billingService } from "./billingService";
 import { formatMoney, statusLabel } from "../../lib/format";
 import { messageForError } from "../../lib/errors";
 import type { InvoiceStatus, InvoiceSummary } from "./types";
+import styles from "../patients/PatientListScreen.module.css";
+import billingStyles from "./InvoicesListScreen.module.css";
 
 interface InvoicesListScreenProps {
   onNewInvoice?: () => void;
+  /** Opens the invoice record drawer over the list. */
   onSelectInvoice?: (id: string) => void;
   service?: typeof billingService;
 }
+
+const STATUS_CLASS: Record<InvoiceStatus, string> = {
+  draft: "statusUnknown",
+  unpaid: "statusUnpaid",
+  partial: "statusPartial",
+  paid: "statusPaid",
+  refunded: "statusRefunded",
+  cancelled: "statusCancelled",
+};
 
 export function InvoicesListScreen({
   onNewInvoice,
   onSelectInvoice,
   service = billingService,
 }: InvoicesListScreenProps): JSX.Element {
-  const { t, i18n } = useTranslation(["billing", "common"]);
-  const lang: "en" | "ur" = i18n.resolvedLanguage === "ur" ? "ur" : "en";
+  const { t } = useTranslation(["billing", "common"]);
   const [invoices, setInvoices] = useState<InvoiceSummary[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [dailyTotal, setDailyTotal] = useState<string | null>(null);
+  const [animateRows, setAnimateRows] = useState(false);
+  const entrancePlayed = useRef(false);
 
   const fetchInvoices = useCallback(async () => {
     setIsLoading(true);
@@ -44,8 +56,6 @@ export function InvoicesListScreen({
         status: selectedStatus === "all" ? undefined : selectedStatus,
       });
       setInvoices(data.results);
-      // Never derive a "daily" total from the loaded page: it mixes dates and
-      // statuses. Absence is shown as unavailable.
       setDailyTotal(data.daily_total ?? null);
     } catch (err: unknown) {
       setError(messageForError(err, t));
@@ -55,13 +65,22 @@ export function InvoicesListScreen({
   }, [selectedStatus, service, t]);
 
   useEffect(() => {
-    fetchInvoices();
+    void fetchInvoices();
   }, [fetchInvoices]);
+
+  useEffect(() => {
+    if (isLoading || entrancePlayed.current) return;
+    entrancePlayed.current = true;
+    setAnimateRows(true);
+    const timer = window.setTimeout(() => setAnimateRows(false), 600);
+    return () => window.clearTimeout(timer);
+  }, [isLoading]);
 
   const filteredInvoices = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
-    if (!q) return invoices;
-    return invoices.filter(
+    const rows = invoices;
+    if (!q) return rows;
+    return rows.filter(
       (inv) =>
         inv.id.toLowerCase().includes(q) ||
         (inv.patient_name && inv.patient_name.toLowerCase().includes(q)) ||
@@ -70,325 +89,346 @@ export function InvoicesListScreen({
     );
   }, [invoices, searchQuery]);
 
-  const getStatusBadge = (status: InvoiceStatus) => {
-    switch (status) {
-      case "paid":
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
-            {statusLabel("invoice", "paid", (key) => t(`common:${key}`))}
-          </span>
-        );
-      case "unpaid":
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200">
-            <span className="w-1.5 h-1.5 rounded-full bg-rose-600" />
-            {statusLabel("invoice", "unpaid", (key) => t(`common:${key}`))}
-          </span>
-        );
-      case "partial":
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-600" />
-            {statusLabel("invoice", "partial", (key) => t(`common:${key}`))}
-          </span>
-        );
-      case "refunded":
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-300">
-            <span className="w-1.5 h-1.5 rounded-full bg-slate-500" />
-            {statusLabel("invoice", "refunded", (key) => t(`common:${key}`))}
-          </span>
-        );
-      case "cancelled":
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-500 line-through border border-slate-200">
-            {statusLabel("invoice", "cancelled", (key) => t(`common:${key}`))}
-          </span>
-        );
-      default:
-        return (
-          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-600">
-            {t("common:labels.unknown")}
-          </span>
-        );
-    }
-  };
+  const statusPill = (status: InvoiceStatus) => (
+    <span
+      className={`${billingStyles.statusBadge} ${
+        billingStyles[STATUS_CLASS[status]] ?? billingStyles.statusUnknown
+      }`}
+    >
+      {statusLabel("invoice", status, (key) => t(`common:${key}`))}
+    </span>
+  );
 
-  const formatDate = (isoString: string) => {
-    try {
-      const d = new Date(isoString);
-      return `${d.toLocaleDateString("en-GB", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-      })} · ${d.toLocaleTimeString("en-GB", {
-        hour: "2-digit",
-        minute: "2-digit",
-      })} PKT`;
-    } catch {
-      return isoString;
-    }
+  const balanceOf = (inv: InvoiceSummary): number | null => {
+    // The list payload does not always carry net_paid; only claim a balance
+    // when the status says money is still due AND the server gave a paid
+    // figure. Never infer a balance from the total alone.
+    if (inv.status !== "partial" && inv.status !== "unpaid") return null;
+    if (inv.net_paid === undefined || inv.net_paid === null) return null;
+    const total = Number.parseFloat(inv.total || "0");
+    const paid = Number.parseFloat(inv.net_paid || "0");
+    if (!Number.isFinite(total) || !Number.isFinite(paid)) return null;
+    return Math.max(0, total - paid);
   };
 
   return (
-    <div className="flex flex-col w-full max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 space-y-5">
-      {/* 1. Header & Daily Summary */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2.5">
-            <span className="p-2 bg-teal-50 text-teal-700 rounded-lg">
-              <Receipt className="w-6 h-6" />
-            </span>
-            <div>
-              <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-                {t("billing:list.title")}
-              </h1>
-              <p className="text-xs text-slate-500 mt-0.5">
-                {t("billing:list.subtitle")} · {t("common:time.pkt")}
-              </p>
-            </div>
+    <div className={styles.page}>
+      <div className={styles.container}>
+        {/* Header — same anatomy as Patients. */}
+        <div className={styles.header}>
+          <div>
+            <h1 className={styles.title}>{t("common:nav.invoices")}</h1>
+            <p className={styles.subtitle}>{t("billing:list.subtitle")}</p>
           </div>
+          <span className={styles.syncBadge}>
+            <CircleCheck className={styles.syncIcon} aria-hidden="true" />
+            {dailyTotal !== null ? (
+              <>
+                <span>{t("billing:list.daily_total")}</span>
+                <span>{formatMoney(dailyTotal, "en")}</span>
+              </>
+            ) : (
+              "\u2014"
+            )}
+          </span>
         </div>
 
-        {/* Daily Total Summary Badge */}
-        <div className="flex items-center gap-3 self-start md:self-auto">
-          <div className="bg-white border border-slate-200 rounded-xl px-4 py-2 flex items-center gap-2.5 shadow-xs">
-            <Calendar className="w-4 h-4 text-slate-400" />
-            <span className="text-xs uppercase tracking-wider text-slate-500 font-semibold">
-              {t("billing:list.daily_total")}
-            </span>
-            <span className="font-mono text-sm font-bold text-slate-900">
-              {formatMoney(dailyTotal, lang)}
-            </span>
-          </div>
-
-          {onNewInvoice ? (
-            <button
-              type="button"
-              onClick={onNewInvoice}
-              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-teal-600 rounded-lg hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-500 shadow-sm transition-all"
-            >
-              <Plus className="w-4 h-4" />
-              {t("billing:list.new_invoice")}
-            </button>
-          ) : null}
-        </div>
-      </div>
-
-      {/* 2. Filter Bar */}
-      <div className="bg-white rounded-xl border border-slate-200 p-3 shadow-xs flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-3 flex-1 min-w-[300px]">
-          {/* Status Dropdown */}
-          <div className="relative min-w-[150px]">
-            <label htmlFor="invoiceStatusFilter" className="sr-only">
-              {t("billing:list.status_filter_aria")}
-            </label>
-            <select
-              id="invoiceStatusFilter"
-              value={selectedStatus}
-              onChange={(e) => setSelectedStatus(e.target.value)}
-              className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-600 cursor-pointer"
-            >
-              <option value="all">{t("billing:list.all_statuses")}</option>
-              <option value="paid">
-                {statusLabel("invoice", "paid", (key) => t(`common:${key}`))}
-              </option>
-              <option value="unpaid">
-                {statusLabel("invoice", "unpaid", (key) => t(`common:${key}`))}
-              </option>
-              <option value="partial">
-                {statusLabel("invoice", "partial", (key) => t(`common:${key}`))}
-              </option>
-              <option value="refunded">
-                {statusLabel("invoice", "refunded", (key) =>
-                  t(`common:${key}`),
-                )}
-              </option>
-              <option value="cancelled">
-                {statusLabel("invoice", "cancelled", (key) =>
-                  t(`common:${key}`),
-                )}
-              </option>
-            </select>
-          </div>
-
-          {/* Search Input */}
-          <div className="relative flex-1 min-w-[220px]">
-            <Search className="absolute start-3 top-2.5 text-slate-400 w-4 h-4" />
-            <label htmlFor="invoiceSearchInput" className="sr-only">
-              {t("billing:list.search_aria")}
-            </label>
+        {/* Toolbar */}
+        <div className={styles.toolbar}>
+          <div className={styles.searchWrap}>
+            <Search className={styles.searchIcon} aria-hidden="true" />
             <input
-              id="invoiceSearchInput"
-              type="text"
-              placeholder={t("billing:list.search_placeholder")}
+              id="invoice-search-input"
+              type="search"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full ps-9 pe-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-600"
+              placeholder={t("billing:list.search_placeholder")}
+              aria-label={t("billing:list.search_placeholder")}
+              className={styles.searchInput}
+              autoComplete="off"
             />
           </div>
-        </div>
-
-        <button
-          type="button"
-          onClick={fetchInvoices}
-          disabled={isLoading}
-          className="p-2 border border-slate-200 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-50 transition"
-          title={t("billing:list.refresh_title")}
-        >
-          <RefreshCw
-            className={`w-4 h-4 ${isLoading ? "animate-spin text-teal-600" : ""}`}
-          />
-        </button>
-      </div>
-
-      {/* Error Alert */}
-      {error && (
-        <div className="bg-rose-50 border border-rose-200 text-rose-800 p-4 rounded-xl flex items-center justify-between text-sm">
-          <div className="flex items-center gap-2">
-            <AlertCircle className="w-5 h-5 text-rose-500 shrink-0" />
-            <span>{error}</span>
-          </div>
-          <button
-            type="button"
-            onClick={() => setError(null)}
-            aria-label={t("billing:shared.dismiss_error_aria")}
-            className="text-rose-500 hover:text-rose-700"
+          <select
+            aria-label={t("billing:list.status_filter_aria")}
+            value={selectedStatus}
+            onChange={(e) => setSelectedStatus(e.target.value)}
+            className={styles.searchInput}
+            style={{ maxWidth: 180 }}
           >
-            <X className="w-4 h-4" />
-          </button>
+            <option value="all">{t("billing:list.all_statuses")}</option>
+            <option value="draft">Draft</option>
+            <option value="unpaid">Unpaid</option>
+            <option value="partial">Partial</option>
+            <option value="paid">Paid</option>
+            <option value="refunded">Refunded</option>
+            <option value="cancelled">Cancelled</option>
+          </select>
+          <div className={styles.toolbarActions}>
+            <button
+              type="button"
+              onClick={() => void fetchInvoices()}
+              className={styles.iconButton}
+              title={t("billing:list.refresh_title")}
+              aria-label={t("billing:list.refresh_title")}
+            >
+              <RefreshCw
+                className={`${styles.spin} ${isLoading ? "" : styles.spinHidden}`}
+                aria-hidden="true"
+              />
+            </button>
+            {onNewInvoice ? (
+              <button
+                type="button"
+                onClick={onNewInvoice}
+                className={styles.primaryButton}
+              >
+                <Plus className={styles.buttonIcon} aria-hidden="true" />
+                <span>{t("billing:list.new_invoice")}</span>
+              </button>
+            ) : null}
+          </div>
         </div>
-      )}
 
-      {/* 3. Invoices Table Card */}
-      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-xs">
-        <div className="overflow-x-auto">
-          <table className="w-full text-start border-collapse">
-            <thead className="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-              <tr>
-                <th className="py-3 px-4" scope="col">
-                  {t("billing:list.col_invoice")}
-                </th>
-                <th className="py-3 px-4" scope="col">
-                  {t("billing:list.col_patient")}
-                </th>
-                <th className="py-3 px-4" scope="col">
-                  {t("common:labels.date")}
-                </th>
-                <th className="py-3 px-4 hidden lg:table-cell" scope="col">
-                  {t("billing:list.col_tests")}
-                </th>
-                <th className="py-3 px-4" scope="col">
-                  {t("billing:list.col_total")}
-                </th>
-                <th className="py-3 px-4" scope="col">
-                  {t("common:labels.status")}
-                </th>
-                <th className="py-3 px-4 text-end" scope="col">
-                  {t("billing:list.col_action")}
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 text-sm">
-              {isLoading ? (
+        {error && (
+          <div role="alert" className={styles.alert}>
+            <div className={styles.alertBody}>
+              <AlertCircle className={styles.alertIcon} aria-hidden="true" />
+              <span>{error}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => void fetchInvoices()}
+              className={styles.retry}
+            >
+              {t("common:actions.retry")}
+            </button>
+          </div>
+        )}
+
+        {/* Table */}
+        <div className={styles.tableCard}>
+          <div className={styles.tableScroll}>
+            <table className={styles.table} data-testid="invoice-table">
+              <thead>
                 <tr>
-                  <td colSpan={7} className="py-12 text-center text-slate-400">
-                    <RefreshCw className="w-6 h-6 animate-spin mx-auto text-teal-600 mb-2" />
-                    {t("billing:list.loading")}
-                  </td>
+                  <th scope="col" className={styles.th}>
+                    {t("billing:list.col_invoice")}
+                  </th>
+                  <th scope="col" className={styles.th}>
+                    {t("billing:list.col_patient")}
+                  </th>
+                  <th scope="col" className={styles.th}>
+                    {t("common:labels.date")}
+                  </th>
+                  <th scope="col" className={styles.th}>
+                    {t("billing:list.col_tests")}
+                  </th>
+                  <th scope="col" className={styles.th}>
+                    {t("billing:list.col_total")}
+                  </th>
+                  <th scope="col" className={styles.th}>
+                    {t("common:labels.status")}
+                  </th>
+                  <th scope="col" className={`${styles.th} ${styles.thEnd}`}>
+                    {t("billing:list.col_action")}
+                  </th>
                 </tr>
-              ) : filteredInvoices.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="py-12 text-center text-slate-400">
-                    {t("billing:list.empty")}
-                  </td>
-                </tr>
-              ) : (
-                filteredInvoices.map((inv) => (
-                  <tr
-                    key={inv.id}
-                    className="hover:bg-slate-50/75 transition-colors"
-                  >
-                    <td className="py-3.5 px-4 font-mono font-bold text-teal-700">
-                      {inv.id.startsWith("INV-")
-                        ? inv.id
-                        : `INV-${inv.id.slice(0, 8).toUpperCase()}`}
-                    </td>
-                    <td className="py-3.5 px-4">
-                      <div className="font-medium text-slate-900">
-                        {inv.patient_name || t("billing:list.patient_fallback")}
-                      </div>
-                      <div className="font-mono text-xs text-slate-400">
-                        {inv.patient_mrn ||
-                          `${t("billing:list.mrn_label")} ${inv.patient_id.slice(0, 8)}`}
-                      </div>
-                    </td>
-                    <td className="py-3.5 px-4 text-slate-600 text-xs">
-                      <bdi dir="ltr">{formatDate(inv.created_at)}</bdi>
-                    </td>
-                    <td
-                      className="py-3.5 px-4 text-slate-700 max-w-xs truncate hidden lg:table-cell"
-                      title={
-                        inv.items_summary || t("billing:list.tests_fallback")
-                      }
-                    >
-                      {inv.items_summary || t("billing:list.tests_fallback")}
-                    </td>
-                    <td className="py-3.5 px-4">
-                      <span className="bg-slate-50 border border-slate-200 rounded px-2.5 py-1 font-mono text-xs font-semibold text-slate-900 inline-block">
-                        {formatMoney(inv.total, lang)}
-                      </span>
-                    </td>
-                    <td className="py-3.5 px-4 whitespace-nowrap">
-                      {getStatusBadge(inv.status)}
-                    </td>
-                    <td className="py-3.5 px-4 text-end">
-                      <button
-                        type="button"
-                        onClick={() => onSelectInvoice?.(inv.id)}
-                        className="text-teal-600 font-semibold hover:text-teal-800 text-xs transition-colors"
-                      >
-                        {t("billing:list.view")}{" "}
-                        <span
+              </thead>
+              <tbody>
+                {isLoading ? (
+                  [0, 1, 2, 3].map((row) => (
+                    <tr key={row} className={styles.row}>
+                      <td colSpan={7} className={styles.td}>
+                        <div
+                          className={styles.skeletonRow}
                           aria-hidden="true"
-                          className="inline-block rtl:-scale-x-100"
+                          data-testid="invoice-skeleton-row"
                         >
-                          →
+                          <span
+                            className={`${styles.skeletonBlock} ${styles.skeletonMono}`}
+                          />
+                          <span
+                            className={`${styles.skeletonBlock} ${styles.skeletonName}`}
+                          />
+                          <span
+                            className={`${styles.skeletonBlock} ${styles.skeletonShort}`}
+                          />
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                ) : filteredInvoices.length === 0 ? (
+                  <tr className={styles.row}>
+                    <td colSpan={7} className={styles.emptyCell}>
+                      <div className={styles.emptyInner}>
+                        <span className={styles.emptyIconCircle}>
+                          <Receipt
+                            className={styles.emptyIcon}
+                            aria-hidden="true"
+                          />
                         </span>
-                      </button>
+                        <p className={styles.emptyTitle}>
+                          {searchQuery
+                            ? t("billing:list.empty")
+                            : t("billing:list.empty")}
+                        </p>
+                        {onNewInvoice ? (
+                          <button
+                            type="button"
+                            onClick={onNewInvoice}
+                            className={styles.emptyAction}
+                          >
+                            <Plus
+                              className={styles.buttonIcon}
+                              aria-hidden="true"
+                            />
+                            <span>{t("billing:list.new_invoice")}</span>
+                          </button>
+                        ) : null}
+                      </div>
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ) : (
+                  filteredInvoices.map((inv, index) => {
+                    const balance = balanceOf(inv);
+                    return (
+                      <tr
+                        key={inv.id}
+                        role="button"
+                        tabIndex={0}
+                        aria-label={inv.invoice_number || inv.id}
+                        className={`${styles.row} ${styles.rowClickable}${
+                          animateRows ? ` ${styles.rowEnter}` : ""
+                        }`}
+                        style={
+                          animateRows
+                            ? {
+                                animationDelay: `${Math.min(index, 9) * 20}ms`,
+                              }
+                            : undefined
+                        }
+                        onClick={() => onSelectInvoice?.(inv.id)}
+                        onKeyDown={(event) => {
+                          if (event.key !== "Enter" && event.key !== " ") {
+                            return;
+                          }
+                          event.preventDefault();
+                          onSelectInvoice?.(inv.id);
+                        }}
+                      >
+                        <td className={styles.td}>
+                          <span dir="ltr" className={styles.mrn}>
+                            {inv.invoice_number || inv.id.slice(0, 12)}
+                          </span>
+                        </td>
+                        <td className={styles.td}>
+                          <span
+                            className={styles.patientName}
+                            style={{ whiteSpace: "nowrap" }}
+                          >
+                            {inv.patient_name || "—"}
+                          </span>
+                          <span className={styles.patientMeta}>
+                            {inv.patient_mrn || "—"}
+                          </span>
+                        </td>
+                        <td className={styles.td}>
+                          <span className={styles.lastVisit}>
+                            {new Date(inv.created_at).toLocaleDateString(
+                              "en-GB",
+                              {
+                                day: "2-digit",
+                                month: "short",
+                                year: "numeric",
+                              },
+                            )}
+                          </span>
+                        </td>
+                        <td className={styles.td}>
+                          <span className={styles.patientMeta}>
+                            {inv.items_summary ||
+                              t("billing:list.tests_fallback")}
+                          </span>
+                        </td>
+                        <td className={styles.td}>
+                          <span
+                            className={styles.phone}
+                            dir="ltr"
+                            style={{ whiteSpace: "nowrap" }}
+                          >
+                            {formatMoney(
+                              Number(inv.total || 0).toFixed(2),
+                              "en",
+                            )}
+                          </span>
+                          {balance !== null && balance > 0 ? (
+                            <span className={styles.patientMeta}>
+                              {t("billing:detail.balance_due")}:{" "}
+                              {formatMoney(balance.toFixed(2), "en")}
+                            </span>
+                          ) : null}
+                        </td>
+                        <td className={styles.td}>{statusPill(inv.status)}</td>
+                        <td className={`${styles.td} ${styles.cellEnd}`}>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onSelectInvoice?.(inv.id);
+                            }}
+                            className={styles.viewButton}
+                          >
+                            {t("billing:list.view")}
+                            <ArrowRight
+                              className={styles.arrow}
+                              aria-hidden="true"
+                            />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
 
-        {/* Table Footer */}
-        <div className="border-t border-slate-200 px-4 py-3 flex items-center justify-between bg-white text-xs text-slate-500">
-          <div>
+        {!isLoading ? (
+          <div className={styles.footerCount}>
+            <CreditCard size={14} aria-hidden="true" />
             {t("billing:list.showing", { total: filteredInvoices.length })}
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              disabled
-              className="p-1.5 border border-slate-200 rounded-lg text-slate-300 cursor-not-allowed"
+            <span
+              style={{
+                marginInlineStart: "auto",
+                display: "inline-flex",
+                gap: 6,
+              }}
             >
-              <ChevronLeft className="w-4 h-4 rtl:rotate-180" />
-            </button>
-            <button
-              type="button"
-              disabled
-              className="p-1.5 border border-slate-200 rounded-lg text-slate-300 cursor-not-allowed"
-            >
-              <ChevronRight className="w-4 h-4 rtl:rotate-180" />
-            </button>
+              <button
+                type="button"
+                aria-label={t("common:actions.previous")}
+                disabled
+                aria-disabled="true"
+                className={styles.iconButton}
+              >
+                ‹
+              </button>
+              <button
+                type="button"
+                aria-label={t("common:actions.next")}
+                disabled
+                aria-disabled="true"
+                className={styles.iconButton}
+              >
+                ›
+              </button>
+            </span>
           </div>
-        </div>
+        ) : null}
       </div>
     </div>
   );
 }
+
 export default InvoicesListScreen;

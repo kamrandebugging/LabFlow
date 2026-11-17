@@ -61,6 +61,12 @@ export const patientService = {
           sex: input.sex,
           date_of_birth: input.date_of_birth || null,
           branch_id: input.branch_id,
+          // These two were declared on PatientCreateInput and collected by the
+          // form, but were silently dropped here — so a consent ticked at
+          // registration never reached the API and the record drawer always
+          // showed "No Consent on File".
+          whatsapp_number: input.whatsapp_number || undefined,
+          consent_reports: input.consent_reports ?? false,
           confirm_duplicate: input.confirm_duplicate ?? false,
         },
       });

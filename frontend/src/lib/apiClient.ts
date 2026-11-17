@@ -90,10 +90,24 @@ export interface RequestOptions {
 
 const inFlightRefresh: Partial<Record<SessionKind, Promise<string | null>>> =
   {};
+const inFlightSilent: Partial<Record<SessionKind, boolean>> = {};
 
-async function refreshOnce(kind: SessionKind): Promise<string | null> {
+async function refreshOnce(
+  kind: SessionKind,
+  silent = false,
+): Promise<string | null> {
   const existing = inFlightRefresh[kind];
-  if (existing) return existing;
+  if (existing) {
+    // A non-silent caller (a real 401) must still expire the session even if
+    // it joined a silent boot refresh.
+    if (!silent && inFlightSilent[kind]) {
+      return existing.then((token) => {
+        if (!token) getSession(kind)?.onExpired();
+        return token;
+      });
+    }
+    return existing;
+  }
 
   const binding = getSession(kind);
   if (!binding) return null;
@@ -103,11 +117,15 @@ async function refreshOnce(kind: SessionKind): Promise<string | null> {
     .catch(() => null)
     .then((token) => {
       delete inFlightRefresh[kind];
-      if (!token) binding.onExpired();
+      delete inFlightSilent[kind];
+      // A cold start with no refresh cookie is not an expiry: only a refresh
+      // failure during an established session may redirect to the login page.
+      if (!token && !silent) binding.onExpired();
       return token;
     });
 
   inFlightRefresh[kind] = pending;
+  inFlightSilent[kind] = silent;
   return pending;
 }
 
@@ -115,11 +133,15 @@ async function refreshOnce(kind: SessionKind): Promise<string | null> {
  * Refresh a session through the same single-flight promise used by the 401
  * retry path, so concurrent callers (boot gate double-mount, parallel 401s)
  * never present the same rotating refresh token twice.
+ *
+ * `silent` is for the boot gate: a first visit has no refresh cookie, and that
+ * must not surface "Your session has expired" before the user ever signed in.
  */
 export function refreshSession(
   kind: SessionKind = "staff",
+  options: { silent?: boolean } = {},
 ): Promise<string | null> {
-  return refreshOnce(kind);
+  return refreshOnce(kind, options.silent ?? false);
 }
 
 function buildUrl(path: string, query?: RequestOptions["query"]): string {

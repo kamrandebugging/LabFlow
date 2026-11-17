@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import {
   ArrowLeft,
@@ -6,6 +7,7 @@ import {
   History,
   Phone,
   ShieldCheck,
+  ShieldX,
   User,
   Trash2,
   RefreshCw,
@@ -13,7 +15,12 @@ import {
 } from "lucide-react";
 import { messageForError } from "../../lib/errors";
 import { formatDate } from "../../lib/format";
+import { useDialogFocus } from "../../lib/dialogFocus";
+import styles from "./PatientRecord.module.css";
+import formStyles from "./PatientForm.module.css";
 import { patientService } from "./patientService";
+import { VeylaDrawer } from "./VeylaDrawer";
+import { PatientHistoryScreen } from "./PatientHistoryScreen";
 import type { PatientDetail } from "./types";
 
 interface PatientDetailsScreenProps {
@@ -27,6 +34,16 @@ interface PatientDetailsScreenProps {
   /** DELETE /patients/{id} is ADMIN (Owner/Manager) only. */
   canDelete?: boolean;
   service?: typeof patientService;
+  /** Element focus returns to when the drawer closes (drawer variant). */
+  triggerRef?: React.RefObject<HTMLElement>;
+  /** Which drawer tab is showing. Drawer variant only. */
+  tab?: "overview" | "history";
+  onTabChange?: (tab: "overview" | "history") => void;
+  /**
+   * "page" is the standalone record route. "drawer" renders the same record
+   * inside the shared Veyla side drawer over the patient list.
+   */
+  variant?: "page" | "drawer";
 }
 
 export const PatientDetailsScreen: React.FC<PatientDetailsScreenProps> = ({
@@ -38,12 +55,34 @@ export const PatientDetailsScreen: React.FC<PatientDetailsScreenProps> = ({
   canManage = false,
   canDelete = false,
   service = patientService,
+  variant = "page",
+  triggerRef,
+  tab = "overview",
+  onTabChange,
 }) => {
   const { t } = useTranslation(["patients", "common"]);
   const [patient, setPatient] = useState<PatientDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  // Inline editing: the drawer edits the record in place. There is no
+  // separate edit panel.
+  const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editPhone, setEditPhone] = useState("");
+  const [editSex, setEditSex] = useState<"M" | "F">("M");
+  const [editDob, setEditDob] = useState("");
+  const deleteTriggerRef = useRef<HTMLButtonElement>(null);
+  const deletePanelRef = useDialogFocus<HTMLDivElement>(
+    showDeleteModal,
+    () => setShowDeleteModal(false),
+    deleteTriggerRef,
+  );
 
   useEffect(() => {
     let isMounted = true;
@@ -72,14 +111,16 @@ export const PatientDetailsScreen: React.FC<PatientDetailsScreenProps> = ({
     };
   }, [patientId, service, t]);
 
-  const handleDelete = async () => {
-    if (!window.confirm(t("patients:details.confirm_delete"))) return;
+  const handleConfirmDelete = async () => {
     setIsDeleting(true);
+    setDeleteError(null);
     try {
       await service.deletePatient(patientId);
+      setShowDeleteModal(false);
       onBack?.();
     } catch (err: unknown) {
-      alert(
+      setShowDeleteModal(false);
+      setDeleteError(
         err && typeof err === "object" && ("code" in err || "status" in err)
           ? messageForError(err, t)
           : t("patients:details.errors.delete"),
@@ -89,237 +130,548 @@ export const PatientDetailsScreen: React.FC<PatientDetailsScreenProps> = ({
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[400px] text-slate-500 gap-3">
-        <RefreshCw className="w-6 h-6 animate-spin text-teal-600" />
-        <span className="text-sm font-medium">
-          {t("patients:details.loading")}
-        </span>
-      </div>
-    );
-  }
+  const startEditing = () => {
+    if (!patient) return;
+    setEditName(patient.name || "");
+    setEditPhone(patient.phone || "");
+    setEditSex(patient.sex === "F" ? "F" : "M");
+    setEditDob(patient.date_of_birth ? patient.date_of_birth.slice(0, 10) : "");
+    setSaveError(null);
+    setIsEditing(true);
+  };
 
-  if (error || !patient) {
-    return (
-      <div className="max-w-2xl mx-auto p-6 text-center space-y-4">
-        <div className="w-12 h-12 bg-red-50 text-red-600 rounded-full flex items-center justify-center mx-auto">
-          <AlertCircle className="w-6 h-6" />
-        </div>
-        <h2 className="text-lg font-bold text-slate-900">
-          {t("patients:details.unavailable_title")}
-        </h2>
-        <p className="text-sm text-slate-600">
-          {error || t("patients:not_found")}
-        </p>
-        <button
-          type="button"
-          onClick={onBack}
-          className="px-4 py-2 bg-slate-900 text-white rounded-lg text-sm font-medium hover:bg-slate-800"
-        >
-          {t("patients:return_to_patients")}
-        </button>
-      </div>
-    );
-  }
+  const cancelEditing = () => {
+    setIsEditing(false);
+    setSaveError(null);
+  };
+
+  const handleSave = async () => {
+    if (!patient) return;
+    setIsSaving(true);
+    setSaveError(null);
+    try {
+      const updated = await service.updatePatient(
+        patientId,
+        {
+          name: editName,
+          phone: editPhone,
+          sex: editSex,
+          date_of_birth: editDob || null,
+        },
+        patient.version,
+      );
+      setPatient(updated);
+      setIsEditing(false);
+    } catch (err: unknown) {
+      setSaveError(
+        err && typeof err === "object" && ("code" in err || "status" in err)
+          ? messageForError(err, t)
+          : t("patients:edit.errors.save"),
+      );
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  /* ------------------------------------------------------------ loading --- */
+
+  const loadingBlock = (
+    <div className={styles.loading}>
+      <RefreshCw className={`${styles.statusIcon} ${styles.spin}`} />
+      <span>{t("patients:details.loading")}</span>
+    </div>
+  );
+
+  const errorBlock = (
+    <div className={styles.errorState}>
+      <span className={styles.errorIcon}>
+        <AlertCircle className={styles.statusIcon} />
+      </span>
+      <h2 className={styles.errorTitle}>
+        {t("patients:details.unavailable_title")}
+      </h2>
+      <p className={styles.errorText}>{error || t("patients:not_found")}</p>
+      <button type="button" onClick={onBack} className={styles.primaryButton}>
+        {t("patients:return_to_patients")}
+      </button>
+    </div>
+  );
+
+  /* ------------------------------------------------------------- content -- */
 
   const primaryPhone =
-    patient.phone ||
-    patient.contacts?.find((c) => c.kind === "phone")?.value ||
+    patient?.phone ||
+    patient?.contacts?.find((c) => c.kind === "phone")?.value ||
     "—";
-  const whatsappContact = patient.contacts?.find(
+  const whatsappContact = patient?.contacts?.find(
     (c) => c.kind === "whatsapp",
   )?.value;
-  const hasDigitalConsent = patient.consents?.some((c) => !c.revoked_at);
+  const hasDigitalConsent = patient?.consents?.some((c) => !c.revoked_at);
 
-  return (
-    <div className="max-w-6xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
-      {/* 1. Header & Actions */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div className="space-y-1">
-          <nav
-            aria-label={t("patients:breadcrumb_aria")}
-            className="flex items-center gap-2 text-xs text-slate-500 mb-1"
-          >
-            <button
-              type="button"
-              onClick={onBack}
-              className="hover:text-slate-800 transition-colors inline-flex items-center gap-1"
-            >
-              <ArrowLeft className="w-3.5 h-3.5 rtl:rotate-180" />
-              <span>{t("common:nav.patients")}</span>
-            </button>
-            <span className="text-slate-300">/</span>
-            <span dir="ltr" className="font-mono text-slate-700 font-semibold">
-              {patient.mrn}
-            </span>
-          </nav>
-          <div className="flex items-center flex-wrap gap-3">
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 font-headline">
-              {patient.name}
-            </h1>
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
-              {t("patients:details.active")}
-            </span>
-            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-700">
-              {patient.branch_name || t("patients:main_branch")}
-            </span>
-          </div>
-          <p className="text-xs text-slate-400 font-mono">
-            {t("patients:mrn")}:{" "}
-            <strong className="text-slate-700">
-              <bdi dir="ltr">{patient.mrn}</bdi>
-            </strong>{" "}
-            · {t("patients:details.registered")}{" "}
-            <bdi dir="ltr">{formatDate(patient.created_at)}</bdi>
-          </p>
-        </div>
+  // Identity block: identical wording and values in both variants.
+  const identity = patient ? (
+    <div className={styles.nameRow}>
+      <h1 className={styles.title}>{patient.name}</h1>
+      <span className={styles.activeBadge}>
+        <ShieldCheck
+          className={`${styles.statusIcon} ${styles.pulse}`}
+          aria-hidden="true"
+        />
+        {t("patients:details.active")}
+      </span>
+      <span className={styles.branchPill}>
+        {patient.branch_name || t("patients:main_branch")}
+      </span>
+      <p className={styles.metaLine}>
+        {t("patients:mrn")}:{" "}
+        <strong className={styles.metaStrong}>
+          <bdi dir="ltr">{patient.mrn}</bdi>
+        </strong>{" "}
+        · {t("patients:details.registered")}{" "}
+        <bdi dir="ltr">{formatDate(patient.created_at)}</bdi>
+      </p>
+    </div>
+  ) : null;
 
-        {/* Action Buttons */}
-        <div className="flex items-center flex-wrap gap-2.5">
-          {canManage && onEdit ? (
-            <button
-              type="button"
-              onClick={() => onEdit(patient.id)}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 text-sm font-medium transition-colors shadow-sm"
-            >
-              <Edit className="w-4 h-4 text-slate-400" />
-              <span>{t("patients:edit_demographics")}</span>
-            </button>
-          ) : null}
+  const isDrawer = variant === "drawer";
+  const canEdit = canManage && (isDrawer || Boolean(onEdit));
+
+  // Actions: same order in both variants. In the drawer the Edit button
+  // flips the record into inline editing instead of opening a second panel.
+  const actions = patient ? (
+    <div className={styles.actions}>
+      {canEdit ? (
+        <button
+          type="button"
+          onClick={() => (isDrawer ? startEditing() : onEdit?.(patient.id))}
+          disabled={isEditing}
+          className={styles.secondaryButton}
+        >
+          <Edit className={styles.buttonIcon} aria-hidden="true" />
+          <span>{t("patients:edit_demographics")}</span>
+        </button>
+      ) : null}
+      <button
+        type="button"
+        onClick={() => onViewHistory?.(patient.id)}
+        className={styles.secondaryButton}
+      >
+        <History className={styles.buttonIcon} aria-hidden="true" />
+        <span>{t("patients:details.audit_history")}</span>
+      </button>
+      <button
+        type="button"
+        onClick={() => onNewVisit?.(patient.id)}
+        className={styles.primaryButton}
+      >
+        <span>{t("patients:details.new_accession")}</span>
+      </button>
+      {canDelete ? (
+        <span className={styles.dangerSeparator}>
           <button
             type="button"
-            onClick={() => onViewHistory?.(patient.id)}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 text-sm font-medium transition-colors shadow-sm"
+            ref={deleteTriggerRef}
+            onClick={() => setShowDeleteModal(true)}
+            disabled={isDeleting}
+            title={t("patients:details.delete_patient_aria")}
+            aria-label={t("patients:details.delete_patient_aria")}
+            className={styles.dangerButton}
           >
-            <History className="w-4 h-4 text-slate-400" />
-            <span>{t("patients:details.audit_history")}</span>
+            <Trash2 className={styles.buttonIcon} aria-hidden="true" />
           </button>
-          <button
-            type="button"
-            onClick={() => onNewVisit?.(patient.id)}
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#005c55] text-white hover:bg-[#0f766e] text-sm font-semibold transition-colors shadow-sm"
-          >
-            <span>{t("patients:details.new_accession")}</span>
-          </button>
-          {canDelete ? (
-            <button
-              type="button"
-              onClick={handleDelete}
-              disabled={isDeleting}
-              title={t("patients:details.delete_patient_aria")}
-              aria-label={t("patients:details.delete_patient_aria")}
-              className="p-2 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
-          ) : null}
+        </span>
+      ) : null}
+    </div>
+  ) : null;
+
+  const cards = patient ? (
+    <div className={styles.grid}>
+      {/* Core Identity Card */}
+      <div className={styles.card}>
+        <div className={styles.cardHead}>
+          <h2 className={styles.cardTitle}>
+            <User className={styles.cardIcon} aria-hidden="true" />
+            <span>{t("patients:demographics")}</span>
+          </h2>
         </div>
-      </div>
 
-      {/* 2. Demographics & Record Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Core Identity Card */}
-        <div className="lg:col-span-2 bg-white rounded-xl border border-slate-200 p-6 shadow-sm space-y-4">
-          <div className="border-b border-slate-100 pb-3 flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-slate-900 uppercase tracking-wider flex items-center gap-2">
-              <User className="w-4 h-4 text-teal-600" />
-              <span>{t("patients:demographics")}</span>
-            </h2>
-            <span className="text-xs font-mono text-slate-400">
-              {t("patients:details.id")}:{" "}
-              <bdi dir="ltr">{patient.id.slice(0, 8)}</bdi>
+        <div className={styles.fieldGrid}>
+          <div className={styles.field}>
+            <span className={styles.fieldLabel}>
+              {t("patients:details.field_full_name")}
             </span>
+            {isEditing ? (
+              <input
+                id="inlineFullName"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                className={formStyles.input}
+              />
+            ) : (
+              <span className={styles.fieldValue}>{patient.name}</span>
+            )}
           </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-            <div>
-              <span className="text-xs text-slate-400 block mb-0.5">
-                {t("patients:details.field_full_name")}
-              </span>
-              <span className="font-semibold text-slate-900">
-                {patient.name}
-              </span>
-            </div>
-            <div>
-              <span className="text-xs text-slate-400 block mb-0.5">
-                {t("patients:details.field_sex")}
-              </span>
-              <span className="font-medium text-slate-800">
+          <div className={styles.field}>
+            <span className={styles.fieldLabel}>
+              {t("patients:details.field_sex")}
+            </span>
+            {isEditing ? (
+              <div
+                role="radiogroup"
+                aria-label={t("patients:details.field_sex")}
+                className={formStyles.radioTrack}
+              >
+                <label
+                  className={`${formStyles.radioOption} ${
+                    editSex === "M" ? formStyles.radioOptionSelected : ""
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="inlineSex"
+                    value="M"
+                    checked={editSex === "M"}
+                    onChange={() => setEditSex("M")}
+                    className={formStyles.radioInput}
+                  />
+                  <span className={formStyles.radioDot} aria-hidden="true" />
+                  <span>{t("patients:sex.male")}</span>
+                </label>
+                <label
+                  className={`${formStyles.radioOption} ${
+                    editSex === "F" ? formStyles.radioOptionSelected : ""
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="inlineSex"
+                    value="F"
+                    checked={editSex === "F"}
+                    onChange={() => setEditSex("F")}
+                    className={formStyles.radioInput}
+                  />
+                  <span className={formStyles.radioDot} aria-hidden="true" />
+                  <span>{t("patients:sex.female")}</span>
+                </label>
+              </div>
+            ) : (
+              <span className={styles.fieldValue}>
                 {patient.sex === "M"
                   ? t("patients:sex.male")
                   : patient.sex === "F"
                     ? t("patients:sex.female")
                     : t("patients:sex.other")}
               </span>
-            </div>
-            <div>
-              <span className="text-xs text-slate-400 block mb-0.5">
+            )}
+          </div>
+          {patient.date_of_birth || isEditing ? (
+            <div className={styles.field}>
+              <span className={styles.fieldLabel}>
                 {t("patients:details.field_dob")}
               </span>
-              <span className="font-medium text-slate-800">
-                {patient.date_of_birth ? (
-                  <bdi dir="ltr">{formatDate(patient.date_of_birth)}</bdi>
-                ) : (
-                  t("common:labels.not_recorded")
-                )}
-              </span>
+              {isEditing ? (
+                <input
+                  id="inlineDob"
+                  type="date"
+                  value={editDob}
+                  onChange={(e) => setEditDob(e.target.value)}
+                  className={`${formStyles.input} ${formStyles.inputDate}`}
+                />
+              ) : (
+                <span className={styles.fieldValue}>
+                  <bdi dir="ltr">{formatDate(patient.date_of_birth!)}</bdi>
+                </span>
+              )}
             </div>
-            <div>
-              <span className="text-xs text-slate-400 block mb-0.5">
+          ) : null}
+          {primaryPhone !== "—" || isEditing ? (
+            <div className={styles.field}>
+              <span className={styles.fieldLabel}>
                 {t("patients:details.field_phone")}
               </span>
-              <span className="font-mono text-slate-800 flex items-center gap-1.5">
-                <Phone className="w-3.5 h-3.5 text-slate-400" />
-                <bdi dir="ltr">{primaryPhone}</bdi>
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Digital Consent & Comms Card */}
-        <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm space-y-4">
-          <div className="border-b border-slate-100 pb-3">
-            <h2 className="text-sm font-semibold text-slate-900 uppercase tracking-wider flex items-center gap-2">
-              <ShieldCheck className="w-4 h-4 text-teal-600" />
-              <span>{t("patients:details.consent_title")}</span>
-            </h2>
-          </div>
-
-          <div className="space-y-3 text-sm">
-            <div>
-              <span className="text-xs text-slate-400 block mb-0.5">
-                {t("patients:details.digital_delivery")}
-              </span>
-              <span
-                className={`inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded font-medium ${
-                  hasDigitalConsent
-                    ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
-                    : "bg-slate-100 text-slate-600"
-                }`}
-              >
-                {hasDigitalConsent
-                  ? t("patients:details.consent_granted")
-                  : t("patients:details.consent_none")}
-              </span>
-            </div>
-            {whatsappContact && (
-              <div>
-                <span className="text-xs text-slate-400 block mb-0.5">
-                  {t("patients:details.whatsapp_channel")}
+              {isEditing ? (
+                <input
+                  id="inlinePhone"
+                  type="tel"
+                  dir="ltr"
+                  value={editPhone}
+                  onChange={(e) => setEditPhone(e.target.value)}
+                  className={formStyles.input}
+                />
+              ) : (
+                <span className={styles.monoValue}>
+                  <Phone className={styles.inlineIcon} aria-hidden="true" />
+                  <bdi dir="ltr">{primaryPhone}</bdi>
                 </span>
-                <span className="font-mono text-slate-700 text-xs">
-                  <bdi dir="ltr">{whatsappContact}</bdi>
-                </span>
-              </div>
-            )}
-            <div className="pt-2 border-t border-slate-100 text-xs text-slate-400">
-              {t("patients:details.compliance_note")}
+              )}
             </div>
-          </div>
+          ) : null}
         </div>
       </div>
+
+      {/* Digital Consent & Comms Card */}
+      <div className={styles.card}>
+        <div className={styles.cardHead}>
+          <h2 className={styles.cardTitle}>
+            <ShieldCheck className={styles.cardIcon} aria-hidden="true" />
+            <span>{t("patients:details.consent_title")}</span>
+          </h2>
+        </div>
+
+        <div className={styles.field}>
+          <span className={styles.fieldLabel}>
+            {t("patients:details.digital_delivery")}
+          </span>
+          <span
+            className={hasDigitalConsent ? styles.consentOn : styles.consentOff}
+          >
+            {hasDigitalConsent ? (
+              <ShieldCheck className={styles.statusIcon} aria-hidden="true" />
+            ) : (
+              <ShieldX className={styles.statusIcon} aria-hidden="true" />
+            )}
+            {hasDigitalConsent
+              ? t("patients:details.consent_granted")
+              : t("patients:details.consent_none")}
+          </span>
+        </div>
+        {whatsappContact && (
+          <div className={styles.field}>
+            <span className={styles.fieldLabel}>
+              {t("patients:details.whatsapp_channel")}
+            </span>
+            <span className={styles.monoValue}>
+              <bdi dir="ltr">{whatsappContact}</bdi>
+            </span>
+          </div>
+        )}
+      </div>
+    </div>
+  ) : null;
+
+  /* Delete confirmation modal — same markup in both variants. */
+  const deleteModal =
+    showDeleteModal && patient
+      ? createPortal(
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-patient-title"
+            className={`${styles.scrim} veyla-modal-scrim`}
+          >
+            <div
+              ref={deletePanelRef}
+              tabIndex={-1}
+              className={`${styles.modal} veyla-modal`}
+            >
+              <h2 id="delete-patient-title" className={styles.modalTitle}>
+                Delete Patient Record?
+              </h2>
+              <p className={styles.modalText}>
+                {t("patients:details.confirm_delete")}
+              </p>
+              <dl className={styles.modalIdentity}>
+                <div className={styles.modalIdentityRow}>
+                  <dt className={styles.modalIdentityLabel}>
+                    {t("patients:details.field_full_name")}
+                  </dt>
+                  <dd className={styles.modalIdentityValue}>{patient.name}</dd>
+                </div>
+                <div className={styles.modalIdentityRow}>
+                  <dt className={styles.modalIdentityLabel}>
+                    {t("patients:mrn")}
+                  </dt>
+                  <dd className={styles.modalIdentityValue} dir="ltr">
+                    {patient.mrn}
+                  </dd>
+                </div>
+              </dl>
+              <div className={styles.modalActions}>
+                <button
+                  type="button"
+                  onClick={() => setShowDeleteModal(false)}
+                  disabled={isDeleting}
+                  className={styles.secondaryButton}
+                >
+                  Keep patient
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmDelete}
+                  disabled={isDeleting}
+                  className={styles.modalDanger}
+                >
+                  Confirm Delete
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )
+      : null;
+
+  /* -------------------------------------------------------------- drawer -- */
+
+  if (variant === "drawer") {
+    return (
+      <>
+        <VeylaDrawer
+          open
+          onClose={() => onBack?.()}
+          title={patient?.name ?? t("patients:details.loading")}
+          header={identity}
+          footer={
+            <div className={styles.drawerFooterActions}>
+              {isEditing ? (
+                <div className={styles.actions}>
+                  <button
+                    type="button"
+                    onClick={cancelEditing}
+                    disabled={isSaving}
+                    className={styles.secondaryButton}
+                  >
+                    {t("common:actions.cancel")}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSave}
+                    disabled={isSaving}
+                    className={styles.primaryButton}
+                  >
+                    {isSaving
+                      ? t("common:actions.saving")
+                      : t("patients:edit.save")}
+                  </button>
+                </div>
+              ) : (
+                actions
+              )}
+            </div>
+          }
+          triggerRef={triggerRef}
+        >
+          <div className={styles.drawerShell}>
+            {isLoading || error || !patient ? (
+              isLoading ? (
+                loadingBlock
+              ) : (
+                errorBlock
+              )
+            ) : (
+              <>
+                <div
+                  className={styles.drawerTabs}
+                  role="tablist"
+                  aria-label={t("patients:details.tab_overview")}
+                >
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={tab === "overview"}
+                    onClick={() => onTabChange?.("overview")}
+                    className={`${styles.drawerTab} ${
+                      tab === "overview" ? styles.drawerTabActive : ""
+                    }`}
+                  >
+                    {t("patients:details.tab_overview")}
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={tab === "history"}
+                    onClick={() => onTabChange?.("history")}
+                    className={`${styles.drawerTab} ${
+                      tab === "history" ? styles.drawerTabActive : ""
+                    }`}
+                  >
+                    {t("patients:details.tab_history")}
+                  </button>
+                </div>
+
+                {tab === "history" ? (
+                  <PatientHistoryScreen
+                    variant="drawer"
+                    patientId={patientId}
+                    service={service}
+                  />
+                ) : (
+                  cards
+                )}
+              </>
+            )}
+            {saveError && (
+              <div role="alert" className={styles.alert}>
+                <AlertCircle className={styles.statusIcon} aria-hidden="true" />
+                <span>{saveError}</span>
+              </div>
+            )}
+            {deleteError && (
+              <div role="alert" className={styles.alert}>
+                <AlertCircle className={styles.statusIcon} aria-hidden="true" />
+                <span>{deleteError}</span>
+              </div>
+            )}
+          </div>
+        </VeylaDrawer>
+        {deleteModal}
+      </>
+    );
+  }
+
+  /* ---------------------------------------------------------------- page -- */
+
+  if (isLoading) {
+    return loadingBlock;
+  }
+
+  if (error || !patient) {
+    return errorBlock;
+  }
+
+  return (
+    <div className={styles.page}>
+      <div className={styles.container}>
+        {/* 1. Header & Actions */}
+        <div className={styles.header}>
+          <div>
+            <nav aria-label={t("patients:breadcrumb_aria")}>
+              <ol className={styles.breadcrumb}>
+                <li>
+                  <button
+                    type="button"
+                    onClick={onBack}
+                    className={styles.breadcrumbLink}
+                  >
+                    <ArrowLeft className={styles.crumbIcon} />
+                    <span>{t("common:nav.patients")}</span>
+                  </button>
+                </li>
+                <li className={styles.crumbSep}>/</li>
+                <li dir="ltr" className={styles.crumbMrn}>
+                  {patient.mrn}
+                </li>
+              </ol>
+            </nav>
+            {identity}
+          </div>
+
+          {/* Action Buttons */}
+          {actions}
+        </div>
+
+        {/* 2. Demographics & Record Grid */}
+        {cards}
+
+        {/* Delete failure (replaces the old blocking alert) */}
+        {deleteError && (
+          <div role="alert" className={styles.alert}>
+            <AlertCircle className={styles.statusIcon} aria-hidden="true" />
+            <span>{deleteError}</span>
+          </div>
+        )}
+      </div>
+
+      {deleteModal}
     </div>
   );
 };

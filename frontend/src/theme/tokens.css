@@ -1,0 +1,202 @@
+/* ============================================================
+   LabFlow — Veyla Design Tokens.
+   Replaces legacy neumorphism tokens with Veyla design tokens.
+   Batch 0 Pilot (Owner Dashboard + Shell).
+
+   Rules:
+   - Soft low-elevation diffusion shadows, no hard outlines.
+   - Fully rounded pill buttons and chips (rounded-full).
+   - Generous 12-16px card radiuses.
+   - Geometric sans (Inter) throughout.
+   - Dark mode: semantic flip for worst-state (black in light, white in dark).
+   - Flat gray skeletons (strictly no shimmer).
+   ============================================================ */
+
+:root {
+  color-scheme: light;
+
+  /* Surfaces */
+  --color-bg: #eaecec;
+  --color-surface: #feffff;
+  --color-surface-raised: #feffff;
+  --color-well: #f4f6f6;
+  --color-overlay: rgba(18, 16, 17, 0.45);
+
+  /* Veyla Core Tokens */
+  --veyla-page: #eaecec;
+  --veyla-card: #feffff;
+  --veyla-well: #f4f6f6;
+  --veyla-teal: #cae2e0;
+  --veyla-teal-text: #133835;
+  --veyla-black: #121011;
+  --veyla-body: #242626;
+  --veyla-muted: #596060;
+
+  /* Text — WCAG AA compliant (all text >= 4.5:1) */
+  --color-text: #121011;
+  --color-body: #242626;
+  --color-text-muted: #596060;
+  /* Subtle text carries real content (patient age/sex meta, list captions),
+     so it must clear 4.5:1 on the page, card and well surfaces alike. */
+  --color-text-subtle: #646c6c;
+
+  /* Lines & Dividers — subtle, not harsh */
+  --color-border: rgba(18, 16, 17, 0.08);
+  --color-border-strong: rgba(18, 16, 17, 0.16);
+  --color-card-border: rgba(18, 16, 17, 0.06);
+
+  /* Brand / Teal Accent */
+  --color-brand: #133835;
+  --color-brand-fill: #121011;
+  --color-on-brand-fill: #feffff;
+  --color-accent: #cae2e0;
+  --color-accent-text: #133835;
+  --color-leaf: #357c6b;
+  --color-gold: #a17812;
+  --color-on-gold: #121011;
+
+  /* Semantic Worst-State Flip: Near-black in Light Mode */
+  --color-veyla-worst-bg: #121011;
+  --color-veyla-worst-text: #ffffff;
+
+  /* Status Colors (Semantic, paired with icon + label) */
+  --color-error: #ba1a1a;
+  --color-error-tint: #fee2e2;
+  --color-error-border: #fca5a5;
+
+  --color-success: #0e6b3a;
+  --color-success-tint: #e6f4ea;
+  --color-success-border: #85d89c;
+
+  --color-warning: #8c5800;
+  --color-warning-tint: #fef3d6;
+  --color-warning-border: #fed255;
+
+  --color-danger: #b91c1c;
+  --color-danger-tint: #fee2e2;
+  --color-danger-border: #f87171;
+
+  --color-info: #0369a1;
+  --color-info-tint: #e0f2fe;
+  --color-info-border: #7dd3fc;
+
+  /* Veyla Low-Elevation Diffusion Shadows */
+  --shadow-veyla-card:
+    0 1px 3px rgba(18, 16, 17, 0.04), 0 6px 16px rgba(18, 16, 17, 0.04);
+  --shadow-veyla-hover:
+    0 4px 12px rgba(18, 16, 17, 0.08), 0 12px 28px rgba(18, 16, 17, 0.06);
+  --shadow-veyla-pill: 0 1px 2px rgba(18, 16, 17, 0.08);
+  --shadow-veyla-dropdown:
+    0 8px 24px rgba(18, 16, 17, 0.12), 0 2px 6px rgba(18, 16, 17, 0.06);
+
+  --shadow-card: var(--shadow-veyla-card);
+  --shadow-control: var(--shadow-veyla-pill);
+  --shadow-focus: 0 0 0 3px rgba(202, 226, 224, 0.65);
+  --ring-color: #121011;
+
+  /* Radiuses */
+  --radius-card: 16px;
+  --radius-panel: 14px;
+  --radius-pill: 9999px;
+  --radius-sm: 8px;
+
+  /* Motion — durations and easings only. Every animation in the Veyla
+     surfaces resolves through these tokens; component CSS never hard-codes
+     a duration or a curve. */
+  --motion-fast: 150ms;
+  --motion-base: 200ms;
+  --motion-drawer: 280ms;
+  --motion-theme: 500ms;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+
+  /* Typography */
+  --font-heading: "Inter", system-ui, -apple-system, sans-serif;
+  --font-body: "Inter", system-ui, -apple-system, sans-serif;
+  /* Money inputs (amounts, totals, PKR) use --font-mono with tabular figures;
+     all other text uses --font-body. The tabular figures are inherited from
+     this root, because font-variant-numeric cannot live inside the font stack
+     declared by --font-mono — putting it there would invalidate the family. */
+  --font-mono: ui-monospace, "SF Mono", "Courier New", monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  /* Surfaces */
+  --color-bg: #111213;
+  --color-surface: #191b1c;
+  --color-surface-raised: #202224;
+  --color-well: #222526;
+  --color-overlay: rgba(0, 0, 0, 0.7);
+
+  /* Veyla Dark Tokens */
+  --veyla-page: #111213;
+  --veyla-card: #191b1c;
+  --veyla-well: #222526;
+  --veyla-teal: #233b39;
+  --veyla-teal-text: #a4dfda;
+  --veyla-black: #f1f2f2;
+  --veyla-body: #e1e4e4;
+  --veyla-muted: #9ea3a3;
+
+  /* Text */
+  --color-text: #f1f2f2;
+  --color-body: #e1e4e4;
+  --color-text-muted: #9ea3a3;
+  /* Dark counterpart of --color-text-subtle; clears 4.5:1 on well/card/page. */
+  --color-text-subtle: #868e8e;
+
+  /* Lines */
+  --color-border: rgba(255, 255, 255, 0.08);
+  --color-border-strong: rgba(255, 255, 255, 0.16);
+  --color-card-border: rgba(255, 255, 255, 0.07);
+
+  /* Brand / Teal Accent */
+  --color-brand: #a4dfda;
+  --color-brand-fill: #f1f2f2;
+  --color-on-brand-fill: #111213;
+  --color-accent: #233b39;
+  --color-accent-text: #a4dfda;
+  --color-leaf: #68c7ab;
+  --color-gold: #f6c776;
+  --color-on-gold: #111213;
+
+  /* Semantic Worst-State Flip: White in Dark Mode! */
+  --color-veyla-worst-bg: #ffffff;
+  --color-veyla-worst-text: #121011;
+
+  /* Status Colors */
+  --color-error: #fca5a5;
+  --color-error-tint: rgba(239, 68, 68, 0.16);
+  --color-error-border: rgba(239, 68, 68, 0.4);
+
+  --color-success: #7cd3a2;
+  --color-success-tint: rgba(82, 183, 136, 0.16);
+  --color-success-border: rgba(82, 183, 136, 0.4);
+
+  --color-warning: #f6c776;
+  --color-warning-tint: rgba(232, 163, 61, 0.16);
+  --color-warning-border: rgba(232, 163, 61, 0.4);
+
+  --color-danger: #f87171;
+  --color-danger-tint: rgba(239, 68, 68, 0.18);
+  --color-danger-border: rgba(239, 68, 68, 0.45);
+
+  --color-info: #7dd3fc;
+  --color-info-tint: rgba(56, 189, 248, 0.16);
+  --color-info-border: rgba(56, 189, 248, 0.4);
+
+  /* Veyla Low-Elevation Dark Shadows */
+  --shadow-veyla-card:
+    0 1px 3px rgba(0, 0, 0, 0.35), 0 6px 20px rgba(0, 0, 0, 0.25);
+  --shadow-veyla-hover: 0 4px 16px rgba(0, 0, 0, 0.45);
+  --shadow-veyla-pill: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-veyla-dropdown: 0 8px 32px rgba(0, 0, 0, 0.55);
+
+  --shadow-card: var(--shadow-veyla-card);
+  --shadow-control: var(--shadow-veyla-pill);
+  --shadow-focus: 0 0 0 3px rgba(164, 223, 218, 0.35);
+  --ring-color: #a4dfda;
+}

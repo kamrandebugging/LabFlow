@@ -72,6 +72,7 @@ from tests.factories.samples import (
     SampleTransferFactory,
 )
 from tests.factories.staff_branch import StaffBranchFactory
+from tests.factories.staff_password_request import StaffPasswordResetRequestFactory
 from tests.factories.staff_user import StaffUserFactory
 from tests.factories.tenant_setting import TenantSettingFactory
 from tests.factories.tenants import TenantFixtureFactory
@@ -117,6 +118,7 @@ __all__ = [
     "SettlementLineFactory",
     "ShareLedgerEntryFactory",
     "StaffBranchFactory",
+    "StaffPasswordResetRequestFactory",
     "StaffUserFactory",
     "SubscriptionFactory",
     "TenantFactory",

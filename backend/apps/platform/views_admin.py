@@ -5,19 +5,24 @@ Doc 04 §12 (platform admin surface), §15.1 (endpoint spec).
 
 import re
 import uuid
+from datetime import timedelta
 from decimal import Decimal
 from typing import Any
 
 from django.apps import apps as django_apps
 from django.conf import settings
+from django.contrib.auth.hashers import make_password
 from django.db import connection, transaction
 from django.utils import timezone
+from django_tenants.utils import schema_context
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.accounts.auth_service import AuthService
+from apps.accounts.models import StaffUser
 from apps.core.models import Domain, PlatformAudit, PlatformUser, Subscription, Tenant
-from apps.platform.provisioning import get_provisioning_state
+from apps.platform.provisioning import generate_temp_password, get_provisioning_state
 from apps.platform.serializers import (
     PlatformAuditFilterSerializer,
     TenantOffboardCompleteSerializer,
@@ -879,3 +884,177 @@ class PlatformAuditListView(APIView):
             for a in qs[:200]
         ]
         return Response({"audit": rows, "audits": rows}, status=200)
+
+
+# ---------------------------------------------------------------------------
+# Forgot Password — Lab Owner (Flow 1), Platform Owner only.
+# ---------------------------------------------------------------------------
+
+
+def _clear_tenant_totp_challenges(owner: StaffUser, schema: str) -> None:
+    AuthService.clear_pending_totp_challenges(owner, schema)
+
+
+class PlatformTenantOwnerTempPasswordView(APIView):
+    """POST /api/v1/platform/tenants/{id}/owner/temp-password (Flow 1).
+
+    TOTP-gated. Issues a one-time 24h temporary password for the lab Owner.
+    The plaintext value is returned EXACTLY once; only its hash is stored.
+    """
+
+    authentication_classes = [PlatformJWTAuthentication]
+    permission_classes = [IsAuthenticatedPlatformUser]
+
+    def post(
+        self, request: Request, tenant_id: str, *args: Any, **kwargs: Any
+    ) -> Response:
+        platform_user = _get_platform_user(request)
+        if platform_user is None:
+            return _unauthorized()
+        totp_err = _require_totp(platform_user)
+        if totp_err is not None:
+            return totp_err
+
+        tenant, err = _get_tenant_or_404(tenant_id)
+        if err is not None:
+            return err
+        assert tenant is not None
+
+        ip = request.META.get("REMOTE_ADDR")
+        user_agent = request.META.get("HTTP_USER_AGENT", "")
+        temp_password = generate_temp_password()
+        temp_password_hash = make_password(temp_password)
+        expires_at = timezone.now() + timedelta(hours=24)
+
+        # One transaction for both copies: the tenant schema hash and the
+        # public Tenant mirror must never diverge.
+        with transaction.atomic():
+            with schema_context(tenant.schema_name):
+                owner = (
+                    StaffUser.objects.filter(role="owner")
+                    .order_by("created_at")
+                    .first()
+                )
+                if owner is None:
+                    return problem_response(
+                        code="owner_not_found",
+                        title="Owner account not found",
+                        detail="This lab has no Owner account to reset.",
+                        status_code=404,
+                    )
+                owner.password_hash = temp_password_hash
+                owner.password_is_temporary = True
+                owner.temp_password_expires_at = expires_at
+                owner.save(
+                    update_fields=[
+                        "password_hash",
+                        "password_is_temporary",
+                        "temp_password_expires_at",
+                        "updated_at",
+                    ]
+                )
+                owner_id = owner.id
+
+            # Mirror the provisioning credential slot so only the newest
+            # unused temporary password can ever exist for this lab.
+            Tenant.objects.filter(pk=tenant.pk).update(
+                temp_password="",
+                temp_password_hash=temp_password_hash,
+                temp_password_expires_at=expires_at,
+            )
+
+        AuthService.revoke_all_sessions(
+            staff_user_id=owner_id,
+            tenant_id=tenant.schema_name,
+            reason="owner_password_reset",
+            ip=ip,
+            user_agent=user_agent,
+            actor_id=None,
+        )
+        _write_platform_audit(
+            actor_id=platform_user.id,
+            action="tenant.owner_temp_password_issued",
+            entity_type="tenant",
+            entity_id=tenant.id,
+            after={
+                "owner_id": str(owner_id),
+                "expires_at": expires_at.isoformat(),
+            },
+            ip=ip,
+            user_agent=user_agent,
+        )
+        return Response(
+            {
+                "temp_password": temp_password,
+                "expires_at": expires_at.isoformat(),
+                "password_is_temporary": True,
+            },
+            status=200,
+        )
+
+
+class PlatformTenantOwnerTotpResetView(APIView):
+    """POST /api/v1/platform/tenants/{id}/owner/reset-2fa (Flow 1).
+
+    TOTP-gated. Clears the Owner's TOTP secret, backup codes and pending
+    challenges. Re-enrolment stays optional (D2). Never returns a secret.
+    """
+
+    authentication_classes = [PlatformJWTAuthentication]
+    permission_classes = [IsAuthenticatedPlatformUser]
+
+    def post(
+        self, request: Request, tenant_id: str, *args: Any, **kwargs: Any
+    ) -> Response:
+        platform_user = _get_platform_user(request)
+        if platform_user is None:
+            return _unauthorized()
+        totp_err = _require_totp(platform_user)
+        if totp_err is not None:
+            return totp_err
+
+        tenant, err = _get_tenant_or_404(tenant_id)
+        if err is not None:
+            return err
+        assert tenant is not None
+
+        ip = request.META.get("REMOTE_ADDR")
+        user_agent = request.META.get("HTTP_USER_AGENT", "")
+
+        with schema_context(tenant.schema_name):
+            owner = (
+                StaffUser.objects.filter(role="owner").order_by("created_at").first()
+            )
+            if owner is None:
+                return problem_response(
+                    code="owner_not_found",
+                    title="Owner account not found",
+                    detail="This lab has no Owner account to reset.",
+                    status_code=404,
+                )
+            was_enabled = bool(owner.totp_enabled)
+            owner.totp_secret_encrypted = None
+            owner.totp_backup_codes_hash = None
+            owner.totp_enabled = False
+            owner.save(
+                update_fields=[
+                    "totp_secret_encrypted",
+                    "totp_backup_codes_hash",
+                    "totp_enabled",
+                    "updated_at",
+                ]
+            )
+            _clear_tenant_totp_challenges(owner, tenant.schema_name)
+            owner_id = owner.id
+
+        _write_platform_audit(
+            actor_id=platform_user.id,
+            action="tenant.owner_totp_reset",
+            entity_type="tenant",
+            entity_id=tenant.id,
+            before={"totp_enabled": was_enabled},
+            after={"totp_enabled": False, "owner_id": str(owner_id)},
+            ip=ip,
+            user_agent=user_agent,
+        )
+        return Response({"totp_enabled": False}, status=200)

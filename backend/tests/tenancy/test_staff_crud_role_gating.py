@@ -16,12 +16,14 @@ Covers the privilege boundary directly against the real tenant schemas:
 from __future__ import annotations
 
 import uuid
+from datetime import timedelta
 from typing import Any, cast
 
 import pyotp
 import pytest
-from django.contrib.auth.hashers import make_password
+from django.contrib.auth.hashers import check_password, make_password
 from django.core.cache import cache
+from django.utils import timezone
 from django_tenants.utils import tenant_context
 from rest_framework.test import APIClient
 
@@ -133,6 +135,8 @@ class TestStaffCrud:
 
         staff = StaffUser.objects.get(email="usman@staffcrud.test")
         assert staff.password_is_temporary is True
+        assert staff.temp_password_expires_at is not None
+        assert staff.temp_password_expires_at > timezone.now()
         assert staff.created_by_id == owner.id
         assert staff.branch_id == branch.id
         assert StaffBranch.objects.filter(
@@ -538,7 +542,7 @@ class TestStaffCrud:
 @pytest.mark.django_db
 @pytest.mark.tenancy
 class TestOnboardingCannotBeBypassed:
-    def test_temp_password_session_is_blocked_from_business_endpoints(
+    def test_temp_password_session_is_not_blocked_from_business_endpoints(
         self, tenant_a: Any
     ) -> None:
         with tenant_context(tenant_a):
@@ -563,15 +567,16 @@ class TestOnboardingCannotBeBypassed:
         token = login.json()["access"]
         assert login.json()["user"]["must_change_password"] is True
 
-        blocked = client.get(
+        allowed = client.get(
             "/api/v1/branches",
             **{
                 "HTTP_HOST": "tenant-a.localhost",
                 "HTTP_AUTHORIZATION": f"Bearer {token}",
             },
         )
-        assert blocked.status_code == 403
-        assert blocked.json()["error"]["code"] == "password_change_required"
+        # D1: a temporary password never blocks the dashboard; the client shows
+        # a dismissible "Change Your Password" notice after landing.
+        assert allowed.status_code == 200
 
         changed = client.post(
             "/api/v1/auth/password/change",
@@ -652,17 +657,17 @@ class TestOnboardingCannotBeBypassed:
         )
         assert login.status_code == 200
         token = login.json()["access"]
-        assert login.json()["totp_enrollment_required"] is True
+        assert login.json().get("totp_enrollment_required") is None
 
-        blocked = client.get(
+        allowed = client.get(
             "/api/v1/branches",
             **{
                 "HTTP_HOST": "tenant-a.localhost",
                 "HTTP_AUTHORIZATION": f"Bearer {token}",
             },
         )
-        assert blocked.status_code == 403
-        assert blocked.json()["error"]["code"] == "totp_enrollment_required"
+        # D2: a missing enrolment never limits the session.
+        assert allowed.status_code == 200
 
         enroll = client.post(
             "/api/v1/auth/totp/enroll",
@@ -887,3 +892,190 @@ def test_platform_role_rows_include_active_counts(
     assert rows["owner"]["immutable"] is True
     assert rows["reception"]["active_staff_count"] == 1
     assert rows["reception"]["label"] == "Receptionist / Collection Staff"
+
+
+@pytest.mark.django_db
+@pytest.mark.tenancy
+class TestForgotPasswordResets:
+    """Forgot Password — tenant-side temp password and 2FA resets."""
+
+    @staticmethod
+    def _make(tenant_a: Any, role: str, email: str, branch: Any = None) -> StaffUser:
+        with tenant_context(tenant_a):
+            return cast(
+                StaffUser,
+                StaffUserFactory(
+                    role=role,
+                    branch=branch,
+                    email=email,
+                    display_name=email.split("@")[0],
+                ),
+            )
+
+    def test_manager_can_reset_receptionist_and_old_temp_password_is_invalidated(
+        self, tenant_a: Any, owner: StaffUser, branch: Any, reception: StaffUser
+    ) -> None:
+        tenant_a.enabled_roles = ["owner", "manager", "reception", "technician"]
+        tenant_a.save(update_fields=["enabled_roles", "updated_at"])
+        manager = self._make(tenant_a, Role.MANAGER, "manager@resets.test", branch)
+
+        client = _client()
+        headers = _headers(manager)
+        url = f"{STAFF_URL}/{reception.id}/reset-password"
+
+        first = client.post(
+            url, {}, format="json", HTTP_HOST="tenant-a.localhost", **headers
+        )
+        assert first.status_code == 200, first.content
+        first_password = first.json()["temp_password"]
+
+        second = client.post(
+            url, {}, format="json", HTTP_HOST="tenant-a.localhost", **headers
+        )
+        assert second.status_code == 200, second.content
+        second_password = second.json()["temp_password"]
+
+        with tenant_context(tenant_a):
+            updated = StaffUser.objects.get(pk=reception.id)
+            assert updated.password_is_temporary is True
+            assert updated.temp_password_expires_at is not None
+            assert updated.temp_password_expires_at > timezone.now()
+            assert check_password(second_password, updated.password_hash)
+            assert not check_password(first_password, updated.password_hash)
+            assert (
+                AuditLog.objects.filter(
+                    action="staff.password_reset", entity_id=reception.id
+                ).count()
+                == 2
+            )
+
+    @pytest.mark.parametrize(
+        "target_role", [Role.OWNER, Role.MANAGER, Role.PATHOLOGIST]
+    )
+    def test_manager_denied_for_protected_roles(
+        self, tenant_a: Any, owner: StaffUser, branch: Any, target_role: str
+    ) -> None:
+        tenant_a.enabled_roles = ["owner", "manager", "reception", "technician"]
+        tenant_a.save(update_fields=["enabled_roles", "updated_at"])
+        manager = self._make(tenant_a, Role.MANAGER, "manager2@resets.test", branch)
+        target = self._make(tenant_a, target_role, f"{target_role}@resets.test")
+
+        response = _client().post(
+            f"{STAFF_URL}/{target.id}/reset-password",
+            {},
+            format="json",
+            HTTP_HOST="tenant-a.localhost",
+            **_headers(manager),
+        )
+        assert response.status_code == 403
+
+    def test_manager_list_is_narrowed_to_resettable_roles(
+        self, tenant_a: Any, owner: StaffUser, branch: Any, reception: StaffUser
+    ) -> None:
+        tenant_a.enabled_roles = ["owner", "manager", "reception", "technician"]
+        tenant_a.save(update_fields=["enabled_roles", "updated_at"])
+        manager = self._make(tenant_a, Role.MANAGER, "listmgr@resets.test", branch)
+        technician = self._make(
+            tenant_a, Role.TECHNICIAN, "listtech@resets.test", branch
+        )
+        pathologist = self._make(tenant_a, Role.PATHOLOGIST, "listpath@resets.test")
+
+        response = _client().get(
+            STAFF_URL,
+            HTTP_HOST="tenant-a.localhost",
+            **_headers(manager),
+        )
+        assert response.status_code == 200, response.content
+        body = response.json()
+        assert body["owner"] is None
+        roles = {row["role"] for row in body["results"]}
+        assert roles == {"reception", "technician"}
+        ids = {row["id"] for row in body["results"]}
+        assert str(reception.id) in ids
+        assert str(technician.id) in ids
+        assert str(pathologist.id) not in ids
+        assert str(manager.id) not in ids
+        assert str(owner.id) not in ids
+
+    def test_expired_temp_password_cannot_log_in(
+        self, tenant_a: Any, reception: StaffUser
+    ) -> None:
+        with tenant_context(tenant_a):
+            reception.password_hash = make_password("ExpiredTemp#2026")
+            reception.password_is_temporary = True
+            reception.temp_password_expires_at = timezone.now() - timedelta(hours=1)
+            reception.save(
+                update_fields=[
+                    "password_hash",
+                    "password_is_temporary",
+                    "temp_password_expires_at",
+                ]
+            )
+
+        response = _client().post(
+            "/api/v1/auth/login",
+            {"email": reception.email, "password": "ExpiredTemp#2026"},
+            format="json",
+            HTTP_HOST="tenant-a.localhost",
+        )
+        assert response.status_code == 401
+
+    def test_reset_totp_clears_secret_codes_and_audits(
+        self, tenant_a: Any, owner: StaffUser, reception: StaffUser
+    ) -> None:
+        with tenant_context(tenant_a):
+            reception.totp_enabled = True
+            reception.totp_secret_encrypted = "encrypted-secret"
+            reception.totp_backup_codes_hash = ["hashed-code"]
+            reception.save(
+                update_fields=[
+                    "totp_enabled",
+                    "totp_secret_encrypted",
+                    "totp_backup_codes_hash",
+                ]
+            )
+
+        response = _client().post(
+            f"{STAFF_URL}/{reception.id}/reset-totp",
+            {},
+            format="json",
+            HTTP_HOST="tenant-a.localhost",
+            **_headers(owner),
+        )
+        assert response.status_code == 200, response.content
+        assert response.json()["totp_enabled"] is False
+
+        with tenant_context(tenant_a):
+            updated = StaffUser.objects.get(pk=reception.id)
+            assert updated.totp_enabled is False
+            assert updated.totp_secret_encrypted is None
+            assert updated.totp_backup_codes_hash is None
+            assert AuditLog.objects.filter(
+                action="staff.totp_reset", entity_id=reception.id
+            ).exists()
+
+    def test_staff_forgot_request_is_notified_and_auto_resolved(
+        self,
+        tenant_a: Any,
+        owner: StaffUser,
+        reception: StaffUser,
+    ) -> None:
+        from apps.accounts.models import StaffPasswordResetRequest
+        from apps.accounts.staff_service import StaffService
+
+        with tenant_context(tenant_a):
+            created = StaffService.create_password_reset_request(
+                reception.email, "Sana Reception"
+            )
+            # Duplicate pending requests collapse into one notification.
+            again = StaffService.create_password_reset_request(reception.email)
+            assert created is not None
+            assert again is not None
+            assert again.id == created.id
+            listed = StaffService.list_password_reset_requests(owner)
+            assert [row["email"] for row in listed] == [reception.email.lower()]
+
+            StaffService.reset_password(owner, reception.id)
+            assert not StaffPasswordResetRequest.objects.filter(
+                status=StaffPasswordResetRequest.Status.PENDING
+            ).exists()

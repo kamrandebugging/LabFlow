@@ -9,7 +9,17 @@ import { partnersService } from "../../features/partners/partnersService";
 import { reportsService } from "../../features/reports/reportsService";
 import { resultsService } from "../../features/results/resultsService";
 import { sampleService } from "../../features/samples/sampleService";
+import { staffService } from "../../features/staff/staffService";
 
+vi.mock("../../features/staff/staffService", () => ({
+  staffService: {
+    list: vi.fn(),
+    listPasswordRequests: vi.fn(),
+    resetPassword: vi.fn(),
+    resetTotp: vi.fn(),
+    resolvePasswordRequest: vi.fn(),
+  },
+}));
 vi.mock("../../features/billing/billingService", () => ({
   billingService: { listInvoices: vi.fn() },
 }));
@@ -34,10 +44,22 @@ const owner = {
   branch_ids: [] as string[],
 };
 
-describe("Owner dashboard", () => {
+describe("Owner dashboard (Veyla look)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     useAuthStore.getState().setSession("token", owner);
+    vi.mocked(staffService.list).mockResolvedValue({
+      owner: null,
+      results: [],
+      next_cursor: null,
+      staff_count: 0,
+      plan_staff_limit: null,
+      enabled_roles: [],
+      branches: [],
+    } as never);
+    vi.mocked(staffService.listPasswordRequests).mockResolvedValue({
+      requests: [],
+    });
     vi.mocked(billingService.listInvoices).mockResolvedValue({
       results: [
         {
@@ -88,7 +110,7 @@ describe("Owner dashboard", () => {
     });
   });
 
-  it("renders the owner's real tenant figures", async () => {
+  it("renders the owner's real tenant figures with Veyla cards and waffle chart", async () => {
     render(
       <MemoryRouter>
         <OwnerDashboardScreen />
@@ -103,6 +125,49 @@ describe("Owner dashboard", () => {
     );
     expect(screen.getByText("2 late sample transfers")).toBeInTheDocument();
     expect(screen.getByText("1 failed report deliveries")).toBeInTheDocument();
+
+    // Veyla checks-per-day waffle chart
+    expect(screen.getByText("Checks per day")).toBeInTheDocument();
+    expect(screen.getByText("Start a check")).toBeInTheDocument();
+
+    // Veyla review queue and unconfigured telemetry cards
+    expect(screen.getByText("Review queue")).toBeInTheDocument();
+    expect(screen.getByText("Next up")).toBeInTheDocument();
+    expect(screen.getByText("Channel breakdown")).toBeInTheDocument();
+    expect(screen.getByText("Turnaround time by hour")).toBeInTheDocument();
+    expect(screen.getAllByText("Not configured").length).toBe(2);
+  });
+
+  it("renders every section and pairs the critical value with an icon and urgent pill", async () => {
+    vi.mocked(reportsService.getExceptions).mockResolvedValue({
+      results: [],
+      counts: {
+        total: 1,
+        failed_generation: 0,
+        failed_delivery: 0,
+        late_transfer: 0,
+        critical_unacknowledged: 1,
+        stuck_sample: 0,
+      },
+    });
+
+    render(
+      <MemoryRouter>
+        <OwnerDashboardScreen />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText("Samples by status")).toBeInTheDocument();
+    expect(screen.getByText("Settlements")).toBeInTheDocument();
+    expect(screen.getByText("Exceptions")).toBeInTheDocument();
+    expect(screen.getByText("Staff passwords")).toBeInTheDocument();
+    const critical = screen.getByText("1 critical result unacknowledged");
+    expect(critical).toBeInTheDocument();
+    // The critical row carries an icon/dot as a second, non-colour signal.
+    expect(
+      critical.parentElement?.querySelector('[aria-hidden="true"]'),
+    ).not.toBeNull();
+    expect(screen.getByText("Urgent")).toBeInTheDocument();
   });
 
   it("renders an em dash when the billing read fails", async () => {

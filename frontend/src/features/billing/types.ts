@@ -56,6 +56,8 @@ export interface PaymentCreateInput {
 
 export interface InvoiceSummary {
   id: string;
+  /** Human invoice number when the server provides one. */
+  invoice_number?: string;
   patient_id: string;
   patient_name?: string;
   patient_mrn?: string;

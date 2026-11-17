@@ -1,13 +1,16 @@
-"""Owner-only Staff CRUD (D4, FR-2/3/7/9/10/11, S2/S3/S4/S12/S14).
+"""Staff CRUD and credential resets (D4, FR-2/3/7/9/10/11, S2/S3/S4/S12/S14).
 
 Business rules live here; views stay thin. Every mutation writes its audit row
 in the same transaction as the state change. Nothing in this module accepts a
 tenant id from a request body: the active PostgreSQL schema is the tenant.
 
 Security invariants:
-- Only ``Role.OWNER`` may call any method.
+- The Lab Owner may call any method. A Manager may reset ONLY Receptionist and
+  Technician credentials (password and 2FA), never Owner, Manager or
+  Pathologist, and never their own account.
 - The Owner account can be read but never edited, deactivated, reactivated or
-  password-reset through these methods.
+  credential-reset through these methods (Owner resets are Flow 1, issued by the
+  Platform Owner).
 - A role must be enabled for this tenant on every create AND every edit.
 - The branch must belong to this tenant (schema-scoped query).
 - Password hashes, TOTP secrets and backup codes never leave this module.
@@ -15,8 +18,8 @@ Security invariants:
 
 from __future__ import annotations
 
-import secrets
 import uuid
+from datetime import timedelta
 from typing import Any
 
 from django.contrib.auth.hashers import make_password
@@ -24,9 +27,16 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.validators import validate_email
 from django.db import IntegrityError, connection, transaction
 from django.db.models import Q
+from django.utils import timezone
 
 from apps.accounts.auth_service import MANDATORY_TOTP_ROLES, AuthService
-from apps.accounts.models import AuditLog, Role, StaffBranch, StaffUser
+from apps.accounts.models import (
+    AuditLog,
+    Role,
+    StaffBranch,
+    StaffPasswordResetRequest,
+    StaffUser,
+)
 from apps.accounts.role_config import (
     CREATABLE_ROLES,
     ROLE_LABELS,
@@ -37,11 +47,7 @@ from apps.accounts.role_config import (
 )
 from apps.branches.models import Branch
 from apps.core.models import Subscription, Tenant
-
-TEMP_PASSWORD_ALPHABET = (
-    "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%&*?"
-)
-TEMP_PASSWORD_LENGTH = 16
+from apps.core.temp_password import generate_temp_password
 
 BRANCH_REQUIRED_ROLES = {Role.MANAGER, Role.RECEPTION, Role.TECHNICIAN}
 TENANT_WIDE_ROLES = {Role.OWNER, Role.PATHOLOGIST}
@@ -103,10 +109,13 @@ class StaffValidationError(StaffError):
 
 
 def generate_staff_temp_password() -> str:
-    """CSPRNG temporary password (>=12 chars, mixed classes)."""
-    return "".join(
-        secrets.choice(TEMP_PASSWORD_ALPHABET) for _ in range(TEMP_PASSWORD_LENGTH)
-    )
+    """CSPRNG ``LBF-XXXX-XX#`` temporary password.
+
+    Kept as the staff-facing name; the implementation is the one shared
+    generator in ``apps.core.temp_password`` so Owner and staff issuance can
+    never drift into two formats.
+    """
+    return generate_temp_password()
 
 
 def staff_seat_limit() -> int | None:
@@ -208,6 +217,41 @@ def _assert_not_owner(staff: StaffUser) -> None:
         raise OwnerImmutableError(
             "The Owner account cannot be changed through Staff management."
         )
+
+
+# Flow 2: a Manager may reset these roles only.
+MANAGER_RESETTABLE_ROLES: frozenset[str] = frozenset({Role.RECEPTION, Role.TECHNICIAN})
+
+TEMP_PASSWORD_TTL_HOURS = 24
+
+
+def _assert_can_reset(actor: StaffUser, staff: StaffUser) -> None:
+    """Owner: any non-owner. Manager: Receptionist/Technician only.
+
+    Enforced server-side on every request (never by hiding the button).
+    """
+    if actor.role == Role.OWNER:
+        _assert_not_owner(staff)
+        return
+    if actor.role == Role.MANAGER:
+        if staff.id == actor.id or staff.role not in MANAGER_RESETTABLE_ROLES:
+            raise StaffForbiddenError(
+                "Managers may reset only Receptionist and Technician accounts."
+            )
+        return
+    raise StaffForbiddenError("Only the Lab Owner or a Manager may reset credentials.")
+
+
+def _assert_owner_or_manager(actor: StaffUser) -> None:
+    if actor.role not in (Role.OWNER, Role.MANAGER):
+        raise StaffForbiddenError(
+            "Only the Lab Owner or a Manager may review reset requests."
+        )
+
+
+def _clear_pending_totp_challenges(staff: StaffUser) -> None:
+    """Drop any pending enrolment secret and login challenge for this account."""
+    AuthService.clear_pending_totp_challenges(staff, _current_schema())
 
 
 def _assert_role_enabled(role: str) -> None:
@@ -323,16 +367,25 @@ class StaffService:
         role_filter: str | None = None,
         q: str | None = None,
     ) -> dict[str, Any]:
-        _assert_owner(actor)
+        # The Owner sees every non-owner account. A Manager may use the same
+        # list only to feed the "Staff passwords" section, so the server
+        # narrows it to the roles a Manager is allowed to reset. Detail, edit,
+        # create and lifecycle operations stay Owner-only.
+        _assert_owner_or_manager(actor)
+        is_owner = actor.role == Role.OWNER
         limit = max(1, min(int(limit), 200))
 
-        owner = (
-            StaffUser.objects.select_related("branch")
-            .filter(role=Role.OWNER)
-            .order_by("created_at")
-            .first()
-        )
+        owner = None
+        if is_owner:
+            owner = (
+                StaffUser.objects.select_related("branch")
+                .filter(role=Role.OWNER)
+                .order_by("created_at")
+                .first()
+            )
         queryset = StaffUser.objects.select_related("branch").exclude(role=Role.OWNER)
+        if not is_owner:
+            queryset = queryset.filter(role__in=MANAGER_RESETTABLE_ROLES)
 
         if status_filter == "active":
             queryset = queryset.filter(is_active=True)
@@ -442,6 +495,9 @@ class StaffService:
             )
         branch = _resolve_branch(role, payload.get("branch_id"))
         temp_password = generate_staff_temp_password()
+        temp_password_expires_at = timezone.now() + timedelta(
+            hours=TEMP_PASSWORD_TTL_HOURS
+        )
 
         with transaction.atomic():
             # Serialize staff creation per tenant so the seat limit and email
@@ -464,6 +520,7 @@ class StaffService:
                     password_hash=make_password(temp_password),
                     is_active=True,
                     password_is_temporary=True,
+                    temp_password_expires_at=temp_password_expires_at,
                     totp_enabled=False,
                     created_by=actor,
                 )
@@ -492,6 +549,7 @@ class StaffService:
             "staff": serialize_staff(staff),
             "temp_password": temp_password,
             "password_is_temporary": True,
+            "expires_at": temp_password_expires_at.isoformat(),
         }
 
     # ------------------------------------------------------------------
@@ -669,19 +727,21 @@ class StaffService:
         ip: str | None = None,
         user_agent: str | None = None,
     ) -> dict[str, Any]:
-        _assert_owner(actor)
         staff = _get_staff(staff_id)
-        _assert_not_owner(staff)
+        _assert_can_reset(actor, staff)
 
         temp_password = generate_staff_temp_password()
+        expires_at = timezone.now() + timedelta(hours=TEMP_PASSWORD_TTL_HOURS)
         was_temporary = staff.password_is_temporary
         with transaction.atomic():
             staff.password_hash = make_password(temp_password)
             staff.password_is_temporary = True
+            staff.temp_password_expires_at = expires_at
             staff.save(
                 update_fields=[
                     "password_hash",
                     "password_is_temporary",
+                    "temp_password_expires_at",
                     "updated_at",
                 ]
             )
@@ -692,10 +752,21 @@ class StaffService:
                 before={"password_is_temporary": was_temporary},
                 after={
                     "password_is_temporary": True,
+                    "temp_password_expires_at": expires_at.isoformat(),
                     "totp_preserved": bool(staff.totp_enabled),
                 },
                 ip=ip,
                 user_agent=user_agent,
+            )
+            # Issuing the temp password answers any pending forgot-password
+            # request for this account.
+            StaffPasswordResetRequest.objects.filter(
+                email__iexact=staff.email,
+                status=StaffPasswordResetRequest.Status.PENDING,
+            ).update(
+                status=StaffPasswordResetRequest.Status.RESOLVED,
+                resolved_at=timezone.now(),
+                resolved_by=actor.id,
             )
 
         AuthService.revoke_all_sessions(
@@ -710,4 +781,139 @@ class StaffService:
             "staff": serialize_staff(staff),
             "temp_password": temp_password,
             "password_is_temporary": True,
+            "expires_at": expires_at.isoformat(),
         }
+
+    @classmethod
+    def reset_totp(
+        cls,
+        actor: StaffUser,
+        staff_id: uuid.UUID,
+        *,
+        ip: str | None = None,
+        user_agent: str | None = None,
+    ) -> dict[str, Any]:
+        """Clear TOTP secret + backup codes and drop pending challenges.
+
+        Re-enrolment stays OPTIONAL (D2): the user is warned after login, never
+        blocked. No secret is ever returned by this method.
+        """
+        staff = _get_staff(staff_id)
+        _assert_can_reset(actor, staff)
+
+        was_enabled = bool(staff.totp_enabled)
+        with transaction.atomic():
+            staff.totp_secret_encrypted = None
+            staff.totp_backup_codes_hash = None
+            staff.totp_enabled = False
+            staff.save(
+                update_fields=[
+                    "totp_secret_encrypted",
+                    "totp_backup_codes_hash",
+                    "totp_enabled",
+                    "updated_at",
+                ]
+            )
+            _audit(
+                actor=actor,
+                action="staff.totp_reset",
+                staff=staff,
+                before={"totp_enabled": was_enabled},
+                after={"totp_enabled": False, "re_enrolment": "optional"},
+                ip=ip,
+                user_agent=user_agent,
+            )
+
+        _clear_pending_totp_challenges(staff)
+        return {"staff": serialize_staff(staff), "totp_enabled": False}
+
+    # -- Forgot-password requests (staff -> Lab Owner) ---------------------
+
+    @classmethod
+    def create_password_reset_request(
+        cls, email: str, display_name: str = ""
+    ) -> StaffPasswordResetRequest | None:
+        """Record a staff request for the Owner. Never reveals account state.
+
+        The public endpoint always answers 202, but a row is written ONLY when
+        a staff account with that email exists in this tenant. A request for an
+        unknown address must not create a notification (or a stored email).
+        """
+        clean_email = email.strip().lower()
+        if not StaffUser.objects.filter(email__iexact=clean_email).exists():
+            return None
+        existing = StaffPasswordResetRequest.objects.filter(
+            email__iexact=clean_email,
+            status=StaffPasswordResetRequest.Status.PENDING,
+        ).first()
+        if existing is not None:
+            return existing
+        return StaffPasswordResetRequest.objects.create(
+            email=clean_email,
+            display_name=display_name.strip()[:255],
+        )
+
+    @classmethod
+    def list_password_reset_requests(cls, actor: StaffUser) -> list[dict[str, Any]]:
+        _assert_owner_or_manager(actor)
+        rows = list(
+            StaffPasswordResetRequest.objects.filter(
+                status=StaffPasswordResetRequest.Status.PENDING
+            ).order_by("-created_at")
+        )
+        if actor.role == Role.MANAGER:
+            # A Manager may only see requests for the roles they can reset.
+            allowed = {
+                email.lower()
+                for email in StaffUser.objects.filter(
+                    role__in=MANAGER_RESETTABLE_ROLES
+                ).values_list("email", flat=True)
+            }
+            rows = [row for row in rows if row.email.lower() in allowed]
+        return [
+            {
+                "id": str(row.id),
+                "email": row.email,
+                "display_name": row.display_name,
+                "status": row.status,
+                "created_at": row.created_at.isoformat(),
+            }
+            for row in rows
+        ]
+
+    @classmethod
+    def resolve_password_reset_request(
+        cls,
+        actor: StaffUser,
+        request_id: uuid.UUID,
+        *,
+        ip: str | None = None,
+        user_agent: str | None = None,
+    ) -> dict[str, Any]:
+        _assert_owner_or_manager(actor)
+        row = StaffPasswordResetRequest.objects.filter(pk=request_id).first()
+        if row is None:
+            raise StaffNotFoundError("Password reset request not found.")
+        if (
+            actor.role == Role.MANAGER
+            and not StaffUser.objects.filter(
+                email__iexact=row.email, role__in=MANAGER_RESETTABLE_ROLES
+            ).exists()
+        ):
+            raise StaffForbiddenError(
+                "Managers may resolve only Receptionist and Technician requests."
+            )
+        row.status = StaffPasswordResetRequest.Status.RESOLVED
+        row.resolved_at = timezone.now()
+        row.resolved_by = actor.id
+        row.save(update_fields=["status", "resolved_at", "resolved_by"])
+        AuditLog.objects.create(
+            actor_id=actor.id,
+            action="staff.password_reset_request_resolved",
+            entity_type="staff_password_request",
+            entity_id=row.id,
+            after_jsonb={"status": "resolved"},
+            ip=ip or None,
+            user_agent=user_agent or None,
+        )
+        return {"id": str(row.id), "status": row.status}

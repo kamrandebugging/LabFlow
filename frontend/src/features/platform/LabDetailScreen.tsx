@@ -57,6 +57,53 @@ export function LabDetailScreen(): JSX.Element {
     },
   });
 
+  const [ownerTempPassword, setOwnerTempPassword] = useState<string | null>(
+    null,
+  );
+  const [ownerTempExpires, setOwnerTempExpires] = useState<string | null>(null);
+  const [ownerCredentialBusy, setOwnerCredentialBusy] = useState(false);
+  const [ownerCredentialNotice, setOwnerCredentialNotice] = useState<
+    string | null
+  >(null);
+
+  const issueOwnerTempPassword = async (): Promise<void> => {
+    setOwnerCredentialBusy(true);
+    setOwnerCredentialNotice(null);
+    try {
+      const result = await platformService.issueOwnerTempPassword(id!);
+      setOwnerTempPassword(result.temp_password);
+      setOwnerTempExpires(result.expires_at);
+    } catch (err) {
+      setOwnerCredentialNotice(
+        err instanceof Error
+          ? `${err.message} TOTP may be required.`
+          : "Could not issue a temporary password.",
+      );
+    } finally {
+      setOwnerCredentialBusy(false);
+    }
+  };
+
+  const resetOwnerTotp = async (): Promise<void> => {
+    setOwnerCredentialBusy(true);
+    setOwnerCredentialNotice(null);
+    try {
+      await platformService.resetOwnerTotp(id!);
+      setOwnerCredentialNotice(
+        "Owner two-factor authentication reset. Re-enrolment is optional.",
+      );
+      queryClient.invalidateQueries({ queryKey: ["platform", "tenant", id] });
+    } catch (err) {
+      setOwnerCredentialNotice(
+        err instanceof Error
+          ? `${err.message} TOTP may be required.`
+          : "Could not reset the owner's 2FA.",
+      );
+    } finally {
+      setOwnerCredentialBusy(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -444,6 +491,74 @@ export function LabDetailScreen(): JSX.Element {
                     : "Not configured"}
                 </span>
               </div>
+            </div>
+
+            <div className="mt-space-md border-t border-outline-variant/30 pt-space-md">
+              <div className="flex flex-wrap items-center gap-space-sm">
+                <button
+                  type="button"
+                  onClick={() => void issueOwnerTempPassword()}
+                  disabled={ownerCredentialBusy}
+                  className="rounded-lg border border-primary bg-primary px-space-md py-2 text-sm font-semibold text-on-primary disabled:opacity-60"
+                >
+                  {ownerCredentialBusy ? "Working…" : "Issue temp password"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void resetOwnerTotp()}
+                  disabled={ownerCredentialBusy}
+                  className="rounded-lg border border-outline-variant bg-transparent px-space-md py-2 text-sm font-semibold text-on-surface disabled:opacity-60"
+                >
+                  Reset 2FA
+                </button>
+              </div>
+
+              {ownerCredentialNotice && (
+                <p
+                  role="status"
+                  className="mt-space-sm rounded border border-outline-variant/60 bg-surface-container-low px-space-sm py-2 text-xs text-on-surface"
+                >
+                  {ownerCredentialNotice}
+                </p>
+              )}
+
+              {ownerTempPassword && (
+                <div className="mt-space-sm rounded-lg border border-primary/40 bg-surface-container-low p-space-sm">
+                  <p className="text-xs font-semibold text-on-surface">
+                    Temporary password — shown once, never retrievable again.
+                  </p>
+                  <code className="mt-1 block break-all font-code-sm text-sm text-on-surface">
+                    {ownerTempPassword}
+                  </code>
+                  <div className="mt-space-xs flex flex-wrap items-center gap-space-sm">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        void navigator.clipboard?.writeText(ownerTempPassword);
+                      }}
+                      className="rounded border border-outline-variant px-2 py-1 text-xs font-semibold"
+                    >
+                      Copy
+                    </button>
+                    <span className="text-[11px] text-outline">
+                      Expires{" "}
+                      {ownerTempExpires
+                        ? new Date(ownerTempExpires).toLocaleString()
+                        : "in 24 hours"}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setOwnerTempPassword(null);
+                        setOwnerTempExpires(null);
+                      }}
+                      className="rounded px-2 py-1 text-xs font-semibold text-primary"
+                    >
+                      Done
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 

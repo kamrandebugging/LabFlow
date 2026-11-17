@@ -211,9 +211,8 @@ class TestLAB11LoginEndpoint:
     def test_totp_mandatory_role_without_enrollment_gets_enrollment_session(
         self, client: Client, owner: StaffUser
     ) -> None:
-        """Owner role mandates TOTP; before enrolment the login succeeds with a
-        session flagged totp_enrollment_required instead of an unanswerable
-        challenge (Doc 01 §14, Doc 08 §4.1)."""
+        """D2: TOTP is optional. An Owner without enrolment logs in with a full
+        session; the client shows a dismissible warning after landing."""
         response = client.post(
             "/api/v1/auth/login",
             data={
@@ -224,7 +223,7 @@ class TestLAB11LoginEndpoint:
         )
         assert response.status_code == 200
         data = response.json()
-        assert data.get("totp_enrollment_required") is True
+        assert data.get("totp_enrollment_required") is None
         assert data.get("access")
         assert "auth_challenge" not in response.cookies
 

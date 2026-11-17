@@ -1,12 +1,6 @@
-import React, { useState, useRef } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
-import {
-  Loader2,
-  ArrowRight,
-  ShieldCheck,
-  AlertCircle,
-  ArrowLeft,
-} from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import type {
   AuthService,
   LoginSuccessSession,
@@ -14,6 +8,9 @@ import type {
 } from "./types";
 import { defaultAuthService } from "./authService";
 import { LanguageSwitcher } from "../../components/LanguageSwitcher";
+import { ThemeToggle } from "../../components/ui/ThemeToggle";
+import { VerifyCodeCard } from "../../components/ui/VerifyCodeCard";
+import styles from "./TwoFactorAuthScreen.module.css";
 
 export interface TwoFactorAuthScreenProps {
   email?: string;
@@ -28,322 +25,143 @@ export interface TwoFactorAuthScreenProps {
 export function TwoFactorAuthScreen({
   email,
   challengeToken,
-  tenantName,
-  terminalId,
   authService = defaultAuthService,
   onSuccess,
   onBack,
 }: TwoFactorAuthScreenProps): JSX.Element {
   const { t } = useTranslation(["auth", "common"]);
-  const [digits, setDigits] = useState<string[]>(["", "", "", "", "", ""]);
-  const [isBackupMode, setIsBackupMode] = useState<boolean>(false);
-  const [backupCode, setBackupCode] = useState<string>("");
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [verifying, setVerifying] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [secondsLeft, setSecondsLeft] = useState<number>(
-    () => 30 - (Math.floor(Date.now() / 1000) % 30),
-  );
+  const [backupMode, setBackupMode] = useState(false);
+  const [backupCode, setBackupCode] = useState("");
+  const sessionRef = useRef<LoginSuccessSession | null>(null);
 
-  React.useEffect(() => {
-    const timer = setInterval(() => {
-      setSecondsLeft(30 - (Math.floor(Date.now() / 1000) % 30));
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
-
-  const inputRefs = useRef<Array<HTMLInputElement | null>>([]);
-
-  const handleDigitChange = (index: number, value: string): void => {
-    const cleanVal = value.replace(/[^0-9]/g, "");
-    if (!cleanVal) {
-      const next = [...digits];
-      next[index] = "";
-      setDigits(next);
-      return;
+  const verify = async (
+    code: string,
+    isBackupCode: boolean,
+  ): Promise<LoginSuccessSession> => {
+    const payload: TotpVerifyPayload = { code, isBackupCode };
+    if (challengeToken) {
+      payload.challengeToken = challengeToken;
     }
-
-    const digit = cleanVal.slice(-1);
-    const next = [...digits];
-    next[index] = digit;
-    setDigits(next);
-
-    // Auto-advance focus to next digit
-    if (index < 5) {
-      inputRefs.current[index + 1]?.focus();
-    }
+    return authService.verifyTotp(payload);
   };
 
-  const handleKeyDown = (
-    index: number,
-    e: React.KeyboardEvent<HTMLInputElement>,
-  ): void => {
-    if (e.key === "Backspace" && !digits[index] && index > 0) {
-      inputRefs.current[index - 1]?.focus();
-    }
-  };
-
-  const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>): void => {
-    e.preventDefault();
-    const pasted = e.clipboardData
-      .getData("text")
-      .replace(/[^0-9]/g, "")
-      .slice(0, 6);
-    if (!pasted) return;
-
-    const next = [...digits];
-    for (let i = 0; i < 6; i++) {
-      next[i] = pasted[i] ?? "";
-    }
-    setDigits(next);
-
-    const focusIndex = Math.min(pasted.length, 5);
-    inputRefs.current[focusIndex]?.focus();
-  };
-
-  const handleVerify = async (): Promise<void> => {
-    const code = isBackupMode ? backupCode.trim() : digits.join("");
-    if (!code) return;
-
-    setIsLoading(true);
+  // The card owns the success animation; it calls onSuccess once it is done.
+  const handleCardSubmit = async (code: string): Promise<void> => {
+    setVerifying(true);
     setError(null);
-
     try {
-      const payload: TotpVerifyPayload = {
-        code,
-        isBackupCode: isBackupMode,
-      };
-      if (challengeToken) {
-        payload.challengeToken = challengeToken;
-      }
-      const session = await authService.verifyTotp(payload);
+      sessionRef.current = await verify(code, false);
+    } catch {
+      setError(t("auth:errors.generic"));
+      throw new Error("401 invalid_code");
+    } finally {
+      setVerifying(false);
+    }
+  };
+
+  const handleCardSuccess = (): void => {
+    const session = sessionRef.current;
+    if (session) onSuccess?.(session);
+  };
+
+  const handleBackupSubmit = async (
+    event: FormEvent<HTMLFormElement>,
+  ): Promise<void> => {
+    event.preventDefault();
+    const code = backupCode.trim();
+    if (!code) return;
+    setVerifying(true);
+    setError(null);
+    try {
+      const session = await verify(code, true);
       onSuccess?.(session);
     } catch {
       setError(t("auth:errors.generic"));
+      setBackupCode("");
     } finally {
-      setIsLoading(false);
+      setVerifying(false);
     }
   };
 
   return (
-    <div className="relative min-h-screen w-full flex items-center justify-center bg-[#faf8ff] p-4 text-[#131b2e] selection:bg-[#86f2e4]">
-      {/* Background radial gradient */}
-      <div className="fixed inset-0 pointer-events-none bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-teal-500/10 via-[#faf8ff] to-[#faf8ff] z-0" />
-
-      <aside
-        aria-label={t("auth:login.language_aria")}
-        className="fixed top-6 end-6 z-50"
-      >
-        <LanguageSwitcher
-          compact
-          className="bg-slate-200/80 backdrop-blur-md shadow-sm"
-        />
+    <div className={styles.page}>
+      <aside className={styles.topControls}>
+        <div className={styles.langWrap}>
+          <LanguageSwitcher compact />
+        </div>
+        {backupMode ? <ThemeToggle /> : null}
       </aside>
 
-      <main className="relative z-10 w-full max-w-[420px] bg-white rounded-xl shadow-md border border-slate-100 p-6 flex flex-col gap-4">
-        {/* Brand Header */}
-        <header className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <img
-              src="/logo.svg"
-              alt="LabFlow"
-              className="w-8 h-8 object-contain"
-            />
-            <span className="text-xl font-bold tracking-tight text-slate-900">
-              LabFlow
-            </span>
-          </div>
-          <div className="flex items-center gap-1.5 bg-slate-100 px-2 py-1 rounded text-xs font-mono text-slate-600">
-            <span className="uppercase tracking-wider text-teal-800 font-semibold">
-              Portal
-            </span>
-            <span>•</span>
-            <span>LIS v4.2</span>
-          </div>
-        </header>
-
-        {/* Tenant & User Context Banner */}
-        {(tenantName || email) && (
-          <section
-            aria-label={t("auth:totp.identity_aria")}
-            className="bg-slate-50 border border-slate-100 p-3 rounded-lg flex flex-col gap-1"
+      {backupMode ? (
+        <main className={styles.backupCard}>
+          <h1 className={styles.backupTitle}>{t("auth:totp.backup_code")}</h1>
+          <p className={styles.backupSubline}>
+            {t("auth:totp.backup_placeholder")}
+          </p>
+          <form
+            onSubmit={(event) => void handleBackupSubmit(event)}
+            className={styles.backupForm}
           >
-            {tenantName && (
-              <div className="flex items-center gap-1.5 text-teal-800 font-medium text-xs">
-                <span className="font-semibold text-slate-900">
-                  {tenantName}
-                </span>
-              </div>
-            )}
-            {email && (
-              <div className="text-xs text-slate-500">
-                {t("auth:totp.signing_in_as")}{" "}
-                <strong className="font-medium text-slate-800">
-                  <bdi dir="ltr">{email}</bdi>
-                </strong>
-              </div>
-            )}
-          </section>
-        )}
-
-        {/* Title & Guidance */}
-        <div className="flex flex-col gap-0.5">
-          <h1 className="text-lg font-bold text-slate-900">
-            {t("auth:totp.title")}
-          </h1>
-          <p className="text-xs text-slate-600">{t("auth:totp.guidance")}</p>
-        </div>
-
-        {/* Verification Inputs */}
-        {!isBackupMode ? (
-          <div className="flex flex-col gap-2">
-            {email && (
-              <div className="rounded-lg border border-teal-200 bg-teal-50/80 p-3">
-                <p className="text-xs font-medium text-teal-950">
-                  {t("auth:totp.code_from_app")}
-                </p>
-                <div className="mt-1 flex items-center justify-between text-[11px] text-teal-800">
-                  <span>{t("auth:totp.valid_for")}</span>
-                  <span className="font-mono font-bold text-teal-900">
-                    <bdi dir="ltr">{secondsLeft}s</bdi>
-                  </span>
-                </div>
-              </div>
-            )}
-            {/* 6-digit OTP Inputs */}
-            <div
-              className="flex items-center justify-between gap-2"
-              id="otp-container"
-            >
-              {digits.map((digit, idx) => (
-                <input
-                  key={idx}
-                  ref={(el) => {
-                    inputRefs.current[idx] = el;
-                  }}
-                  aria-label={t("auth:totp.digit", { number: idx + 1 })}
-                  type="text"
-                  inputMode="numeric"
-                  maxLength={1}
-                  value={digit}
-                  onChange={(e) => handleDigitChange(idx, e.target.value)}
-                  onKeyDown={(e) => handleKeyDown(idx, e)}
-                  onPaste={handlePaste}
-                  className="w-12 h-12 text-center text-xl font-bold bg-slate-50 border border-slate-200 text-slate-900 rounded-lg outline-none focus:border-teal-700 focus:ring-2 focus:ring-teal-700/20 transition-all"
-                  dir="ltr"
-                />
-              ))}
-            </div>
-
-            {/* Live sync / validity feedback hint */}
-            <div className="flex items-center justify-between text-xs font-mono text-slate-400 px-1">
-              <span className="flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-teal-600 animate-pulse" />
-                {t("auth:totp.time_synced", { seconds: secondsLeft })}
-              </span>
-              <span className="text-slate-500" dir="ltr">
-                SHA-1 / 30s
-              </span>
-            </div>
-          </div>
-        ) : (
-          <div className="flex flex-col gap-1.5">
-            <label
-              htmlFor="backup-code"
-              className="text-xs font-medium text-slate-800"
-            >
+            <label htmlFor="backup-code" className={styles.backupLabel}>
               {t("auth:totp.backup_code")}
             </label>
             <input
               id="backup-code"
               type="text"
-              placeholder={t("auth:totp.backup_placeholder")}
               value={backupCode}
-              onChange={(e) => setBackupCode(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-sm rounded-lg px-3.5 py-2.5 outline-none focus:border-teal-700 focus:ring-1 focus:ring-teal-700 font-mono"
+              onChange={(event) => setBackupCode(event.target.value)}
+              className={styles.backupInput}
               dir="ltr"
+              autoComplete="one-time-code"
             />
-          </div>
-        )}
-
-        {/* Mode Toggle Button */}
-        <div className="text-end">
+            {error && (
+              <p role="alert" className={styles.error}>
+                {error}
+              </p>
+            )}
+            <button
+              type="submit"
+              disabled={verifying}
+              className={styles.primary}
+            >
+              {t("auth:totp.verify")}
+            </button>
+          </form>
           <button
             type="button"
+            className={styles.backLink}
             onClick={() => {
-              setIsBackupMode(!isBackupMode);
+              setBackupMode(false);
               setError(null);
             }}
-            className="text-xs text-teal-700 hover:text-teal-900 font-medium transition-colors"
           >
-            {isBackupMode
-              ? t("auth:totp.use_authenticator")
-              : t("auth:totp.use_backup")}
+            {t("auth:totp.use_authenticator")}
           </button>
-        </div>
+        </main>
+      ) : (
+        <VerifyCodeCard
+          mode="totp"
+          maskedContact={email}
+          error={error}
+          verifying={verifying}
+          onSubmit={handleCardSubmit}
+          onSuccess={handleCardSuccess}
+          onSecondary={() => {
+            setBackupMode(true);
+            setError(null);
+          }}
+          secondaryLabel={t("auth:totp.use_backup")}
+        />
+      )}
 
-        {/* Generic Error Notification */}
-        {error && (
-          <div
-            role="alert"
-            className="bg-red-50 border border-red-200 text-red-700 p-2.5 rounded-lg flex items-center gap-2 text-xs font-medium"
-          >
-            <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0" />
-            <span>{error}</span>
-          </div>
-        )}
-
-        {/* Actions */}
-        <div className="flex flex-col gap-2 pt-1">
-          <button
-            type="button"
-            disabled={isLoading}
-            onClick={() => void handleVerify()}
-            className="w-full py-2.5 px-4 bg-teal-700 hover:bg-teal-800 active:bg-teal-900 disabled:opacity-70 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg shadow-sm flex items-center justify-center gap-2 transition-all cursor-pointer"
-          >
-            {isLoading ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                <span>{t("auth:totp.verifying")}</span>
-              </>
-            ) : (
-              <>
-                <span>{t("auth:totp.verify")}</span>
-                <ArrowRight className="w-4 h-4 rtl:rotate-180" />
-              </>
-            )}
-          </button>
-
-          <button
-            type="button"
-            onClick={onBack}
-            className="text-center text-xs text-slate-500 hover:text-slate-800 transition-colors py-1 flex items-center justify-center gap-1 cursor-pointer"
-          >
-            <ArrowLeft className="w-3.5 h-3.5 rtl:rotate-180" />
-            <span>{t("auth:totp.back_to_sign_in")}</span>
-          </button>
-        </div>
-
-        {/* Compliance / Node Security Footer */}
-        <footer className="mt-2 bg-slate-50 border border-slate-100 rounded-lg p-2.5 flex items-center justify-between text-slate-600">
-          <div className="flex items-center gap-1.5">
-            <ShieldCheck className="w-4 h-4 text-teal-700" />
-            <div className="flex flex-col">
-              <span className="text-[11px] font-semibold text-slate-800 uppercase tracking-wide">
-                {t("auth:totp.certified_node")}
-              </span>
-              {terminalId && (
-                <span className="text-[10px] font-mono text-slate-400">
-                  {t("auth:totp.encrypted_terminal", { id: terminalId })}
-                </span>
-              )}
-            </div>
-          </div>
-          <div className="flex items-center gap-1 bg-white border border-slate-200 px-2 py-0.5 rounded text-[11px] font-mono text-slate-700">
-            <span className="w-1.5 h-1.5 rounded-full bg-teal-600" />
-            <span>{t("auth:totp.secure")}</span>
-          </div>
-        </footer>
-      </main>
+      {!backupMode && (
+        <button type="button" className={styles.pageBack} onClick={onBack}>
+          <ArrowLeft size={14} aria-hidden="true" />
+          <span>{t("auth:totp.back_to_sign_in")}</span>
+        </button>
+      )}
     </div>
   );
 }

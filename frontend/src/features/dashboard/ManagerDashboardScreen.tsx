@@ -24,6 +24,7 @@ import {
   Panel,
   StatCard,
 } from "./DashboardUI";
+import { StaffPasswordSection } from "./StaffPasswordSection";
 
 interface ManagerData {
   registrationsToday: string | null;
@@ -353,6 +354,8 @@ export function ManagerDashboardScreen(): ReactElement {
             </ul>
           </Panel>
         </div>
+
+        <StaffPasswordSection />
       </div>
     </div>
   );

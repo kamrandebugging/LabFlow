@@ -1,28 +1,54 @@
 import type { ReactElement } from "react";
-import { useEffect, useMemo, useState } from "react";
-import {
-  Link,
-  Navigate,
-  Outlet,
-  useLocation,
-  useNavigate,
-} from "react-router-dom";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 
 import { useAuthStore } from "../auth/authStore";
-import { ForcedPasswordChangeScreen } from "../auth/ForcedPasswordChangeScreen";
 import {
   canAccessPath,
   isRoleEnabled,
   navForRole,
-  needsTotpEnrolment,
   roleHome,
+  type NavItem,
 } from "../auth/access";
+import {
+  dismissNotice,
+  isNoticeDismissed,
+  type PostLoginNoticeKind,
+} from "../auth/postLoginNotice";
 import { fetchTenantContext, getSubdomainTenant } from "../auth/tenantContext";
+import { PostLoginNotice } from "../../components/ui/PostLoginNotice";
+import { useTheme } from "../../theme/themeContext";
 import { partnersService } from "../partners/partnersService";
 import { reportsService } from "../reports/reportsService";
 import { resultsService } from "../results/resultsService";
 import { LanguageSwitcher } from "../../components/LanguageSwitcher";
-import { useTranslation } from "react-i18next";
+import { revealThemeChange } from "../../lib/motion";
+import { PatientsDrawerProvider } from "../patients/PatientDrawerHost";
+import { InvoiceDrawerProvider } from "../billing/InvoiceDrawerHost";
+import { PageTransition } from "./PageTransition";
+
+const DESK_PATHS = [
+  "/",
+  "/patients",
+  "/invoices",
+  "/samples",
+  "/worklist",
+  "/results/approvals",
+  "/exceptions",
+];
+
+const CONTROL_PATHS = [
+  "/catalog",
+  "/settings/staff",
+  "/reports",
+  "/settings/tenant",
+  "/settings",
+  "/settlements",
+  "/partners",
+  "/settings/branches",
+  "/settings/account",
+];
 
 export function TenantLayout(): ReactElement {
   const { t } = useTranslation(["common", "auth"]);
@@ -31,11 +57,13 @@ export function TenantLayout(): ReactElement {
   const user = useAuthStore((state) => state.user);
   const accessToken = useAuthStore((state) => state.accessToken);
   const logout = useAuthStore((state) => state.logout);
+  const { resolved, setPreference } = useTheme();
 
-  // Start blank: the slug-derived name ("Apexlab") is a guess, not the lab's
-  // real brand. Render the resolved tenant name only.
   const [tenantName, setTenantName] = useState<string | null>(null);
   const [tenantCity, setTenantCity] = useState<string>("");
+  const [noticeDismissedLocally, setNoticeDismissedLocally] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [badges, setBadges] = useState({
     pendingApprovals: 0,
     draftSettlements: 0,
@@ -65,6 +93,21 @@ export function TenantLayout(): ReactElement {
     [user?.role, user?.enabled_roles],
   );
 
+  // Group permitted items Veyla-style: DESK (daily work) vs CONTROLS (config)
+  const deskNav = useMemo(() => {
+    const all = [...navigation.operations, ...navigation.management];
+    return DESK_PATHS.map((path) =>
+      all.find((item) => item.to === path),
+    ).filter((item): item is NavItem => Boolean(item));
+  }, [navigation]);
+
+  const controlsNav = useMemo(() => {
+    const all = [...navigation.operations, ...navigation.management];
+    return CONTROL_PATHS.map((path) =>
+      all.find((item) => item.to === path),
+    ).filter((item): item is NavItem => Boolean(item));
+  }, [navigation]);
+
   useEffect(() => {
     let active = true;
     const controller = new AbortController();
@@ -78,8 +121,6 @@ export function TenantLayout(): ReactElement {
     const loadBadges = async () => {
       if (!accessToken) return;
 
-      // Do not probe routes the role policy denies; a hidden badge must not
-      // generate a stream of 403s in the background.
       const roleEnabled = isRoleEnabled(user?.role, user?.enabled_roles);
       const canReadApprovals =
         roleEnabled && (user?.role === "owner" || user?.role === "pathologist");
@@ -103,8 +144,6 @@ export function TenantLayout(): ReactElement {
             : Promise.resolve(null),
         ]);
 
-        // The badge is the approvals queue itself — counting "ready" samples
-        // left a stale number after every result had been approved.
         let pendingApprovals = 0;
         if (approvalsRes.status === "fulfilled" && approvalsRes.value) {
           pendingApprovals = approvalsRes.value.length;
@@ -136,28 +175,63 @@ export function TenantLayout(): ReactElement {
     };
   }, [location.pathname, accessToken, user?.role, user?.enabled_roles]);
 
+  // Circular reveal theme toggle — the shared helper owns the View
+  // Transition, the clip-path origin and the reduced-motion fallback.
+  const toggleTheme = useCallback(
+    (event: React.MouseEvent<HTMLButtonElement>) => {
+      const next = resolved === "dark" ? "light" : "dark";
+      revealThemeChange(
+        { clientX: event.clientX, clientY: event.clientY },
+        () => setPreference(next),
+      );
+    },
+    [resolved, setPreference],
+  );
+
+  // Compute breadcrumb label
+  const breadcrumb = useMemo(() => {
+    const p = location.pathname;
+    if (p === "/")
+      return { section: "Desk", page: t("nav.home") || "Overview" };
+    if (p.startsWith("/patients"))
+      return { section: "Desk", page: t("nav.patients") };
+    if (p.startsWith("/invoices"))
+      return { section: "Desk", page: t("nav.invoices") };
+    if (p.startsWith("/samples"))
+      return { section: "Desk", page: t("nav.samples") };
+    if (p.startsWith("/worklist"))
+      return { section: "Desk", page: t("nav.worklist") };
+    if (p.startsWith("/results"))
+      return { section: "Desk", page: t("nav.approvals") };
+    if (p.startsWith("/exceptions"))
+      return { section: "Desk", page: t("nav.exceptions") };
+    if (p.startsWith("/reports"))
+      return { section: "Controls", page: t("nav.reports") };
+    if (p.startsWith("/catalog"))
+      return { section: "Controls", page: t("nav.catalog") };
+    if (p.startsWith("/settings/staff"))
+      return { section: "Controls", page: t("nav.staff") };
+    if (p.startsWith("/settings/branches"))
+      return { section: "Controls", page: t("nav.branches") };
+    if (p.startsWith("/settings/account"))
+      return { section: "Controls", page: t("nav.account") };
+    if (p.startsWith("/settings"))
+      return { section: "Controls", page: t("nav.settings") };
+    if (p.startsWith("/settlements"))
+      return { section: "Controls", page: t("nav.settlements") };
+    if (p.startsWith("/partners"))
+      return { section: "Controls", page: t("nav.partners") };
+    return { section: "Desk", page: "Overview" };
+  }, [location.pathname, t]);
+
   if (!accessToken || !user) {
     return <Navigate to="/login" replace />;
   }
 
-  // A role the Platform has disabled for this lab is a dead end: the API
-  // refuses it, so never render a dashboard or sidebar for it.
   if (!isRoleEnabled(user.role, user.enabled_roles)) {
     return <Navigate to="/login" replace />;
   }
 
-  // S7: the temporary-password flow is a hard gate, not a dismissible modal.
-  if (user?.must_change_password) {
-    return <ForcedPasswordChangeScreen />;
-  }
-
-  // S6: a mandatory-TOTP role cannot reach the shell before enrolment.
-  if (needsTotpEnrolment(user?.role, user?.totp_enabled)) {
-    return <Navigate to="/login/enroll" replace />;
-  }
-
-  // S3/S15: owner-only screens never render for staff. The API refuses them
-  // independently; this only prevents a dead-end screen.
   if (user && !canAccessPath(user.role, location.pathname)) {
     return <Navigate to={roleHome(user.role)} replace />;
   }
@@ -167,12 +241,20 @@ export function TenantLayout(): ReactElement {
     navigate("/login", { replace: true });
   };
 
+  const noticeKind: PostLoginNoticeKind | null = user.must_change_password
+    ? "password"
+    : !user.totp_enabled
+      ? "totp"
+      : null;
+  const showNotice =
+    noticeKind !== null &&
+    !noticeDismissedLocally &&
+    !isNoticeDismissed(noticeKind, user.id);
+
   const isLinkActive = (to: string) => {
     if (to === "/") {
       return location.pathname === "/";
     }
-    // Tenant settings lives at /settings/tenant; keep its two sibling routes
-    // (branches, account) from lighting it up as well.
     if (to === "/settings") {
       return (
         location.pathname === "/settings" ||
@@ -182,152 +264,383 @@ export function TenantLayout(): ReactElement {
     return location.pathname === to || location.pathname.startsWith(`${to}/`);
   };
 
-  const linkClass = (to: string) =>
-    `flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors ${
-      isLinkActive(to)
-        ? "bg-[#86f2e4]/70 text-[#005c55] font-semibold"
-        : "text-slate-700 hover:bg-slate-50 hover:text-slate-900"
-    }`;
+  const renderNavSection = (label: string, items: NavItem[]) => {
+    if (items.length === 0) return null;
+    return (
+      <div className="space-y-1">
+        {!isSidebarCollapsed ? (
+          <p className="px-3 text-[11px] font-bold uppercase tracking-wider text-[var(--color-text-muted)] mb-1">
+            {label}
+          </p>
+        ) : null}
+        <nav className="space-y-0.5">
+          {items.map((item) => {
+            const active = isLinkActive(item.to);
+            return (
+              <Link
+                key={item.to}
+                to={item.to}
+                title={
+                  isSidebarCollapsed ? t(`nav.${item.labelKey}`) : undefined
+                }
+                onClick={() => setIsMobileMenuOpen(false)}
+                className={`group flex items-center justify-between px-3 py-2 rounded-full text-xs font-semibold transition-colors ${
+                  active
+                    ? "bg-[var(--veyla-black)] text-[var(--color-surface)] dark:bg-[var(--color-surface)] dark:text-[var(--veyla-black)] shadow-[var(--shadow-veyla-pill)]"
+                    : "text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--veyla-well)]"
+                }`}
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <span
+                    aria-hidden="true"
+                    className="material-symbols-outlined text-[19px] shrink-0"
+                  >
+                    {item.icon}
+                  </span>
+                  {!isSidebarCollapsed ? (
+                    <span className="truncate">
+                      {t(`nav.${item.labelKey}`)}
+                    </span>
+                  ) : null}
+                </div>
+                {!isSidebarCollapsed ? (
+                  <>
+                    {item.to === "/results/approvals" &&
+                      badges.pendingApprovals > 0 && (
+                        <span className="ms-2 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-[#e6f4ea] text-[#0e6b3a] dark:bg-[rgba(82,183,136,0.2)] dark:text-[#7cd3a2]">
+                          {badges.pendingApprovals}
+                        </span>
+                      )}
+                    {item.to === "/exceptions" && badges.exceptions > 0 && (
+                      <span className="ms-2 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-[#fee2e2] text-[#b91c1c] dark:bg-[rgba(239,68,68,0.2)] dark:text-[#fca5a5]">
+                        {badges.exceptions}
+                      </span>
+                    )}
+                    {item.to === "/settlements" &&
+                      badges.draftSettlements > 0 && (
+                        <span className="ms-2 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-[var(--veyla-well)] text-[var(--color-text-muted)] border border-[var(--color-border)]">
+                          {badges.draftSettlements}
+                        </span>
+                      )}
+                  </>
+                ) : null}
+              </Link>
+            );
+          })}
+        </nav>
+      </div>
+    );
+  };
 
   return (
-    <div className="bg-[#faf8ff] text-[#131b2e] antialiased min-h-screen">
-      {/* Top Header */}
-      <header className="fixed top-0 start-0 end-0 h-16 bg-white border-b border-slate-200/80 z-50 px-6 flex items-center justify-between shadow-[0_1px_8px_rgba(0,0,0,0.02)]">
-        <div className="flex items-center gap-4">
+    <div className="min-h-screen bg-[var(--veyla-page)] text-[var(--color-body)] flex font-sans">
+      {/* Sidebar Overlay on Mobile */}
+      {isMobileMenuOpen ? (
+        <div
+          aria-hidden="true"
+          className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm lg:hidden"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      ) : null}
+
+      {/* Veyla Left Sidebar */}
+      <aside
+        className={`fixed lg:sticky top-0 z-50 h-screen bg-[var(--veyla-card)] border-e border-[var(--color-border)] shadow-[var(--shadow-veyla-card)] flex flex-col justify-between transition-all duration-300 ease-in-out ${
+          isSidebarCollapsed ? "w-20" : "w-64"
+        } ${
+          isMobileMenuOpen
+            ? "translate-x-0"
+            : "-translate-x-full lg:translate-x-0 rtl:translate-x-full rtl:lg:translate-x-0"
+        }`}
+      >
+        {/* Sidebar Header: Logo & Collapse Toggle */}
+        <div className="p-4 border-b border-[var(--color-card-border)] flex items-center justify-between gap-2">
           <Link
             to="/"
-            className="w-9 h-9 rounded-lg bg-[#005c55] flex items-center justify-center text-white shadow-sm hover:opacity-90 transition-opacity"
+            className="flex items-center gap-2.5 min-w-0 group"
             title={t("topbar.dashboard_title")}
+          >
+            <div className="w-9 h-9 rounded-full bg-[var(--veyla-teal)] text-[var(--veyla-teal-text)] flex items-center justify-center shrink-0 shadow-sm">
+              <svg
+                aria-hidden="true"
+                className="w-5 h-5"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M9 3h6" />
+                <path d="M10 3v6l-4.5 9.5A1.8 1.8 0 0 0 7.1 21h9.8a1.8 1.8 0 0 0 1.6-2.5L14 9V3" />
+              </svg>
+            </div>
+            {!isSidebarCollapsed ? (
+              <div className="min-w-0">
+                <span className="block font-bold text-sm text-[var(--color-text)] tracking-tight truncate">
+                  {tenantName ?? "LabFlow"}
+                </span>
+                <span className="block text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
+                  LIS Workspace
+                </span>
+              </div>
+            ) : null}
+          </Link>
+
+          <button
+            type="button"
+            onClick={() => setIsSidebarCollapsed((prev) => !prev)}
+            aria-label={
+              isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"
+            }
+            className="hidden lg:flex w-7 h-7 rounded-full items-center justify-center text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--veyla-well)] transition-colors"
           >
             <span
               aria-hidden="true"
-              className="material-symbols-outlined text-[20px]"
+              className="material-symbols-outlined text-[18px]"
             >
-              science
+              {isSidebarCollapsed ? "chevron_right" : "chevron_left"}
             </span>
-          </Link>
-          <div>
-            <div className="flex items-center gap-1.5">
-              <span className="text-base text-slate-900 font-semibold tracking-tight">
-                {tenantName ?? "\u00a0"}
-              </span>
-              <span className="px-1.5 py-0.5 rounded text-[10px] uppercase font-semibold tracking-wider bg-[#86f2e4]/60 text-[#006f66]">
-                LabFlow
-              </span>
-            </div>
-            <p className="text-xs text-slate-400">
-              {user?.role === "owner" || user?.role === "pathologist"
-                ? t("topbar.all_branches")
-                : t("topbar.branch_workspace")}
-              {tenantCity ? ` • ${tenantCity}` : ""}
-            </p>
-          </div>
+          </button>
         </div>
 
-        <div className="flex items-center gap-4">
-          <LanguageSwitcher compact />
-          <div className="h-6 w-px bg-slate-200" />
-          <div className="flex items-center gap-3 ps-1">
-            <div className="w-9 h-9 rounded-full bg-[#86f2e4] flex items-center justify-center text-xs font-bold text-[#006f66] ring-2 ring-[#005c55]/20">
-              {userInitials}
+        {/* Grouped Nav Items: DESK & CONTROLS */}
+        <div className="flex-1 overflow-y-auto px-3 py-4 space-y-6">
+          {renderNavSection("DESK", deskNav)}
+          {renderNavSection("CONTROLS", controlsNav)}
+        </div>
+
+        {/* Sidebar Footer: Settings, Help, Account card with queue-progress ring */}
+        <div className="p-3 border-t border-[var(--color-card-border)] space-y-2 bg-[var(--veyla-card)]">
+          {!isSidebarCollapsed ? (
+            <div className="flex items-center justify-between px-2 text-xs text-[var(--color-text-muted)]">
+              <Link
+                to="/settings/tenant"
+                className="hover:text-[var(--color-text)] font-semibold transition-colors inline-flex items-center gap-1"
+              >
+                <span className="material-symbols-outlined text-[15px]">
+                  settings
+                </span>
+                <span>Settings</span>
+              </Link>
+              <a
+                href="#help"
+                onClick={(e) => {
+                  e.preventDefault();
+                  alert(
+                    "LabFlow Help & Documentation is active. For technical assistance, contact your lab administrator.",
+                  );
+                }}
+                className="hover:text-[var(--color-text)] font-semibold transition-colors inline-flex items-center gap-1"
+              >
+                <span className="material-symbols-outlined text-[15px]">
+                  help
+                </span>
+                <span>Help</span>
+              </a>
             </div>
-            <div className="hidden sm:flex flex-col text-start">
-              <span className="text-xs font-semibold text-slate-900 leading-tight">
-                {displayName}
-              </span>
-              <span className="text-[11px] text-slate-500 leading-tight">
-                {userRole}
-              </span>
+          ) : null}
+
+          {/* Account Card with Queue-Progress Ring */}
+          <div className="bg-[var(--veyla-well)] rounded-2xl p-2.5 flex items-center justify-between gap-2 border border-[var(--color-border)]">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="relative shrink-0">
+                <div className="w-8 h-8 rounded-full bg-[var(--veyla-teal)] text-[var(--veyla-teal-text)] font-bold text-xs flex items-center justify-center">
+                  {userInitials}
+                </div>
+                {badges.pendingApprovals > 0 ? (
+                  <span
+                    title={`${badges.pendingApprovals} pending in queue`}
+                    className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-[var(--color-brand)] border-2 border-[var(--veyla-well)] text-[8px] font-mono font-bold text-white flex items-center justify-center"
+                  >
+                    •
+                  </span>
+                ) : null}
+              </div>
+              {!isSidebarCollapsed ? (
+                <div className="min-w-0">
+                  <p className="text-xs font-bold text-[var(--color-text)] truncate">
+                    {displayName}
+                  </p>
+                  <p className="text-[10px] text-[var(--color-text-muted)] font-medium truncate">
+                    {userRole}
+                  </p>
+                </div>
+              ) : null}
             </div>
+
             <button
               onClick={handleLogout}
-              className="text-slate-400 hover:text-red-600 ms-1 p-1 rounded transition-colors flex items-center"
-              title={t("topbar.logout")}
               type="button"
+              title={t("topbar.logout")}
+              aria-label={t("topbar.logout")}
+              className="w-7 h-7 rounded-full flex items-center justify-center text-[var(--color-text-muted)] hover:text-[var(--color-danger)] hover:bg-[var(--veyla-card)] transition-colors shrink-0"
             >
-              <span
-                aria-hidden="true"
-                className="material-symbols-outlined text-[20px]"
-              >
+              <span className="material-symbols-outlined text-[17px]">
                 logout
               </span>
             </button>
           </div>
         </div>
-      </header>
-
-      {/* Left Sidebar */}
-      <aside className="fixed start-0 top-16 bottom-0 w-60 bg-white border-e border-slate-200/80 z-40 overflow-y-auto p-4 flex flex-col gap-6">
-        {navigation.operations.length > 0 && (
-          <div className="flex flex-col">
-            <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1 px-3">
-              {t("nav.operations")}
-            </div>
-            <nav className="flex flex-col gap-0.5">
-              {navigation.operations.map((item) => (
-                <Link key={item.to} to={item.to} className={linkClass(item.to)}>
-                  <div className="flex items-center gap-2.5">
-                    <span
-                      aria-hidden="true"
-                      className="material-symbols-outlined text-[18px]"
-                    >
-                      {item.icon}
-                    </span>
-                    <span>{t(`nav.${item.labelKey}`)}</span>
-                  </div>
-                  {item.to === "/results/approvals" &&
-                    badges.pendingApprovals > 0 && (
-                      <span className="text-[11px] px-2 py-0.5 rounded-full bg-slate-100 text-teal-800 font-semibold">
-                        {badges.pendingApprovals}
-                      </span>
-                    )}
-                  {item.to === "/exceptions" && badges.exceptions > 0 && (
-                    <span className="text-[11px] px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-semibold">
-                      {badges.exceptions}
-                    </span>
-                  )}
-                </Link>
-              ))}
-            </nav>
-          </div>
-        )}
-
-        {navigation.management.length > 0 && (
-          <div className="flex flex-col">
-            <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1 px-3">
-              {t("nav.management")}
-            </div>
-            <nav className="flex flex-col gap-0.5">
-              {navigation.management.map((item) => (
-                <Link key={item.to} to={item.to} className={linkClass(item.to)}>
-                  <div className="flex items-center gap-2.5">
-                    <span
-                      aria-hidden="true"
-                      className="material-symbols-outlined text-[18px]"
-                    >
-                      {item.icon}
-                    </span>
-                    <span>{t(`nav.${item.labelKey}`)}</span>
-                  </div>
-                  {item.to === "/settlements" &&
-                    badges.draftSettlements > 0 && (
-                      <span className="text-[11px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 font-semibold">
-                        {badges.draftSettlements}
-                      </span>
-                    )}
-                </Link>
-              ))}
-            </nav>
-          </div>
-        )}
       </aside>
 
-      {/* Main Content Area */}
-      <div className="ps-60 min-h-screen flex flex-col bg-[#f8f9ff]">
-        <main className="flex-1 pt-16">
-          <Outlet />
+      {/* Main Workspace Area */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Veyla Top Bar */}
+        <header className="sticky top-0 z-30 h-16 bg-[var(--veyla-card)]/90 backdrop-blur-md border-b border-[var(--color-border)] px-4 sm:px-6 flex items-center justify-between gap-3 shadow-sm">
+          {/* Left: Mobile Toggle + Breadcrumb */}
+          <div className="flex items-center gap-3 min-w-0">
+            <button
+              type="button"
+              onClick={() => setIsMobileMenuOpen((p) => !p)}
+              className="lg:hidden w-8 h-8 rounded-full flex items-center justify-center text-[var(--color-text)] hover:bg-[var(--veyla-well)]"
+              aria-label="Toggle navigation"
+            >
+              <span className="material-symbols-outlined text-[20px]">
+                menu
+              </span>
+            </button>
+
+            <nav
+              aria-label="Breadcrumb"
+              className="flex items-center gap-1.5 text-xs text-[var(--color-text-muted)] truncate"
+            >
+              <span className="font-semibold text-[var(--color-text)]">
+                {breadcrumb.section}
+              </span>
+              <span>/</span>
+              <span className="text-[var(--color-text-muted)] truncate">
+                {breadcrumb.page}
+              </span>
+            </nav>
+          </div>
+
+          {/* Right: System Status, Lang, Theme Toggle, Bell, Tenant Info, "+ New" Button */}
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+            {/* System Status Pill */}
+            <div className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold bg-[var(--veyla-well)] text-[var(--color-text)] border border-[var(--color-border)]">
+              <span
+                aria-hidden="true"
+                className="w-2 h-2 rounded-full bg-[var(--color-success)] animate-pulse"
+              />
+              <span>Live • System normal</span>
+            </div>
+
+            {/* Language Switcher */}
+            <div className="flex items-center">
+              <LanguageSwitcher compact />
+            </div>
+
+            {/* Circular Reveal Theme Toggle */}
+            <button
+              type="button"
+              onClick={toggleTheme}
+              aria-label={
+                resolved === "dark"
+                  ? "Switch to Light theme"
+                  : "Switch to Dark theme"
+              }
+              title={
+                resolved === "dark"
+                  ? "Switch to Light theme"
+                  : "Switch to Dark theme"
+              }
+              className="w-8 h-8 rounded-full flex items-center justify-center bg-[var(--veyla-well)] text-[var(--color-text)] hover:bg-[var(--veyla-teal)]/40 transition-colors border border-[var(--color-border)]"
+            >
+              <span
+                aria-hidden="true"
+                className="material-symbols-outlined text-[18px]"
+              >
+                {resolved === "dark" ? "light_mode" : "dark_mode"}
+              </span>
+            </button>
+
+            {/* Notification Bell */}
+            <button
+              type="button"
+              title="Notifications"
+              aria-label="Notifications"
+              onClick={() => navigate("/exceptions")}
+              className="relative w-8 h-8 rounded-full flex items-center justify-center bg-[var(--veyla-well)] text-[var(--color-text)] hover:bg-[var(--veyla-teal)]/40 transition-colors border border-[var(--color-border)]"
+            >
+              <span
+                aria-hidden="true"
+                className="material-symbols-outlined text-[18px]"
+              >
+                notifications
+              </span>
+              {badges.exceptions > 0 ? (
+                <span className="absolute top-1 end-1 w-2 h-2 rounded-full bg-[var(--color-danger)] ring-2 ring-[var(--veyla-card)]" />
+              ) : null}
+            </button>
+
+            {/* Tenant Chip */}
+            <div className="hidden md:flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-[var(--veyla-well)] text-[var(--color-text)] border border-[var(--color-border)]">
+              <span className="truncate max-w-[120px]">
+                {tenantName ?? "Apexlab"}
+              </span>
+              {tenantCity ? (
+                <span className="text-[var(--color-text-muted)] font-normal truncate">
+                  • {tenantCity}
+                </span>
+              ) : null}
+            </div>
+
+            {/* Global "+ New" Quick-Create Button */}
+            <button
+              type="button"
+              onClick={() => navigate("/invoices/new")}
+              className="inline-flex items-center gap-1 px-3.5 py-1.5 rounded-full font-bold text-xs bg-[var(--veyla-black)] text-[var(--color-surface)] dark:bg-[var(--color-surface)] dark:text-[var(--veyla-black)] shadow-[var(--shadow-veyla-pill)] hover:opacity-90 active:scale-95 transition-all"
+            >
+              <span className="text-base leading-none">+</span>
+              <span>New</span>
+            </button>
+          </div>
+        </header>
+
+        {/* Content Outlet — only the content area animates on navigation. */}
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto">
+          <PatientsDrawerProvider>
+            <InvoiceDrawerProvider>
+              <PageTransition />
+            </InvoiceDrawerProvider>
+          </PatientsDrawerProvider>
         </main>
       </div>
+
+      {/* Dismissible Post-Login Notices */}
+      {showNotice && noticeKind === "password" && (
+        <PostLoginNotice
+          title="Change Your Password"
+          body={t("auth:modal.body")}
+          primaryLabel="Change Now"
+          onPrimary={() => {
+            dismissNotice("password", user.id);
+            setNoticeDismissedLocally(true);
+            navigate("/settings/account");
+          }}
+          onDismiss={() => {
+            dismissNotice("password", user.id);
+            setNoticeDismissedLocally(true);
+          }}
+        />
+      )}
+
+      {showNotice && noticeKind === "totp" && (
+        <PostLoginNotice
+          title="Enable 2FA on Your Account"
+          primaryLabel="Enable Now"
+          onPrimary={() => {
+            dismissNotice("totp", user.id);
+            setNoticeDismissedLocally(true);
+            navigate("/settings/account");
+          }}
+          onDismiss={() => {
+            dismissNotice("totp", user.id);
+            setNoticeDismissedLocally(true);
+          }}
+        />
+      )}
     </div>
   );
 }

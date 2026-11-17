@@ -22,6 +22,7 @@ from django.conf import settings
 from django.contrib.auth.hashers import check_password, make_password
 from django.core.cache import cache
 from django.db import transaction
+from django.utils import timezone
 from django_tenants.utils import schema_context
 
 from apps.accounts.jwt_engine import (
@@ -120,9 +121,23 @@ class AuthService:
             )
             return False, None, "invalid_credentials"
 
-        # Check TOTP requirements (Doc 01 §14, Doc 08 §4.1). Mandatory roles
-        # must enrol regardless of DEBUG — there is no debug bypass (A2-3).
-        totp_mandated = user.role in MANDATORY_TOTP_ROLES
+        # A one-time temporary password expires 24 hours after it is issued.
+        if (
+            user.password_is_temporary
+            and user.temp_password_expires_at is not None
+            and user.temp_password_expires_at <= timezone.now()
+        ):
+            LoginEvent.objects.create(
+                staff_user=user,
+                email_attempted=clean_email,
+                success=False,
+                ip=ip,
+                user_agent=user_agent,
+            )
+            return False, None, "invalid_credentials"
+
+        # Check TOTP requirements (Doc 01 §14, Doc 08 §4.1). An enrolled
+        # account must present a code; enrolment itself is optional (D2).
 
         if user.totp_enabled:
             LoginEvent.objects.create(
@@ -134,31 +149,22 @@ class AuthService:
             )
             return True, {"totp_required": True, "user_id": str(user.id)}, None
 
-        # A login-issued session is limited while the account is still on a
-        # temporary password or a mandatory-TOTP role has not enrolled yet
-        # (S6). The token carries an ``onboarding`` claim; the normal
-        # authenticated surface rejects it until the flow is finished.
-        onboarding: str | None = None
-        if user.password_is_temporary:
+        # D1/D2 (2026-11-14): a temporary password and a missing TOTP
+        # enrolment never limit the session. Both are surfaced as dismissible
+        # post-login notices, so the dashboard always loads after sign-in.
+        if user.password_is_temporary and user.role == Role.OWNER:
             # First successful owner login consumes the one-time provisioning
             # credential: remove both the (already empty) plaintext slot and
             # its hash from the platform registry. Staff temporary passwords
             # live on StaffUser only and must not clear the owner's record.
-            if user.role == Role.OWNER:
-                cls._clear_tenant_temp_password(tenant_id)
-            onboarding = "password_change"
-        elif totp_mandated and not user.totp_enabled:
-            onboarding = "totp_enroll"
+            cls._clear_tenant_temp_password(tenant_id)
 
         session_data = cls.create_session(
             user,
             ip=ip,
             user_agent=user_agent,
             tenant_id=tenant_id,
-            onboarding=onboarding,
         )
-        if totp_mandated and not user.totp_enabled and not user.password_is_temporary:
-            session_data["totp_enrollment_required"] = True
 
         LoginEvent.objects.create(
             staff_user=user,
@@ -582,10 +588,12 @@ class AuthService:
         with transaction.atomic():
             staff_user.password_hash = make_password(new_password)
             staff_user.password_is_temporary = False
+            staff_user.temp_password_expires_at = None
             staff_user.save(
                 update_fields=[
                     "password_hash",
                     "password_is_temporary",
+                    "temp_password_expires_at",
                     "updated_at",
                 ]
             )
@@ -688,6 +696,22 @@ class AuthService:
     def _challenge_email_key(email: str, tenant_id: str | None) -> str:
         """Cache key for the challenge issued to a (tenant, email) pair."""
         return f"auth:challenge_email:{tenant_id or 'public'}:{email.strip().lower()}"
+
+    @classmethod
+    def clear_pending_totp_challenges(
+        cls, user: StaffUser, tenant_id: str | None = None
+    ) -> None:
+        """Drop a pending enrolment secret and any login challenge for a user.
+
+        Kept here so callers outside the auth module never import the raw
+        cache client (Doc 04 §13.3 allow-list guard).
+        """
+        cache.delete(f"auth:totp_pending:{user.id}")
+        email_key = cls._challenge_email_key(user.email, tenant_id)
+        token = cache.get(email_key)
+        if token:
+            cache.delete(f"auth:challenge:{token}")
+        cache.delete(email_key)
 
     @classmethod
     def store_challenge_for_email(

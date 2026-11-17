@@ -21,6 +21,7 @@ from django_tenants.utils import schema_context
 
 from apps.accounts.models import PasswordResetToken, Role, StaffUser
 from apps.core.models import Domain, Plan, PlatformAudit, Subscription, Tenant
+from apps.core.temp_password import generate_temp_password
 from apps.platform.seeds import seed_tenant_p6_data, seed_tenant_p7_settings
 from apps.platform.tasks import provision_tenant_task
 
@@ -120,11 +121,8 @@ class ProvisioningError(Exception):
         self.errors = errors or {}
 
 
-def generate_temp_password() -> str:
-    chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
-    part1 = "".join(secrets.choice(chars) for _ in range(4))
-    part2 = "".join(secrets.choice(chars) for _ in range(2))
-    return f"LBF-{part1}-{part2}#"
+# ``generate_temp_password`` is imported from apps.core.temp_password: one
+# generator for provisioning, Platform Owner reset and staff resets.
 
 
 @dataclass(frozen=True)
@@ -889,6 +887,9 @@ def create_tenant_owner_activation(
         now = timezone.now()
         owner = StaffUser.objects.filter(email=cleaned_email).first()
         issued_hash = getattr(tenant, "temp_password_hash", "") or ""
+        issued_expires = getattr(tenant, "temp_password_expires_at", None) or (
+            now + timedelta(hours=24)
+        )
         if owner is None:
             # The plaintext credential never reaches the database: the owner
             # login is created from the stored hash, which is all we need.
@@ -900,17 +901,20 @@ def create_tenant_owner_activation(
                 password_hash=issued_hash or make_password(None),
                 is_active=bool(issued_hash),
                 password_is_temporary=bool(issued_hash),
+                temp_password_expires_at=issued_expires if issued_hash else None,
                 totp_enabled=False,
             )
         elif not owner.is_active and issued_hash:
             owner.is_active = True
             owner.password_hash = issued_hash
             owner.password_is_temporary = True
+            owner.temp_password_expires_at = issued_expires
             owner.save(
                 update_fields=[
                     "is_active",
                     "password_hash",
                     "password_is_temporary",
+                    "temp_password_expires_at",
                     "updated_at",
                 ]
             )

@@ -29,6 +29,8 @@ from apps.platform.views_admin import (
     PlatformTenantCompleteOffboardView,
     PlatformTenantDetailView,
     PlatformTenantOffboardView,
+    PlatformTenantOwnerTempPasswordView,
+    PlatformTenantOwnerTotpResetView,
     PlatformTenantReactivateView,
     PlatformTenantResendActivationView,
     PlatformTenantRetryProvisioningView,
@@ -181,6 +183,16 @@ def _platform_paths() -> list:
             "api/v1/platform/tenants/<uuid:tenant_id>/resend-activation",
             PlatformTenantResendActivationView,
             "platform-tenant-resend-activation",
+        ),
+        (
+            "api/v1/platform/tenants/<uuid:tenant_id>/owner/temp-password",
+            PlatformTenantOwnerTempPasswordView,
+            "platform-tenant-owner-temp-password",
+        ),
+        (
+            "api/v1/platform/tenants/<uuid:tenant_id>/owner/reset-2fa",
+            PlatformTenantOwnerTotpResetView,
+            "platform-tenant-owner-reset-2fa",
         ),
         ("api/v1/platform/audit", PlatformAuditListView, "platform-audit-list"),
     ]

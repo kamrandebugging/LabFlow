@@ -222,6 +222,12 @@ export function CollectSampleStep1Screen({
                 value={invoiceQuery}
                 onChange={(e) => setInvoiceQuery(e.target.value)}
                 onKeyDown={(e) => {
+                  // IME guard: Enter that ends an in-progress composition must not search.
+                  if (
+                    e.nativeEvent.isComposing ||
+                    e.nativeEvent.keyCode === 229
+                  )
+                    return;
                   if (e.key === "Enter") {
                     e.preventDefault();
                     handleSearchInvoice(invoiceQuery);

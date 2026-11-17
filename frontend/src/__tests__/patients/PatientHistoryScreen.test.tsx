@@ -50,7 +50,9 @@ describe("Screen 12: Patient History (12-patient-history.html & Doc 03 §5.1)", 
         }),
       ).toBeInTheDocument();
       expect(screen.getAllByText("MRN-2026-00417")[0]).toBeInTheDocument();
-      expect(screen.getByText(/partitioned ledger scope/i)).toBeInTheDocument();
+      expect(
+        screen.getByText(/showing visit history for this patient only/i),
+      ).toBeInTheDocument();
       expect(
         screen.getByText(/patient registration & demographic enrolment/i),
       ).toBeInTheDocument();

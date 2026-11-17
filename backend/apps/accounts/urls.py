@@ -12,6 +12,7 @@ from apps.accounts.views_auth import (
     RevokeAllSessionsView,
     SessionDetailView,
     SessionListView,
+    StaffPasswordRequestView,
     TenantContextView,
     TotpDisableView,
     TotpEnrollConfirmView,
@@ -94,6 +95,17 @@ urlpatterns = [
         "password-reset/request/",
         PasswordResetRequestView.as_view(),
         name="auth-password-reset-request-slash",
+    ),
+    # Staff "forgot password" -> Lab Owner notification (no email, no lookup).
+    path(
+        "password-reset/staff-request",
+        StaffPasswordRequestView.as_view(),
+        name="auth-password-reset-staff-request",
+    ),
+    path(
+        "password-reset/staff-request/",
+        StaffPasswordRequestView.as_view(),
+        name="auth-password-reset-staff-request-slash",
     ),
     path(
         "password-reset/confirm",

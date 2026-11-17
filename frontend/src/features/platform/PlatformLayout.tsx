@@ -6,7 +6,6 @@ interface NavItem {
   name: string;
   path: string;
   icon: string;
-  phase2?: boolean;
 }
 
 const NAV_ITEMS: NavItem[] = [
@@ -16,38 +15,32 @@ const NAV_ITEMS: NavItem[] = [
     name: "Subscriptions",
     path: "/platform/subscriptions",
     icon: "payments",
-    phase2: true,
   },
   {
     name: "Access",
     path: "/platform/access",
     icon: "admin_panel_settings",
-    phase2: true,
   },
-  { name: "Users", path: "/platform/users", icon: "group", phase2: true },
+  { name: "Users", path: "/platform/users", icon: "group" },
   {
     name: "Demo Requests",
     path: "/platform/demo-requests",
     icon: "contact_page",
-    phase2: true,
   },
   {
     name: "Health",
     path: "/platform/health",
     icon: "monitor_heart",
-    phase2: true,
   },
   {
     name: "Audit Log",
     path: "/platform/audit",
     icon: "receipt_long",
-    phase2: true,
   },
   {
     name: "Settings",
     path: "/platform/settings",
     icon: "settings",
-    phase2: true,
   },
 ];
 
@@ -63,6 +56,8 @@ export function PlatformLayout({
   const [searchQuery, setSearchQuery] = useState("");
 
   const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // IME guard: Enter that ends an in-progress composition must not submit.
+    if (e.nativeEvent.isComposing || e.nativeEvent.keyCode === 229) return;
     if (e.key === "Enter" && searchQuery.trim()) {
       navigate(`/platform/tenants?q=${encodeURIComponent(searchQuery.trim())}`);
     }
@@ -110,7 +105,7 @@ export function PlatformLayout({
                 <Link
                   key={item.path}
                   to={item.path}
-                  className={`flex items-center justify-between px-space-sm py-space-xs rounded transition-colors ${
+                  className={`flex items-center px-space-sm py-space-xs rounded transition-colors ${
                     isActive
                       ? "bg-primary-container text-on-primary-container font-label-md shadow-sm"
                       : "text-outline-variant hover:bg-white/5 hover:text-surface-container-lowest"
@@ -124,11 +119,6 @@ export function PlatformLayout({
                       {item.name}
                     </span>
                   </div>
-                  {item.phase2 && (
-                    <span className="text-[10px] font-code-sm uppercase px-1 py-0.5 rounded bg-white/10 text-outline-variant">
-                      P2
-                    </span>
-                  )}
                 </Link>
               );
             })}

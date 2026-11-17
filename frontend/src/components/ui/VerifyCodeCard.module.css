@@ -1,0 +1,414 @@
+/* Verify Code card — locked design, neumorphism hybrid, remapped to tokens.
+   Motions are the locked ones: rise 0.9s, ring 60s/rev, caret 1s. */
+
+@property --ring-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+
+.stage {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+.shrink {
+  width: 660px;
+  height: 330px;
+  transform-origin: top center;
+  flex: 0 0 auto;
+}
+
+.card {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 52px;
+  padding: 8px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-card-border);
+  box-shadow: var(--shadow-neu-card);
+  animation: cardRise 900ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.ring {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1.2px;
+  background: conic-gradient(
+    from var(--ring-angle),
+    var(--color-brand),
+    var(--color-leaf) 55%,
+    var(--color-gold) 72%,
+    var(--color-brand)
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  animation: ringSpin 60s linear infinite;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.face {
+  position: relative;
+  z-index: 1;
+  height: 100%;
+  border-radius: 44px;
+  background: var(--color-surface);
+  box-shadow: var(--shadow-neu-inset);
+  padding: 22px 30px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow: hidden;
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.titles {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.title {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.15;
+  color: var(--color-text);
+}
+
+.subline {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--color-text-muted);
+}
+
+.statusRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid var(--color-card-border);
+  padding-bottom: 8px;
+}
+
+.barTitle {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.status {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  letter-spacing: 0.02em;
+  color: var(--color-brand);
+  font-variant-numeric: tabular-nums;
+}
+
+.statusExpired {
+  color: var(--color-error);
+}
+
+.codeArea {
+  position: relative;
+  min-height: 76px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cells {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.cellGroup {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.dash {
+  width: 8px;
+  height: 1.5px;
+  border-radius: 1px;
+  background: var(--color-border-strong);
+  flex: 0 0 auto;
+}
+
+.cellWrap {
+  position: relative;
+  width: 76px;
+  height: 76px;
+}
+
+.cell {
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  text-align: center;
+  font-family: var(--font-body);
+  font-weight: 300;
+  font-size: 38px;
+  line-height: 1;
+  color: var(--color-text);
+  background: var(--color-well);
+  border: 1px solid var(--color-border);
+  border-radius: 20px;
+  box-shadow:
+    var(--shadow-neu-inset),
+    inset 0 0 0 1px var(--color-border);
+  caret-color: transparent;
+  outline: none;
+}
+
+.cell:focus-visible {
+  border-color: var(--ring-color);
+  outline: 2px solid var(--ring-color);
+  outline-offset: 3px;
+}
+
+.cellLit {
+  border-color: var(--color-brand);
+  box-shadow:
+    var(--shadow-neu-inset),
+    inset 0 0 0 1px var(--color-brand),
+    0 0 0 1px var(--color-brand),
+    0 0 14px var(--glow-brand);
+}
+
+.cellActive {
+  border-color: var(--ring-color);
+}
+
+.cellChecked {
+  /* State edge uses the brand token: leaf is decorative in light (2.3:1),
+     brand clears 3:1 on both themes. */
+  border-color: var(--color-brand);
+  color: var(--color-brand);
+  box-shadow:
+    var(--shadow-neu-inset),
+    inset 0 0 0 1px var(--color-brand),
+    0 0 0 1px var(--color-brand),
+    0 0 16px var(--glow-brand);
+  animation: cellCheck 120ms ease both;
+  animation-delay: calc(var(--cell-index) * 90ms);
+}
+
+.caret {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 2px;
+  height: 34px;
+  margin: -17px 0 0 -1px;
+  border-radius: 1px;
+  background: var(--ring-color);
+  animation: blink 1s step-end infinite;
+  pointer-events: none;
+}
+
+.cellsChecked {
+  animation: collapseCells 280ms ease 620ms both;
+}
+
+.verified {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  animation: verifiedIn 240ms ease 700ms both;
+}
+
+.verifiedRing {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  border: 2px solid var(--color-brand);
+  color: var(--color-brand);
+  box-shadow: 0 0 16px var(--glow-brand);
+}
+
+.verifiedLabel {
+  font-family: var(--font-heading);
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.error {
+  margin: 0;
+  padding: 7px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--color-error-border);
+  background: var(--color-error-tint);
+  color: var(--color-error);
+  font-family: var(--font-body);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: auto;
+}
+
+.primary,
+.secondary {
+  min-height: 44px;
+  padding: 0 22px;
+  border-radius: 14px;
+  font-family: var(--font-body);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background-color 160ms ease,
+    color 160ms ease,
+    border-color 160ms ease;
+}
+
+.primary {
+  border: 1px solid var(--color-brand-fill);
+  background: var(--color-brand-fill);
+  color: var(--color-on-brand-fill);
+}
+
+.primary:hover:not(:disabled) {
+  border-color: var(--color-text);
+}
+
+.primary:focus-visible {
+  outline: 2px solid var(--ring-color);
+  outline-offset: 3px;
+}
+
+.primary:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.secondary {
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text-muted);
+}
+
+.secondary:hover:not(:disabled) {
+  border-color: var(--color-brand);
+  color: var(--color-text);
+}
+
+.secondary:focus-visible {
+  outline: 2px solid var(--ring-color);
+  outline-offset: 3px;
+}
+
+.secondary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+@keyframes cardRise {
+  from {
+    opacity: 0.6;
+    transform: translateY(24px);
+    filter: blur(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+@keyframes ringSpin {
+  to {
+    --ring-angle: 360deg;
+  }
+}
+
+@keyframes blink {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes cellCheck {
+  from {
+    border-color: var(--color-brand);
+  }
+  to {
+    border-color: var(--color-brand);
+  }
+}
+
+@keyframes collapseCells {
+  to {
+    opacity: 0;
+    transform: scale(0.94);
+    visibility: hidden;
+  }
+}
+
+@keyframes verifiedIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card,
+  .ring,
+  .caret,
+  .cellChecked,
+  .cellsChecked,
+  .verified {
+    animation: none;
+  }
+
+  .cellsChecked {
+    visibility: hidden;
+  }
+}

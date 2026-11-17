@@ -156,6 +156,22 @@
     "error_cancel_reason": "منسوخی کی وجہ لازمی ہے۔",
     "toast_payment": "{{amount}} کی ادائیگی کامیابی سے درج ہو گئی۔",
     "toast_refund": "{{amount}} کی واپسی کامیابی سے درج ہو گئی۔",
-    "toast_cancelled": "بل کامیابی سے منسوخ ہو گیا۔"
+    "toast_cancelled": "بل کامیابی سے منسوخ ہو گیا۔",
+    "cancel_invoice": "موائی کریں",
+    "refund_reason_required": "ریفنڈ کے لیے وجہ لازمی ہے۔"
+  },
+  "print": {
+    "patient_label": "مریض",
+    "mrn_label": "MRN",
+    "datetime_label": "تاریخ و وقت",
+    "reporting_time_label": "رپورٹنگ وقت",
+    "paid_label": "ادا شدہ",
+    "format_a5": "A5 پورٹریٹ",
+    "format_thermal": "80 ملی میٹر تھرمل",
+    "hint_a5": "پرنٹ ڈائیلاگ میں: Margins — None، Headers & footers — آف۔",
+    "hint_thermal": "80 ملی میٹر رول، 72 ملی میٹر پرنٹنگ چوڑائی۔ پرنٹ ڈائیلاگ میں: Margins — None، Headers & footers — آف۔",
+    "measuring": "کاغذ کی اونچائی ناپی جا رہی ہے...",
+    "pickup_en": "Report will be issued after full payment. Bring this receipt to collect your report.",
+    "pickup_ur": "رپورٹ مکمل ادائیگی کے بعد جاری کی جائے گی۔ اپنی رپورٹ لینے کے لیے یہ رسید اپنے ساتھ لائیں۔"
   }
 }

@@ -73,4 +73,6 @@ export interface StaffTempPasswordResponse {
   staff: StaffRow;
   temp_password: string;
   password_is_temporary: boolean;
+  /** 24-hour expiry of the one-time temporary password. */
+  expires_at?: string;
 }

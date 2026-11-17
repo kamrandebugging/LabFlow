@@ -1,0 +1,473 @@
+/* ============================================================
+   Invoice print route — dedicated receipt window.
+   A5 portrait (default) and 80mm thermal (72mm printable).
+   Black text on white in both formats, in light and dark mode.
+   ============================================================ */
+
+.stage {
+  min-height: 100vh;
+  background: var(--veyla-page, #eaecec);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 20px 12px 48px;
+}
+
+/* ---------- Toolbar (screen only, never printed) ---------- */
+
+.toolbar {
+  position: sticky;
+  top: 12px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  width: 100%;
+  max-width: 640px;
+  padding: 9px 12px;
+  background: var(--color-surface, #feffff);
+  border-radius: 9999px;
+  box-shadow: var(--shadow-veyla-card);
+}
+
+.iconBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 9999px;
+  color: var(--color-text-muted, #596060);
+  background: var(--color-well, #f4f6f6);
+  flex-shrink: 0;
+}
+
+.iconBtn:hover {
+  color: var(--color-text, #121011);
+}
+
+.toolbarTitle {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text, #121011);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.toggle {
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  background: var(--color-well, #f4f6f6);
+  border-radius: 9999px;
+  margin-inline-start: auto;
+}
+
+.toggleBtn {
+  padding: 5px 13px;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text-muted, #596060);
+  white-space: nowrap;
+}
+
+.toggleBtnActive {
+  background: var(--color-text, #121011);
+  color: var(--color-surface, #feffff);
+}
+
+.printBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 9999px;
+  background: var(--color-text, #121011);
+  color: var(--color-surface, #feffff);
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.printBtn:disabled {
+  opacity: 0.55;
+  cursor: progress;
+}
+
+.hint {
+  max-width: 640px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--color-text-muted, #596060);
+}
+
+/* ---------- Paper sheet ---------- */
+
+.sheet {
+  background: #ffffff;
+  color: #000000;
+  box-shadow: var(--shadow-veyla-hover);
+}
+
+.sheetA5 {
+  width: 148mm;
+  max-width: 100%;
+  padding: 10mm 10mm 12mm;
+  box-sizing: border-box;
+}
+
+.sheetThermal {
+  width: 72mm;
+  padding: 2mm 2mm 3mm;
+  box-sizing: border-box;
+}
+
+/* ---------- Receipt body ---------- */
+
+.receipt {
+  width: 100%;
+  min-width: 0;
+  background: #ffffff;
+  color: #000000;
+  font-family: Inter, system-ui, "Segoe UI", "Noto Sans Arabic", sans-serif;
+  font-size: 8.5pt;
+  line-height: 1.4;
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.sheetThermal .receipt {
+  font-size: 7.5pt;
+  line-height: 1.35;
+}
+
+.header {
+  text-align: center;
+}
+
+.labName {
+  margin: 0;
+  font-size: 15pt;
+  font-weight: 800;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+
+.sheetThermal .labName {
+  font-size: 11.5pt;
+}
+
+.branch {
+  margin: 1mm 0 0;
+  font-size: 10.5pt;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.sheetThermal .branch {
+  font-size: 9pt;
+}
+
+.address {
+  margin: 0.8mm 0 0;
+  font-size: 10pt;
+  overflow-wrap: anywhere;
+}
+
+.phone {
+  margin: 0.5mm 0 0;
+  font-size: 10pt;
+  overflow-wrap: anywhere;
+}
+
+.sheetThermal .address,
+.sheetThermal .phone {
+  font-size: 8.5pt;
+}
+
+.divider {
+  border: 0;
+  border-top: 1.5px solid #000000;
+  margin: 2.5mm 0;
+}
+
+.invoiceRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 3mm;
+}
+
+.invoiceNo {
+  font-size: 11pt;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.sheetThermal .invoiceNo {
+  font-size: 9.5pt;
+}
+
+.statusPill {
+  border: 1px solid #000000;
+  border-radius: 9999px;
+  padding: 0.3mm 2.5mm;
+  font-size: 7.5pt;
+  font-weight: 700;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.meta {
+  margin-top: 1.5mm;
+}
+
+.metaRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 4mm;
+  padding: 0.5mm 0;
+}
+
+.metaLabel {
+  flex-shrink: 0;
+  font-weight: 600;
+}
+
+.metaValue {
+  min-width: 0;
+  text-align: end;
+  overflow-wrap: anywhere;
+}
+
+/* ---------- Test lines ---------- */
+
+.items {
+  margin-top: 2mm;
+}
+
+.lineItem {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0 4mm;
+  padding: 0.9mm 0;
+  border-bottom: 1px dotted rgba(0, 0, 0, 0.4);
+}
+
+.lineName {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.lineCalc {
+  margin-inline-start: auto;
+  white-space: nowrap;
+}
+
+.emptyItems {
+  margin: 1mm 0 0;
+  font-style: italic;
+}
+
+/* ---------- Money block: never split across pages ---------- */
+
+.moneyBlock {
+  margin-top: 2.5mm;
+  padding-top: 1.5mm;
+  border-top: 1.5px solid #000000;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.moneyRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 4mm;
+  padding: 0.6mm 0;
+}
+
+.moneyRow span:first-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.moneyRow span:last-child {
+  white-space: nowrap;
+}
+
+.moneyRowStrong {
+  font-weight: 700;
+  font-size: 1.08em;
+  border-top: 1px solid #000000;
+  margin-top: 0.8mm;
+  padding-top: 1.2mm;
+}
+
+/* ---------- Barcode (existing in-repo Code128 component) ---------- */
+
+.barcodeWrap {
+  display: flex;
+  justify-content: center;
+  margin-top: 2.5mm;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.barcode {
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.barcode svg {
+  max-width: 100%;
+  height: auto;
+}
+
+.barcode span {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+/* ---------- Bilingual pickup instruction ---------- */
+
+.pickup {
+  margin-top: 2.5mm;
+  padding: 1.5mm 2mm;
+  border: 1px dashed #000000;
+  text-align: center;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.pickupEn {
+  margin: 0;
+  font-size: 8pt;
+}
+
+.pickupUr {
+  margin: 1mm 0 0;
+  font-size: 9.5pt;
+  line-height: 1.7;
+  font-family: "Noto Naskh Arabic", "Noto Sans Arabic", serif;
+}
+
+.sheetThermal .pickupEn {
+  font-size: 7pt;
+}
+
+.sheetThermal .pickupUr {
+  font-size: 8.5pt;
+}
+
+/* ---------- Tiny footer credit — the only LabFlow mention ---------- */
+
+.credit {
+  margin: 2.5mm 0 0;
+  text-align: center;
+  font-size: 7pt;
+  line-height: 1.3;
+  color: #777777;
+}
+
+.sheetThermal .credit {
+  font-size: 7.5pt;
+}
+
+.contact {
+  margin: 0.6mm 0 0;
+  text-align: center;
+  font-size: 7pt;
+  line-height: 1.3;
+  color: #777777;
+}
+
+.sheetThermal .contact {
+  font-size: 7.5pt;
+}
+
+/* ---------- Loading / error states ---------- */
+
+.centerState {
+  min-height: 60vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  text-align: center;
+  padding: 24px;
+  color: var(--color-text-muted, #596060);
+}
+
+.errorCard {
+  background: var(--color-surface, #feffff);
+  border-radius: 16px;
+  padding: 24px;
+  max-width: 420px;
+  width: 100%;
+  box-shadow: var(--shadow-veyla-card);
+  color: var(--color-body, #242626);
+}
+
+.errorTitle {
+  margin: 0 0 6px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-text, #121011);
+}
+
+.errorBody {
+  margin: 0 0 16px;
+  font-size: 13px;
+}
+
+.backBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 18px;
+  border-radius: 9999px;
+  background: var(--color-text, #121011);
+  color: var(--color-surface, #feffff);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+/* ---------- Print: receipt only, no chrome ---------- */
+
+@media print {
+  .stage {
+    min-height: 0;
+    display: block;
+    padding: 0 !important;
+    margin: 0;
+    background: #ffffff !important;
+    gap: 0;
+  }
+
+  .toolbar,
+  .hint,
+  .no-print {
+    display: none !important;
+  }
+
+  .sheet {
+    box-shadow: none !important;
+    border: none !important;
+    margin: 0 !important;
+  }
+
+  /* A5: @page margins supply the 10/10/12/10mm frame, so the sheet
+     must not add its own on paper — content width stays 128mm. */
+  .sheetA5 {
+    width: auto !important;
+    padding: 0 !important;
+  }
+}

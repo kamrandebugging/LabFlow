@@ -1,0 +1,945 @@
+/* Patient detail + audit history — Veyla look, tokens only.
+   Cards carry soft elevation; badges, pills and timelines stay flat. */
+
+.page {
+  min-height: 100vh;
+  padding: 32px;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+.container {
+  width: 100%;
+  max-width: 1180px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.breadcrumb {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+  padding: 0;
+  list-style: none;
+  color: var(--color-text-muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.breadcrumbLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 44px;
+  padding: 0 4px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-text-muted);
+  font: inherit;
+  cursor: pointer;
+}
+
+.breadcrumbLink:hover {
+  color: var(--color-text);
+}
+
+.breadcrumbLink:focus-visible {
+  outline: 2px solid var(--ring-color);
+  outline-offset: 3px;
+}
+
+.crumbIcon {
+  width: 14px;
+  height: 14px;
+}
+
+.crumbSep {
+  color: var(--color-text-subtle);
+}
+
+.crumbCurrent {
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+.crumbMrn {
+  color: var(--color-text);
+  font-family: var(--font-mono);
+  font-weight: 600;
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.nameRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.title {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: clamp(24px, 3vw, 32px);
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: 0.01em;
+  color: var(--color-text);
+}
+
+.activeBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--color-success-border);
+  background: var(--color-success-tint);
+  color: var(--color-success);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.statusIcon {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+}
+
+.branchPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: var(--color-well);
+  color: var(--color-text-muted);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.metaLine {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.metaStrong {
+  color: var(--color-text);
+  font-weight: 700;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Destructive control sits apart from the primary CTA on desktop. */
+.dangerSeparator {
+  display: inline-flex;
+}
+
+@media (min-width: 1024px) {
+  .dangerSeparator {
+    margin-inline-start: 12px;
+    padding-inline-start: 12px;
+    border-inline-start: 1px solid var(--color-border);
+  }
+}
+
+.secondaryButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-control);
+  color: var(--color-text);
+  font-family: var(--font-body);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease;
+}
+
+.secondaryButton:hover {
+  background: var(--color-well);
+}
+
+.secondaryButton:active {
+  box-shadow: none;
+  background: var(--color-well);
+}
+
+.secondaryButton:focus-visible {
+  outline: 2px solid var(--ring-color);
+  outline-offset: 3px;
+}
+
+.primaryButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 18px;
+  border-radius: 999px;
+  border: 1px solid var(--color-brand-fill);
+  background: var(--color-brand-fill);
+  color: var(--color-on-brand-fill);
+  font-family: var(--font-body);
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.primaryButton:focus-visible {
+  outline: 2px solid var(--ring-color);
+  outline-offset: 3px;
+}
+
+.dangerButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  border: 1px solid var(--color-danger-border);
+  background: var(--color-danger-tint);
+  color: var(--color-danger);
+  cursor: pointer;
+}
+
+.dangerButton:hover {
+  border-color: var(--color-danger);
+}
+
+.dangerButton:focus-visible {
+  outline: 2px solid var(--ring-color);
+  outline-offset: 3px;
+}
+
+.dangerButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.buttonIcon {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 24px;
+}
+
+.card {
+  padding: 24px;
+  border-radius: var(--radius-card);
+  border: 1px solid var(--color-card-border);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-veyla-card);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.cardHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--color-card-border);
+}
+
+.cardTitle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  line-height: 1.4;
+  text-transform: uppercase;
+  color: var(--color-text);
+}
+
+.cardIcon {
+  width: 18px;
+  height: 18px;
+  color: var(--color-brand);
+  flex: 0 0 auto;
+}
+
+.idText {
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+
+.fieldGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.fieldLabel {
+  color: var(--color-text-muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.fieldValue {
+  color: var(--color-text);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.monoValue {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-text);
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.inlineIcon {
+  width: 14px;
+  height: 14px;
+  color: var(--color-text-muted);
+  flex: 0 0 auto;
+}
+
+.consentOn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--color-success-border);
+  background: var(--color-success-tint);
+  color: var(--color-success);
+  font-size: 13px;
+  font-weight: 700;
+  width: fit-content;
+}
+
+.consentOff {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background: var(--color-well);
+  color: var(--color-text-muted);
+  font-size: 13px;
+  font-weight: 700;
+  width: fit-content;
+}
+
+.compliance {
+  padding-top: 8px;
+  border-top: 1px solid var(--color-card-border);
+  color: var(--color-text-muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.auditBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--color-info-border);
+  background: var(--color-info-tint);
+  color: var(--color-info);
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 14px;
+  border: 1px solid var(--color-info-border);
+  background: var(--color-info-tint);
+  color: var(--color-text-muted);
+}
+
+.noticeIcon {
+  width: 20px;
+  height: 20px;
+  color: var(--color-info);
+  flex: 0 0 auto;
+}
+
+.noticeLabel {
+  color: var(--color-text);
+  font-weight: 700;
+}
+
+.noticeText {
+  color: var(--color-text-muted);
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.inlineMono {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.event {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px;
+  border-radius: var(--radius-card);
+  border: 1px solid var(--color-card-border);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-veyla-card);
+}
+
+.eventHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--color-card-border);
+}
+
+.eventTitleRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--color-brand);
+  box-shadow: 0 0 0 4px var(--color-success-tint);
+  flex: 0 0 auto;
+}
+
+.dotMuted {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid var(--color-text-muted);
+  background: var(--color-surface);
+  flex: 0 0 auto;
+}
+
+.eventTitle {
+  color: var(--color-text);
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.eventDate {
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: 14px;
+}
+
+.eventGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+.eventLabel {
+  display: block;
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+
+.eventValue {
+  color: var(--color-text);
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.verified {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--color-success);
+  font-weight: 700;
+}
+
+.note {
+  color: var(--color-text-muted);
+  font-size: 15px;
+  font-style: italic;
+  line-height: 1.5;
+}
+
+.loading,
+.errorState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 360px;
+  padding: 32px;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid var(--color-danger-border);
+  background: var(--color-danger-tint);
+  color: var(--color-danger);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+/* Confirmation modal — same scrim/card pattern as the invoice screens. */
+.scrim {
+  position: fixed;
+  inset: 0;
+  /* Above the fixed 64px shell header (z-index 50) so the dialog blocks the
+     whole screen, not just the content column. */
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: var(--color-overlay);
+}
+
+.modal {
+  width: 100%;
+  max-width: 460px;
+  padding: 24px;
+  border-radius: var(--radius-card);
+  border: 1px solid var(--color-card-border);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-veyla-dropdown);
+}
+
+.modalTitle {
+  margin: 0 0 8px;
+  font-family: var(--font-heading);
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.modalText {
+  margin: 0 0 16px;
+  color: var(--color-text-muted);
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.modalIdentity {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0 0 16px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border);
+  background: var(--color-well);
+}
+
+.modalIdentityRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.modalIdentityLabel {
+  color: var(--color-text-muted);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.modalIdentityValue {
+  margin: 0;
+  color: var(--color-text);
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.modalActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.modalDanger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 18px;
+  border-radius: 999px;
+  border: 1px solid var(--color-danger);
+  background: var(--color-danger);
+  color: var(--color-surface);
+  font-family: var(--font-body);
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.modalDanger:hover {
+  border-color: var(--color-danger-border);
+}
+
+.modalDanger:focus-visible {
+  outline: 2px solid var(--ring-color);
+  outline-offset: 3px;
+}
+
+.modalDanger:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.errorIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 1px solid var(--color-danger-border);
+  background: var(--color-danger-tint);
+  color: var(--color-danger);
+}
+
+.errorTitle {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.errorText {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 15px;
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Existing 2s status pulse, now carried by the badge icon. Runs only when the
+   user has not requested reduced motion (WCAG 2.2 SC 2.2.2). */
+@media (prefers-reduced-motion: no-preference) {
+  .pulse {
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pulse {
+    animation: none;
+    opacity: 1;
+  }
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@media (min-width: 640px) {
+  .fieldGrid {
+    grid-template-columns: 1fr 1fr;
+  }
+  .eventGrid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .grid {
+    grid-template-columns: 2fr 1fr;
+  }
+  .header {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+}
+
+@media (max-width: 760px) {
+  .page {
+    padding: 18px 14px;
+  }
+  .card {
+    padding: 18px 16px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spin {
+    animation: none;
+  }
+}
+
+/* -------------------------------------------------------------- record drawer --
+   The record drawer is a narrow single column at EVERY viewport width. The
+   page grid's 2fr/1fr and the field grid's two-column media queries are
+   viewport-based, so they used to split the cards inside a 500px panel and
+   wrap the labels ("Biological / Sex", "Date of / Birth").
+   ---------------------------------------------------------------------------- */
+.drawerShell {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 100%;
+}
+
+/* The card column fills the body so the last card meets the footer instead of
+   leaving a large white gap above the actions. */
+.drawerShell .grid {
+  grid-template-columns: 1fr;
+  grid-template-rows: auto 1fr;
+  gap: 12px;
+  flex: 1 1 auto;
+}
+
+/* Two label/value columns inside the cards: the panel is 640px, so labels
+   like "Biological Sex" and "Date of Birth" stay on one line and the card
+   stops leaving half its width empty. */
+.drawerShell .fieldGrid {
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 20px;
+}
+
+.drawerShell .card {
+  padding: 18px 20px;
+  gap: 10px;
+}
+
+.drawerShell .cardHead {
+  padding-bottom: 10px;
+}
+
+.drawerShell .fieldLabel {
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.drawerShell .fieldValue,
+.drawerShell .monoValue {
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+/* -------------------------------------------------- drawer footer alignment --
+   All four actions sit on ONE right-aligned row in the drawer footer.
+   --------------------------------------------------------------------------- */
+.drawerFooterActions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.drawerFooterActions .actions {
+  flex-wrap: nowrap;
+  justify-content: flex-end;
+  margin-inline-start: auto;
+  width: 100%;
+}
+
+/* Footer buttons keep their natural width: no shrinking, no wrapped labels. */
+.drawerFooterActions .actions > * {
+  flex: 0 0 auto;
+}
+
+.drawerFooterActions button {
+  white-space: nowrap;
+  padding-inline: 14px;
+}
+
+@media (max-width: 560px) {
+  .drawerFooterActions .actions {
+    flex-wrap: wrap;
+  }
+}
+
+/* ---------------------------------------------------------------- drawer tabs --
+   Segmented control at the top of the record drawer. Pill geometry, Veyla
+   tokens only, near-black active state like the sidebar.
+   ----------------------------------------------------------------------------- */
+.drawerTabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 999px;
+  background: var(--veyla-well);
+  border: 1px solid var(--color-border);
+}
+
+.drawerTab {
+  min-height: 34px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition:
+    background-color var(--motion-fast) var(--ease-out),
+    color var(--motion-fast) var(--ease-out);
+}
+
+.drawerTab:hover {
+  color: var(--color-text);
+}
+
+.drawerTab:focus-visible {
+  outline: 2px solid var(--color-accent-text);
+  outline-offset: 2px;
+}
+
+.drawerTabActive,
+.drawerTabActive:hover {
+  background: var(--veyla-black);
+  color: var(--color-surface);
+  box-shadow: var(--shadow-veyla-pill);
+}
+
+[data-theme="dark"] .drawerTabActive,
+[data-theme="dark"] .drawerTabActive:hover {
+  background: var(--color-surface);
+  color: var(--veyla-black);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .drawerTab {
+    transition: none;
+  }
+}
+
+/* Small inline-edit affordance in the card header. */
+.cardEdit {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 36px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: var(--veyla-well);
+  color: var(--color-text);
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    color var(--motion-fast) var(--ease-out),
+    background-color var(--motion-fast) var(--ease-out);
+}
+
+.cardEdit:hover {
+  color: var(--color-text);
+  background: var(--color-surface);
+}
+
+.cardEdit:focus-visible {
+  outline: 2px solid var(--color-accent-text);
+  outline-offset: 2px;
+}
+
+.cardEditIcon {
+  width: 13px;
+  height: 13px;
+}

@@ -102,6 +102,7 @@ ROLE_POLICY: Final[dict[str, dict[str, frozenset[str]]]] = {
         "POST": frozenset({ROLE_OWNER, ROLE_MANAGER, ROLE_RECEPTION, ROLE_TECHNICIAN})
     },
     "sample-events": {"GET": ALL_STAFF},
+    "sample-daily-stats": {"GET": ALL_STAFF},
     "transfer-receive": {
         "POST": frozenset({ROLE_OWNER, ROLE_MANAGER, ROLE_RECEPTION, ROLE_TECHNICIAN})
     },
@@ -167,12 +168,16 @@ ROLE_POLICY: Final[dict[str, dict[str, frozenset[str]]]] = {
     "export-request": {"POST": OWNER_ONLY},
     "export-detail": {"GET": OWNER_ONLY},
     # --- Staff management ----------------------------------------------------
-    "staff-collection": {"GET": OWNER_ONLY, "POST": OWNER_ONLY},
+    # GET is ADMIN: the Manager dashboard needs the (server-narrowed)
+    # Receptionist/Technician list for the "Staff passwords" section.
+    "staff-collection": {"GET": ADMIN, "POST": OWNER_ONLY},
     "staff-detail": {"GET": OWNER_ONLY, "PATCH": OWNER_ONLY},
     "staff-deactivate": {"POST": OWNER_ONLY},
     "staff-reactivate": {"POST": OWNER_ONLY},
-    "staff-reset-password": {"POST": OWNER_ONLY},
-    "staff-totp-reset": {"POST": OWNER_ONLY},
+    "staff-reset-password": {"POST": ADMIN},
+    "staff-totp-reset": {"POST": ADMIN},
+    "staff-password-requests": {"GET": ADMIN},
+    "staff-password-request-resolve": {"POST": ADMIN},
     "staff-branches": {"GET": ADMIN, "PUT": OWNER_ONLY},
 }
 
@@ -185,6 +190,7 @@ PUBLIC_URL_NAMES: Final[frozenset[str]] = frozenset(
         "auth-refresh",
         "auth-totp-verify",
         "auth-password-reset-request",
+        "auth-password-reset-staff-request",
         "auth-password-reset-confirm",
         "report-access",
         "report-file-download",

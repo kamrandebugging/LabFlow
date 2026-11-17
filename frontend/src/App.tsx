@@ -12,18 +12,16 @@ import { useAuthStore } from "./features/auth/authStore";
 import { refreshSession } from "./lib/apiClient";
 import i18n, { applyDocumentLanguage, isPlatformRoute } from "./i18n";
 import { StaffLoginScreen } from "./features/auth/StaffLoginScreen";
+import { clearNoticeDismissals } from "./features/auth/postLoginNotice";
 import { TenantEnrollScreen } from "./features/auth/TenantEnrollScreen";
 import { TwoFactorAuthScreen } from "./features/auth/TwoFactorAuthScreen";
 import { PatientListScreen } from "./features/patients/PatientListScreen";
-import { RegisterPatientScreen } from "./features/patients/RegisterPatientScreen";
-import { PatientDetailsScreen } from "./features/patients/PatientDetailsScreen";
-import { PatientEditScreen } from "./features/patients/PatientEditScreen";
-import { PatientHistoryScreen } from "./features/patients/PatientHistoryScreen";
+import { usePatientsDrawer } from "./features/patients/patientsDrawerContext";
+import { useInvoiceDrawer } from "./features/billing/invoiceDrawerContext";
 import { TestCatalogScreen } from "./features/catalog/TestCatalogScreen";
 import { TestPanelsScreen } from "./features/catalog/TestPanelsScreen";
 import { InvoicesListScreen } from "./features/billing/InvoicesListScreen";
-import { NewInvoiceScreen } from "./features/billing/NewInvoiceScreen";
-import { InvoiceDetailScreen } from "./features/billing/InvoiceDetailScreen";
+import { InvoicePrintScreen } from "./features/billing/InvoicePrintScreen";
 import {
   SampleAccessioningListScreen,
   CollectSampleStep1Screen,
@@ -52,7 +50,6 @@ import {
   AccountSecurityScreen,
   DataExportScreen,
 } from "./features/settings";
-import { settingsService } from "./features/settings/settingsService";
 import {
   PartnersListScreen,
   PartnerDetailScreen,
@@ -177,11 +174,9 @@ export function StaffLoginWrapper(): JSX.Element {
         if (challengeToken) query.set("challenge", challengeToken);
         navigate(`/login/2fa?${query.toString()}`);
       }}
-      onTotpEnrollmentRequired={(session) => {
-        useAuthStore.getState().setSession(session.access, session.user);
-        navigate("/login/enroll");
-      }}
       onSuccess={(session) => {
+        // D1/D2: each fresh login re-arms the dismissible post-login notices.
+        clearNoticeDismissals();
         useAuthStore.getState().setSession(session.access, session.user);
         navigate(roleHome(session.user?.role));
       }}
@@ -219,6 +214,7 @@ function TwoFactorAuthWrapper(): JSX.Element {
       terminalId={tenantInfo?.terminalId}
       onBack={() => navigate("/login")}
       onSuccess={(session) => {
+        clearNoticeDismissals();
         useAuthStore.getState().setSession(session.access, session.user);
         navigate(roleHome(session.user?.role));
       }}
@@ -227,112 +223,35 @@ function TwoFactorAuthWrapper(): JSX.Element {
 }
 
 function PatientListWrapper(): JSX.Element {
-  const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
   const canRegister = canAccessPath(user?.role, "/patients/new");
   return (
     <main className="min-h-screen bg-slate-50">
       <PatientListScreen
-        onNewPatient={canRegister ? () => navigate("/patients/new") : undefined}
-        onSelectPatient={(id) => navigate(`/patients/${id}`)}
+        onNewPatient={canRegister ? () => undefined : undefined}
       />
     </main>
   );
 }
 
-function RegisterPatientWrapper(): JSX.Element {
-  const navigate = useNavigate();
-  const [branchId, setBranchId] = useState<string | null>(null);
-  const [branchError, setBranchError] = useState<string | null>(null);
+/**
+ * Direct load of /patients/:id must show the list with the record drawer
+ * already open, not a full-page record. The list stays mounted behind it.
+ */
+function PatientDetailRouteWrapper(): JSX.Element {
+  const { id } = useParams<{ id: string }>();
+  const { openDetail } = usePatientsDrawer();
   const user = useAuthStore((state) => state.user);
+  const canRegister = canAccessPath(user?.role, "/patients/new");
 
   useEffect(() => {
-    let active = true;
-    settingsService
-      .getBranches()
-      .then((branches) => {
-        if (!active) return;
-        // Register into the caller's own branch when they are branch-scoped;
-        // otherwise the main testing branch. The API orders by branch code,
-        // so branches[0] is "B02" and is NOT the main branch.
-        const preferred =
-          branches.find((b) => user?.branch_ids?.includes(b.id)) ??
-          branches.find((b) => b.code === "HQ1") ??
-          branches[0];
-        if (preferred) setBranchId(preferred.id);
-        else setBranchError("No active branch is available for registration.");
-      })
-      .catch(() => {
-        if (active) setBranchError("Could not load the branch list.");
-      });
-    return () => {
-      active = false;
-    };
-  }, [user?.branch_ids]);
+    if (id) openDetail(id);
+  }, [id, openDetail]);
 
   return (
-    <main className="min-h-screen bg-slate-50 py-6">
-      {branchId ? (
-        <RegisterPatientScreen
-          branchId={branchId}
-          onCancel={() => navigate("/patients")}
-          onSuccess={() => navigate("/patients")}
-        />
-      ) : (
-        <div className="max-w-2xl mx-auto p-6 text-sm text-slate-600">
-          {branchError ?? "Loading branch…"}
-        </div>
-      )}
-    </main>
-  );
-}
-
-function PatientDetailsWrapper(): JSX.Element {
-  const navigate = useNavigate();
-  const { id } = useParams<{ id: string }>();
-  const user = useAuthStore((state) => state.user);
-  const canManage = canAccessPath(user?.role, `/patients/${id}/edit`);
-  const canDelete = user?.role === "owner" || user?.role === "manager";
-  return (
-    <main className="min-h-screen bg-slate-50 py-6">
-      <PatientDetailsScreen
-        patientId={id || ""}
-        canManage={canManage}
-        canDelete={canDelete}
-        onBack={() => navigate("/patients")}
-        onEdit={(patientId) => navigate(`/patients/${patientId}/edit`)}
-        onViewHistory={(patientId) =>
-          navigate(`/patients/${patientId}/history`)
-        }
-        onNewVisit={() => navigate("/patients")}
-      />
-    </main>
-  );
-}
-
-function PatientEditWrapper(): JSX.Element {
-  const navigate = useNavigate();
-  const { id } = useParams<{ id: string }>();
-  return (
-    <main className="min-h-screen bg-slate-50 py-6">
-      <PatientEditScreen
-        patientId={id || ""}
-        onBack={() => navigate(`/patients/${id}`)}
-        onCancel={() => navigate(`/patients/${id}`)}
-        onSuccess={() => navigate(`/patients/${id}`)}
-      />
-    </main>
-  );
-}
-
-function PatientHistoryWrapper(): JSX.Element {
-  const navigate = useNavigate();
-  const { id } = useParams<{ id: string }>();
-  return (
-    <main className="min-h-screen bg-slate-50 py-6">
-      <PatientHistoryScreen
-        patientId={id || ""}
-        onBack={() => navigate(`/patients/${id}`)}
+    <main className="min-h-screen bg-slate-50">
+      <PatientListScreen
+        onNewPatient={canRegister ? () => undefined : undefined}
       />
     </main>
   );
@@ -357,44 +276,55 @@ function TestPanelsWrapper(): JSX.Element {
 }
 
 function InvoicesListWrapper(): JSX.Element {
-  const navigate = useNavigate();
+  const { openInvoice, openNew, listRevision } = useInvoiceDrawer();
+
+  // Refresh the list behind the drawer after a create.
   return (
     <main className="min-h-screen bg-slate-50">
       <InvoicesListScreen
-        onNewInvoice={() => navigate("/invoices/new")}
-        onSelectInvoice={(id) => navigate(`/invoices/${id}`)}
+        key={listRevision}
+        onNewInvoice={() => openNew()}
+        onSelectInvoice={(id) => openInvoice(id)}
       />
     </main>
   );
 }
 
-function NewInvoiceWrapper(): JSX.Element {
-  const navigate = useNavigate();
-  return (
-    <main className="min-h-screen bg-slate-50 py-6">
-      <NewInvoiceScreen
-        onCancel={() => navigate("/invoices")}
-        onSuccess={(inv) => navigate(`/invoices/${inv.id}`)}
-        onRegisterPatient={() => navigate("/patients/new")}
-      />
-    </main>
-  );
-}
-
-function InvoiceDetailWrapper(): JSX.Element {
-  const navigate = useNavigate();
+/**
+ * Direct load of /invoices/:id shows the list with the record drawer already
+ * open, exactly like /patients/:id.
+ */
+function InvoiceDetailRouteWrapper(): JSX.Element {
   const { id } = useParams<{ id: string }>();
+  const { openInvoice, openNew } = useInvoiceDrawer();
+
+  useEffect(() => {
+    if (id) openInvoice(id);
+  }, [id, openInvoice]);
+
   return (
-    <main className="min-h-screen bg-slate-50 py-6">
-      <InvoiceDetailScreen
-        invoiceId={id || ""}
-        onBack={() => navigate("/invoices")}
-        onProceedToSamples={(invoice) =>
-          navigate(`/samples/collect/step1?invoice_id=${invoice.id}`)
-        }
+    <main className="min-h-screen bg-slate-50">
+      <InvoicesListScreen
+        onNewInvoice={() => openNew()}
+        onSelectInvoice={(id) => openInvoice(id)}
       />
     </main>
   );
+}
+
+/**
+ * Full invoice page: payment, refund and cancel live here. The record drawer
+ * links to it from Record payment, so those money flows stay on one screen.
+ */
+
+/**
+ * Print window for one invoice. Deliberately registered outside the tenant
+ * shell (see the route list below): no sidebar, top bar, drawer or app
+ * chrome, so window.print() on this route emits receipt content only.
+ */
+function InvoicePrintWrapper(): JSX.Element {
+  const { id } = useParams<{ id: string }>();
+  return <InvoicePrintScreen invoiceId={id ?? ""} />;
 }
 
 function SamplesListWrapper(): JSX.Element {
@@ -699,7 +629,7 @@ function App(): JSX.Element {
       };
     }
 
-    refreshSession(isPlatformRoute ? "platform" : "staff")
+    refreshSession(isPlatformRoute ? "platform" : "staff", { silent: true })
       .then((token) => {
         if (!active) return;
         if (token) return;
@@ -710,7 +640,8 @@ function App(): JSX.Element {
           path.startsWith("/report-access") ||
           path.startsWith("/link-expired");
         if (!isPublicRoute) {
-          window.location.replace("/login?reason=session_expired");
+          // No restored session on a first visit is not an expiry.
+          window.location.replace("/login");
           return;
         }
         finish();
@@ -761,20 +692,32 @@ function App(): JSX.Element {
             element={<Navigate to="/settings/tenant" replace />}
           />
           <Route path="/patients" element={<PatientListWrapper />} />
-          <Route path="/patients/new" element={<RegisterPatientWrapper />} />
-          <Route path="/patients/:id" element={<PatientDetailsWrapper />} />
-          <Route path="/patients/:id/edit" element={<PatientEditWrapper />} />
+          {/* The register form, the edit form and history are drawers/tabs on
+              the list now; the old full pages just send people back. */}
+          <Route
+            path="/patients/new"
+            element={<Navigate to="/patients" replace />}
+          />
+          <Route path="/patients/:id" element={<PatientDetailRouteWrapper />} />
+          <Route
+            path="/patients/:id/edit"
+            element={<Navigate to="/patients" replace />}
+          />
           <Route
             path="/patients/:id/history"
-            element={<PatientHistoryWrapper />}
+            element={<Navigate to="/patients" replace />}
           />
           <Route path="/catalog/tests" element={<TestCatalogWrapper />} />
           <Route path="/catalog/panels" element={<TestPanelsWrapper />} />
           <Route path="/settings/tests" element={<TestCatalogWrapper />} />
           <Route path="/settings/panels" element={<TestPanelsWrapper />} />
           <Route path="/invoices" element={<InvoicesListWrapper />} />
-          <Route path="/invoices/new" element={<NewInvoiceWrapper />} />
-          <Route path="/invoices/:id" element={<InvoiceDetailWrapper />} />
+          {/* New invoice is a drawer; the old page route returns to the list. */}
+          <Route
+            path="/invoices/new"
+            element={<Navigate to="/invoices" replace />}
+          />
+          <Route path="/invoices/:id" element={<InvoiceDetailRouteWrapper />} />
 
           {/* Samples Management Suite (Screens 16–20) */}
           <Route path="/samples" element={<SamplesListWrapper />} />
@@ -840,6 +783,10 @@ function App(): JSX.Element {
             element={<SettlementDetailWrapper />}
           />
         </Route>
+
+        {/* Standalone invoice print window — intentionally outside the
+            tenant shell so no app chrome is ever printed. */}
+        <Route path="/invoices/:id/print" element={<InvoicePrintWrapper />} />
 
         {/* Platform Master Dashboard — Phase 1 (Command & Tenants) */}
         <Route

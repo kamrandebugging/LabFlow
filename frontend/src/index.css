@@ -1,7 +1,7 @@
 /* ============================================================
-   CSS Custom Properties — LabFlow Design Tokens
-   Doc 07: Teal-600 (#0d9488) primary, Amber (#e8a33d) accent,
-   Slate neutrals. shadcn/ui CSS-variables approach.
+   CSS Custom Properties — LabFlow Design Tokens (Veyla)
+   Page: #EAECEC, Card: #FEFFFF, Teal Accent: #CAE2E0,
+   Near-Black: #121011, Body Text: #242626.
    ============================================================ */
 
 @tailwind base;
@@ -77,6 +77,41 @@
   font-display: swap;
 }
 
+/* ============================================================
+   Self-hosted icon font — Material Symbols Outlined, subset to the
+   icons this app actually uses. The icons are ligature text, so the
+   font MUST be available locally: when it came from a CDN and the
+   CDN was unreachable, the raw ligature names ("personal_injury",
+   "receipt_long", ...) rendered as visible text over the page.
+   Source: Google Fonts CSS2 API with an explicit icon_names list.
+   ============================================================ */
+@font-face {
+  font-family: "Material Symbols Outlined";
+  src: url("/fonts/MaterialSymbolsOutlined-subset.woff2") format("woff2");
+  font-weight: 100 700;
+  font-style: normal;
+  font-display: block;
+}
+
+/* The icon class itself used to come from the Google Fonts stylesheet.
+   It is declared here now that the stylesheet is no longer linked. */
+.material-symbols-outlined {
+  font-family: "Material Symbols Outlined";
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-feature-settings: "liga";
+  font-feature-settings: "liga";
+  -webkit-font-smoothing: antialiased;
+}
+
 /* Per-locale line-height token (Doc 07 §9.2): Urdu is looser than English.
    Set once here, never per screen. */
 html {
@@ -84,6 +119,28 @@ html {
 }
 html[lang="ur"] {
   --lf-line-height: 1.9;
+}
+
+/* Doc 07 §9.2 / WCAG 2.2 SC 2.4.11: the app shell keeps a fixed 64px header.
+   Reserve 80px at the top of the scrollport and on every focusable control or
+   alert banner so Tab, Shift+Tab and scroll-into-view never hide the target
+   underneath the header. One global rule; never duplicated per screen. */
+html {
+  scroll-padding-top: 80px;
+}
+
+:where(
+  a,
+  button,
+  input,
+  select,
+  textarea,
+  summary,
+  [tabindex],
+  [role="alert"],
+  [role="dialog"]
+) {
+  scroll-margin-top: 80px;
 }
 html[lang="ur"] body {
   font-family:
@@ -125,68 +182,69 @@ html[lang="ur"] .text-slate-400 {
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --background: 200 4% 92%; /* #eaecec */
+    --foreground: 330 5% 7%; /* #121011 */
 
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card: 180 50% 99.8%; /* #feffff */
+    --card-foreground: 330 5% 7%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover: 180 50% 99.8%;
+    --popover-foreground: 330 5% 7%;
 
-    /* Primary: teal-600 #0d9488 */
-    --primary: 174 91% 32%;
-    --primary-foreground: 0 0% 100%;
+    /* Primary: near-black #121011 in light */
+    --primary: 330 5% 7%;
+    --primary-foreground: 180 50% 99.8%;
 
-    /* Secondary: slate-100 */
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    /* Secondary: teal accent #cae2e0 */
+    --secondary: 174 24% 84%;
+    --secondary-foreground: 176 49% 15%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 180 3% 96%;
+    --muted-foreground: 180 4% 36%;
 
-    /* Accent: amber #e8a33d */
-    --accent: 38 80% 57%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    /* Accent: teal #cae2e0 */
+    --accent: 174 24% 84%;
+    --accent-foreground: 176 49% 15%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 174 91% 32%;
+    --border: 180 4% 86%;
+    --input: 180 4% 86%;
+    --ring: 174 24% 84%;
 
-    --radius: 0.5rem;
+    --radius: 1rem;
   }
 
+  [data-theme="dark"],
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
+    --background: 210 6% 7%; /* #111213 */
+    --foreground: 180 3% 95%; /* #f1f2f2 */
 
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
+    --card: 200 6% 11%; /* #191b1c */
+    --card-foreground: 180 3% 95%;
 
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 200 6% 11%;
+    --popover-foreground: 180 3% 95%;
 
-    --primary: 174 91% 32%;
-    --primary-foreground: 0 0% 100%;
+    --primary: 180 3% 95%;
+    --primary-foreground: 210 6% 7%;
 
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 175 25% 18%; /* #233b39 */
+    --secondary-foreground: 174 46% 76%;
 
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --muted: 200 5% 14%;
+    --muted-foreground: 180 3% 63%;
 
-    --accent: 38 80% 57%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 175 25% 18%;
+    --accent-foreground: 174 46% 76%;
 
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 63% 31%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 174 91% 32%;
+    --border: 200 6% 18%;
+    --input: 200 6% 18%;
+    --ring: 174 46% 76%;
   }
 }
 
@@ -195,6 +253,192 @@ html[lang="ur"] .text-slate-400 {
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground;
+    background-color: var(--color-bg, #eaecec);
+    color: var(--color-body, #242626);
+    font-family: var(--font-body, "Inter", system-ui, sans-serif);
+  }
+}
+
+/* ============================================================
+   Veyla Skeleton — Strictly flat gray blocks, NO shimmer.
+   LabFlow's core rule bans shimmering animations.
+   ============================================================ */
+.veyla-skeleton {
+  background-color: #e2e5e5;
+  border-radius: 8px;
+  animation: none !important;
+}
+
+[data-theme="dark"] .veyla-skeleton {
+  background-color: #282b2c;
+}
+
+/* ============================================================
+   Shared motion utilities — the single source for the register drawer,
+   the patient modals and the backdrop fade. Durations and curves come
+   from tokens.css; no component module re-implements these keyframes.
+   ============================================================ */
+.veyla-drawer-scrim {
+  animation: veyla-fade-in var(--motion-base) var(--ease-out) both;
+}
+
+.veyla-drawer-panel {
+  animation: veyla-drawer-in var(--motion-drawer) var(--ease-out) both;
+}
+
+.veyla-drawer-scrim[data-state="closing"] {
+  animation: veyla-fade-out var(--motion-base) var(--ease-out) both;
+}
+
+.veyla-drawer-panel[data-state="closing"] {
+  animation: veyla-drawer-out var(--motion-base) var(--ease-out) both;
+}
+
+[dir="rtl"] .veyla-drawer-panel {
+  animation-name: veyla-drawer-in-rtl;
+}
+
+[dir="rtl"] .veyla-drawer-panel[data-state="closing"] {
+  animation-name: veyla-drawer-out-rtl;
+}
+
+.veyla-modal-scrim {
+  animation: veyla-fade-in var(--motion-base) var(--ease-out) both;
+}
+
+.veyla-modal {
+  transform-origin: top right;
+  animation: veyla-modal-in var(--motion-base) var(--ease-out) both;
+}
+
+[dir="rtl"] .veyla-modal {
+  transform-origin: top left;
+}
+
+@keyframes veyla-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes veyla-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes veyla-drawer-in {
+  from {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes veyla-drawer-out {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes veyla-drawer-in-rtl {
+  from {
+    transform: translateX(-100%);
+  }
+}
+
+@keyframes veyla-drawer-out-rtl {
+  to {
+    transform: translateX(-100%);
+  }
+}
+
+@keyframes veyla-modal-in {
+  from {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* ============================================================
+   Circular Reveal View Transitions (Top-Bar Theme Toggle)
+   ============================================================ */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+::view-transition-old(root) {
+  z-index: 1;
+}
+::view-transition-new(root) {
+  z-index: 9999;
+}
+
+/* ============================================================
+   Page transition — the tenant shell swaps screens with one
+   shared motion: the leaving page fades out and lifts 4px, the
+   arriving page fades in and settles from 8px. Both are briefly
+   on screen. The sidebar and the top bar sit outside this
+   container, so they never animate and never re-mount.
+   ============================================================ */
+.lf-page-stack {
+  position: relative;
+}
+
+.lf-page-layer--enter {
+  animation: lfPageEnter var(--motion-drawer) var(--ease-out) both;
+}
+
+.lf-page-layer--exit {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  animation: lfPageExit var(--motion-fast) var(--ease-out) forwards;
+}
+
+@keyframes lfPageExit {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+@keyframes lfPageEnter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Page headings are programmatic focus targets after navigation; they are
+   not interactive, so the default focus ring is visually distracting. */
+.lf-page-layer h1:focus,
+.lf-page-layer h1[tabindex="-1"]:focus {
+  outline: none;
+}
+
+/* ============================================================
+   Reduced motion — one global override. Every transition, reveal,
+   stagger and blur is removed, not merely shortened.
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
   }
 }

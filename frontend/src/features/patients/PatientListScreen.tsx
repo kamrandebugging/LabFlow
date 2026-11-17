@@ -1,19 +1,31 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
-  Plus,
-  Search,
-  User,
+  AlertTriangle,
   ArrowRight,
   AlertCircle,
+  CircleCheck,
+  Plus,
   RefreshCw,
+  Search,
+  User,
 } from "lucide-react";
 import { messageForError } from "../../lib/errors";
 import { formatDate } from "../../lib/format";
 import { patientService } from "./patientService";
+import { usePatientsDrawer } from "./patientsDrawerContext";
+import { RegisterDrawerHost } from "./PatientDrawerHost";
+import { calculatePatientAge } from "./patientAge";
 import type { PatientSummary } from "./types";
+import styles from "./PatientListScreen.module.css";
 
 interface PatientListScreenProps {
+  /**
+   * Retained for host compatibility: when it is provided the user is allowed
+   * to register a patient. The registration itself now happens in the Veyla
+   * side drawer so the list keeps its scroll position, search query and
+   * filters while a patient is being registered.
+   */
   onNewPatient?: () => void;
   onSelectPatient?: (patientId: string) => void;
   service?: typeof patientService;
@@ -29,6 +41,30 @@ export const PatientListScreen: React.FC<PatientListScreenProps> = ({
   const [searchQuery, setSearchQuery] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // First successful load only: rows fade + slide up once. Search and filter
+  // swaps stay instant and never replay the stagger.
+  const [animateRows, setAnimateRows] = useState(false);
+  const entrancePlayed = useRef(false);
+
+  // Veyla side drawers are owned by the tenant shell so exactly one panel
+  // exists at a time, outside the animated page layers.
+  const {
+    hasProvider,
+    openRegister,
+    setRegisterTrigger,
+    registerRevision,
+    openDetail,
+    setDetailTrigger,
+  } = usePatientsDrawer();
+
+  // Standalone render (no tenant shell): the same drawer is mounted locally so
+  // the page still works on its own. The shell path never uses this.
+  const [localRegisterOpen, setLocalRegisterOpen] = useState(false);
+  const localTriggerRef = useRef<HTMLElement | null>(null);
+  const usesLocalDrawer = !hasProvider;
+
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const newPatientButtonRef = useRef<HTMLButtonElement | null>(null);
 
   const fetchPatients = useCallback(
     async (query?: string) => {
@@ -54,21 +90,69 @@ export const PatientListScreen: React.FC<PatientListScreenProps> = ({
     fetchPatients(searchQuery);
   }, [fetchPatients, searchQuery]);
 
+  // Patient rows enter once, on the first load after mount.
+  useEffect(() => {
+    if (isLoading || entrancePlayed.current) return;
+    entrancePlayed.current = true;
+    setAnimateRows(true);
+    const timer = window.setTimeout(() => setAnimateRows(false), 600);
+    return () => window.clearTimeout(timer);
+  }, [isLoading]);
+
+  // Register the "New patient" button as the drawer's focus-return target.
+  useEffect(() => {
+    localTriggerRef.current = newPatientButtonRef.current;
+    setRegisterTrigger(newPatientButtonRef.current);
+  }, [setRegisterTrigger]);
+
+  // A successful registration refreshes the list behind the drawer; its
+  // scroll position, search query and filters are untouched.
+  useEffect(() => {
+    if (registerRevision === 0) return;
+    void fetchPatients(searchQuery);
+  }, [registerRevision, fetchPatients, searchQuery]);
+
+  // "/" focuses the patient search field. Local to this screen.
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "/" || event.metaKey || event.ctrlKey || event.altKey) {
+        return;
+      }
+      const target = event.target as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.isContentEditable)
+      ) {
+        return;
+      }
+      event.preventDefault();
+      searchInputRef.current?.focus();
+    };
+
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, []);
+
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(e.target.value);
   };
 
-  const calculateAge = (dobString?: string | null, yob?: number | null) => {
-    if (dobString) {
-      const birth = new Date(dobString);
-      const diff = Date.now() - birth.getTime();
-      const ageDate = new Date(diff);
-      return Math.abs(ageDate.getUTCFullYear() - 1970);
+  const openRegisterDrawer = () => {
+    if (usesLocalDrawer) {
+      setLocalRegisterOpen(true);
+      return;
     }
-    if (yob) {
-      return new Date().getFullYear() - yob;
-    }
-    return null;
+    openRegister();
+  };
+
+  // Opening a record keeps the list mounted behind the drawer: scroll
+  // position, search query and filters are preserved.
+  const openPatient = (patientId: string, trigger: HTMLElement | null) => {
+    setDetailTrigger(trigger);
+    openDetail(patientId);
+    onSelectPatient?.(patientId);
   };
 
   const formatSex = (sex?: string) => {
@@ -79,239 +163,287 @@ export const PatientListScreen: React.FC<PatientListScreenProps> = ({
   };
 
   return (
-    <div className="flex flex-col w-full max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
-      {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 font-headline">
-            {t("common:nav.patients")}
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            {t("patients:list.subtitle")}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 text-slate-600 text-xs font-medium">
-            <span className="w-2 h-2 rounded-full bg-teal-600 animate-pulse" />
+    <div className={styles.page}>
+      <div className={styles.container}>
+        {/* Top Header */}
+        <div className={styles.header}>
+          <div>
+            <h1 className={styles.title}>{t("common:nav.patients")}</h1>
+            <p className={styles.subtitle}>{t("patients:list.subtitle")}</p>
+          </div>
+          <span className={styles.syncBadge}>
+            <CircleCheck className={styles.syncIcon} aria-hidden="true" />
             {t("patients:list.branch_sync_active")}
           </span>
         </div>
-      </div>
 
-      {/* Search & Action Bar */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
-        <div className="relative w-full sm:w-96">
-          <Search className="absolute start-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4 pointer-events-none" />
-          <input
-            id="patient-search-input"
-            type="search"
-            value={searchQuery}
-            onChange={handleSearchChange}
-            placeholder={t("patients:list.search_placeholder")}
-            className="w-full ps-9 pe-4 py-2 bg-white text-slate-900 text-sm placeholder:text-slate-400 rounded-lg border border-slate-200 shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 transition-all"
-            autoComplete="off"
-          />
-        </div>
-        <div className="flex items-center justify-end gap-2">
-          <button
-            type="button"
-            onClick={() => fetchPatients(searchQuery)}
-            className="p-2 text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg border border-slate-200 transition-colors"
-            title={t("patients:list.refresh_aria")}
-            aria-label={t("patients:list.refresh_aria")}
-          >
-            <RefreshCw
-              className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`}
+        {/* Search & Action Bar */}
+        <div className={styles.toolbar}>
+          <div className={styles.searchWrap}>
+            <Search className={styles.searchIcon} aria-hidden="true" />
+            <input
+              id="patient-search-input"
+              ref={searchInputRef}
+              type="search"
+              value={searchQuery}
+              onChange={handleSearchChange}
+              placeholder={t("patients:list.search_placeholder")}
+              aria-label={t("patients:list.search_placeholder")}
+              className={styles.searchInput}
+              autoComplete="off"
             />
-          </button>
-          {onNewPatient ? (
+          </div>
+          <div className={styles.toolbarActions}>
             <button
               type="button"
-              onClick={onNewPatient}
-              className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-[#005c55] hover:bg-[#0f766e] text-white text-sm font-medium rounded-lg shadow-sm transition-colors cursor-pointer"
+              onClick={() => fetchPatients(searchQuery)}
+              className={styles.iconButton}
+              title={t("patients:list.refresh_aria")}
+              aria-label={t("patients:list.refresh_aria")}
             >
-              <Plus className="w-4 h-4" />
-              <span>{t("patients:list.new_patient")}</span>
+              <RefreshCw
+                className={`${styles.spin} ${isLoading ? "" : styles.spinHidden}`}
+                aria-hidden="true"
+              />
             </button>
-          ) : null}
-        </div>
-      </div>
-
-      {/* Error Notice */}
-      {error && (
-        <div
-          role="alert"
-          className="flex items-center justify-between p-4 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm"
-        >
-          <div className="flex items-center gap-2">
-            <AlertCircle className="w-5 h-5 shrink-0 text-red-600" />
-            <span>{error}</span>
+            {onNewPatient ? (
+              <button
+                type="button"
+                ref={newPatientButtonRef}
+                onClick={openRegisterDrawer}
+                className={styles.primaryButton}
+              >
+                <Plus className={styles.buttonIcon} aria-hidden="true" />
+                <span>{t("patients:list.new_patient")}</span>
+              </button>
+            ) : null}
           </div>
-          <button
-            type="button"
-            onClick={() => fetchPatients(searchQuery)}
-            className="underline font-semibold hover:text-red-900 ms-4"
-          >
-            {t("patients:list.retry")}
-          </button>
         </div>
-      )}
 
-      {/* Table Card */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table
-            className="w-full text-start border-collapse"
-            data-testid="patient-table"
-          >
-            <thead>
-              <tr className="bg-slate-50 border-b border-slate-200">
-                <th
-                  scope="col"
-                  className="py-3 px-4 text-xs font-semibold uppercase tracking-wider text-slate-500 text-start"
-                >
-                  {t("patients:list.col_patient")}
-                </th>
-                <th
-                  scope="col"
-                  className="py-3 px-4 text-xs font-semibold uppercase tracking-wider text-slate-500 text-start"
-                >
-                  {t("patients:mrn")}
-                </th>
-                <th
-                  scope="col"
-                  className="py-3 px-4 text-xs font-semibold uppercase tracking-wider text-slate-500 text-start"
-                >
-                  {t("common:labels.phone")}
-                </th>
-                <th
-                  scope="col"
-                  className="py-3 px-4 text-xs font-semibold uppercase tracking-wider text-slate-500 text-start"
-                >
-                  {t("patients:list.col_branch")}
-                </th>
-                <th
-                  scope="col"
-                  className="py-3 px-4 text-xs font-semibold uppercase tracking-wider text-slate-500 text-start"
-                >
-                  {t("patients:list.col_last_visit")}
-                </th>
-                <th
-                  scope="col"
-                  className="py-3 px-4 text-xs font-semibold uppercase tracking-wider text-slate-500 text-end"
-                >
-                  {t("common:labels.actions")}
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {isLoading ? (
+        {/* Error Notice */}
+        {error && (
+          <div role="alert" className={styles.alert}>
+            <div className={styles.alertBody}>
+              <AlertCircle className={styles.alertIcon} aria-hidden="true" />
+              <span>{error}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => fetchPatients(searchQuery)}
+              className={styles.retry}
+            >
+              {t("patients:list.retry")}
+            </button>
+          </div>
+        )}
+
+        {/* Table Card */}
+        <div className={styles.tableCard}>
+          <div className={styles.tableScroll}>
+            <table className={styles.table} data-testid="patient-table">
+              <thead>
                 <tr>
-                  <td
-                    colSpan={6}
-                    className="py-12 text-center text-slate-500 text-sm"
-                  >
-                    <div className="inline-flex items-center gap-2">
-                      <RefreshCw className="w-4 h-4 animate-spin text-teal-600" />
-                      <span>{t("patients:list.loading")}</span>
-                    </div>
-                  </td>
+                  <th scope="col" className={styles.th}>
+                    {t("patients:list.col_patient")}
+                  </th>
+                  <th scope="col" className={styles.th}>
+                    {t("patients:mrn")}
+                  </th>
+                  <th scope="col" className={styles.th}>
+                    {t("common:labels.phone")}
+                  </th>
+                  <th scope="col" className={styles.th}>
+                    {t("patients:list.col_branch")}
+                  </th>
+                  <th scope="col" className={styles.th}>
+                    {t("patients:list.col_last_visit")}
+                  </th>
+                  <th scope="col" className={`${styles.th} ${styles.thEnd}`}>
+                    {t("common:labels.actions")}
+                  </th>
                 </tr>
-              ) : patients.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={6}
-                    className="py-12 text-center text-slate-500 text-sm"
-                  >
-                    <User className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-                    <p className="font-medium text-slate-700">
-                      {t("patients:list.empty_title")}
-                    </p>
-                    <p className="text-xs text-slate-400 mt-1">
-                      {searchQuery
-                        ? t("patients:list.empty_search")
-                        : onNewPatient
-                          ? t("patients:list.empty_first")
-                          : t("patients:list.empty_scope")}
-                    </p>
-                  </td>
-                </tr>
-              ) : (
-                patients.map((patient) => {
-                  const age = calculateAge(
-                    patient.date_of_birth,
-                    patient.year_of_birth,
-                  );
-                  return (
-                    <tr
-                      key={patient.id}
-                      className="hover:bg-slate-50/80 transition-colors group cursor-pointer"
-                      onClick={() => onSelectPatient?.(patient.id)}
-                    >
-                      <td className="py-3.5 px-4 align-middle">
-                        <div className="flex flex-col">
-                          <span className="font-semibold text-slate-900 text-sm leading-snug">
+              </thead>
+              <tbody>
+                {isLoading ? (
+                  /* Flat grey skeleton rows. Strictly no shimmer. */
+                  [0, 1, 2, 3].map((row) => (
+                    <tr key={row} className={styles.row}>
+                      <td colSpan={6} className={styles.td}>
+                        <div
+                          className={styles.skeletonRow}
+                          aria-hidden="true"
+                          data-testid="patient-skeleton-row"
+                        >
+                          <span
+                            className={`${styles.skeletonBlock} ${styles.skeletonCircle}`}
+                          />
+                          <span
+                            className={`${styles.skeletonBlock} ${styles.skeletonName}`}
+                          />
+                          <span
+                            className={`${styles.skeletonBlock} ${styles.skeletonMono}`}
+                          />
+                          <span
+                            className={`${styles.skeletonBlock} ${styles.skeletonShort}`}
+                          />
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                ) : patients.length === 0 ? (
+                  /* Full-bleed empty state inside the table card — no nested
+                     bordered panel. */
+                  <tr className={styles.row}>
+                    <td colSpan={6} className={styles.emptyCell}>
+                      <div className={styles.emptyInner}>
+                        <span className={styles.emptyIconCircle}>
+                          <User
+                            className={styles.emptyIcon}
+                            aria-hidden="true"
+                          />
+                        </span>
+                        <p className={styles.emptyTitle}>
+                          {t("patients:list.empty_title")}
+                        </p>
+                        <p className={styles.emptyHint}>
+                          {searchQuery
+                            ? t("patients:list.empty_search")
+                            : onNewPatient
+                              ? t("patients:list.empty_first")
+                              : t("patients:list.empty_scope")}
+                        </p>
+                        {onNewPatient ? (
+                          <button
+                            type="button"
+                            onClick={openRegisterDrawer}
+                            className={styles.emptyAction}
+                          >
+                            <Plus
+                              className={styles.buttonIcon}
+                              aria-hidden="true"
+                            />
+                            <span>{t("patients:register.title")}</span>
+                          </button>
+                        ) : null}
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  patients.map((patient, index) => {
+                    const age = calculatePatientAge(
+                      patient.date_of_birth,
+                      patient.year_of_birth,
+                    );
+                    return (
+                      <tr
+                        key={patient.id}
+                        role="button"
+                        tabIndex={0}
+                        aria-label={patient.name}
+                        className={`${styles.row} ${styles.rowClickable}${
+                          animateRows ? ` ${styles.rowEnter}` : ""
+                        }`}
+                        style={
+                          animateRows
+                            ? {
+                                animationDelay: `${Math.min(index, 9) * 20}ms`,
+                              }
+                            : undefined
+                        }
+                        onClick={(event) =>
+                          openPatient(patient.id, event.currentTarget)
+                        }
+                        onKeyDown={(event) => {
+                          if (event.key !== "Enter" && event.key !== " ") {
+                            return;
+                          }
+                          event.preventDefault();
+                          openPatient(patient.id, event.currentTarget);
+                        }}
+                      >
+                        <td className={styles.td}>
+                          <span className={styles.patientName}>
                             {patient.name}
                           </span>
-                          <span className="text-xs text-slate-500">
+                          <span className={styles.patientMeta}>
                             {age !== null
                               ? `${t("patients:list.age_years", { age })} · `
                               : ""}
                             {formatSex(patient.sex)}
                           </span>
-                        </div>
-                      </td>
-                      <td className="py-3.5 px-4 align-middle">
-                        <span
-                          dir="ltr"
-                          className="font-mono text-xs font-medium text-slate-800 bg-slate-100 px-2 py-0.5 rounded border border-slate-200"
-                        >
-                          {patient.mrn}
-                        </span>
-                      </td>
-                      <td className="py-3.5 px-4 align-middle text-sm text-slate-600">
-                        {patient.phone ? (
-                          <bdi dir="ltr">{patient.phone}</bdi>
-                        ) : (
-                          "—"
-                        )}
-                      </td>
-                      <td className="py-3.5 px-4 align-middle text-sm text-slate-700">
-                        {patient.is_cross_branch ? (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">
-                            {t("patients:list.cross_branch")}
+                        </td>
+                        <td className={styles.td}>
+                          <span dir="ltr" className={styles.mrn}>
+                            {patient.mrn}
                           </span>
-                        ) : (
-                          patient.branch_name || "—"
-                        )}
-                      </td>
-                      <td className="py-3.5 px-4 align-middle text-sm text-slate-500">
-                        {patient.last_visit ||
-                          (patient.created_at
-                            ? formatDate(patient.created_at)
-                            : "—")}
-                      </td>
-                      <td className="py-3.5 px-4 align-middle text-end">
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onSelectPatient?.(patient.id);
-                          }}
-                          className="text-xs font-semibold text-teal-700 hover:text-teal-900 inline-flex items-center gap-1 transition-colors"
-                        >
-                          {t("common:actions.view")}{" "}
-                          <ArrowRight className="w-3.5 h-3.5 rtl:rotate-180" />
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
+                        </td>
+                        <td className={styles.td}>
+                          {patient.phone ? (
+                            <bdi dir="ltr" className={styles.phone}>
+                              {patient.phone}
+                            </bdi>
+                          ) : (
+                            "—"
+                          )}
+                        </td>
+                        <td className={styles.td}>
+                          {patient.is_cross_branch ? (
+                            <span className={styles.branchBadge}>
+                              <AlertTriangle
+                                className={styles.branchIcon}
+                                aria-hidden="true"
+                              />
+                              {t("patients:list.cross_branch")}
+                            </span>
+                          ) : (
+                            patient.branch_name || "—"
+                          )}
+                        </td>
+                        <td className={styles.td}>
+                          <span className={styles.lastVisit}>
+                            {patient.last_visit ||
+                              (patient.created_at
+                                ? formatDate(patient.created_at)
+                                : "—")}
+                          </span>
+                        </td>
+                        <td className={`${styles.td} ${styles.cellEnd}`}>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openPatient(
+                                patient.id,
+                                e.currentTarget.closest("tr"),
+                              );
+                            }}
+                            className={styles.viewButton}
+                          >
+                            {t("common:actions.view")}
+                            <ArrowRight
+                              className={styles.arrow}
+                              aria-hidden="true"
+                            />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
+
+      {usesLocalDrawer ? (
+        <RegisterDrawerHost
+          open={localRegisterOpen}
+          triggerRef={localTriggerRef}
+          onClose={() => setLocalRegisterOpen(false)}
+          onRegistered={() => void fetchPatients(searchQuery)}
+        />
+      ) : null}
     </div>
   );
 };

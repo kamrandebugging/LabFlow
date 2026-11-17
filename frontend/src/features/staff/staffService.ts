@@ -72,4 +72,30 @@ export const staffService = {
       { method: "POST", body: {} },
     );
   },
+
+  resetTotp(id: string): Promise<{ staff: StaffRow; totp_enabled: boolean }> {
+    return apiRequest<{ staff: StaffRow; totp_enabled: boolean }>(
+      `/staff/${id}/reset-totp`,
+      { method: "POST", body: {} },
+    );
+  },
+
+  listPasswordRequests(): Promise<{
+    requests: Array<{
+      id: string;
+      email: string;
+      display_name: string;
+      status: string;
+      created_at: string;
+    }>;
+  }> {
+    return apiRequest("/staff/password-requests");
+  },
+
+  resolvePasswordRequest(id: string): Promise<{ id: string; status: string }> {
+    return apiRequest(`/staff/password-requests/${id}/resolve`, {
+      method: "POST",
+      body: {},
+    });
+  },
 };

@@ -167,15 +167,19 @@ describe("Screen 14: New Invoice (14-new-invoice.html & Doc 03 §5.3, §6.4)", (
   it("adds tests and panels to line items and calculates totals", async () => {
     render(<NewInvoiceScreen />);
 
+    // Open the searchable picker once the catalog has loaded, then choose CBC.
+    const testSelect = screen.getByLabelText(/Add individual test/i);
+    await waitFor(() => expect(testSelect).toBeEnabled());
+    fireEvent.change(testSelect, { target: { value: "CBC" } });
+
     await waitFor(() => {
       expect(
-        screen.getByText(/Complete Blood Count \(CBC\)/i),
+        screen.getByRole("option", { name: /Complete Blood Count \(CBC\)/i }),
       ).toBeInTheDocument();
     });
-
-    // Select test and click Add
-    const testSelect = screen.getByLabelText(/Add individual test/i);
-    fireEvent.change(testSelect, { target: { value: "test-01" } });
+    fireEvent.click(
+      screen.getByRole("option", { name: /Complete Blood Count \(CBC\)/i }),
+    );
 
     const addBtn = screen.getByRole("button", { name: /Add/i });
     fireEvent.click(addBtn);
@@ -200,9 +204,18 @@ describe("Screen 14: New Invoice (14-new-invoice.html & Doc 03 §5.3, §6.4)", (
       expect(screen.getByText(/Muhammad Imran ·/i)).toBeInTheDocument();
     });
 
-    // Add CBC
+    // Add CBC through the searchable picker
     const testSelect = screen.getByLabelText(/Add individual test/i);
-    fireEvent.change(testSelect, { target: { value: "test-01" } });
+    await waitFor(() => expect(testSelect).toBeEnabled());
+    fireEvent.change(testSelect, { target: { value: "CBC" } });
+    await waitFor(() => {
+      expect(
+        screen.getByRole("option", { name: /Complete Blood Count \(CBC\)/i }),
+      ).toBeInTheDocument();
+    });
+    fireEvent.click(
+      screen.getByRole("option", { name: /Complete Blood Count \(CBC\)/i }),
+    );
     fireEvent.click(screen.getByRole("button", { name: /Add/i }));
 
     const submitBtn = screen.getByRole("button", { name: /Create invoice/i });
