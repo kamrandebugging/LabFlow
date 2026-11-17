@@ -18,13 +18,9 @@ import { TwoFactorAuthScreen } from "./features/auth/TwoFactorAuthScreen";
 import { PatientListScreen } from "./features/patients/PatientListScreen";
 import { usePatientsDrawer } from "./features/patients/patientsDrawerContext";
 import { useInvoiceDrawer } from "./features/billing/invoiceDrawerContext";
-import { RegisterPatientScreen } from "./features/patients/RegisterPatientScreen";
-import { PatientEditScreen } from "./features/patients/PatientEditScreen";
-import { PatientHistoryScreen } from "./features/patients/PatientHistoryScreen";
 import { TestCatalogScreen } from "./features/catalog/TestCatalogScreen";
 import { TestPanelsScreen } from "./features/catalog/TestPanelsScreen";
 import { InvoicesListScreen } from "./features/billing/InvoicesListScreen";
-import { NewInvoiceScreen } from "./features/billing/NewInvoiceScreen";
 import {
   SampleAccessioningListScreen,
   CollectSampleStep1Screen,
@@ -53,7 +49,6 @@ import {
   AccountSecurityScreen,
   DataExportScreen,
 } from "./features/settings";
-import { settingsService } from "./features/settings/settingsService";
 import {
   PartnersListScreen,
   PartnerDetailScreen,
@@ -261,81 +256,6 @@ function PatientDetailRouteWrapper(): JSX.Element {
   );
 }
 
-function RegisterPatientWrapper(): JSX.Element {
-  const navigate = useNavigate();
-  const [branchId, setBranchId] = useState<string | null>(null);
-  const [branchError, setBranchError] = useState<string | null>(null);
-  const user = useAuthStore((state) => state.user);
-
-  useEffect(() => {
-    let active = true;
-    settingsService
-      .getBranches()
-      .then((branches) => {
-        if (!active) return;
-        // Register into the caller's own branch when they are branch-scoped;
-        // otherwise the main testing branch. The API orders by branch code,
-        // so branches[0] is "B02" and is NOT the main branch.
-        const preferred =
-          branches.find((b) => user?.branch_ids?.includes(b.id)) ??
-          branches.find((b) => b.code === "HQ1") ??
-          branches[0];
-        if (preferred) setBranchId(preferred.id);
-        else setBranchError("No active branch is available for registration.");
-      })
-      .catch(() => {
-        if (active) setBranchError("Could not load the branch list.");
-      });
-    return () => {
-      active = false;
-    };
-  }, [user?.branch_ids]);
-
-  return (
-    <main className="min-h-screen bg-slate-50 py-6">
-      {branchId ? (
-        <RegisterPatientScreen
-          branchId={branchId}
-          onCancel={() => navigate("/patients")}
-          onSuccess={() => navigate("/patients")}
-        />
-      ) : (
-        <div className="max-w-2xl mx-auto p-6 text-sm text-slate-600">
-          {branchError ?? "Loading branch…"}
-        </div>
-      )}
-    </main>
-  );
-}
-
-function PatientEditWrapper(): JSX.Element {
-  const navigate = useNavigate();
-  const { id } = useParams<{ id: string }>();
-  return (
-    <main className="min-h-screen bg-slate-50 py-6">
-      <PatientEditScreen
-        patientId={id || ""}
-        onBack={() => navigate(`/patients/${id}`)}
-        onCancel={() => navigate(`/patients/${id}`)}
-        onSuccess={() => navigate(`/patients/${id}`)}
-      />
-    </main>
-  );
-}
-
-function PatientHistoryWrapper(): JSX.Element {
-  const navigate = useNavigate();
-  const { id } = useParams<{ id: string }>();
-  return (
-    <main className="min-h-screen bg-slate-50 py-6">
-      <PatientHistoryScreen
-        patientId={id || ""}
-        onBack={() => navigate(`/patients/${id}`)}
-      />
-    </main>
-  );
-}
-
 function TestCatalogWrapper(): JSX.Element {
   const navigate = useNavigate();
   return (
@@ -383,23 +303,15 @@ function InvoiceDetailRouteWrapper(): JSX.Element {
 
   return (
     <main className="min-h-screen bg-slate-50">
-      <InvoicesListScreen onSelectInvoice={() => undefined} />
+      <InvoicesListScreen onSelectInvoice={(id) => openInvoice(id)} />
     </main>
   );
 }
 
-function NewInvoiceWrapper(): JSX.Element {
-  const navigate = useNavigate();
-  return (
-    <main className="min-h-screen bg-slate-50 py-6">
-      <NewInvoiceScreen
-        onCancel={() => navigate("/invoices")}
-        onSuccess={(inv) => navigate(`/invoices/${inv.id}`)}
-        onRegisterPatient={() => navigate("/patients/new")}
-      />
-    </main>
-  );
-}
+/**
+ * Full invoice page: payment, refund and cancel live here. The record drawer
+ * links to it from Record payment, so those money flows stay on one screen.
+ */
 
 function SamplesListWrapper(): JSX.Element {
   const navigate = useNavigate();
@@ -766,19 +678,31 @@ function App(): JSX.Element {
             element={<Navigate to="/settings/tenant" replace />}
           />
           <Route path="/patients" element={<PatientListWrapper />} />
-          <Route path="/patients/new" element={<RegisterPatientWrapper />} />
+          {/* The register form, the edit form and history are drawers/tabs on
+              the list now; the old full pages just send people back. */}
+          <Route
+            path="/patients/new"
+            element={<Navigate to="/patients" replace />}
+          />
           <Route path="/patients/:id" element={<PatientDetailRouteWrapper />} />
-          <Route path="/patients/:id/edit" element={<PatientEditWrapper />} />
+          <Route
+            path="/patients/:id/edit"
+            element={<Navigate to="/patients" replace />}
+          />
           <Route
             path="/patients/:id/history"
-            element={<PatientHistoryWrapper />}
+            element={<Navigate to="/patients" replace />}
           />
           <Route path="/catalog/tests" element={<TestCatalogWrapper />} />
           <Route path="/catalog/panels" element={<TestPanelsWrapper />} />
           <Route path="/settings/tests" element={<TestCatalogWrapper />} />
           <Route path="/settings/panels" element={<TestPanelsWrapper />} />
           <Route path="/invoices" element={<InvoicesListWrapper />} />
-          <Route path="/invoices/new" element={<NewInvoiceWrapper />} />
+          {/* New invoice is a drawer; the old page route returns to the list. */}
+          <Route
+            path="/invoices/new"
+            element={<Navigate to="/invoices" replace />}
+          />
           <Route path="/invoices/:id" element={<InvoiceDetailRouteWrapper />} />
 
           {/* Samples Management Suite (Screens 16–20) */}

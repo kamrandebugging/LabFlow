@@ -563,18 +563,7 @@ export function NewInvoiceScreen({
                   </div>
                   {panelOnlyTests.length > 0 && (
                     <p className={styles.hint}>
-                      {t("billing:new.panel_only_prefix")}{" "}
-                      {panelOnlyTests
-                        .map(
-                          (test) =>
-                            `${test.name}${
-                              test.panel_codes?.length
-                                ? ` (${test.panel_codes.join(", ")})`
-                                : ""
-                            }`,
-                        )
-                        .join("; ")}
-                      . {t("billing:new.panel_only_suffix")}
+                      {t("billing:new.panel_only_suffix")}
                     </p>
                   )}
                 </div>

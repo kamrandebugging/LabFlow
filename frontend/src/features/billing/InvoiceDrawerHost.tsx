@@ -85,10 +85,6 @@ export function InvoiceDrawerProvider({
           key={invoiceId}
           invoiceId={invoiceId}
           onClose={closeInvoice}
-          onManage={(id) => {
-            closeInvoice();
-            navigate(`/invoices/${id}`);
-          }}
         />
       ) : null}
       {isNewOpen ? (

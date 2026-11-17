@@ -14,7 +14,6 @@ interface InvoiceRecordDrawerProps {
   invoiceId: string;
   onClose: () => void;
   /** Opens the full invoice page for payment / refund / cancel actions. */
-  onManage: (invoiceId: string) => void;
   onProceedToSamples?: (invoice: InvoiceDetail) => void;
   service?: typeof billingService;
 }
@@ -35,7 +34,6 @@ const STATUS_CLASS: Record<InvoiceStatus, string | undefined> = {
 export function InvoiceRecordDrawer({
   invoiceId,
   onClose,
-  onManage,
   onProceedToSamples,
   service = billingService,
 }: InvoiceRecordDrawerProps): JSX.Element {
@@ -43,7 +41,58 @@ export function InvoiceRecordDrawer({
   const [invoice, setInvoice] = useState<InvoiceDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [tab, setTab] = useState<"overview" | "payments">("overview");
+  const [tab, setTab] = useState<"overview" | "payments" | "settle">(
+    "overview",
+  );
+  const [amount, setAmount] = useState("");
+  const [method, setMethod] = useState<
+    "cash" | "card" | "bank_transfer" | "easypaisa" | "jazzcash" | "other"
+  >("cash");
+  const [reference, setReference] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
+
+  const reload = () => setReloadKey((n) => n + 1);
+
+  const submitSettle = async (kind: "payment" | "refund") => {
+    if (!invoice) return;
+    setBusy(true);
+    setActionError(null);
+    try {
+      await service.recordPayment(invoice.id, {
+        kind,
+        method,
+        amount,
+        reference: reference || null,
+      });
+      setAmount("");
+      setReference("");
+      reload();
+      setTab("payments");
+    } catch (err: unknown) {
+      setActionError(messageForError(err, t));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const cancelInvoice = async () => {
+    if (!invoice) return;
+    setBusy(true);
+    setActionError(null);
+    try {
+      await service.cancelInvoice(
+        invoice.id,
+        "Cancelled from the record drawer",
+      );
+      reload();
+    } catch (err: unknown) {
+      setActionError(messageForError(err, t));
+    } finally {
+      setBusy(false);
+    }
+  };
 
   useEffect(() => {
     let active = true;
@@ -63,7 +112,7 @@ export function InvoiceRecordDrawer({
     return () => {
       active = false;
     };
-  }, [invoiceId, service, t]);
+  }, [invoiceId, service, t, reloadKey]);
 
   const balance = useMemo(() => {
     if (!invoice) return 0;
@@ -118,7 +167,7 @@ export function InvoiceRecordDrawer({
       ) : null}
       <button
         type="button"
-        onClick={() => onManage(invoice.id)}
+        onClick={() => setTab("settle")}
         className={record.primaryButton}
       >
         <Wallet className={record.buttonIcon} aria-hidden="true" />
@@ -163,6 +212,15 @@ export function InvoiceRecordDrawer({
                 className={`${record.drawerTab} ${tab === "payments" ? record.drawerTabActive : ""}`}
               >
                 {t("billing:detail.ledger_title")}
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={tab === "settle"}
+                onClick={() => setTab("settle")}
+                className={`${record.drawerTab} ${tab === "settle" ? record.drawerTabActive : ""}`}
+              >
+                {t("billing:detail.record_payment_title")}
               </button>
             </div>
 
@@ -236,7 +294,7 @@ export function InvoiceRecordDrawer({
                   )}
                 </div>
               </>
-            ) : (
+            ) : tab === "payments" ? (
               <div className={record.card}>
                 <div className={record.cardHead}>
                   <h2 className={record.cardTitle}>
@@ -262,6 +320,110 @@ export function InvoiceRecordDrawer({
                     {t("billing:detail.no_payments")}
                   </p>
                 )}
+              </div>
+            ) : (
+              <div className={record.card}>
+                <div className={record.cardHead}>
+                  <h2 className={record.cardTitle}>
+                    {t("billing:detail.record_payment_title")}
+                  </h2>
+                  <span className={record.fieldLabel}>
+                    {t("billing:detail.balance_due")}:{" "}
+                    <bdi dir="ltr">{formatMoney(balance.toFixed(2), "en")}</bdi>
+                  </span>
+                </div>
+
+                {actionError ? (
+                  <div role="alert" className={record.alert}>
+                    <AlertCircle
+                      className={record.statusIcon}
+                      aria-hidden="true"
+                    />
+                    <span>{actionError}</span>
+                  </div>
+                ) : null}
+
+                <div className={record.field}>
+                  <span className={record.fieldLabel}>
+                    {t("billing:detail.col_line_total")}
+                  </span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
+                    className={styles.input}
+                    dir="ltr"
+                  />
+                </div>
+
+                <div className={record.field}>
+                  <span className={record.fieldLabel}>
+                    {t("billing:detail.method.cash")}
+                  </span>
+                  <select
+                    value={method}
+                    onChange={(e) => setMethod(e.target.value as typeof method)}
+                    className={styles.input}
+                  >
+                    {(
+                      [
+                        "cash",
+                        "card",
+                        "bank_transfer",
+                        "easypaisa",
+                        "jazzcash",
+                        "other",
+                      ] as const
+                    ).map((m) => (
+                      <option key={m} value={m}>
+                        {t(`billing:detail.method.${m}`)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className={record.field}>
+                  <span className={record.fieldLabel}>
+                    {t("billing:detail.reference_label")}
+                  </span>
+                  <input
+                    type="text"
+                    value={reference}
+                    onChange={(e) => setReference(e.target.value)}
+                    className={styles.input}
+                    dir="ltr"
+                  />
+                </div>
+
+                <div className={record.actions}>
+                  <button
+                    type="button"
+                    disabled={busy || !amount || balance <= 0}
+                    onClick={() => void submitSettle("payment")}
+                    className={record.primaryButton}
+                  >
+                    {t("billing:detail.record_payment_title")}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busy || !amount}
+                    onClick={() => void submitSettle("refund")}
+                    className={record.secondaryButton}
+                  >
+                    {t("billing:detail.entry_refunded")}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => void cancelInvoice()}
+                    className={record.dangerButton}
+                    aria-label={t("billing:detail.cancel_invoice")}
+                  >
+                    {t("billing:detail.cancel_invoice")}
+                  </button>
+                </div>
               </div>
             )}
           </>
