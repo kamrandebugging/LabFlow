@@ -55,6 +55,10 @@ export function InvoiceRecordDrawer({
 
   const submitSettle = async (kind: "payment" | "refund") => {
     if (!invoice) return;
+    if (kind === "refund" && !reference.trim()) {
+      setActionError(t("billing:detail.refund_reason_required"));
+      return;
+    }
     setBusy(true);
     setActionError(null);
     try {
@@ -398,8 +402,7 @@ export function InvoiceRecordDrawer({
                       busy ||
                       !amount ||
                       Number(amount) <= 0 ||
-                      Number(amount) > Number(invoice.net_paid || 0) ||
-                      !reference.trim()
+                      Number(amount) > Number(invoice.net_paid || 0)
                     }
                     onClick={() => void submitSettle("refund")}
                     className={record.primaryButton}

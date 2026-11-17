@@ -157,6 +157,7 @@
     "toast_payment": "{{amount}} کی ادائیگی کامیابی سے درج ہو گئی۔",
     "toast_refund": "{{amount}} کی واپسی کامیابی سے درج ہو گئی۔",
     "toast_cancelled": "بل کامیابی سے منسوخ ہو گیا۔",
-    "cancel_invoice": "موائی کریں"
+    "cancel_invoice": "موائی کریں",
+    "refund_reason_required": "ریفنڈ کے لیے وجہ لازمی ہے۔"
   }
 }
