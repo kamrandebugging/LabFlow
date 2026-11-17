@@ -1069,6 +1069,8 @@ class TestForgotPasswordResets:
             )
             # Duplicate pending requests collapse into one notification.
             again = StaffService.create_password_reset_request(reception.email)
+            assert created is not None
+            assert again is not None
             assert again.id == created.id
             listed = StaffService.list_password_reset_requests(owner)
             assert [row["email"] for row in listed] == [reception.email.lower()]

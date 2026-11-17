@@ -102,6 +102,7 @@ ROLE_POLICY: Final[dict[str, dict[str, frozenset[str]]]] = {
         "POST": frozenset({ROLE_OWNER, ROLE_MANAGER, ROLE_RECEPTION, ROLE_TECHNICIAN})
     },
     "sample-events": {"GET": ALL_STAFF},
+    "sample-daily-stats": {"GET": ALL_STAFF},
     "transfer-receive": {
         "POST": frozenset({ROLE_OWNER, ROLE_MANAGER, ROLE_RECEPTION, ROLE_TECHNICIAN})
     },

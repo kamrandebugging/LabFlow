@@ -81,7 +81,9 @@ class TestStaffPasswordRequest:
                 email__iexact=reception.email
             )
             assert rows.count() == 1
-            assert rows.first().status == StaffPasswordResetRequest.Status.PENDING
+            row = rows.first()
+            assert row is not None
+            assert row.status == StaffPasswordResetRequest.Status.PENDING
 
     def test_unknown_email_is_accepted_but_not_stored(
         self, tenant_a: Any, reception: StaffUser

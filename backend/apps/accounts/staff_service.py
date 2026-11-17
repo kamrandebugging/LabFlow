@@ -856,9 +856,11 @@ class StaffService:
     @classmethod
     def list_password_reset_requests(cls, actor: StaffUser) -> list[dict[str, Any]]:
         _assert_owner_or_manager(actor)
-        rows = StaffPasswordResetRequest.objects.filter(
-            status=StaffPasswordResetRequest.Status.PENDING
-        ).order_by("-created_at")
+        rows = list(
+            StaffPasswordResetRequest.objects.filter(
+                status=StaffPasswordResetRequest.Status.PENDING
+            ).order_by("-created_at")
+        )
         if actor.role == Role.MANAGER:
             # A Manager may only see requests for the roles they can reset.
             allowed = {
