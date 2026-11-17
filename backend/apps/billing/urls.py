@@ -7,6 +7,7 @@ from apps.billing.views import (
     InvoiceCancelView,
     InvoiceCollectionView,
     InvoiceDetailView,
+    InvoiceHistoryView,
     PaymentCreateView,
 )
 
@@ -46,5 +47,15 @@ urlpatterns = [
         "invoices/<uuid:invoice_id>/payments/",
         PaymentCreateView.as_view(),
         name="payment-create-slash",
+    ),
+    path(
+        "invoices/<str:invoice_id>/history",
+        InvoiceHistoryView.as_view(),
+        name="invoice-history",
+    ),
+    path(
+        "invoices/<str:invoice_id>/history/",
+        InvoiceHistoryView.as_view(),
+        name="invoice-history-slash",
     ),
 ]

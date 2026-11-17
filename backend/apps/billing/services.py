@@ -499,6 +499,7 @@ class PaymentService:
         method: str,
         amount: Decimal,
         reference: str | None,
+        refund_reason: str | None = None,
         idempotency_key: str,
         actor: StaffUser,
         ip: str | None = None,
@@ -540,9 +541,13 @@ class PaymentService:
         # aggregates are computed INSIDE the transaction under an invoice row
         # lock, so concurrent requests cannot both slip under the cap
         # (security review 2026-11-12).
-        # BL-10: reference required for non-cash methods and for all refunds.
-        if (method != Payment.Method.CASH or kind == Payment.Kind.REFUND) and (
-            not reference
+        # BL-10: reference required for non-cash methods. Refunds must carry
+        # a reference OR the first-class refund_reason (the drawer sends the
+        # reason as refund_reason; reference stays the payment reference).
+        if (kind == Payment.Kind.REFUND and not reference and not refund_reason) or (
+            kind != Payment.Kind.REFUND
+            and method != Payment.Method.CASH
+            and not reference
         ):
             raise ReferenceRequiredError(
                 "A reference is required for non-cash payments and all refunds."
@@ -621,6 +626,7 @@ class PaymentService:
                         amount=amount,
                         received_by=actor,
                         reference=reference,
+                        refund_reason=refund_reason,
                         idempotency_key=idempotency_key,
                         payload_sha256=payload_hash,
                     )

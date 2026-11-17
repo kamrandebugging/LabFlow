@@ -158,7 +158,18 @@
     "toast_refund": "{{amount}} کی واپسی کامیابی سے درج ہو گئی۔",
     "toast_cancelled": "بل کامیابی سے منسوخ ہو گیا۔",
     "cancel_invoice": "موائی کریں",
-    "refund_reason_required": "ریفنڈ کے لیے وجہ لازمی ہے۔"
+    "refund_reason_required": "ریفنڈ کے لیے وجہ لازمی ہے۔",
+    "history_title": "تاریخ",
+    "history_loading": "تاریخ لوڈ ہو رہی ہے…",
+    "history_empty": "اس بل کی ابھی کوئی تاریخ نہیں۔",
+    "history_reason": "وجہ",
+    "event": {
+      "created": "بل بنایا گیا",
+      "payment": "ادائیگی وصول ہوئی",
+      "refund": "رقم واپس کی گئی",
+      "cancel": "بل منسوخ ہوا",
+      "discount": "رعایت لگائی گئی"
+    }
   },
   "print": {
     "patient_label": "مریض",

@@ -157,8 +157,15 @@ class PaymentCreateSerializer(serializers.Serializer):
     reference = serializers.CharField(
         required=False, allow_null=True, allow_blank=True, default=None
     )
+    refund_reason = serializers.CharField(
+        required=False, allow_null=True, allow_blank=True, default=None
+    )
 
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        if attrs.get("refund_reason") and attrs.get("kind") != "refund":
+            raise serializers.ValidationError(
+                {"refund_reason": "refund_reason is only valid for kind=refund."}
+            )
         return _reject_unknown_fields(self, attrs)
 
 
@@ -171,6 +178,7 @@ class PaymentSerializer(serializers.Serializer):
     method = serializers.CharField()
     amount = MoneyField()
     reference = serializers.CharField(allow_null=True)
+    refund_reason = serializers.CharField(allow_null=True, required=False, default=None)
     received_by = serializers.SerializerMethodField()
     created_at = serializers.DateTimeField()
 

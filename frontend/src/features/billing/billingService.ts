@@ -7,6 +7,7 @@ import { useAuthStore } from "../auth/authStore";
 import type {
   InvoiceCreateInput,
   InvoiceDetail,
+  InvoiceHistoryResponse,
   InvoiceListResponse,
   PaymentCreateInput,
   PaymentRecord,
@@ -158,6 +159,8 @@ export const billingService = {
             method: input.method,
             amount: input.amount,
             reference: input.reference || null,
+            refund_reason:
+              input.kind === "refund" ? input.refund_reason || null : null,
           },
         },
       );
@@ -165,6 +168,24 @@ export const billingService = {
       if (err instanceof ApiError) {
         const error = new Error(
           err.message || `Failed to record payment (${err.status})`,
+        );
+        (error as Error & { code?: string }).code = err.code ?? undefined;
+        throw error;
+      }
+      throw err;
+    }
+  },
+
+  async getInvoiceHistory(invoiceId: string): Promise<InvoiceHistoryResponse> {
+    try {
+      return await apiRequest<InvoiceHistoryResponse>(
+        `/invoices/${invoiceId}/history`,
+        { method: "GET" },
+      );
+    } catch (err) {
+      if (err instanceof ApiError) {
+        const error = new Error(
+          err.message || `Failed to load invoice history (${err.status})`,
         );
         (error as Error & { code?: string }).code = err.code ?? undefined;
         throw error;

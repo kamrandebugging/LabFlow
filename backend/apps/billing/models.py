@@ -297,6 +297,7 @@ class Payment(models.Model):
         db_index=False,
     )
     reference = models.TextField(null=True, blank=True)  # noqa: DJ001
+    refund_reason = models.TextField(null=True, blank=True)  # noqa: DJ001
     idempotency_key = models.TextField(null=True, blank=True)  # noqa: DJ001
     payload_sha256 = models.TextField(null=True, blank=True)  # noqa: DJ001
     created_at = models.DateTimeField(

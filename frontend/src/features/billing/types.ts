@@ -43,6 +43,7 @@ export interface PaymentRecord {
   method: PaymentMethod;
   amount: string;
   reference?: string | null;
+  refund_reason?: string | null;
   received_by?: string | null;
   created_at: string;
 }
@@ -52,6 +53,23 @@ export interface PaymentCreateInput {
   method: PaymentMethod;
   amount: string;
   reference?: string | null;
+  refund_reason?: string | null;
+}
+
+export type InvoiceHistoryEventType =
+  "created" | "payment" | "refund" | "cancel" | "discount";
+
+export interface InvoiceHistoryEvent {
+  event: InvoiceHistoryEventType;
+  at: string;
+  actor?: string | null;
+  amount?: string | null;
+  reason?: string | null;
+}
+
+export interface InvoiceHistoryResponse {
+  invoice_id: string;
+  events: InvoiceHistoryEvent[];
 }
 
 export interface InvoiceSummary {

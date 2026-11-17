@@ -158,7 +158,18 @@
     "toast_refund": "Refund of {{amount}} recorded successfully.",
     "toast_cancelled": "Invoice has been successfully cancelled.",
     "cancel_invoice": "Cancel Invoice",
-    "refund_reason_required": "Reason is mandatory for a refund."
+    "refund_reason_required": "Reason is mandatory for a refund.",
+    "history_title": "History",
+    "history_loading": "Loading history…",
+    "history_empty": "No history events for this invoice yet.",
+    "history_reason": "Reason",
+    "event": {
+      "created": "Invoice created",
+      "payment": "Payment received",
+      "refund": "Refund issued",
+      "cancel": "Invoice cancelled",
+      "discount": "Discount applied"
+    }
   },
   "print": {
     "patient_label": "Patient",

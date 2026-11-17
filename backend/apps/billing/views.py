@@ -255,6 +255,7 @@ class PaymentCreateView(APIView):
                 method=data["method"],
                 amount=data["amount"],
                 reference=data.get("reference"),
+                refund_reason=data.get("refund_reason"),
                 idempotency_key=idempotency_key,
                 actor=user,
                 ip=ip,
@@ -432,6 +433,123 @@ class InvoiceDetailView(APIView):
         }
         return Response(
             InvoiceDetailSerializer(payload, context={"request": request}).data,
+            status=status.HTTP_200_OK,
+        )
+
+
+class InvoiceHistoryView(APIView):
+    """GET /api/v1/invoices/{id}/history — read-only append-only event trail.
+
+    Derives created / payment / refund / cancel / discount events from the
+    immutable Payment rows, the invoice row and its AuditLog entries. No
+    write method exists: history rows can never be edited or deleted.
+    Same read roles and branch scoping as InvoiceDetailView.
+    """
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request: Request, invoice_id: Any) -> Response:
+        user = cast(StaffUser, request.user)
+        if user.role not in BILLING_READ_ROLES:
+            return Response(
+                _format_error("forbidden", "Only staff may view invoices."),
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        iid = _resolve_invoice_reference(user, invoice_id)
+        if iid is None:
+            return Response(
+                _format_error("not_found", "Invoice not found."),
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        try:
+            detail = InvoiceQueryService.get_invoice_detail(invoice_id=iid, actor=user)
+        except BillingError as exc:
+            return Response(
+                _format_error(exc.error_code, str(exc) or exc.error_code),
+                status=exc.status_code,
+            )
+        invoice = detail["invoice"]
+
+        from apps.accounts.models import AuditLog
+        from apps.accounts.models import StaffUser as _Staff
+
+        events: list[dict[str, Any]] = []
+
+        # Actor names for audit rows (actor_id is a plain UUID, no FK).
+        audit_rows = list(
+            AuditLog.objects.filter(
+                entity_type="invoice", entity_id=invoice.id
+            ).order_by("at")
+        )
+        actor_ids: set[uuid.UUID] = set()
+        for row in audit_rows:
+            if row.actor_id is not None:
+                actor_ids.add(row.actor_id)
+        payment_rows = list(
+            invoice.payments.all().select_related("received_by").order_by("created_at")
+        )
+        for p in payment_rows:
+            if p.received_by_id is not None:
+                actor_ids.add(p.received_by_id)
+        names: dict[Any, str] = {}
+        if actor_ids:
+            for s in _Staff.objects.filter(id__in=actor_ids):
+                names[s.id] = getattr(s, "name", None) or s.email
+
+        # created (+ discount applied at creation)
+        created_row = next(
+            (r for r in audit_rows if r.action == "invoice.created"), None
+        )
+        created_at = created_row.at if created_row else invoice.created_at
+        created_actor = names.get(created_row.actor_id) if created_row else None
+        events.append(
+            {
+                "event": "created",
+                "at": created_at.isoformat(),
+                "actor": created_actor,
+                "amount": f"{invoice.total:.2f}",
+            }
+        )
+        if invoice.discount_amount > Decimal("0.00"):
+            events.append(
+                {
+                    "event": "discount",
+                    "at": created_at.isoformat(),
+                    "actor": created_actor,
+                    "amount": f"{invoice.discount_amount:.2f}",
+                    "reason": invoice.discount_reason,
+                }
+            )
+
+        # payment / refund rows (append-only financial facts)
+        for p in payment_rows:
+            ev: dict[str, Any] = {
+                "event": "refund" if p.kind == Payment.Kind.REFUND else "payment",
+                "at": p.created_at.isoformat(),
+                "actor": names.get(p.received_by_id),
+                "amount": f"{p.amount:.2f}",
+            }
+            if p.kind == Payment.Kind.REFUND:
+                ev["reason"] = p.refund_reason or p.reference
+            events.append(ev)
+
+        # cancel
+        for row in audit_rows:
+            if row.action == "invoice.cancelled":
+                after = row.after_jsonb or {}
+                events.append(
+                    {
+                        "event": "cancel",
+                        "at": row.at.isoformat(),
+                        "actor": names.get(row.actor_id),
+                        "amount": None,
+                        "reason": after.get("reason"),
+                    }
+                )
+
+        events.sort(key=lambda e: e["at"])
+        return Response(
+            {"invoice_id": str(invoice.id), "events": events},
             status=status.HTTP_200_OK,
         )
 
