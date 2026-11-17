@@ -54,9 +54,7 @@ const invoiceRows: InvoiceSummary[] = [
   },
 ];
 
-function patientServiceMock(
-  rows: PatientSummary[],
-): typeof patientService {
+function patientServiceMock(rows: PatientSummary[]): typeof patientService {
   return {
     ...patientService,
     listPatients: vi.fn().mockResolvedValue(rows),
@@ -104,7 +102,9 @@ describe("Patients + Invoices themed list screens", () => {
       /^last visit$/i,
       /^actions$/i,
     ]) {
-      expect(screen.getByRole("columnheader", { name: column })).toBeInTheDocument();
+      expect(
+        screen.getByRole("columnheader", { name: column }),
+      ).toBeInTheDocument();
     }
 
     await waitFor(() => {

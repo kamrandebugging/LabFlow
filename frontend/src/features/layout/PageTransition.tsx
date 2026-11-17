@@ -29,9 +29,9 @@ function focusPageHeading(stack: HTMLElement | null): void {
   if (!stack) return;
   // Only focus the heading inside the entering layer. Never fall back to the
   // exiting layer — focusing it would lose focus when that layer unmounts.
-  const layer = stack.querySelector('.lf-page-layer--enter');
+  const layer = stack.querySelector(".lf-page-layer--enter");
   if (!layer) return;
-  const h1 = layer.querySelector('h1');
+  const h1 = layer.querySelector("h1");
   if (!h1) return;
   if (!h1.hasAttribute("tabindex")) {
     h1.setAttribute("tabindex", "-1");

@@ -786,10 +786,7 @@ function App(): JSX.Element {
 
         {/* Standalone invoice print window — intentionally outside the
             tenant shell so no app chrome is ever printed. */}
-        <Route
-          path="/invoices/:id/print"
-          element={<InvoicePrintWrapper />}
-        />
+        <Route path="/invoices/:id/print" element={<InvoicePrintWrapper />} />
 
         {/* Platform Master Dashboard — Phase 1 (Command & Tenants) */}
         <Route

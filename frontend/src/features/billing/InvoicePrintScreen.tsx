@@ -120,9 +120,8 @@ export function InvoicePrintScreen({
    * rendered only when a server version that does provide one is in front
    * of us — a value is never invented here.
    */
-  const reportingTime = (
-    invoice as { reporting_time?: string | null } | null
-  )?.reporting_time;
+  const reportingTime = (invoice as { reporting_time?: string | null } | null)
+    ?.reporting_time;
 
   const labName = (branding.labName || invoice?.branch_name || "").trim();
 
@@ -265,7 +264,11 @@ export function InvoicePrintScreen({
           <p className={styles.errorBody}>
             {error || t("billing:detail.not_found_body")}
           </p>
-          <button type="button" onClick={handleClose} className={styles.backBtn}>
+          <button
+            type="button"
+            onClick={handleClose}
+            className={styles.backBtn}
+          >
             {t("billing:detail.back_to_invoices")}
           </button>
         </div>
@@ -378,7 +381,9 @@ export function InvoicePrintScreen({
               </div>
               <div className={`${styles.moneyRow} ${styles.moneyRowStrong}`}>
                 <span>{t("billing:detail.net_payable")}</span>
-                <span className="lf-ltr">{formatMoney(invoice.total, "en")}</span>
+                <span className="lf-ltr">
+                  {formatMoney(invoice.total, "en")}
+                </span>
               </div>
               <div className={styles.moneyRow}>
                 <span>{t("billing:print.paid_label")}</span>
