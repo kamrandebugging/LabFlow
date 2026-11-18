@@ -242,6 +242,8 @@
     "no_payments": "No payments recorded for this day.",
     "close_button": "Close Day",
     "closing": "Closing...",
-    "lock_hint": "Closing locks the day; it cannot be reopened."
+    "lock_hint": "Closing locks this branch-day. Money after this close is recorded on the next open day.",
+    "active_date_label": "Active Business Day",
+    "lock_warning": "Closing locks this branch-day. Money after this close is recorded on the next open day."
   }
 }

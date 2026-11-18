@@ -877,6 +877,9 @@ class DayCloseView(APIView):
             {
                 "branch_id": str(branch_id),
                 "date": day.isoformat(),
+                "active_business_date": data.get(
+                    "active_business_date", day.isoformat()
+                ),
                 "closed": data["closed"],
                 "totals": self._totals_payload(data["totals"]),
                 "close": (
@@ -930,6 +933,9 @@ class DayCloseView(APIView):
             {
                 "branch_id": str(close.branch_id),
                 "date": close.business_date.isoformat(),
+                "active_business_date": DayCloseService.collect_totals(
+                    branch_id=close.branch_id, day=close.business_date
+                )["active_business_date"].isoformat(),
                 "closed": True,
                 "close": DayCloseSummarySerializer(close).data,
             },

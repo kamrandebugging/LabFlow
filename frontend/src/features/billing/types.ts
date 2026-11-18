@@ -185,6 +185,7 @@ export interface DayCloseRecord {
 export interface DayCloseResponse {
   branch_id: string;
   date: string;
+  active_business_date?: string;
   closed: boolean;
   totals?: DayCloseTotals;
   close?: DayCloseRecord | null;

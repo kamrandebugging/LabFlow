@@ -65,8 +65,10 @@ from django.utils import timezone
 
 from apps.accounts.models import AuditLog, Role, StaffUser
 from apps.billing.models import (
+    BranchDay,
     CreditNote,
     CreditNoteSequence,
+    CreditNoteVoid,
     DayClose,
     Invoice,
     InvoiceItem,
@@ -631,16 +633,61 @@ def get_net_paid_by_method(invoice: Invoice) -> dict[str, Decimal]:
     return money_by_method
 
 
+def is_branch_day_closed(branch_id: uuid.UUID, target_date: date) -> bool:
+    """Check if a specific branch-day is closed."""
+    if BranchDay.objects.filter(
+        branch_id=branch_id, business_date=target_date, is_closed=True
+    ).exists():
+        return True
+    return DayClose.objects.filter(
+        branch_id=branch_id, business_date=target_date
+    ).exists()
+
+
+def get_active_business_date(branch_id: uuid.UUID) -> date:
+    """Return the active business date for a branch in Asia/Karachi (Phase 3 Rule 1).
+
+    For an unclosed day D (calendar day in Asia/Karachi), active_business_date = D.
+    When day D is closed, active_business_date rolls forward to D+1 (and beyond if
+    subsequent days are closed).
+    """
+    candidate = timezone.localdate()
+    while is_branch_day_closed(branch_id, candidate):
+        candidate += timedelta(days=1)
+    return candidate
+
+
+def lock_branch_day(branch_id: uuid.UUID, target_date: date) -> BranchDay:
+    """Lock BranchDay for (branch_id, target_date) under SELECT FOR UPDATE.
+
+    Verifies day is not closed. If closed, raises DayClosedError (409).
+    """
+    branch_day, _ = BranchDay.objects.get_or_create(
+        branch_id=branch_id,
+        business_date=target_date,
+        defaults={"is_closed": False},
+    )
+    branch_day = BranchDay.objects.select_for_update().get(pk=branch_day.pk)
+    if (
+        branch_day.is_closed
+        or DayClose.objects.filter(
+            branch_id=branch_id, business_date=target_date
+        ).exists()
+    ):
+        raise DayClosedError(
+            "This branch-day is closed; record the money on the next open day."
+        )
+    return branch_day
+
+
 def _assert_branch_day_open(branch_id: uuid.UUID, day: date | None = None) -> None:
     """Money is never back-dated into a closed branch-day.
 
     A closed day is final: the close document is immutable and refuses new
     money. Cash taken after close is recorded on the next open day.
     """
-    business_day = day or timezone.localdate()
-    if DayClose.objects.filter(
-        branch_id=branch_id, business_date=business_day
-    ).exists():
+    business_day = day or get_active_business_date(branch_id)
+    if is_branch_day_closed(branch_id, business_day):
         raise DayClosedError(
             "This branch-day is closed; record the money on the next open day."
         )
@@ -749,7 +796,9 @@ class PaymentService:
 
             # Idempotent replay wins over state checks: a retry returns the
             # original row even if the invoice has moved on since.
-            existing = Payment.objects.filter(idempotency_key=idempotency_key).first()
+            existing = Payment.objects.filter(
+                invoice=invoice, idempotency_key=idempotency_key
+            ).first()
             if existing is not None:
                 if existing.payload_sha256 != payload_hash:
                     raise IdempotencyKeyReusedError(
@@ -771,7 +820,8 @@ class PaymentService:
                     "further payments or refunds can be recorded against it."
                 )
 
-            _assert_branch_day_open(invoice.branch_id)
+            target_date = get_active_business_date(invoice.branch_id)
+            lock_branch_day(invoice.branch_id, target_date)
 
             if kind == Payment.Kind.REFUND:
                 hour_ago = timezone.now() - timedelta(hours=1)
@@ -832,10 +882,12 @@ class PaymentService:
                         refund_reason=refund_reason,
                         idempotency_key=idempotency_key,
                         payload_sha256=payload_hash,
+                        business_date=target_date,
                     )
             except IntegrityError:
                 existing = Payment.objects.filter(
-                    idempotency_key=idempotency_key
+                    invoice=invoice,
+                    idempotency_key=idempotency_key,
                 ).first()
                 if existing is None:
                     raise
@@ -1214,7 +1266,8 @@ class CreditNoteService:
 
             # Replay wins over state checks (same key + payload -> original).
             existing = CreditNote.objects.filter(
-                idempotency_key=idempotency_key
+                invoice=invoice,
+                idempotency_key=idempotency_key,
             ).first()
             if existing is not None:
                 if existing.payload_sha256 != payload_hash:
@@ -1223,7 +1276,8 @@ class CreditNoteService:
                     )
                 return existing, False
 
-            _assert_branch_day_open(invoice.branch_id)
+            target_date = get_active_business_date(invoice.branch_id)
+            lock_branch_day(invoice.branch_id, target_date)
 
             if CreditNote.objects.filter(invoice=invoice).exists():
                 raise InvalidStateTransitionError(
@@ -1304,6 +1358,7 @@ class CreditNoteService:
                 issued_by=actor,
                 idempotency_key=idempotency_key,
                 payload_sha256=payload_hash,
+                business_date=target_date,
             )
             # Credit notes reverse collected money, so they feed the same
             # status derivation as a refund (BL-6).
@@ -1445,7 +1500,11 @@ class DayCloseService:
     def collect_totals(*, branch_id: uuid.UUID, day: date) -> dict[str, Any]:
         """Server-computed totals for one branch-day (no client input)."""
         payment_rows = (
-            Payment.objects.filter(invoice__branch_id=branch_id, created_at__date=day)
+            Payment.objects.filter(invoice__branch_id=branch_id)
+            .filter(
+                Q(business_date=day)
+                | Q(business_date__isnull=True, created_at__date=day)
+            )
             .values("method", "kind")
             .annotate(total=Sum("amount"))
         )
@@ -1467,16 +1526,20 @@ class DayCloseService:
             else:
                 bucket["in"] = f"{_money(bucket['in']) + amount:.2f}"
                 total_in += amount
-        for bucket in method_totals.values():
-            bucket["net"] = f"{_money(bucket['in']) - _money(bucket['out']):.2f}"
 
         # Credit notes are reversals too: they leave the drawer/card by the
         # method(s) recorded on the note, so day close reconciles them as out.
-        note_rows = CreditNote.objects.filter(
-            invoice__branch_id=branch_id,
-            issued_at__date=day,
-            voided_at__isnull=True,
-        ).values_list("reversed_methods", "method", "amount")
+        note_rows = (
+            CreditNote.objects.filter(
+                invoice__branch_id=branch_id,
+                voided_at__isnull=True,
+            )
+            .filter(
+                Q(business_date=day)
+                | Q(business_date__isnull=True, issued_at__date=day)
+            )
+            .values_list("reversed_methods", "method", "amount")
+        )
         total_credit_notes = Decimal("0.00")
         for reversed_methods, fallback_method, amount in note_rows:
             total_credit_notes += _money(amount)
@@ -1489,6 +1552,22 @@ class DayCloseService:
                 moved = _money(raw)
                 bucket["out"] = f"{_money(bucket['out']) + moved:.2f}"
                 total_out += moved
+
+        # Voids on this business day restore money into the drawer (Phase 4).
+        void_rows = CreditNoteVoid.objects.filter(
+            credit_note__invoice__branch_id=branch_id,
+            void_business_date=day,
+        ).values_list("restored_methods", flat=True)
+        for restored in void_rows:
+            for method, raw in (restored or {}).items():
+                method = str(method)
+                bucket = method_totals.setdefault(
+                    method, {"in": "0.00", "out": "0.00", "net": "0.00"}
+                )
+                moved = _money(raw)
+                bucket["in"] = f"{_money(bucket['in']) + moved:.2f}"
+                total_in += moved
+
         for bucket in method_totals.values():
             bucket["net"] = f"{_money(bucket['in']) - _money(bucket['out']):.2f}"
 
@@ -1508,6 +1587,7 @@ class DayCloseService:
         return {
             "branch_id": branch_id,
             "date": day,
+            "active_business_date": get_active_business_date(branch_id),
             "method_totals": method_totals,
             "total_in": total_in,
             "total_out": total_out,
@@ -1528,7 +1608,13 @@ class DayCloseService:
             .select_related("closed_by")
             .first()
         )
-        return {"totals": totals, "closed": close is not None, "close": close}
+        active_date = get_active_business_date(branch_id)
+        return {
+            "totals": totals,
+            "closed": close is not None,
+            "close": close,
+            "active_business_date": active_date.isoformat(),
+        }
 
     @staticmethod
     def close(
@@ -1553,8 +1639,16 @@ class DayCloseService:
         with transaction.atomic():
             # Serialise concurrent closes for the same branch.
             branch = Branch.objects.select_for_update().get(pk=branch_id)
-            existing = DayClose.objects.filter(branch=branch, business_date=day).first()
-            if existing is not None:
+            branch_day, _ = BranchDay.objects.get_or_create(
+                branch_id=branch_id,
+                business_date=day,
+                defaults={"is_closed": False},
+            )
+            branch_day = BranchDay.objects.select_for_update().get(pk=branch_day.pk)
+            if (
+                branch_day.is_closed
+                or DayClose.objects.filter(branch=branch, business_date=day).exists()
+            ):
                 raise DayCloseAlreadyClosedError(
                     f"{day.isoformat()} is already closed for this branch."
                 )
@@ -1581,6 +1675,9 @@ class DayCloseService:
                 difference_note=note or None,
                 closed_by=actor,
             )
+            branch_day.is_closed = True
+            branch_day.closed_at = timezone.now()
+            branch_day.save(update_fields=["is_closed", "closed_at"])
             AuditLog.objects.create(
                 actor_id=actor.id,
                 action="day_close.closed",

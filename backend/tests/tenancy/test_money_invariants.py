@@ -546,3 +546,162 @@ def test_day_close_counts_credit_note_per_method(
         assert method_totals["card"]["out"] == "1400.00"
         assert method_totals["card"]["net"] == "0.00"
         assert totals["total_credit_notes"] == Decimal("2400.00")
+
+
+@pytest.mark.django_db
+def test_post_close_payment_rolls_to_next_business_day(
+    tenant_a: Any, mi_setup: dict[str, Any], auth_headers: Any
+) -> None:
+    """Close day D at 21:00; payment at 21:05 -> business_date D+1, 200."""
+    from datetime import timedelta
+
+    from apps.billing.services import DayCloseService, get_active_business_date
+
+    today = timezone.localdate()
+    with tenant_context(tenant_a):
+        # Create an invoice before close
+        invoice_d = InvoiceFactory(
+            patient=mi_setup["patient"],
+            branch=mi_setup["branch"],
+            status=Invoice.Status.UNPAID,
+            subtotal=Decimal("1000.00"),
+            total=Decimal("1000.00"),
+        )
+        invoice_d_id = invoice_d.id
+
+        # Close day D
+        DayCloseService.close(
+            actor=mi_setup["owner"],
+            branch_id=mi_setup["branch"].id,
+            day=today,
+            counted_cash=Decimal("0.00"),
+            difference_note=None,
+        )
+
+        # Verify active business date rolled forward to D+1
+        assert get_active_business_date(mi_setup["branch"].id) == (
+            today + timedelta(days=1)
+        )
+
+    # Post payment arriving after close
+    pay_resp = Client().post(
+        f"{INVOICES_URL}/{invoice_d_id}/payments",
+        data={
+            "kind": "payment",
+            "method": "cash",
+            "amount": "1000.00",
+        },
+        content_type="application/json",
+        HTTP_IDEMPOTENCY_KEY="mi-post-close-pay-1",
+        headers=auth_headers(mi_setup["owner"]),
+    )
+    assert pay_resp.status_code == 201, pay_resp.content
+
+    with tenant_context(tenant_a):
+        payment = Payment.objects.get(invoice_id=invoice_d_id)
+        # business_date is D+1, created_at is today
+        assert payment.business_date == today + timedelta(days=1)
+        assert payment.created_at.date() == today
+
+        # Day D DayClose totals are unchanged (0 in)
+        totals_d = DayCloseService.collect_totals(
+            branch_id=mi_setup["branch"].id, day=today
+        )
+        assert totals_d["method_totals"]["cash"]["in"] == "0.00"
+
+        # Day D+1 totals have the 1000.00 payment
+        totals_d1 = DayCloseService.collect_totals(
+            branch_id=mi_setup["branch"].id, day=today + timedelta(days=1)
+        )
+        assert totals_d1["method_totals"]["cash"]["in"] == "1000.00"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_inflight_payment_cannot_land_in_closing_day(
+    tenant_a: Any, mi_setup: dict[str, Any]
+) -> None:
+    """Payment and Day Close race: lands or fails 409, never joins closed day."""
+    from apps.billing.services import DayCloseService, PaymentService
+
+    tenant = mi_setup["tenant"]
+    branch_id = mi_setup["branch"].id
+    owner_id = mi_setup["owner"].id
+    today = timezone.localdate()
+
+    with tenant_context(tenant):
+        invoice = InvoiceFactory(
+            patient=mi_setup["patient"],
+            branch=mi_setup["branch"],
+            status=Invoice.Status.UNPAID,
+            subtotal=Decimal("1000.00"),
+            total=Decimal("1000.00"),
+        )
+        invoice_id = invoice.id
+
+    payment_outcome: dict[str, Any] = {}
+    close_outcome: dict[str, Any] = {}
+
+    def run_payment() -> None:
+        try:
+            with tenant_context(tenant):
+                from apps.accounts.models import StaffUser
+
+                actor = StaffUser.objects.get(pk=owner_id)
+                PaymentService.record_payment(
+                    invoice_id=invoice_id,
+                    kind="payment",
+                    method="cash",
+                    amount=Decimal("1000.00"),
+                    reference=None,
+                    idempotency_key="mi-race-pay-1",
+                    actor=actor,
+                )
+                payment_outcome["status"] = "success"
+        except BillingError as exc:
+            payment_outcome["status"] = exc.error_code
+        except Exception as exc:
+            payment_outcome["status"] = f"error: {exc}"
+        finally:
+            connection.close()
+
+    def run_close() -> None:
+        try:
+            with tenant_context(tenant):
+                from apps.accounts.models import StaffUser
+
+                actor = StaffUser.objects.get(pk=owner_id)
+                DayCloseService.close(
+                    actor=actor,
+                    branch_id=branch_id,
+                    day=today,
+                    counted_cash=Decimal("0.00"),
+                    difference_note="race test",
+                )
+                close_outcome["status"] = "success"
+        except BillingError as exc:
+            close_outcome["status"] = exc.error_code
+        except Exception as exc:
+            close_outcome["status"] = f"error: {exc}"
+        finally:
+            connection.close()
+
+    t1 = threading.Thread(target=run_payment)
+    t2 = threading.Thread(target=run_close)
+    t1.start()
+    t2.start()
+    t1.join()
+    t2.join()
+
+    assert payment_outcome.get("status") in {"success", "day_closed"}
+    assert close_outcome.get("status") in {"success", "already_closed"}
+
+    with tenant_context(tenant):
+        day_close = DayClose.objects.filter(
+            branch_id=branch_id, business_date=today
+        ).first()
+        if day_close is not None:
+            p = Payment.objects.filter(invoice_id=invoice_id).first()
+            if p is not None and p.business_date == today:
+                assert Decimal(day_close.method_totals["cash"]["in"]) >= Decimal(
+                    "1000.00"
+                )
