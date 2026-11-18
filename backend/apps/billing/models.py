@@ -416,3 +416,68 @@ class CreditNote(models.Model):
 
     def __str__(self) -> str:
         return f"CreditNote({self.number}) PKR {self.amount}"
+
+
+class DayClose(models.Model):
+    """One branch's reconciled, locked business day (append-only).
+
+    Built only from the append-only Payment, Invoice and CreditNote rows of
+    that branch and day; closing records the reconciliation and never edits
+    any money that was already recorded. There is no update or reopen path.
+
+    ``method_totals`` is ``{method: {"in": "0.00", "out": "0.00",
+    "net": "0.00"}}`` — the same six payment methods, Decimal PKR rendered as
+    strings so the stored document is exact.
+
+    Branch scope (Doc 04 §8.5): ``branch_scope_field = "branch_id"``.
+    """
+
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        db_default=models.Func(function="gen_random_uuid"),
+        editable=False,
+    )
+    branch = models.ForeignKey(
+        "branches.Branch",
+        on_delete=models.PROTECT,
+        related_name="day_closes",
+        db_column="branch_id",
+        db_index=False,
+    )
+    business_date = models.DateField()
+    method_totals = models.JSONField()
+    total_invoices = models.PositiveIntegerField(default=0)
+    total_discount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    total_credit_notes = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    expected_cash = models.DecimalField(max_digits=12, decimal_places=2)
+    counted_cash = models.DecimalField(max_digits=12, decimal_places=2)
+    difference = models.DecimalField(max_digits=12, decimal_places=2)
+    difference_note = models.TextField(null=True, blank=True)  # noqa: DJ001
+    closed_by = models.ForeignKey(
+        "accounts.StaffUser",
+        on_delete=models.PROTECT,
+        related_name="day_closes",
+        db_column="closed_by",
+        db_index=False,
+    )
+    closed_at = models.DateTimeField(auto_now_add=True, db_default=Now())
+
+    branch_scope_field = "branch_id"
+    objects = BranchScopedManager()
+
+    class Meta:
+        db_table = "billing_day_close"
+        ordering = ["-business_date"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["branch", "business_date"],
+                name="uq_day_close_branch_date",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["branch"], name="idx_day_close_branch_id"),
+        ]
+
+    def __str__(self) -> str:
+        return f"DayClose({self.branch_id} {self.business_date})"

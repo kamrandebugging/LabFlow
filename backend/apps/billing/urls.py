@@ -5,6 +5,7 @@ from django.urls import path
 
 from apps.billing.views import (
     CreditNoteCreateView,
+    DayCloseView,
     InvoiceCancelView,
     InvoiceCollectionView,
     InvoiceDetailView,
@@ -69,4 +70,6 @@ urlpatterns = [
         CreditNoteCreateView.as_view(),
         name="invoice-credit-note-slash",
     ),
+    path("day-close", DayCloseView.as_view(), name="day-close"),
+    path("day-close/", DayCloseView.as_view(), name="day-close-slash"),
 ]

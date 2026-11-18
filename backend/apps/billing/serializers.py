@@ -219,6 +219,57 @@ class CreditNoteSerializer(serializers.Serializer):
         return getattr(staff, "name", None) or getattr(staff, "email", None)
 
 
+class DayCloseCreateSerializer(serializers.Serializer):
+    """Body for POST /day-close — close one branch-day.
+
+    ``counted_cash`` is the money physically counted in the drawer; the server
+    compares it with the expected cash it derives from Payment rows.
+    """
+
+    branch_id = serializers.UUIDField()
+    date = serializers.DateField(required=False)
+    counted_cash = MoneyField()
+    difference_note = serializers.CharField(required=False, allow_blank=True)
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        return _reject_unknown_fields(self, attrs)
+
+
+class DayCloseSummarySerializer(serializers.Serializer):
+    """The immutable reconciliation document written by a close."""
+
+    id = serializers.UUIDField()
+    branch_id = serializers.UUIDField()
+    business_date = serializers.DateField()
+    method_totals = serializers.DictField()
+    total_invoices = serializers.IntegerField()
+    total_discount = MoneyField()
+    total_credit_notes = MoneyField()
+    expected_cash = MoneyField()
+    counted_cash = MoneyField()
+    difference = MoneyField()
+    difference_note = serializers.CharField(allow_null=True)
+    closed_by = serializers.UUIDField(allow_null=True)
+    closed_by_name = serializers.SerializerMethodField()
+    closed_at = serializers.DateTimeField()
+
+    def get_closed_by_name(self, obj: Any) -> str | None:
+        staff = getattr(obj, "closed_by", None)
+        if staff is None:
+            return None
+        return getattr(staff, "name", None) or getattr(staff, "email", None)
+
+
+class DayCloseReadSerializer(serializers.Serializer):
+    """Read shape for GET /day-close — live totals plus the locked record."""
+
+    branch_id = serializers.UUIDField()
+    date = serializers.DateField()
+    closed = serializers.BooleanField()
+    totals = serializers.DictField()
+    close = DayCloseSummarySerializer(allow_null=True)
+
+
 class InvoiceCancelSerializer(serializers.Serializer):
     """Body for POST /invoices/{id}/cancel — reason required (BL-8)."""
 

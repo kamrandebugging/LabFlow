@@ -135,3 +135,53 @@ export interface InvoiceListResponse {
   /** Present only when the server actually returned a daily aggregate. */
   daily_total?: string;
 }
+
+/** Day Close — one branch's reconciled, locked business day. */
+export interface DayCloseMethodTotal {
+  in: string;
+  out: string;
+  net: string;
+}
+
+export interface DayCloseTotals {
+  method_totals: Record<string, DayCloseMethodTotal>;
+  total_in: string;
+  total_out: string;
+  net_total: string;
+  total_invoices: number;
+  total_discount: string;
+  total_credit_notes: string;
+  expected_cash: string;
+}
+
+export interface DayCloseRecord {
+  id: string;
+  branch_id: string;
+  business_date: string;
+  method_totals: Record<string, DayCloseMethodTotal>;
+  total_invoices: number;
+  total_discount: string;
+  total_credit_notes: string;
+  expected_cash: string;
+  counted_cash: string;
+  difference: string;
+  difference_note?: string | null;
+  closed_by?: string | null;
+  closed_by_name?: string | null;
+  closed_at: string;
+}
+
+export interface DayCloseResponse {
+  branch_id: string;
+  date: string;
+  closed: boolean;
+  totals?: DayCloseTotals;
+  close?: DayCloseRecord | null;
+}
+
+export interface DayCloseInput {
+  branch_id: string;
+  date?: string;
+  counted_cash: string;
+  difference_note?: string;
+}

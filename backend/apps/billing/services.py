@@ -42,7 +42,7 @@ import binascii
 import hashlib
 import json
 import uuid
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from typing import Any, cast
 
@@ -57,6 +57,7 @@ from apps.accounts.models import AuditLog, Role, StaffUser
 from apps.billing.models import (
     CreditNote,
     CreditNoteSequence,
+    DayClose,
     Invoice,
     InvoiceItem,
     Payment,
@@ -82,6 +83,8 @@ PAYMENT_WRITE_ROLES = {Role.OWNER, Role.MANAGER, Role.RECEPTION}
 REFUND_ROLES = {Role.OWNER, Role.MANAGER}
 # Credit notes reverse collected money, so front desk cannot issue them.
 CREDIT_NOTE_ROLES = {Role.OWNER, Role.MANAGER}
+# Closing a day locks the shift's money, so front desk cannot do it.
+DAY_CLOSE_ROLES = {Role.OWNER, Role.MANAGER}
 # Interim refund ceiling (Doc 05 §13, OQ-31): a Manager alone may refund up to
 # this amount; anything above requires the Owner.
 REFUND_MANAGER_CEILING = Decimal("5000.00")
@@ -183,6 +186,21 @@ class CreditNoteExceedsNetPaidError(BillingError):
 class CreditNoteAmountMismatchError(BillingError):
     status_code = 422
     error_code = "credit_note_amount_mismatch"
+
+
+class DayCloseAlreadyClosedError(BillingError):
+    status_code = 409
+    error_code = "day_close_exists"
+
+
+class DayCloseNoteRequiredError(BillingError):
+    status_code = 422
+    error_code = "day_close_note_required"
+
+
+class DayCloseInvalidDateError(BillingError):
+    status_code = 422
+    error_code = "day_close_invalid_date"
 
 
 class InvalidFilterError(BillingError):
@@ -1089,3 +1107,176 @@ class CreditNoteService:
                 user_agent=user_agent,
             )
             return note
+
+
+DAY_CLOSE_METHODS: tuple[str, ...] = tuple(Payment.Method.values)
+
+
+def _money(value: object) -> Decimal:
+    """Coerce an aggregate/JSON value into exact Decimal PKR."""
+    if value is None:
+        return Decimal("0.00")
+    if isinstance(value, Decimal):
+        return value.quantize(Decimal("0.01"))
+    return Decimal(str(value)).quantize(Decimal("0.01"))
+
+
+class DayCloseService:
+    """Shift reconciliation for one branch and one business day.
+
+    Every total is derived from the append-only Payment / Invoice / CreditNote
+    rows in Decimal PKR. Closing writes one DayClose document; it never touches
+    a payment, an invoice or a credit note.
+    """
+
+    @staticmethod
+    def _assert_branch_in_scope(actor: StaffUser, branch_id: uuid.UUID) -> None:
+        if not Branch.objects.filter(pk=branch_id).exists():
+            raise BillingNotFoundError("Branch not found.")
+        if not actor.is_tenant_wide:
+            allowed = effective_branch_ids(actor)
+            if not allowed or branch_id not in allowed:
+                raise BillingNotFoundError("Branch not found.")
+
+    @staticmethod
+    def collect_totals(*, branch_id: uuid.UUID, day: date) -> dict[str, Any]:
+        """Server-computed totals for one branch-day (no client input)."""
+        payment_rows = (
+            Payment.objects.filter(invoice__branch_id=branch_id, created_at__date=day)
+            .values("method", "kind")
+            .annotate(total=Sum("amount"))
+        )
+        method_totals: dict[str, dict[str, str]] = {
+            method: {"in": "0.00", "out": "0.00", "net": "0.00"}
+            for method in DAY_CLOSE_METHODS
+        }
+        total_in = Decimal("0.00")
+        total_out = Decimal("0.00")
+        for row in payment_rows:
+            method = str(row["method"])
+            amount = _money(row["total"])
+            bucket = method_totals.setdefault(
+                method, {"in": "0.00", "out": "0.00", "net": "0.00"}
+            )
+            if row["kind"] == Payment.Kind.REFUND:
+                bucket["out"] = f"{_money(bucket['out']) + amount:.2f}"
+                total_out += amount
+            else:
+                bucket["in"] = f"{_money(bucket['in']) + amount:.2f}"
+                total_in += amount
+        for bucket in method_totals.values():
+            bucket["net"] = f"{_money(bucket['in']) - _money(bucket['out']):.2f}"
+
+        invoice_qs = Invoice.objects.filter(
+            branch_id=branch_id, created_at__date=day
+        ).exclude(status=Invoice.Status.CANCELLED)
+        total_invoices = invoice_qs.count()
+        total_discount = _money(
+            invoice_qs.aggregate(total=Sum("discount_amount"))["total"]
+        )
+        total_credit_notes = _money(
+            CreditNote.objects.filter(
+                invoice__branch_id=branch_id, issued_at__date=day
+            ).aggregate(total=Sum("amount"))["total"]
+        )
+        expected_cash = (
+            _money(method_totals["cash"]["net"])
+            if "cash" in method_totals
+            else Decimal("0.00")
+        )
+
+        return {
+            "branch_id": branch_id,
+            "date": day,
+            "method_totals": method_totals,
+            "total_in": total_in,
+            "total_out": total_out,
+            "net_total": total_in - total_out,
+            "total_invoices": total_invoices,
+            "total_discount": total_discount,
+            "total_credit_notes": total_credit_notes,
+            "expected_cash": expected_cash,
+        }
+
+    @staticmethod
+    def read(*, actor: StaffUser, branch_id: uuid.UUID, day: date) -> dict[str, Any]:
+        """Live totals for the day plus the locked record when it exists."""
+        DayCloseService._assert_branch_in_scope(actor, branch_id)
+        totals = DayCloseService.collect_totals(branch_id=branch_id, day=day)
+        close = (
+            DayClose.objects.filter(branch_id=branch_id, business_date=day)
+            .select_related("closed_by")
+            .first()
+        )
+        return {"totals": totals, "closed": close is not None, "close": close}
+
+    @staticmethod
+    def close(
+        *,
+        actor: StaffUser,
+        branch_id: uuid.UUID,
+        day: date,
+        counted_cash: Decimal,
+        difference_note: str | None,
+        ip: str | None = None,
+        user_agent: str | None = None,
+    ) -> DayClose:
+        """Lock one branch-day. Requires Manager/Owner; never edits money."""
+        if actor.role not in DAY_CLOSE_ROLES:
+            raise CreditNoteNotPermittedError(
+                "Only an Owner or Manager may close a day."
+            )
+        if day > timezone.localdate():
+            raise DayCloseInvalidDateError("A future day cannot be closed.")
+        DayCloseService._assert_branch_in_scope(actor, branch_id)
+
+        with transaction.atomic():
+            # Serialise concurrent closes for the same branch.
+            branch = Branch.objects.select_for_update().get(pk=branch_id)
+            existing = DayClose.objects.filter(branch=branch, business_date=day).first()
+            if existing is not None:
+                raise DayCloseAlreadyClosedError(
+                    f"{day.isoformat()} is already closed for this branch."
+                )
+            totals = DayCloseService.collect_totals(branch_id=branch_id, day=day)
+            expected_cash = totals["expected_cash"]
+            counted = _money(counted_cash)
+            difference = counted - expected_cash
+            note = (difference_note or "").strip()
+            if difference != Decimal("0.00") and not note:
+                raise DayCloseNoteRequiredError(
+                    "A written note is required when counted cash differs from "
+                    "the expected amount."
+                )
+            close = DayClose.objects.create(
+                branch=branch,
+                business_date=day,
+                method_totals=totals["method_totals"],
+                total_invoices=totals["total_invoices"],
+                total_discount=totals["total_discount"],
+                total_credit_notes=totals["total_credit_notes"],
+                expected_cash=expected_cash,
+                counted_cash=counted,
+                difference=difference,
+                difference_note=note or None,
+                closed_by=actor,
+            )
+            AuditLog.objects.create(
+                actor_id=actor.id,
+                action="day_close.closed",
+                entity_type="day_close",
+                entity_id=close.id,
+                before_jsonb=None,
+                after_jsonb={
+                    "event": "day_close.closed",
+                    "branch_id": str(branch_id),
+                    "date": day.isoformat(),
+                    "expected_cash": f"{expected_cash:.2f}",
+                    "counted_cash": f"{counted:.2f}",
+                    "difference": f"{difference:.2f}",
+                    "note": close.difference_note,
+                },
+                ip=ip,
+                user_agent=user_agent,
+            )
+            return close

@@ -88,6 +88,7 @@ ROLE_POLICY: Final[dict[str, dict[str, frozenset[str]]]] = {
     "invoice-credit-note": {"POST": ADMIN},
     "invoice-cancel": {"POST": FRONT_DESK},
     "payment-create": {"POST": FRONT_DESK},
+    "day-close": {"GET": FRONT_DESK, "POST": ADMIN},
     # --- Samples -------------------------------------------------------------
     "sample-collection": {"GET": ALL_STAFF, "POST": FRONT_DESK},
     "sample-detail": {"GET": ALL_STAFF},

@@ -13,7 +13,7 @@ InvoiceQueryService.
 """
 
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from typing import Any, cast
 
@@ -31,6 +31,8 @@ from apps.billing.models import CreditNote, Invoice, Payment
 from apps.billing.serializers import (
     CreditNoteCreateSerializer,
     CreditNoteSerializer,
+    DayCloseCreateSerializer,
+    DayCloseSummarySerializer,
     InvoiceCancelSerializer,
     InvoiceCreateSerializer,
     InvoiceDetailSerializer,
@@ -43,10 +45,12 @@ from apps.billing.services import (
     BILLING_READ_ROLES,
     BILLING_WRITE_ROLES,
     CREDIT_NOTE_ROLES,
+    DAY_CLOSE_ROLES,
     PAYMENT_WRITE_ROLES,
     BillingError,
     BillingService,
     CreditNoteService,
+    DayCloseService,
     InvalidFilterError,
     InvoiceQueryService,
     PaymentService,
@@ -708,3 +712,129 @@ class CreditNoteCreateView(APIView):
                 status=exc.status_code,
             )
         return Response(CreditNoteSerializer(note).data, status=status.HTTP_201_CREATED)
+
+
+class DayCloseView(APIView):
+    """GET/POST /api/v1/day-close — reconcile and lock one branch-day.
+
+    GET returns the server-computed totals for a day plus the locked record
+    when the day is already closed. POST closes the day (Owner/Manager only);
+    closing only writes the reconciliation document, never money.
+    """
+
+    permission_classes = [permissions.IsAuthenticated, IsInBranchScope]
+    scope_branch_source = None
+
+    @staticmethod
+    def _totals_payload(totals: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "method_totals": totals["method_totals"],
+            "total_in": f"{totals['total_in']:.2f}",
+            "total_out": f"{totals['total_out']:.2f}",
+            "net_total": f"{totals['net_total']:.2f}",
+            "total_invoices": totals["total_invoices"],
+            "total_discount": f"{totals['total_discount']:.2f}",
+            "total_credit_notes": f"{totals['total_credit_notes']:.2f}",
+            "expected_cash": f"{totals['expected_cash']:.2f}",
+        }
+
+    def get(self, request: Request) -> Response:
+        user = cast(StaffUser, request.user)
+        if user.role not in BILLING_READ_ROLES:
+            return Response(
+                _format_error("forbidden", "Only staff may read a day close."),
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        branch_raw = request.query_params.get("branch")
+        try:
+            branch_id = uuid.UUID(str(branch_raw))
+        except (ValueError, TypeError, AttributeError):
+            return Response(
+                _format_error(
+                    "validation_error", "A valid branch query parameter is required."
+                ),
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+        date_raw = request.query_params.get("date")
+        if date_raw:
+            try:
+                day = date.fromisoformat(date_raw)
+            except ValueError:
+                return Response(
+                    _format_error(
+                        "validation_error", "date must be an ISO date (YYYY-MM-DD)."
+                    ),
+                    status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                )
+        else:
+            day = timezone.localdate()
+        try:
+            data = DayCloseService.read(actor=user, branch_id=branch_id, day=day)
+        except BillingError as exc:
+            return Response(
+                _format_error(exc.error_code, str(exc) or exc.error_code),
+                status=exc.status_code,
+            )
+        close = data["close"]
+        return Response(
+            {
+                "branch_id": str(branch_id),
+                "date": day.isoformat(),
+                "closed": data["closed"],
+                "totals": self._totals_payload(data["totals"]),
+                "close": (
+                    DayCloseSummarySerializer(close).data if close is not None else None
+                ),
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    def post(self, request: Request) -> Response:
+        user = cast(StaffUser, request.user)
+        if user.role not in DAY_CLOSE_ROLES:
+            return Response(
+                _format_error("forbidden", "Only an Owner or Manager may close a day."),
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        serializer = DayCloseCreateSerializer(data=request.data)
+        if not serializer.is_valid():
+            err_dict = serializer.errors
+            if "counted_cash" in err_dict:
+                return Response(
+                    _format_error(
+                        "validation_error",
+                        "The cash counted in the drawer is required.",
+                        err_dict,
+                    ),
+                    status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                )
+            return Response(
+                _format_error("validation_error", "Invalid payload.", err_dict),
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+        data = serializer.validated_data
+        day = data.get("date") or timezone.localdate()
+        try:
+            close = DayCloseService.close(
+                actor=user,
+                branch_id=data["branch_id"],
+                day=day,
+                counted_cash=data["counted_cash"],
+                difference_note=data.get("difference_note"),
+                ip=_get_client_ip(request),
+                user_agent=request.META.get("HTTP_USER_AGENT", ""),
+            )
+        except BillingError as exc:
+            return Response(
+                _format_error(exc.error_code, str(exc) or exc.error_code),
+                status=exc.status_code,
+            )
+        return Response(
+            {
+                "branch_id": str(close.branch_id),
+                "date": close.business_date.isoformat(),
+                "closed": True,
+                "close": DayCloseSummarySerializer(close).data,
+            },
+            status=status.HTTP_201_CREATED,
+        )

@@ -6,6 +6,8 @@ import { apiRequest, ApiError } from "../../lib/apiClient";
 import { useAuthStore } from "../auth/authStore";
 import type {
   CreditNote,
+  DayCloseInput,
+  DayCloseResponse,
   InvoiceCreateInput,
   InvoiceDetail,
   InvoiceHistoryResponse,
@@ -233,6 +235,37 @@ export const billingService = {
       if (err instanceof ApiError) {
         const error = new Error(
           err.message || `Failed to cancel invoice (${err.status})`,
+        );
+        (error as Error & { code?: string }).code = err.code ?? undefined;
+        throw error;
+      }
+      throw err;
+    }
+  },
+
+  /** GET /day-close?branch=&date= — live totals plus the locked record. */
+  async getDayClose(
+    branchId: string,
+    date: string,
+    signal?: AbortSignal,
+  ): Promise<DayCloseResponse> {
+    return apiRequest<DayCloseResponse>("/day-close", {
+      query: { branch: branchId, date },
+      signal,
+    });
+  },
+
+  /** POST /day-close — lock the day (Owner/Manager only). */
+  async closeDay(input: DayCloseInput): Promise<DayCloseResponse> {
+    try {
+      return await apiRequest<DayCloseResponse>("/day-close", {
+        method: "POST",
+        body: input,
+      });
+    } catch (err) {
+      if (err instanceof ApiError) {
+        const error = new Error(
+          err.message || `Failed to close the day (${err.status})`,
         );
         (error as Error & { code?: string }).code = err.code ?? undefined;
         throw error;
