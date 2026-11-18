@@ -57,7 +57,7 @@ export interface PaymentCreateInput {
 }
 
 export type InvoiceHistoryEventType =
-  "created" | "payment" | "refund" | "cancel" | "discount";
+  "created" | "payment" | "refund" | "credit_note" | "cancel" | "discount";
 
 export interface InvoiceHistoryEvent {
   event: InvoiceHistoryEventType;
@@ -65,6 +65,18 @@ export interface InvoiceHistoryEvent {
   actor?: string | null;
   amount?: string | null;
   reason?: string | null;
+  number?: string | null;
+}
+
+export interface CreditNote {
+  id: string;
+  number: string;
+  invoice_id: string;
+  amount: string;
+  reason: string;
+  issued_by?: string | null;
+  issued_by_name?: string | null;
+  issued_at: string;
 }
 
 export interface InvoiceHistoryResponse {
@@ -109,6 +121,7 @@ export interface InvoiceDetail {
   total: string;
   items: InvoiceItem[];
   payments: PaymentRecord[];
+  credit_notes?: CreditNote[];
   net_paid: string;
   created_at: string;
 }

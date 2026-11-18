@@ -54,7 +54,13 @@ from django.db.models.functions import Coalesce
 from django.utils import timezone
 
 from apps.accounts.models import AuditLog, Role, StaffUser
-from apps.billing.models import Invoice, InvoiceItem, Payment
+from apps.billing.models import (
+    CreditNote,
+    CreditNoteSequence,
+    Invoice,
+    InvoiceItem,
+    Payment,
+)
 from apps.branches.models import Branch
 from apps.branches.scoping import effective_branch_ids
 from apps.catalog.models import Panel, Test
@@ -74,6 +80,8 @@ BILLING_READ_ROLES = {
 DISCOUNT_ROLES = {Role.OWNER, Role.MANAGER}
 PAYMENT_WRITE_ROLES = {Role.OWNER, Role.MANAGER, Role.RECEPTION}
 REFUND_ROLES = {Role.OWNER, Role.MANAGER}
+# Credit notes reverse collected money, so front desk cannot issue them.
+CREDIT_NOTE_ROLES = {Role.OWNER, Role.MANAGER}
 # Interim refund ceiling (Doc 05 §13, OQ-31): a Manager alone may refund up to
 # this amount; anything above requires the Owner.
 REFUND_MANAGER_CEILING = Decimal("5000.00")
@@ -155,6 +163,26 @@ class InvalidStateTransitionError(BillingError):
 class CancelReasonRequiredError(BillingError):
     status_code = 422
     error_code = "cancel_reason_required"
+
+
+class CreditNoteNotPermittedError(BillingError):
+    status_code = 403
+    error_code = "forbidden"
+
+
+class CreditNoteReasonRequiredError(BillingError):
+    status_code = 422
+    error_code = "credit_note_reason_required"
+
+
+class CreditNoteExceedsNetPaidError(BillingError):
+    status_code = 422
+    error_code = "credit_note_exceeds_net_paid"
+
+
+class CreditNoteAmountMismatchError(BillingError):
+    status_code = 422
+    error_code = "credit_note_amount_mismatch"
 
 
 class InvalidFilterError(BillingError):
@@ -899,3 +927,99 @@ class InvoiceQueryService:
                 user_agent=user_agent,
             )
             return invoice
+
+
+class CreditNoteService:
+    """Credit-note issuance for paid / partially paid invoices (v1)."""
+
+    @staticmethod
+    def issue(
+        *,
+        invoice_id: uuid.UUID,
+        amount: Decimal,
+        reason: str | None,
+        actor: StaffUser,
+        ip: str | None = None,
+        user_agent: str | None = None,
+    ) -> CreditNote:
+        """Issue a full-reversal credit note.
+
+        Append-only: this creates the credit-note document plus an audit row
+        and never touches the invoice row, its items or its payment rows — the
+        credit note itself is the reversal record. Owner/Manager only. V1
+        supports full reversal, so the amount must equal the collected
+        (net-paid) total and can never exceed it.
+        """
+        if actor.role not in CREDIT_NOTE_ROLES:
+            raise CreditNoteNotPermittedError(
+                "Only an Owner or Manager may issue a credit note."
+            )
+        if not reason or not reason.strip():
+            raise CreditNoteReasonRequiredError(
+                "A reason is required to issue a credit note."
+            )
+        with transaction.atomic():
+            try:
+                # Layer 2 (Doc 04 §8.5): scoped fetch — out-of-scope -> 404.
+                invoice = (
+                    Invoice.objects.scoped_to(actor)
+                    .select_for_update()
+                    .get(pk=invoice_id)
+                )
+            except (Invoice.DoesNotExist, ValidationError):
+                raise BillingNotFoundError("Invoice not found.") from None
+
+            agg = invoice.payments.aggregate(
+                paid=Sum("amount", filter=Q(kind=Payment.Kind.PAYMENT)),
+                refunded=Sum("amount", filter=Q(kind=Payment.Kind.REFUND)),
+            )
+            net_paid = (agg["paid"] or Decimal("0.00")) - (
+                agg["refunded"] or Decimal("0.00")
+            )
+            if invoice.status not in {
+                Invoice.Status.PAID,
+                Invoice.Status.PARTIAL,
+            } or net_paid <= Decimal("0.00"):
+                raise InvalidStateTransitionError(
+                    "Only a paid or partially paid invoice can take a credit note."
+                )
+            if amount > net_paid:
+                raise CreditNoteExceedsNetPaidError(
+                    "Credit note cannot exceed the collected amount "
+                    f"(PKR {net_paid:.2f})."
+                )
+            if amount != net_paid:
+                raise CreditNoteAmountMismatchError(
+                    "v1 issues full reversals only: the credit note must equal "
+                    f"the collected amount (PKR {net_paid:.2f})."
+                )
+
+            counter, _ = CreditNoteSequence.objects.select_for_update().get_or_create(
+                pk=1
+            )
+            counter.last_number += 1
+            counter.save(update_fields=["last_number"])
+            note = CreditNote.objects.create(
+                number=f"CN-{counter.last_number:06d}",
+                invoice=invoice,
+                amount=amount,
+                reason=reason.strip(),
+                issued_by=actor,
+            )
+            AuditLog.objects.create(
+                actor_id=actor.id,
+                action="invoice.credit_note_issued",
+                entity_type="invoice",
+                entity_id=invoice.id,
+                before_jsonb={"status": invoice.status},
+                after_jsonb={
+                    "event": "invoice.credit_note_issued",
+                    "credit_note_id": str(note.id),
+                    "number": note.number,
+                    "amount": f"{amount:.2f}",
+                    "reason": note.reason,
+                },
+                ip=ip,
+                user_agent=user_agent,
+            )
+            return note

@@ -163,10 +163,21 @@
     "history_loading": "Loading history…",
     "history_empty": "No history events for this invoice yet.",
     "history_reason": "Reason",
+    "credit_note_action": "Issue credit note",
+    "credit_note_title": "Credit note",
+    "credit_note_explain": "Full reversal of {{amount}}. The original invoice stays unchanged — the credit note is the reversal record.",
+    "credit_note_reason": "Reason",
+    "credit_note_reason_hint": "e.g. Invoice raised twice",
+    "credit_note_reason_required": "A reason is required to issue a credit note.",
+    "credit_note_amount_label": "Amount to reverse",
+    "credit_note_confirm": "Confirm credit note",
+    "credit_note_issued": "Credit note {{number}}",
+    "credit_note_amount_mismatch": "The credit note must equal the amount collected on this invoice, and can never exceed it.",
     "event": {
       "created": "Invoice created",
       "payment": "Payment received",
       "refund": "Refund issued",
+      "credit_note": "Credit note issued",
       "cancel": "Invoice cancelled",
       "discount": "Discount applied"
     }

@@ -163,10 +163,21 @@
     "history_loading": "تاریخ لوڈ ہو رہی ہے…",
     "history_empty": "اس بل کی ابھی کوئی تاریخ نہیں۔",
     "history_reason": "وجہ",
+    "credit_note_action": "کریڈٹ نوٹ جاری کریں",
+    "credit_note_title": "کریڈٹ نوٹ",
+    "credit_note_explain": "{{amount}} کی مکمل واپسی۔ اصل بل میں کوئی تبدیلی نہیں ہوگی — کریڈٹ نوٹ ہی واپسی کا ریکارڈ ہے۔",
+    "credit_note_reason": "وجہ",
+    "credit_note_reason_hint": "مثلاً بل دو بار بن گیا",
+    "credit_note_reason_required": "کریڈٹ نوٹ جاری کرنے کے لیے وجہ لازمی ہے۔",
+    "credit_note_amount_label": "واپس کی جانے والی رقم",
+    "credit_note_confirm": "کریڈٹ نوٹ کی تصدیق کریں",
+    "credit_note_issued": "کریڈٹ نوٹ {{number}}",
+    "credit_note_amount_mismatch": "کریڈٹ نوٹ اس بل پر وصول شدہ رقم کے برابر ہونا چاہیے، اور اس سے زیادہ نہیں ہو سکتا۔",
     "event": {
       "created": "بل بنایا گیا",
       "payment": "ادائیگی وصول ہوئی",
       "refund": "رقم واپس کی گئی",
+      "credit_note": "کریڈٹ نوٹ جاری ہوا",
       "cancel": "بل منسوخ ہوا",
       "discount": "رعایت لگائی گئی"
     }

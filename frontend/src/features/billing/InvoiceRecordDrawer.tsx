@@ -44,7 +44,7 @@ export function InvoiceRecordDrawer({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<
-    "overview" | "settle" | "refund" | "payments" | "history"
+    "overview" | "settle" | "refund" | "payments" | "history" | "credit"
   >("overview");
   const [history, setHistory] = useState<InvoiceHistoryEvent[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
@@ -54,6 +54,7 @@ export function InvoiceRecordDrawer({
     "cash" | "card" | "bank_transfer" | "easypaisa" | "jazzcash" | "other"
   >("cash");
   const [reference, setReference] = useState("");
+  const [creditReason, setCreditReason] = useState("");
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
@@ -116,6 +117,36 @@ export function InvoiceRecordDrawer({
     }
   };
 
+  const issueCreditNote = async () => {
+    if (!invoice) return;
+    if (!creditReason.trim()) {
+      setActionError(t("billing:detail.credit_note_reason_required"));
+      return;
+    }
+    setBusy(true);
+    setActionError(null);
+    try {
+      await service.issueCreditNote(
+        invoice.id,
+        invoice.net_paid || invoice.total,
+        creditReason.trim(),
+      );
+      setCreditReason("");
+      reload();
+      setTab("history");
+    } catch (err: unknown) {
+      const code = (err as { code?: string } | null)?.code;
+      setActionError(
+        code === "credit_note_exceeds_net_paid" ||
+          code === "credit_note_amount_mismatch"
+          ? t("billing:detail.credit_note_amount_mismatch")
+          : messageForError(err, t),
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const cancelInvoice = async () => {
     if (!invoice) return;
     setBusy(true);
@@ -166,6 +197,9 @@ export function InvoiceRecordDrawer({
     return Math.max(0, total - paid);
   }, [invoice]);
 
+  const canCreditNote =
+    invoice?.status === "paid" || invoice?.status === "partial";
+
   const header = invoice ? (
     <div className={record.nameRow}>
       <h1 className={record.title} dir="ltr">
@@ -195,18 +229,28 @@ export function InvoiceRecordDrawer({
         type="button"
         disabled={
           busy ||
-          invoice.status === "paid" ||
-          invoice.status === "refunded" ||
-          invoice.status === "cancelled"
+          (!canCreditNote &&
+            (invoice.status === "paid" ||
+              invoice.status === "refunded" ||
+              invoice.status === "cancelled"))
         }
-        onClick={() => void cancelInvoice()}
+        onClick={() => {
+          if (canCreditNote) {
+            setActionError(null);
+            setTab("credit");
+            return;
+          }
+          void cancelInvoice();
+        }}
         className={record.secondaryButton}
         style={{
           color: "var(--color-danger)",
           borderColor: "var(--color-danger)",
         }}
       >
-        {t("billing:detail.cancel_invoice") || "Cancel Invoice"}
+        {canCreditNote
+          ? t("billing:detail.credit_note_action")
+          : t("billing:detail.cancel_invoice") || "Cancel Invoice"}
       </button>
       <button
         type="button"
@@ -246,7 +290,9 @@ export function InvoiceRecordDrawer({
             <div
               className={record.drawerTabs}
               role="tablist"
-              style={{ gridTemplateColumns: "repeat(5, 1fr)" }}
+              style={{
+                gridTemplateColumns: `repeat(${canCreditNote ? 6 : 5}, 1fr)`,
+              }}
             >
               <button
                 type="button"
@@ -293,6 +339,17 @@ export function InvoiceRecordDrawer({
               >
                 {t("billing:detail.history_title")}
               </button>
+              {canCreditNote ? (
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={tab === "credit"}
+                  onClick={() => setTab("credit")}
+                  className={`${record.drawerTab} ${tab === "credit" ? record.drawerTabActive : ""}`}
+                >
+                  {t("billing:detail.credit_note_title")}
+                </button>
+              ) : null}
             </div>
 
             {tab === "overview" ? (
@@ -365,6 +422,67 @@ export function InvoiceRecordDrawer({
                   )}
                 </div>
               </>
+            ) : tab === "credit" ? (
+              <div className={record.card}>
+                <div className={record.cardHead}>
+                  <h2 className={record.cardTitle}>
+                    {t("billing:detail.credit_note_title")}
+                  </h2>
+                  <span className={record.fieldLabel}>
+                    {t("billing:detail.total_settled")}:{" "}
+                    <bdi dir="ltr">{formatMoney(invoice.net_paid, "en")}</bdi>
+                  </span>
+                </div>
+                <p className={record.fieldLabel}>
+                  {t("billing:detail.credit_note_explain", {
+                    amount: formatMoney(
+                      invoice.net_paid || invoice.total,
+                      "en",
+                    ),
+                  })}
+                </p>
+
+                {actionError ? (
+                  <div role="alert" className={record.alert}>
+                    <AlertCircle
+                      className={record.statusIcon}
+                      aria-hidden="true"
+                    />
+                    <span>{actionError}</span>
+                  </div>
+                ) : null}
+
+                <div className={record.field}>
+                  <span className={record.fieldLabel}>
+                    {t("billing:detail.credit_note_reason")} *
+                  </span>
+                  <input
+                    type="text"
+                    value={creditReason}
+                    onChange={(e) => setCreditReason(e.target.value)}
+                    className={styles.input}
+                    placeholder={t("billing:detail.credit_note_reason_hint")}
+                  />
+                </div>
+
+                <div className={record.field}>
+                  <span className={record.fieldLabel}>
+                    {t("billing:detail.credit_note_amount_label")}
+                  </span>
+                  <span className={record.fieldValue} dir="ltr">
+                    {formatMoney(invoice.net_paid || invoice.total, "en")}
+                  </span>
+                </div>
+
+                <button
+                  type="button"
+                  disabled={busy || !creditReason.trim()}
+                  onClick={() => void issueCreditNote()}
+                  className={record.primaryButton}
+                >
+                  {t("billing:detail.credit_note_confirm")}
+                </button>
+              </div>
             ) : tab === "refund" ? (
               <div className={record.card}>
                 <div className={record.cardHead}>
@@ -499,6 +617,27 @@ export function InvoiceRecordDrawer({
                     {t("billing:detail.no_payments")}
                   </p>
                 )}
+                {invoice.credit_notes?.length ? (
+                  <div className={record.field}>
+                    <span className={record.fieldLabel}>
+                      {t("billing:detail.credit_note_title")}
+                    </span>
+                    {invoice.credit_notes.map((cn) => (
+                      <div key={cn.id} className={record.field}>
+                        <span className={record.fieldLabel}>
+                          <bdi dir="ltr">{cn.number}</bdi> ·{" "}
+                          {new Date(cn.issued_at).toLocaleString()}
+                        </span>
+                        <span className={record.fieldValue} dir="ltr">
+                          -{formatMoney(cn.amount, "en")}
+                        </span>
+                        <span className={record.fieldLabel}>
+                          {t("billing:detail.history_reason")}: {cn.reason}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
               </div>
             ) : tab === "history" ? (
               <div className={record.card}>

@@ -4,6 +4,7 @@ KAN-130 / LAB-19, KAN-132 / LAB-20)."""
 from django.urls import path
 
 from apps.billing.views import (
+    CreditNoteCreateView,
     InvoiceCancelView,
     InvoiceCollectionView,
     InvoiceDetailView,
@@ -57,5 +58,15 @@ urlpatterns = [
         "invoices/<str:invoice_id>/history/",
         InvoiceHistoryView.as_view(),
         name="invoice-history-slash",
+    ),
+    path(
+        "invoices/<str:invoice_id>/credit-notes",
+        CreditNoteCreateView.as_view(),
+        name="invoice-credit-note",
+    ),
+    path(
+        "invoices/<str:invoice_id>/credit-notes/",
+        CreditNoteCreateView.as_view(),
+        name="invoice-credit-note-slash",
     ),
 ]

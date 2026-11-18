@@ -348,3 +348,71 @@ class Payment(models.Model):
 
     def __str__(self) -> str:
         return f"Payment({self.id}) [{self.kind}/{self.method}] PKR {self.amount}"
+
+
+class CreditNoteSequence(models.Model):
+    """Single-row counter that hands out sequential credit-note numbers.
+
+    Numbers are allocated under ``SELECT ... FOR UPDATE`` inside the same
+    transaction as the insert, so concurrent issues can never collide and the
+    sequence stays gapless in issue order.
+    """
+
+    id = models.PositiveSmallIntegerField(primary_key=True, default=1, editable=False)
+    last_number = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        db_table = "billing_credit_note_sequence"
+
+    def __str__(self) -> str:
+        return f"CreditNoteSequence(last={self.last_number})"
+
+
+class CreditNote(models.Model):
+    """Reversing credit note against a paid or partially paid invoice.
+
+    Append-only by design: the API exposes issue + read only, there is no
+    update or delete path, and the original invoice row is never modified —
+    this document *is* the reversal record.
+    """
+
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        db_default=models.Func(function="gen_random_uuid"),
+        editable=False,
+    )
+    number = models.TextField(unique=True)
+    invoice = models.ForeignKey(
+        "billing.Invoice",
+        on_delete=models.PROTECT,
+        related_name="credit_notes",
+        db_column="invoice_id",
+        db_index=False,
+    )
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    reason = models.TextField()
+    issued_by = models.ForeignKey(
+        "accounts.StaffUser",
+        on_delete=models.PROTECT,
+        related_name="credit_notes_issued",
+        db_column="issued_by_id",
+        db_index=False,
+    )
+    issued_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "billing_credit_note"
+        ordering = ["issued_at", "number"]
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(amount__gt=0),
+                name="chk_credit_note_amount_pos",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["invoice"], name="idx_credit_note_invoice_id"),
+        ]
+
+    def __str__(self) -> str:
+        return f"CreditNote({self.number}) PKR {self.amount}"

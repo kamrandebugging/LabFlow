@@ -29,6 +29,8 @@ from rest_framework.views import APIView
 from apps.accounts.models import StaffUser
 from apps.billing.models import Invoice, Payment
 from apps.billing.serializers import (
+    CreditNoteCreateSerializer,
+    CreditNoteSerializer,
     InvoiceCancelSerializer,
     InvoiceCreateSerializer,
     InvoiceDetailSerializer,
@@ -40,9 +42,11 @@ from apps.billing.serializers import (
 from apps.billing.services import (
     BILLING_READ_ROLES,
     BILLING_WRITE_ROLES,
+    CREDIT_NOTE_ROLES,
     PAYMENT_WRITE_ROLES,
     BillingError,
     BillingService,
+    CreditNoteService,
     InvalidFilterError,
     InvoiceQueryService,
     PaymentService,
@@ -428,6 +432,9 @@ class InvoiceDetailView(APIView):
             "total": invoice.total,
             "items": list(invoice.items.all()),
             "payments": list(invoice.payments.all()),
+            "credit_notes": list(
+                invoice.credit_notes.select_related("issued_by").order_by("issued_at")
+            ),
             "net_paid": detail["net_paid"],
             "created_at": invoice.created_at,
         }
@@ -491,6 +498,12 @@ class InvoiceHistoryView(APIView):
         for p in payment_rows:
             if p.received_by_id is not None:
                 actor_ids.add(p.received_by_id)
+        credit_notes = list(
+            invoice.credit_notes.all().select_related("issued_by").order_by("issued_at")
+        )
+        for cn in credit_notes:
+            if cn.issued_by_id is not None:
+                actor_ids.add(cn.issued_by_id)
         names: dict[Any, str] = {}
         if actor_ids:
             for s in _Staff.objects.filter(id__in=actor_ids):
@@ -532,6 +545,19 @@ class InvoiceHistoryView(APIView):
             if p.kind == Payment.Kind.REFUND:
                 ev["reason"] = p.refund_reason or p.reference
             events.append(ev)
+
+        # credit notes (append-only reversal documents)
+        for cn in credit_notes:
+            events.append(
+                {
+                    "event": "credit_note",
+                    "at": cn.issued_at.isoformat(),
+                    "actor": names.get(cn.issued_by_id),
+                    "amount": f"{cn.amount:.2f}",
+                    "reason": cn.reason,
+                    "number": cn.number,
+                }
+            )
 
         # cancel
         for row in audit_rows:
@@ -613,3 +639,63 @@ class InvoiceCancelView(APIView):
                 status=exc.status_code,
             )
         return Response(InvoiceSerializer(invoice).data, status=status.HTTP_200_OK)
+
+
+class CreditNoteCreateView(APIView):
+    """POST /api/v1/invoices/{id}/credit-notes — reverse a paid invoice.
+
+    Owner/Manager only. Creates an append-only credit-note document; the
+    invoice, its items and its payments are never modified.
+    """
+
+    permission_classes = [permissions.IsAuthenticated, IsInBranchScope]
+    scope_branch_source = None
+
+    def post(self, request: Request, invoice_id: Any) -> Response:
+        user = cast(StaffUser, request.user)
+        if user.role not in CREDIT_NOTE_ROLES:
+            return Response(
+                _format_error(
+                    "forbidden",
+                    "Only an Owner or Manager may issue a credit note.",
+                ),
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        iid = _parse_path_uuid(invoice_id)
+        if iid is None:
+            return Response(
+                _format_error("not_found", "Invoice not found."),
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        serializer = CreditNoteCreateSerializer(data=request.data)
+        if not serializer.is_valid():
+            err_dict = serializer.errors
+            if "reason" in err_dict:
+                return Response(
+                    _format_error(
+                        "credit_note_reason_required",
+                        "A reason is required to issue a credit note.",
+                        err_dict,
+                    ),
+                    status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                )
+            return Response(
+                _format_error("validation_error", "Invalid payload.", err_dict),
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+        data = serializer.validated_data
+        try:
+            note = CreditNoteService.issue(
+                invoice_id=iid,
+                amount=data["amount"],
+                reason=data["reason"],
+                actor=user,
+                ip=_get_client_ip(request),
+                user_agent=request.META.get("HTTP_USER_AGENT", ""),
+            )
+        except BillingError as exc:
+            return Response(
+                _format_error(exc.error_code, str(exc) or exc.error_code),
+                status=exc.status_code,
+            )
+        return Response(CreditNoteSerializer(note).data, status=status.HTTP_201_CREATED)

@@ -190,6 +190,35 @@ class PaymentSerializer(serializers.Serializer):
         return getattr(staff, "name", None) or getattr(staff, "email", None)
 
 
+class CreditNoteCreateSerializer(serializers.Serializer):
+    """Request body for POST /invoices/{id}/credit-notes (v1 full reversal)."""
+
+    amount = PositiveMoneyField()
+    reason = serializers.CharField()
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        return _reject_unknown_fields(self, attrs)
+
+
+class CreditNoteSerializer(serializers.Serializer):
+    """Response shape for an issued credit note (append-only document)."""
+
+    id = serializers.UUIDField()
+    number = serializers.CharField()
+    invoice_id = serializers.UUIDField()
+    amount = MoneyField()
+    reason = serializers.CharField()
+    issued_by = serializers.UUIDField(allow_null=True)
+    issued_by_name = serializers.SerializerMethodField()
+    issued_at = serializers.DateTimeField()
+
+    def get_issued_by_name(self, obj: Any) -> str | None:
+        staff = getattr(obj, "issued_by", None)
+        if staff is None:
+            return None
+        return getattr(staff, "name", None) or getattr(staff, "email", None)
+
+
 class InvoiceCancelSerializer(serializers.Serializer):
     """Body for POST /invoices/{id}/cancel — reason required (BL-8)."""
 
@@ -249,6 +278,7 @@ class InvoiceDetailSerializer(serializers.Serializer):
     total = MoneyField()
     items = InvoiceItemSerializer(many=True)
     payments = PaymentSerializer(many=True)
+    credit_notes = CreditNoteSerializer(many=True)
     net_paid = MoneyField()
     created_at = serializers.DateTimeField()
 

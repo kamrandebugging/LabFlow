@@ -5,6 +5,7 @@
 import { apiRequest, ApiError } from "../../lib/apiClient";
 import { useAuthStore } from "../auth/authStore";
 import type {
+  CreditNote,
   InvoiceCreateInput,
   InvoiceDetail,
   InvoiceHistoryResponse,
@@ -186,6 +187,31 @@ export const billingService = {
       if (err instanceof ApiError) {
         const error = new Error(
           err.message || `Failed to load invoice history (${err.status})`,
+        );
+        (error as Error & { code?: string }).code = err.code ?? undefined;
+        throw error;
+      }
+      throw err;
+    }
+  },
+
+  async issueCreditNote(
+    invoiceId: string,
+    amount: string,
+    reason: string,
+  ): Promise<CreditNote> {
+    try {
+      return await apiRequest<CreditNote>(
+        `/invoices/${invoiceId}/credit-notes`,
+        {
+          method: "POST",
+          body: { amount, reason },
+        },
+      );
+    } catch (err) {
+      if (err instanceof ApiError) {
+        const error = new Error(
+          err.message || `Failed to issue credit note (${err.status})`,
         );
         (error as Error & { code?: string }).code = err.code ?? undefined;
         throw error;
