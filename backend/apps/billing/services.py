@@ -236,6 +236,11 @@ class DayClosedError(BillingError):
     error_code = "day_closed"
 
 
+class CreditNoteAlreadyUsedError(BillingError):
+    status_code = 409
+    error_code = "credit_note_already_used"
+
+
 class InvalidFilterError(BillingError):
     status_code = 422
     error_code = "invalid_filter"
@@ -1280,7 +1285,7 @@ class CreditNoteService:
             lock_branch_day(invoice.branch_id, target_date)
 
             if CreditNote.objects.filter(invoice=invoice).exists():
-                raise InvalidStateTransitionError(
+                raise CreditNoteAlreadyUsedError(
                     "This invoice already has a credit note; it cannot be "
                     "reversed twice."
                 )
@@ -1429,8 +1434,23 @@ class CreditNoteService:
             )
             if note is None:
                 raise BillingNotFoundError("Credit note not found.")
-            if note.voided_at is not None:
+            if (
+                note.voided_at is not None
+                or CreditNoteVoid.objects.filter(credit_note=note).exists()
+            ):
                 raise InvalidStateTransitionError("This credit note is already voided.")
+
+            void_biz_date = get_active_business_date(invoice.branch_id)
+            restored = note.reversed_methods or {note.method: f"{note.amount:.2f}"}
+
+            CreditNoteVoid.objects.create(
+                credit_note=note,
+                voided_by=actor,
+                void_reason=reason.strip(),
+                void_business_date=void_biz_date,
+                restored_methods=restored,
+            )
+
             note.voided_at = timezone.now()
             note.voided_by = actor
             note.void_reason = reason.strip()

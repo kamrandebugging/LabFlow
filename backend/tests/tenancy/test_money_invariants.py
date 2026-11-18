@@ -705,3 +705,165 @@ def test_inflight_payment_cannot_land_in_closing_day(
                 assert Decimal(day_close.method_totals["cash"]["in"]) >= Decimal(
                     "1000.00"
                 )
+
+
+@pytest.mark.django_db
+def test_void_after_day_close_adjusts_open_day_not_closed_day(
+    tenant_a: Any, mi_setup: dict[str, Any], auth_headers: Any
+) -> None:
+    """CN 2,400 Day 1, close Day 1, void Day 2 -> Day 1 unchanged, Day 2 +2,400."""
+    from datetime import timedelta
+
+    from apps.billing.services import DayCloseService, get_active_business_date
+
+    day1 = timezone.localdate()
+    day2 = day1 + timedelta(days=1)
+
+    with tenant_context(tenant_a):
+        invoice = InvoiceFactory(
+            patient=mi_setup["patient"],
+            branch=mi_setup["branch"],
+            status=Invoice.Status.PAID,
+            subtotal=Decimal("2400.00"),
+            total=Decimal("2400.00"),
+        )
+        invoice_id = invoice.id
+        PaymentFactory(
+            invoice=invoice,
+            kind=Payment.Kind.PAYMENT,
+            method=Payment.Method.CASH,
+            amount=Decimal("1000.00"),
+            received_by=mi_setup["owner"],
+            business_date=day1,
+        )
+        PaymentFactory(
+            invoice=invoice,
+            kind=Payment.Kind.PAYMENT,
+            method=Payment.Method.CARD,
+            amount=Decimal("1400.00"),
+            received_by=mi_setup["owner"],
+            business_date=day1,
+        )
+
+    # Issue CN 2,400 on Day 1
+    cn_resp = Client().post(
+        f"{INVOICES_URL}/{invoice_id}/credit-notes",
+        data={
+            "amount": "2400.00",
+            "reason": "Void test Day 1",
+            "method": "cash",
+        },
+        content_type="application/json",
+        HTTP_IDEMPOTENCY_KEY="mi-void-dc-cn-1",
+        headers=auth_headers(mi_setup["owner"]),
+    )
+    assert cn_resp.status_code == 201
+    note_id = cn_resp.json()["id"]
+
+    # Close Day 1
+    with tenant_context(tenant_a):
+        DayCloseService.close(
+            actor=mi_setup["owner"],
+            branch_id=mi_setup["branch"].id,
+            day=day1,
+            counted_cash=Decimal("0.00"),
+            difference_note=None,
+        )
+        totals_day1_pre = DayCloseService.collect_totals(
+            branch_id=mi_setup["branch"].id, day=day1
+        )
+        assert totals_day1_pre["method_totals"]["cash"]["net"] == "0.00"
+        assert totals_day1_pre["method_totals"]["card"]["net"] == "0.00"
+        assert get_active_business_date(mi_setup["branch"].id) == day2
+
+    # Void CN on Day 2 (current active open day)
+    void_resp = Client().post(
+        f"{INVOICES_URL}/{invoice_id}/credit-notes/{note_id}/void",
+        data={"reason": "Reversing erroneous credit note on Day 2"},
+        content_type="application/json",
+        headers=auth_headers(mi_setup["owner"]),
+    )
+    assert void_resp.status_code == 200
+
+    with tenant_context(tenant_a):
+        # Day 1 Day Close is completely unchanged
+        totals_day1_post = DayCloseService.collect_totals(
+            branch_id=mi_setup["branch"].id, day=day1
+        )
+        assert totals_day1_post["method_totals"]["cash"]["out"] == "1000.00"
+        assert totals_day1_post["method_totals"]["card"]["out"] == "1400.00"
+        assert totals_day1_post["method_totals"]["cash"]["net"] == "0.00"
+        assert totals_day1_post["method_totals"]["card"]["net"] == "0.00"
+
+        # Day 2 Day Close receives the restored amounts into "in" bucket
+        totals_day2 = DayCloseService.collect_totals(
+            branch_id=mi_setup["branch"].id, day=day2
+        )
+        assert totals_day2["method_totals"]["cash"]["in"] == "1000.00"
+        assert totals_day2["method_totals"]["card"]["in"] == "1400.00"
+        assert totals_day2["method_totals"]["cash"]["net"] == "1000.00"
+        assert totals_day2["method_totals"]["card"]["net"] == "1400.00"
+        assert totals_day2["total_in"] == Decimal("2400.00")
+
+        # Sum of all Day Close net revenues == lifetime invoice net revenue (2400.00)
+        net_all_days = totals_day1_post["net_total"] + totals_day2["net_total"]
+        assert net_all_days == Decimal("2400.00")
+
+
+@pytest.mark.django_db
+def test_void_is_append_only_event(
+    tenant_a: Any, mi_setup: dict[str, Any], auth_headers: Any
+) -> None:
+    """Void creates CreditNoteVoid row; CreditNote money fields unchanged."""
+    from apps.billing.models import CreditNoteVoid
+
+    with tenant_context(tenant_a):
+        invoice = InvoiceFactory(
+            patient=mi_setup["patient"],
+            branch=mi_setup["branch"],
+            status=Invoice.Status.PAID,
+            subtotal=Decimal("1000.00"),
+            total=Decimal("1000.00"),
+        )
+        invoice_id = invoice.id
+        PaymentFactory(
+            invoice=invoice,
+            kind=Payment.Kind.PAYMENT,
+            method=Payment.Method.CASH,
+            amount=Decimal("1000.00"),
+            received_by=mi_setup["owner"],
+        )
+
+    cn_resp = Client().post(
+        f"{INVOICES_URL}/{invoice_id}/credit-notes",
+        data={
+            "amount": "1000.00",
+            "reason": "To be voided",
+            "method": "cash",
+        },
+        content_type="application/json",
+        HTTP_IDEMPOTENCY_KEY="mi-void-append-cn-1",
+        headers=auth_headers(mi_setup["owner"]),
+    )
+    assert cn_resp.status_code == 201
+    note_id = cn_resp.json()["id"]
+
+    void_resp = Client().post(
+        f"{INVOICES_URL}/{invoice_id}/credit-notes/{note_id}/void",
+        data={"reason": "Customer mistake corrected"},
+        content_type="application/json",
+        headers=auth_headers(mi_setup["owner"]),
+    )
+    assert void_resp.status_code == 200
+
+    with tenant_context(tenant_a):
+        note = CreditNote.objects.get(pk=note_id)
+        # Money fields unchanged
+        assert note.amount == Decimal("1000.00")
+        assert note.method == "cash"
+
+        # CreditNoteVoid row created
+        void_event = CreditNoteVoid.objects.get(credit_note=note)
+        assert void_event.void_reason == "Customer mistake corrected"
+        assert void_event.voided_by == mi_setup["owner"]
+        assert void_event.restored_methods == {"cash": "1000.00"}
