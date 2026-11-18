@@ -151,7 +151,8 @@ export function DayCloseScreen(): JSX.Element {
         </label>
         {data?.active_business_date ? (
           <span className={styles.lockedBadge}>
-            {t("billing:day_close.active_date_label")}: {data.active_business_date}
+            {t("billing:day_close.active_date_label")}:{" "}
+            {data.active_business_date}
           </span>
         ) : null}
         {closed ? (

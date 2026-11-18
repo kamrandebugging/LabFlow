@@ -1741,7 +1741,7 @@ def test_patient_search_is_tenant_wide_invoices_are_branch_scoped(
     # Recep from br2 searches for patient by phone -> 200 and finds patient
     search_resp = Client().get(
         "/api/v1/patients",
-        {"q": pat.phone},
+        {"q": str(pat.phone)},
         headers=auth_headers(recep_br2),
     )
     assert search_resp.status_code == 200

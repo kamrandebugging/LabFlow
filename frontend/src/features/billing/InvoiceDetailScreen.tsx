@@ -338,18 +338,18 @@ export function InvoiceDetailScreen({
   const totalNum = parseFloat(invoice.total || "0") || 0;
   const netPaidNum = parseFloat(invoice.net_paid || "0") || 0;
   const hasActiveCreditNote = Boolean(
-    invoice.credit_notes && invoice.credit_notes.some((cn) => !cn.voided_at)
+    invoice.credit_notes && invoice.credit_notes.some((cn) => !cn.voided_at),
   );
   const balanceDue =
     invoice.balance !== undefined && invoice.balance !== null
       ? parseFloat(invoice.balance)
       : invoice.status === "cancelled" || hasActiveCreditNote
-      ? 0
-      : Math.max(
-          0,
-          totalNum -
-            (parseFloat(invoice.net_revenue ?? invoice.net_paid ?? "0") || 0)
-        );
+        ? 0
+        : Math.max(
+            0,
+            totalNum -
+              (parseFloat(invoice.net_revenue ?? invoice.net_paid ?? "0") || 0),
+          );
   const canCancel = invoice.status === "unpaid" && netPaidNum === 0;
 
   return (

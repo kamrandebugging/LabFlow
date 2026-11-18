@@ -375,7 +375,8 @@ export function InvoicePrintScreen({
                       {item.description || item.name || "—"}
                       {item.reporting_time ? (
                         <span className="text-xs text-muted-foreground block">
-                          {t("billing:print.reporting_time_label")}: {formatDateTime(item.reporting_time)}
+                          {t("billing:print.reporting_time_label")}:{" "}
+                          {formatDateTime(item.reporting_time)}
                         </span>
                       ) : null}
                     </span>
