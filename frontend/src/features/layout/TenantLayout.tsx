@@ -45,6 +45,7 @@ const CONTROL_PATHS = [
   "/settings/tenant",
   "/settings",
   "/settlements",
+  "/billing/day-close",
   "/partners",
   "/settings/branches",
   "/settings/account",
