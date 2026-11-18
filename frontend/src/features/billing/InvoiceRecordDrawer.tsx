@@ -494,6 +494,13 @@ export function InvoiceRecordDrawer({
 
                 {anyCreditNote ? (
                   <>
+                    {(invoice.credit_notes ?? []).some(
+                      (note) => note.voided_at,
+                    ) ? (
+                      <p className={record.fieldLabel}>
+                        {t("billing:detail.credit_note_voided_only_refund")}
+                      </p>
+                    ) : null}
                     {(invoice.credit_notes ?? []).map((note) => (
                       <div key={note.id} className={record.field}>
                         <span className={record.fieldLabel}>

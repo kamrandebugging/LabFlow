@@ -196,7 +196,8 @@
     "credit_note_void_hint": "Why is this credit note erroneous?",
     "credit_note_voided_note": "This credit note was voided and no longer counts toward revenue.",
     "credit_note_void_confirm": "Confirm void",
-    "reversed_notice": "This invoice was fully reversed by a credit note; payments and refunds are closed."
+    "reversed_notice": "This invoice was fully reversed by a credit note; payments and refunds are closed.",
+    "credit_note_voided_only_refund": "This invoice's credit note was voided. Only a refund can reverse money now."
   },
   "print": {
     "patient_label": "Patient",

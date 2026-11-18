@@ -87,6 +87,12 @@ CREDIT_NOTE_ROLES = {Role.OWNER, Role.MANAGER}
 DAY_CLOSE_ROLES = {Role.OWNER, Role.MANAGER}
 # Interim refund ceiling (Doc 05 §13, OQ-31): a Manager alone may refund up to
 # this amount; anything above requires the Owner.
+# Refund / credit-note policy (tiered approval + velocity):
+# - single document above PKR 5,000 -> Owner only (owner_approval_required);
+# - velocity: max REFUND_VELOCITY_PER_INVOICE_HOUR refunds per invoice in a
+#   rolling hour (default 3), and max REFUND_MANAGER_DAILY_CAP (PKR 25,000)
+#   refunded by one non-Owner staff member per calendar day. The Owner is
+#   exempt from both velocity caps.
 REFUND_MANAGER_CEILING = Decimal("5000.00")
 
 
@@ -201,6 +207,11 @@ class DayCloseNoteRequiredError(BillingError):
 class DayCloseInvalidDateError(BillingError):
     status_code = 422
     error_code = "day_close_invalid_date"
+
+
+class DayClosedError(BillingError):
+    status_code = 409
+    error_code = "day_closed"
 
 
 class InvalidFilterError(BillingError):
@@ -546,6 +557,21 @@ def _payment_aggregates(invoice: Invoice) -> tuple[Decimal, Decimal]:
     return paid_sum, refund_sum
 
 
+def _assert_branch_day_open(branch_id: uuid.UUID, day: date | None = None) -> None:
+    """Money is never back-dated into a closed branch-day.
+
+    A closed day is final: the close document is immutable and refuses new
+    money. Cash taken after close is recorded on the next open day.
+    """
+    business_day = day or timezone.localdate()
+    if DayClose.objects.filter(
+        branch_id=branch_id, business_date=business_day
+    ).exists():
+        raise DayClosedError(
+            "This branch-day is closed; record the money on the next open day."
+        )
+
+
 def _credit_note_sum(invoice: Invoice) -> Decimal:
     """Σ credit notes issued against an invoice (append-only reversal total)."""
     total: Decimal = CreditNote.objects.filter(
@@ -670,6 +696,8 @@ class PaymentService:
                     "This invoice was fully reversed by a credit note; no "
                     "further payments or refunds can be recorded against it."
                 )
+
+            _assert_branch_day_open(invoice.branch_id)
 
             if kind == Payment.Kind.REFUND:
                 hour_ago = timezone.now() - timedelta(hours=1)
@@ -1092,6 +1120,8 @@ class CreditNoteService:
                         "Idempotency key was already used with a different payload."
                     )
                 return existing, False
+
+            _assert_branch_day_open(invoice.branch_id)
 
             if CreditNote.objects.filter(invoice=invoice).exists():
                 raise InvalidStateTransitionError(
