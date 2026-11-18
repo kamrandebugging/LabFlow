@@ -197,7 +197,7 @@
 }
 
 .secondaryButton:hover {
-  background: var(--color-surface-muted, rgba(0, 0, 0, 0.04));
+  background: var(--color-surface-muted, transparent);
 }
 
 .secondaryButton:focus-visible {

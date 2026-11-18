@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PatientListScreen } from "../../features/patients/PatientListScreen";
 import { patientService } from "../../features/patients/patientService";
@@ -152,7 +153,11 @@ describe("Patients + Invoices themed list screens", () => {
       daily_total: "0.00",
     });
 
-    render(<InvoicesListScreen />);
+    render(
+      <MemoryRouter>
+        <InvoicesListScreen />
+      </MemoryRouter>,
+    );
 
     expect(await screen.findByText("PKR 0.00")).toBeInTheDocument();
     expect(screen.getByText(/daily total:/i)).toBeInTheDocument();
@@ -167,7 +172,11 @@ describe("Patients + Invoices themed list screens", () => {
       daily_total: "0.00",
     });
 
-    render(<InvoicesListScreen />);
+    render(
+      <MemoryRouter>
+        <InvoicesListScreen />
+      </MemoryRouter>,
+    );
 
     await waitFor(() => {
       expect(
@@ -191,7 +200,11 @@ describe("Patients + Invoices themed list screens", () => {
       daily_total: "9999.00",
     });
 
-    render(<InvoicesListScreen />);
+    render(
+      <MemoryRouter>
+        <InvoicesListScreen />
+      </MemoryRouter>,
+    );
 
     await waitFor(() => {
       expect(screen.getByText("Muhammad Imran")).toBeInTheDocument();

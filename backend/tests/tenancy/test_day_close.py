@@ -10,6 +10,7 @@ from typing import Any
 
 import pytest
 from django.test import Client
+from django.utils import timezone
 from django_tenants.utils import tenant_context
 
 from apps.accounts.auth_service import AuthService
@@ -53,7 +54,7 @@ def dc_setup(tenant_a: Any) -> dict[str, Any]:
         }
 
 
-def _day_money(setup: dict[str, Any], day: date) -> Invoice:
+def _day_money(setup: dict[str, Any], day: date) -> Any:
     """Cash 1000 in, card 500 in, cash refund 200 out (all on ``day``)."""
     invoice = InvoiceFactory(
         patient=setup["patient"],
@@ -83,8 +84,7 @@ def _day_money(setup: dict[str, Any], day: date) -> Invoice:
         amount=Decimal("200.00"),
         received_by=setup["owner"],
     )
-    # Anchor every payment on the requested business day.
-    Payment.objects.filter(invoice=invoice).update(created_at=f"{day}T12:00:00Z")
+    # Payments are append-only, so the business day is the day they are made.
     return invoice
 
 
@@ -94,14 +94,15 @@ def test_day_close_totals_and_cash_difference(
 ) -> None:
     client = Client()
     headers = auth_headers(dc_setup["owner"])
-    day = date(2026, 11, 17)
+    day = timezone.localdate()
 
     with tenant_context(tenant_a):
         branch_id = dc_setup["branch"].id
         _day_money(dc_setup, day)
 
     preview = client.get(
-        f"{DAY_CLOSE_URL}?branch={branch_id}&date={day.isoformat()}", **headers
+        f"{DAY_CLOSE_URL}?branch={branch_id}&date={day.isoformat()}",
+        headers=headers,
     )
     assert preview.status_code == 200, preview.content
     body = preview.json()
@@ -130,7 +131,7 @@ def test_day_close_totals_and_cash_difference(
             "counted_cash": "750.00",
         },
         content_type="application/json",
-        **headers,
+        headers=headers,
     )
     assert missing_note.status_code == 422
     assert missing_note.json()["error"]["code"] == "day_close_note_required"
@@ -144,7 +145,7 @@ def test_day_close_totals_and_cash_difference(
             "difference_note": "PKR 50 short — tea money",
         },
         content_type="application/json",
-        **headers,
+        headers=headers,
     )
     assert closed.status_code == 201, closed.content
     close = closed.json()["close"]
@@ -162,7 +163,7 @@ def test_closed_day_cannot_close_again_and_money_is_untouched(
 ) -> None:
     client = Client()
     headers = auth_headers(dc_setup["owner"])
-    day = date(2026, 11, 17)
+    day = timezone.localdate()
 
     with tenant_context(tenant_a):
         branch_id = dc_setup["branch"].id
@@ -180,18 +181,25 @@ def test_closed_day_cannot_close_again_and_money_is_untouched(
         "counted_cash": "800.00",
     }
     first = client.post(
-        DAY_CLOSE_URL, data=payload, content_type="application/json", **headers
+        DAY_CLOSE_URL,
+        data=payload,
+        content_type="application/json",
+        headers=headers,
     )
     assert first.status_code == 201, first.content
 
     second = client.post(
-        DAY_CLOSE_URL, data=payload, content_type="application/json", **headers
+        DAY_CLOSE_URL,
+        data=payload,
+        content_type="application/json",
+        headers=headers,
     )
     assert second.status_code == 409
     assert second.json()["error"]["code"] == "day_close_exists"
 
     read = client.get(
-        f"{DAY_CLOSE_URL}?branch={branch_id}&date={day.isoformat()}", **headers
+        f"{DAY_CLOSE_URL}?branch={branch_id}&date={day.isoformat()}",
+        headers=headers,
     )
     assert read.status_code == 200
     assert read.json()["closed"] is True
@@ -213,7 +221,7 @@ def test_closed_day_cannot_close_again_and_money_is_untouched(
 def test_day_close_is_owner_manager_only(
     tenant_a: Any, dc_setup: dict[str, Any], auth_headers: Any
 ) -> None:
-    day = date(2026, 11, 17)
+    day = timezone.localdate()
     with tenant_context(tenant_a):
         branch_id = dc_setup["branch"].id
 
@@ -225,6 +233,6 @@ def test_day_close_is_owner_manager_only(
             "counted_cash": "0.00",
         },
         content_type="application/json",
-        **auth_headers(dc_setup["receptionist"]),
+        headers=auth_headers(dc_setup["receptionist"]),
     )
     assert response.status_code == 403

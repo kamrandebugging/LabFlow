@@ -77,7 +77,7 @@ def _register_patient(
             "referral_partner_id": str(partner_id) if partner_id else None,
         },
         content_type="application/json",
-        **headers,
+        headers=headers,
     )
     assert response.status_code == 201, response.content
     return response.json()
@@ -106,14 +106,14 @@ def test_patient_partner_carries_onto_invoice_and_shows_in_summary_and_history(
         },
         content_type="application/json",
         HTTP_IDEMPOTENCY_KEY="rf-invoice-1",
-        **headers,
+        headers=headers,
     )
     assert created.status_code == 201, created.content
     invoice = created.json()
     assert invoice["referral_partner_id"] == str(partner.id)
     assert invoice["referral_partner_name"] == "Dr. Ayesha Khan"
 
-    history = client.get(f"{INVOICES_URL}/{invoice['id']}/history", **headers)
+    history = client.get(f"{INVOICES_URL}/{invoice['id']}/history", headers=headers)
     assert history.status_code == 200
     created_event = next(e for e in history.json()["events"] if e["event"] == "created")
     assert created_event["referral_partner"] == "Dr. Ayesha Khan"
@@ -143,7 +143,7 @@ def test_referral_discount_requires_a_reason(
         },
         content_type="application/json",
         HTTP_IDEMPOTENCY_KEY="rf-invoice-2",
-        **headers,
+        headers=headers,
     )
     assert no_reason.status_code == 422
     assert no_reason.json()["error"]["code"] == "discount_reason_required"
@@ -162,7 +162,7 @@ def test_referral_discount_requires_a_reason(
         },
         content_type="application/json",
         HTTP_IDEMPOTENCY_KEY="rf-invoice-3",
-        **headers,
+        headers=headers,
     )
     assert free_text.status_code == 201, free_text.content
     assert free_text.json()["referral_partner_id"] == str(partner.id)
@@ -190,7 +190,7 @@ def test_referral_discount_over_25_percent_needs_owner(
         },
         content_type="application/json",
         HTTP_IDEMPOTENCY_KEY="rf-invoice-4",
-        **auth_headers(referral_setup["manager"]),
+        headers=auth_headers(referral_setup["manager"]),
     )
     assert manager_attempt.status_code == 403
     assert manager_attempt.json()["error"]["code"] == "owner_approval_required"

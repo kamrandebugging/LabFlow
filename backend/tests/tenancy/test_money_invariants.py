@@ -57,7 +57,7 @@ def mi_setup(tenant_a: Any) -> dict[str, Any]:
         }
 
 
-def _paid_invoice(setup: dict[str, Any], amount: str = "1000.00") -> Invoice:
+def _paid_invoice(setup: dict[str, Any], amount: str = "1000.00") -> Any:
     invoice = InvoiceFactory(
         patient=setup["patient"],
         branch=setup["branch"],
@@ -230,7 +230,7 @@ def test_refund_above_net_paid_is_rejected(
         },
         content_type="application/json",
         HTTP_IDEMPOTENCY_KEY="mi-refund-over-1",
-        **auth_headers(mi_setup["owner"]),
+        headers=auth_headers(mi_setup["owner"]),
     )
     assert response.status_code == 422
     assert response.json()["error"]["code"] == "refund_exceeds_payments"
@@ -258,7 +258,7 @@ def test_owner_keeps_tenant_wide_scope(
         data={"kind": "payment", "method": "cash", "amount": "500.00"},
         content_type="application/json",
         HTTP_IDEMPOTENCY_KEY="mi-owner-scope-1",
-        **auth_headers(mi_setup["owner"]),
+        headers=auth_headers(mi_setup["owner"]),
     )
     assert owner_payment.status_code == 201, owner_payment.content
 
@@ -267,7 +267,7 @@ def test_owner_keeps_tenant_wide_scope(
         data={"kind": "payment", "method": "cash", "amount": "100.00"},
         content_type="application/json",
         HTTP_IDEMPOTENCY_KEY="mi-recep-scope-1",
-        **auth_headers(mi_setup["receptionist"]),
+        headers=auth_headers(mi_setup["receptionist"]),
     )
     assert reception.status_code == 404
 
@@ -304,7 +304,7 @@ def test_money_after_day_close_is_rejected(
         },
         content_type="application/json",
         HTTP_IDEMPOTENCY_KEY="mi-day-closed-1",
-        **auth_headers(mi_setup["owner"]),
+        headers=auth_headers(mi_setup["owner"]),
     )
     assert response.status_code == 409
     assert response.json()["error"]["code"] == "day_closed"

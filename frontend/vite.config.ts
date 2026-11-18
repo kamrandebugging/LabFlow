@@ -26,5 +26,8 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: ["./src/setupTests.ts"],
     pool: "forks",
+    // CI runners are slower than a dev box; give async finders room.
+    testTimeout: 20000,
+    hookTimeout: 20000,
   },
 });

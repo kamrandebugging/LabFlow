@@ -357,9 +357,9 @@ class InvoiceDetailSerializer(serializers.Serializer):
     total = MoneyField()
     items = InvoiceItemSerializer(many=True)
     payments = PaymentSerializer(many=True)
-    credit_notes = CreditNoteSerializer(many=True)
+    credit_notes = CreditNoteSerializer(many=True, required=False)
     net_paid = MoneyField()
-    net_revenue = MoneyField()
+    net_revenue = MoneyField(required=False)
     created_at = serializers.DateTimeField()
 
     def get_referral_partner_name(self, obj: Any) -> str | None:

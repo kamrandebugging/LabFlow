@@ -62,7 +62,7 @@ def cn_setup(tenant_a: Any) -> dict[str, Any]:
         }
 
 
-def _paid_invoice(setup: dict[str, Any], amount: str = "1500.00") -> Invoice:
+def _paid_invoice(setup: dict[str, Any], amount: str = "1500.00") -> Any:
     invoice = InvoiceFactory(
         patient=setup["patient"],
         branch=setup["branch"],
@@ -97,7 +97,7 @@ def test_credit_note_is_sequential_append_only_and_visible_in_history(
         data={"amount": "1500.00", "reason": "Invoice raised twice"},
         content_type="application/json",
         HTTP_IDEMPOTENCY_KEY=_next_key(),
-        **headers,
+        headers=headers,
     )
     assert response.status_code == 201, response.content
     body = response.json()
@@ -110,7 +110,7 @@ def test_credit_note_is_sequential_append_only_and_visible_in_history(
         data={"amount": "900.00", "reason": "Duplicate charge"},
         content_type="application/json",
         HTTP_IDEMPOTENCY_KEY=_next_key(),
-        **headers,
+        headers=headers,
     )
     assert second_response.status_code == 201, second_response.content
     assert second_response.json()["number"] == "CN-000002"
@@ -124,7 +124,7 @@ def test_credit_note_is_sequential_append_only_and_visible_in_history(
         assert invoice.payments.count() == 1
         assert CreditNote.objects.filter(invoice=invoice).count() == 1
 
-    detail = client.get(f"{INVOICES_URL}/{first_id}", **headers)
+    detail = client.get(f"{INVOICES_URL}/{first_id}", headers=headers)
     assert detail.status_code == 200
     assert len(detail.json()["credit_notes"]) == 1
     assert detail.json()["status"] == "refunded"
@@ -132,7 +132,7 @@ def test_credit_note_is_sequential_append_only_and_visible_in_history(
     assert detail.json()["net_paid"] == "1500.00"
     assert detail.json()["net_revenue"] == "0.00"
 
-    history = client.get(f"{INVOICES_URL}/{first_id}/history", **headers)
+    history = client.get(f"{INVOICES_URL}/{first_id}/history", headers=headers)
     assert history.status_code == 200
     events = history.json()["events"]
     notes = [e for e in events if e["event"] == "credit_note"]
@@ -155,7 +155,7 @@ def test_credit_note_rejects_amount_above_net_paid(
         data={"amount": "1500.01", "reason": "Too much"},
         content_type="application/json",
         HTTP_IDEMPOTENCY_KEY=_next_key(),
-        **auth_headers(cn_setup["owner"]),
+        headers=auth_headers(cn_setup["owner"]),
     )
     assert response.status_code == 422
     assert response.json()["error"]["code"] == "credit_note_exceeds_net_paid"
@@ -174,7 +174,7 @@ def test_credit_note_requires_full_reversal(
         data={"amount": "500.00", "reason": "Partial"},
         content_type="application/json",
         HTTP_IDEMPOTENCY_KEY=_next_key(),
-        **auth_headers(cn_setup["owner"]),
+        headers=auth_headers(cn_setup["owner"]),
     )
     assert response.status_code == 422
     assert response.json()["error"]["code"] == "credit_note_amount_mismatch"
@@ -193,7 +193,7 @@ def test_credit_note_reason_is_mandatory(
         data={"amount": "1500.00", "reason": "   "},
         content_type="application/json",
         HTTP_IDEMPOTENCY_KEY=_next_key(),
-        **auth_headers(cn_setup["owner"]),
+        headers=auth_headers(cn_setup["owner"]),
     )
     assert response.status_code == 422
 
@@ -215,7 +215,7 @@ def test_credit_note_requires_paid_invoice(
         data={"amount": "1500.00", "reason": "Not paid"},
         content_type="application/json",
         HTTP_IDEMPOTENCY_KEY=_next_key(),
-        **auth_headers(cn_setup["owner"]),
+        headers=auth_headers(cn_setup["owner"]),
     )
     assert response.status_code == 409
     assert response.json()["error"]["code"] == "invalid_state_transition"
@@ -233,7 +233,7 @@ def test_credit_note_forbidden_for_reception(
         f"{INVOICES_URL}/{invoice_id}/credit-notes",
         data={"amount": "1500.00", "reason": "Front desk"},
         content_type="application/json",
-        **auth_headers(cn_setup["receptionist"]),
+        headers=auth_headers(cn_setup["receptionist"]),
     )
     assert response.status_code == 403
 
@@ -254,7 +254,7 @@ def test_unpaid_cancel_path_is_unchanged(
         f"{INVOICES_URL}/{invoice_id}/cancel",
         data={"reason": "Patient left"},
         content_type="application/json",
-        **auth_headers(cn_setup["receptionist"]),
+        headers=auth_headers(cn_setup["receptionist"]),
     )
     assert response.status_code == 200
     with tenant_context(tenant_a):
@@ -278,11 +278,11 @@ def test_full_credit_note_refunds_status_and_zeroes_revenue(
         data={"amount": "2400.00", "reason": "Treatment cancelled"},
         content_type="application/json",
         HTTP_IDEMPOTENCY_KEY=_next_key(),
-        **headers,
+        headers=headers,
     )
     assert response.status_code == 201, response.content
 
-    detail = client.get(f"{INVOICES_URL}/{invoice_id}", **headers)
+    detail = client.get(f"{INVOICES_URL}/{invoice_id}", headers=headers)
     assert detail.status_code == 200
     body = detail.json()
     assert body["status"] == "refunded"
@@ -291,7 +291,7 @@ def test_full_credit_note_refunds_status_and_zeroes_revenue(
     assert body["net_revenue"] == "0.00"
     assert len(body["credit_notes"]) == 1
 
-    listing = client.get(INVOICES_URL, **headers)
+    listing = client.get(INVOICES_URL, headers=headers)
     assert listing.status_code == 200
     rows = listing.json()["results"]
     row = next(r for r in rows if r["id"] == str(invoice_id))
@@ -306,7 +306,7 @@ def test_full_credit_note_refunds_status_and_zeroes_revenue(
         data={"amount": "2400.00", "reason": "Again"},
         content_type="application/json",
         HTTP_IDEMPOTENCY_KEY=_next_key(),
-        **headers,
+        headers=headers,
     )
     assert second.status_code == 409
     assert second.json()["error"]["code"] == "invalid_state_transition"
@@ -356,7 +356,7 @@ def test_payment_rejected_after_full_credit_note(
         data={"amount": "2400.00", "reason": "Double entry"},
         content_type="application/json",
         HTTP_IDEMPOTENCY_KEY=_next_key(),
-        **headers,
+        headers=headers,
     )
     assert note.status_code == 201, note.content
 
@@ -370,12 +370,12 @@ def test_payment_rejected_after_full_credit_note(
         },
         content_type="application/json",
         HTTP_IDEMPOTENCY_KEY="cn-after-reversal-1",
-        **headers,
+        headers=headers,
     )
     assert payment.status_code == 409
     assert payment.json()["error"]["code"] == "invalid_state_transition"
 
-    detail = client.get(f"{INVOICES_URL}/{invoice_id}", **headers).json()
+    detail = client.get(f"{INVOICES_URL}/{invoice_id}", headers=headers).json()
     assert detail["status"] == "refunded"
     assert detail["net_paid"] == "2400.00"
     assert len(detail["payments"]) == 1
@@ -411,7 +411,7 @@ def test_credit_note_idempotent_replay_and_tier(
         data=payload,
         content_type="application/json",
         HTTP_IDEMPOTENCY_KEY="cn-idem-1",
-        **headers,
+        headers=headers,
     )
     assert first.status_code == 201, first.content
 
@@ -420,7 +420,7 @@ def test_credit_note_idempotent_replay_and_tier(
         data=payload,
         content_type="application/json",
         HTTP_IDEMPOTENCY_KEY="cn-idem-1",
-        **headers,
+        headers=headers,
     )
     assert replay.status_code == 200
     assert replay.json()["id"] == first.json()["id"]
@@ -430,7 +430,7 @@ def test_credit_note_idempotent_replay_and_tier(
         data={"amount": "6000.00", "reason": "Other reason"},
         content_type="application/json",
         HTTP_IDEMPOTENCY_KEY="cn-idem-1",
-        **headers,
+        headers=headers,
     )
     assert different.status_code == 409
     assert different.json()["error"]["code"] == "idempotency_key_reused"
@@ -453,12 +453,12 @@ def test_void_restores_revenue_without_deleting_rows(
         data={"amount": "10700.00", "reason": "Double entry", "method": "cash"},
         content_type="application/json",
         HTTP_IDEMPOTENCY_KEY="cn-void-1",
-        **headers,
+        headers=headers,
     )
     assert issued.status_code == 201, issued.content
     note_id = issued.json()["id"]
 
-    detail = client.get(f"{INVOICES_URL}/{invoice_id}", **headers).json()
+    detail = client.get(f"{INVOICES_URL}/{invoice_id}", headers=headers).json()
     assert detail["status"] == "refunded"
     assert detail["net_revenue"] == "0.00"
 
@@ -471,7 +471,7 @@ def test_void_restores_revenue_without_deleting_rows(
         data={"amount": "10000.00", "reason": "Partial"},
         content_type="application/json",
         HTTP_IDEMPOTENCY_KEY="cn-void-2",
-        **headers,
+        headers=headers,
     )
     assert other.status_code == 422
     assert other.json()["error"]["code"] == "credit_note_amount_mismatch"
@@ -480,19 +480,19 @@ def test_void_restores_revenue_without_deleting_rows(
         f"{INVOICES_URL}/{invoice_id}/credit-notes/{note_id}/void",
         data={"reason": "Issued by mistake"},
         content_type="application/json",
-        **headers,
+        headers=headers,
     )
     assert voided.status_code == 200, voided.content
     assert voided.json()["voided_at"]
     assert voided.json()["number"] == issued.json()["number"]
 
-    detail = client.get(f"{INVOICES_URL}/{invoice_id}", **headers).json()
+    detail = client.get(f"{INVOICES_URL}/{invoice_id}", headers=headers).json()
     assert detail["status"] == "paid"
     assert detail["net_revenue"] == "10700.00"
     assert len(detail["credit_notes"]) == 1
     assert detail["credit_notes"][0]["voided_at"]
 
-    history = client.get(f"{INVOICES_URL}/{invoice_id}/history", **headers).json()
+    history = client.get(f"{INVOICES_URL}/{invoice_id}/history", headers=headers).json()
     events = [e["event"] for e in history["events"]]
     assert "credit_note" in events
     assert "credit_note_voided" in events

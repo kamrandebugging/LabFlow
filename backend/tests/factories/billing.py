@@ -1,8 +1,16 @@
+from datetime import date
 from decimal import Decimal
 
 import factory
 
-from apps.billing.models import Invoice, InvoiceItem, Payment
+from apps.billing.models import (
+    CreditNote,
+    CreditNoteSequence,
+    DayClose,
+    Invoice,
+    InvoiceItem,
+    Payment,
+)
 from tests.factories.accounts import StaffUserFactory
 from tests.factories.base import TenantModelFactory
 from tests.factories.branches import BranchFactory
@@ -51,3 +59,41 @@ class PaymentFactory(TenantModelFactory):
     received_by = factory.SubFactory(StaffUserFactory)
     reference = None
     idempotency_key = factory.Sequence(lambda n: f"pay-idem-key-{n + 1:06d}")
+
+
+class CreditNoteSequenceFactory(TenantModelFactory):
+    class Meta:
+        model = CreditNoteSequence
+
+    id = 1
+    last_number = 0
+
+
+class CreditNoteFactory(TenantModelFactory):
+    class Meta:
+        model = CreditNote
+
+    number = factory.Sequence(lambda n: f"CN-{n + 1:06d}")
+    invoice = factory.SubFactory(InvoiceFactory)
+    amount = Decimal("1500.00")
+    reason = "Test credit note"
+    method = Payment.Method.CASH
+    reversed_methods = factory.LazyAttribute(lambda o: {"cash": "1500.00"})
+    issued_by = factory.SubFactory(StaffUserFactory)
+
+
+class DayCloseFactory(TenantModelFactory):
+    class Meta:
+        model = DayClose
+
+    branch = factory.SubFactory(BranchFactory)
+    business_date = factory.Sequence(lambda n: date(2026, 1, (n % 28) + 1))
+    method_totals = factory.LazyFunction(dict)
+    total_invoices = 1
+    total_discount = Decimal("0.00")
+    total_credit_notes = Decimal("0.00")
+    expected_cash = Decimal("0.00")
+    counted_cash = Decimal("0.00")
+    difference = Decimal("0.00")
+    difference_note = None
+    closed_by = factory.SubFactory(StaffUserFactory)
