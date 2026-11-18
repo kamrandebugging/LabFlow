@@ -153,7 +153,16 @@ class ShareLedgerListView(APIView):
             results.append(
                 {
                     "id": str(entry.id),
-                    "payment_id": str(entry.payment_id),
+                    "payment_id": str(entry.payment_id) if entry.payment_id else None,
+                    "credit_note_id": str(entry.credit_note_id)
+                    if entry.credit_note_id
+                    else None,
+                    "void_event_id": str(entry.void_event_id)
+                    if entry.void_event_id
+                    else None,
+                    "business_date": entry.business_date.isoformat()
+                    if entry.business_date
+                    else None,
                     "referral_partner_id": str(entry.referral_partner_id),
                     "referral_partner_name": entry.referral_partner.name,
                     "rule_id": str(entry.rule_id) if entry.rule_id else None,

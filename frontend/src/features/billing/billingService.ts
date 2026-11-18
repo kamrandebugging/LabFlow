@@ -87,9 +87,13 @@ export const billingService = {
     }
   },
 
-  async getInvoice(id: string): Promise<InvoiceDetail> {
+  async getInvoice(
+    id: string,
+    options?: { forPrint?: boolean },
+  ): Promise<InvoiceDetail> {
     try {
-      return await apiRequest<InvoiceDetail>(`/invoices/${id}`);
+      const qs = options?.forPrint ? "?for_print=true" : "";
+      return await apiRequest<InvoiceDetail>(`/invoices/${id}${qs}`);
     } catch (err) {
       if (err instanceof ApiError) {
         throw new Error(

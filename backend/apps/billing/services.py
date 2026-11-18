@@ -40,6 +40,7 @@ Payments + refunds (original LAB-21):
 import base64
 import binascii
 import hashlib
+import hmac
 import json
 import uuid
 from datetime import UTC, date, datetime, timedelta
@@ -320,6 +321,39 @@ class BillingService:
     """Invoice creation with snapshotting, idempotency and audit (KAN-124)."""
 
     @staticmethod
+    def generate_pickup_code(invoice_id: uuid.UUID) -> str:
+        """Derive a deterministic 6-digit numeric access code for report pickup."""
+        digest = hmac.new(
+            settings.SECRET_KEY.encode(),
+            f"pickup:{invoice_id}".encode(),
+            hashlib.sha256,
+        ).digest()
+        num = (int.from_bytes(digest[:4], "big") % 900000) + 100000
+        return f"{num:06d}"
+
+    @staticmethod
+    def hash_pickup_code(invoice_id: uuid.UUID, code: str) -> str:
+        """Hash the pickup access code with invoice_id salt."""
+        return hashlib.sha256(f"{invoice_id}:{code.strip()}".encode()).hexdigest()
+
+    @staticmethod
+    def verify_pickup_code(invoice: Invoice, code: str) -> bool:
+        """Verify the presented pickup access code against the stored hash."""
+        clean_code = (code or "").strip()
+        if not clean_code:
+            return False
+        if not invoice.pickup_code_hash:
+            derived = BillingService.generate_pickup_code(invoice.id)
+            if hmac.compare_digest(derived, clean_code):
+                new_hash = BillingService.hash_pickup_code(invoice.id, clean_code)
+                invoice.pickup_code_hash = new_hash
+                Invoice.objects.filter(pk=invoice.pk).update(pickup_code_hash=new_hash)
+                return True
+            return False
+        expected_hash = BillingService.hash_pickup_code(invoice.id, clean_code)
+        return hmac.compare_digest(invoice.pickup_code_hash, expected_hash)
+
+    @staticmethod
     def create_invoice(
         *,
         patient_id: uuid.UUID,
@@ -495,11 +529,18 @@ class BillingService:
                     raise IdempotencyKeyReusedError(
                         "Idempotency key was already used with a different payload."
                     )
+                existing.pickup_access_code = BillingService.generate_pickup_code(
+                    existing.id
+                )
                 return existing, False
 
             try:
                 with transaction.atomic():
+                    inv_id = uuid.uuid4()
+                    access_code = BillingService.generate_pickup_code(inv_id)
+                    code_hash = BillingService.hash_pickup_code(inv_id, access_code)
                     invoice = Invoice.objects.create(
+                        id=inv_id,
                         patient=patient,
                         branch=branch,
                         referral_partner=partner,
@@ -510,7 +551,9 @@ class BillingService:
                         total=total,
                         idempotency_key=idempotency_key,
                         payload_sha256=payload_hash,
+                        pickup_code_hash=code_hash,
                     )
+                    invoice.pickup_access_code = access_code
                     for line in priced_lines:
                         InvoiceItem.objects.create(
                             invoice=invoice,
@@ -544,6 +587,9 @@ class BillingService:
                     raise IdempotencyKeyReusedError(
                         "Idempotency key was already used with a different payload."
                     ) from None
+                existing.pickup_access_code = BillingService.generate_pickup_code(
+                    existing.id
+                )
                 return existing, False
 
             # Audit: immutable row in the same transaction (BL-V3: actor recorded).
@@ -1783,6 +1829,10 @@ class CreditNoteService:
             if new_status != invoice.status:
                 invoice.status = new_status
                 invoice.save(update_fields=["status", "updated_at"])
+
+            from apps.partners.services import record_credit_note_reversal
+
+            record_credit_note_reversal(note)
             AuditLog.objects.create(
                 actor_id=actor.id,
                 action="invoice.credit_note_issued",
@@ -1849,7 +1899,7 @@ class CreditNoteService:
             void_biz_date = get_active_business_date(invoice.branch_id)
             restored = note.reversed_methods or {note.method: f"{note.amount:.2f}"}
 
-            CreditNoteVoid.objects.create(
+            void_event = CreditNoteVoid.objects.create(
                 credit_note=note,
                 voided_by=actor,
                 void_reason=reason.strip(),
@@ -1873,6 +1923,10 @@ class CreditNoteService:
             if new_status != invoice.status:
                 invoice.status = new_status
                 invoice.save(update_fields=["status", "updated_at"])
+
+            from apps.partners.services import record_void_compensation
+
+            record_void_compensation(void_event)
             AuditLog.objects.create(
                 actor_id=actor.id,
                 action="invoice.credit_note_voided",

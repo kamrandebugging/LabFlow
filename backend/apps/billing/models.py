@@ -79,6 +79,7 @@ class Invoice(models.Model):
     )
     idempotency_key = models.TextField(null=True, blank=True)  # noqa: DJ001
     payload_sha256 = models.TextField(null=True, blank=True)  # noqa: DJ001
+    pickup_code_hash = models.TextField(null=True, blank=True)  # noqa: DJ001
     created_at = models.DateTimeField(
         auto_now_add=True,
         db_default=Now(),
@@ -87,6 +88,7 @@ class Invoice(models.Model):
         auto_now=True,
         db_default=Now(),
     )
+    pickup_access_code: str | None = None
 
     branch_scope_field = "branch_id"
     objects = BranchScopedManager()

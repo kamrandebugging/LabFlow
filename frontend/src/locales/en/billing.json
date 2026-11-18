@@ -203,6 +203,7 @@
     "patient_label": "Patient",
     "mrn_label": "MRN",
     "datetime_label": "Date & Time",
+    "pickup_code_label": "Report Pickup Code",
     "reporting_time_label": "Reporting Time",
     "paid_label": "Paid",
     "format_a5": "A5 Portrait",

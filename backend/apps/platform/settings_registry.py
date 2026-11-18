@@ -137,6 +137,15 @@ SETTING_REGISTRY: dict[str, SettingSpec] = {
         validator=_validate_accent_colour,
         description="Brand accent colour as #rrggbb hex.",
     ),
+    "hide_prices_for_technicians": SettingSpec(
+        key="hide_prices_for_technicians",
+        type_name="bool",
+        default="false",
+        validator=_validate_bool,
+        description=(
+            "Hide money and price fields from technicians on invoice list and detail."
+        ),
+    ),
 }
 
 

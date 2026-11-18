@@ -17,6 +17,7 @@ from datetime import UTC, date, datetime
 from decimal import Decimal
 from typing import Any, cast
 
+from django.core.exceptions import ValidationError
 from django.db.models import Sum, TextField
 from django.db.models.functions import Cast
 from django.http import QueryDict
@@ -26,7 +27,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.accounts.models import StaffUser
+from apps.accounts.models import Role, StaffUser
 from apps.billing.models import CreditNote, Invoice, Payment
 from apps.billing.serializers import (
     CreditNoteCreateSerializer,
@@ -124,10 +125,19 @@ class InvoiceCollectionView(BranchScopedAPIView):
         ).aggregate(sum=Sum("amount"))["sum"] or Decimal("0.00")
         # Net revenue = billed − refunds − credit notes (never client-computed).
         today_total = billed - refunded - credited
+        today_total_str: str | None = f"{today_total:.2f}"
+        if user.role == Role.TECHNICIAN:
+            from apps.platform.settings_accessor import get_setting
+
+            if get_setting("hide_prices_for_technicians"):
+                today_total_str = None
+
         body = {
-            "results": InvoiceSummarySerializer(rows, many=True).data,
+            "results": InvoiceSummarySerializer(
+                rows, many=True, context={"request": request}
+            ).data,
             "next_cursor": next_cursor,
-            "daily_total": f"{today_total:.2f}",
+            "daily_total": today_total_str,
         }
         return Response(body, status=status.HTTP_200_OK)
 
@@ -448,7 +458,7 @@ class InvoiceDetailView(APIView):
             "discount_amount": invoice.discount_amount,
             "discount_reason": invoice.discount_reason,
             "total": invoice.total,
-            "items": list(invoice.items.all()),
+            "items": list(invoice.items.select_related("test").all()),
             "payments": list(invoice.payments.all()),
             "credit_notes": list(
                 invoice.credit_notes.select_related("issued_by", "voided_by").order_by(
@@ -460,8 +470,11 @@ class InvoiceDetailView(APIView):
             "balance": detail["balance"],
             "created_at": invoice.created_at,
         }
+        for_print = request.query_params.get("for_print") == "true"
         return Response(
-            InvoiceDetailSerializer(payload, context={"request": request}).data,
+            InvoiceDetailSerializer(
+                payload, context={"request": request, "for_print": for_print}
+            ).data,
             status=status.HTTP_200_OK,
         )
 
@@ -668,6 +681,13 @@ class InvoiceHistoryView(APIView):
                 )
 
         events.sort(key=lambda e: e["at"])
+        if getattr(user, "role", None) == Role.TECHNICIAN:
+            from apps.platform.settings_accessor import get_setting
+
+            if get_setting("hide_prices_for_technicians"):
+                for ev in events:
+                    ev["amount"] = None
+
         return Response(
             {"invoice_id": str(invoice.id), "events": events},
             status=status.HTTP_200_OK,
@@ -1062,3 +1082,31 @@ class DayCloseView(APIView):
             },
             status=status.HTTP_201_CREATED,
         )
+
+
+class InvoiceVerifyPickupCodeView(APIView):
+    """POST /api/v1/invoices/{id}/verify-pickup-code — verify pickup access code."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request: Request, invoice_id: Any) -> Response:
+        user = cast(StaffUser, request.user)
+        try:
+            inv_uuid = uuid.UUID(str(invoice_id))
+            invoice = Invoice.objects.scoped_to(user).get(pk=inv_uuid)
+        except (ValueError, Invoice.DoesNotExist, ValidationError):
+            return Response(
+                _format_error("not_found", "Invoice not found."),
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        code_raw = (
+            request.data.get("code", "") if isinstance(request.data, dict) else ""
+        )
+        code = str(code_raw).strip()
+        if not code:
+            return Response(
+                _format_error("validation_error", "Access code is required."),
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+        valid = BillingService.verify_pickup_code(invoice, code)
+        return Response({"valid": valid}, status=status.HTTP_200_OK)

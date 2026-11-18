@@ -58,7 +58,7 @@ export function InvoicePrintScreen({
     setIsLoading(true);
     setError(null);
     service
-      .getInvoice(invoiceId)
+      .getInvoice(invoiceId, { forPrint: true })
       .then((data) => {
         if (active) setInvoice(data);
       })
@@ -337,6 +337,16 @@ export function InvoicePrintScreen({
                   {invoice.patient_mrn || "—"}
                 </span>
               </div>
+              {invoice.pickup_code ? (
+                <div className={styles.metaRow}>
+                  <span className={styles.metaLabel}>
+                    {t("billing:print.pickup_code_label")}
+                  </span>
+                  <span className={`${styles.metaValue} lf-ltr`}>
+                    {invoice.pickup_code}
+                  </span>
+                </div>
+              ) : null}
               <div className={styles.metaRow}>
                 <span className={styles.metaLabel}>
                   {t("billing:print.datetime_label")}
@@ -363,6 +373,11 @@ export function InvoicePrintScreen({
                   <div key={item.id} className={styles.lineItem}>
                     <span className={styles.lineName}>
                       {item.description || item.name || "—"}
+                      {item.reporting_time ? (
+                        <span className="text-xs text-muted-foreground block">
+                          {t("billing:print.reporting_time_label")}: {formatDateTime(item.reporting_time)}
+                        </span>
+                      ) : null}
                     </span>
                     <span className={`${styles.lineCalc} lf-ltr`}>
                       {item.quantity} × {formatMoney(item.unit_price, "en")} ={" "}

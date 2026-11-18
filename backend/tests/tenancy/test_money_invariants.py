@@ -1919,3 +1919,296 @@ def test_idempotency_scoped_per_invoice(
     )
     assert p3.status_code == 409
     assert p3.json()["error"]["code"] == "idempotency_key_reused"
+
+
+@pytest.mark.django_db
+def test_partner_ledger_compensating_entries_on_reversals(
+    tenant_a: Any, mi_setup: dict[str, Any], auth_headers: Any
+) -> None:
+    """Phase 9 Rule 1: Payment creates share entry; CreditNote and Void create
+
+    compensating entries in the same transaction carrying reversal business_date.
+    """
+    from datetime import date
+
+    from apps.partners.models import (
+        ReferralPartner,
+        RevenueShareRule,
+        ShareLedgerEntry,
+    )
+
+    with tenant_context(tenant_a):
+        partner = ReferralPartner.objects.create(
+            name="Dr. Shaukat Khan",
+            organisation="Memorial Hospital",
+            is_active=True,
+        )
+        RevenueShareRule.objects.create(
+            referral_partner=partner,
+            percent=Decimal("10.00"),
+            effective_from=date(2026, 1, 1),
+        )
+        invoice = InvoiceFactory(
+            patient=mi_setup["patient"],
+            branch=mi_setup["branch"],
+            referral_partner=partner,
+            status=Invoice.Status.UNPAID,
+            subtotal=Decimal("2400.00"),
+            total=Decimal("2400.00"),
+        )
+        invoice_id = invoice.id
+
+    # 1. Record payment of PKR 2,400 -> ShareLedgerEntry +240.00
+    pay_resp = Client().post(
+        f"{INVOICES_URL}/{invoice_id}/payments",
+        data={"kind": "payment", "method": "cash", "amount": "2400.00"},
+        content_type="application/json",
+        HTTP_IDEMPOTENCY_KEY="mi-partner-pay-1",
+        headers=auth_headers(mi_setup["owner"]),
+    )
+    assert pay_resp.status_code == 201
+
+    with tenant_context(tenant_a):
+        entries = list(
+            ShareLedgerEntry.objects.filter(referral_partner=partner).order_by(
+                "created_at"
+            )
+        )
+        assert len(entries) == 1
+        accrual = entries[0]
+        assert accrual.amount == Decimal("240.00")
+        assert accrual.payment is not None
+        assert accrual.credit_note is None
+
+    # 2. Issue Credit Note of PKR 2,400 -> compensating ShareLedgerEntry -240.00
+    cn_resp = Client().post(
+        f"{INVOICES_URL}/{invoice_id}/credit-notes",
+        data={
+            "amount": "2400.00",
+            "reason": "Test cancellation",
+            "method": "cash",
+        },
+        content_type="application/json",
+        HTTP_IDEMPOTENCY_KEY="mi-partner-cn-1",
+        headers=auth_headers(mi_setup["owner"]),
+    )
+    assert cn_resp.status_code == 201
+    cn_id = cn_resp.json()["id"]
+
+    with tenant_context(tenant_a):
+        entries = list(
+            ShareLedgerEntry.objects.filter(referral_partner=partner).order_by(
+                "created_at"
+            )
+        )
+        assert len(entries) == 2
+        cn_entry = entries[1]
+        assert cn_entry.amount == Decimal("-240.00")
+        assert cn_entry.credit_note is not None
+        assert str(cn_entry.credit_note.id) == cn_id
+        assert cn_entry.payment is None
+        assert cn_entry.business_date is not None
+
+        # Net partner share is now 0.00
+        net_share = sum(e.amount for e in entries)
+        assert net_share == Decimal("0.00")
+
+    # 3. Void the Credit Note -> compensating restoration ShareLedgerEntry +240.00
+    void_resp = Client().post(
+        f"{INVOICES_URL}/{invoice_id}/credit-notes/{cn_id}/void",
+        data={"reason": "CN issued in error"},
+        content_type="application/json",
+        headers=auth_headers(mi_setup["owner"]),
+    )
+    assert void_resp.status_code == 200
+
+    with tenant_context(tenant_a):
+        entries = list(
+            ShareLedgerEntry.objects.filter(referral_partner=partner).order_by(
+                "created_at"
+            )
+        )
+        assert len(entries) == 3
+        void_entry = entries[2]
+        assert void_entry.amount == Decimal("240.00")
+        assert void_entry.void_event is not None
+        assert void_entry.business_date is not None
+
+        # Net lifetime partner share is restored to original 240.00!
+        net_share = sum(e.amount for e in entries)
+        assert net_share == Decimal("240.00")
+
+
+@pytest.mark.django_db
+def test_pickup_code_hashed_in_db_and_verifiable(
+    tenant_a: Any, mi_setup: dict[str, Any], auth_headers: Any
+) -> None:
+    """Phase 9 Rule 2: Access code is issued at creation, stored hashed in DB,
+
+    never returned in plaintext on normal screens, and verifiable at report pickup.
+    """
+    from datetime import date
+
+    from apps.billing.services import BillingService
+    from apps.catalog.models import Test, TestPrice
+
+    with tenant_context(tenant_a):
+        test_obj = Test.objects.create(
+            code="TST-PC-1", name="Pickup Test", is_active=True
+        )
+        TestPrice.objects.create(
+            test=test_obj,
+            price=Decimal("500.00"),
+            effective_from=date(2026, 1, 1),
+        )
+
+    # 1. Create invoice
+    create_resp = Client().post(
+        INVOICES_URL,
+        data={
+            "patient_id": str(mi_setup["patient"].id),
+            "branch_id": str(mi_setup["branch"].id),
+            "items": [{"test_id": str(test_obj.id), "qty": 1}],
+            "discount_amount": "0.00",
+        },
+        content_type="application/json",
+        HTTP_IDEMPOTENCY_KEY="mi-pickup-code-create-1",
+        headers=auth_headers(mi_setup["reception"]),
+    )
+    assert create_resp.status_code == 201
+    data = create_resp.json()
+    invoice_id = data["id"]
+    code = data.get("pickup_access_code")
+    assert code is not None
+    assert len(code) == 6
+    assert code.isdigit()
+
+    # 2. Check DB storage: stored hashed!
+    with tenant_context(tenant_a):
+        inv = Invoice.objects.get(pk=invoice_id)
+        assert inv.pickup_code_hash is not None
+        # Hash is NOT plaintext code
+        assert inv.pickup_code_hash != code
+        # Service verification passes
+        assert BillingService.verify_pickup_code(inv, code) is True
+        assert BillingService.verify_pickup_code(inv, "999999") is False
+
+    # 3. GET /invoices/{id} normal detail screen does NOT return plaintext pickup_code
+    detail_resp = Client().get(
+        f"{INVOICES_URL}/{invoice_id}",
+        headers=auth_headers(mi_setup["reception"]),
+    )
+    assert detail_resp.status_code == 200
+    assert detail_resp.json().get("pickup_code") is None
+
+    # 4. GET /invoices/{id}?for_print=true returns pickup_code for printing
+    print_resp = Client().get(
+        f"{INVOICES_URL}/{invoice_id}?for_print=true",
+        headers=auth_headers(mi_setup["reception"]),
+    )
+    assert print_resp.status_code == 200
+    assert print_resp.json().get("pickup_code") == code
+
+    # 5. POST /invoices/{id}/verify-pickup-code verifies correctly
+    v_good = Client().post(
+        f"{INVOICES_URL}/{invoice_id}/verify-pickup-code",
+        data={"code": code},
+        content_type="application/json",
+        headers=auth_headers(mi_setup["reception"]),
+    )
+    assert v_good.status_code == 200
+    assert v_good.json()["valid"] is True
+
+    v_bad = Client().post(
+        f"{INVOICES_URL}/{invoice_id}/verify-pickup-code",
+        data={"code": "000000"},
+        content_type="application/json",
+        headers=auth_headers(mi_setup["reception"]),
+    )
+    assert v_bad.status_code == 200
+    assert v_bad.json()["valid"] is False
+
+
+@pytest.mark.django_db
+def test_technician_price_visibility_toggle(
+    tenant_a: Any, mi_setup: dict[str, Any], auth_headers: Any
+) -> None:
+    """Phase 9 Rule 3: When hide_prices_for_technicians is enabled,
+
+    Technician invoice list/detail hides all money (line prices, totals, balance).
+    Owner/Manager/Reception are unaffected.
+    """
+    from apps.accounts.models import TenantSetting
+    from apps.billing.models import InvoiceItem
+
+    with tenant_context(tenant_a):
+        tech = StaffUserFactory(
+            role=Role.TECHNICIAN,
+            branch=mi_setup["branch"],
+            email="tech_pv@t.com",
+        )
+        invoice = InvoiceFactory(
+            patient=mi_setup["patient"],
+            branch=mi_setup["branch"],
+            status=Invoice.Status.UNPAID,
+            subtotal=Decimal("1500.00"),
+            total=Decimal("1500.00"),
+        )
+        invoice_id = invoice.id
+        InvoiceItem.objects.create(
+            invoice=invoice,
+            description="CBC Test",
+            unit_price=Decimal("1500.00"),
+            quantity=1,
+            line_total=Decimal("1500.00"),
+        )
+
+    # 1. Default (setting off): Technician sees prices
+    tech_det_1 = Client().get(
+        f"{INVOICES_URL}/{invoice_id}",
+        headers=auth_headers(tech),
+    )
+    assert tech_det_1.status_code == 200
+    d1 = tech_det_1.json()
+    assert d1["total"] == "1500.00"
+    assert d1["items"][0]["unit_price"] == "1500.00"
+
+    # 2. Owner enables hide_prices_for_technicians
+    with tenant_context(tenant_a):
+        TenantSetting.objects.update_or_create(
+            key="hide_prices_for_technicians",
+            defaults={"value": "true"},
+        )
+
+    # 3. Technician invoice detail: money fields redacted to None
+    tech_det_2 = Client().get(
+        f"{INVOICES_URL}/{invoice_id}",
+        headers=auth_headers(tech),
+    )
+    assert tech_det_2.status_code == 200
+    d2 = tech_det_2.json()
+    assert d2["subtotal"] is None
+    assert d2["discount_amount"] is None
+    assert d2["total"] is None
+    assert d2["net_paid"] is None
+    assert d2["balance"] is None
+    assert d2["items"][0]["unit_price"] is None
+    assert d2["items"][0]["line_total"] is None
+
+    # 4. Technician invoice list: daily_total redacted to None
+    tech_list = Client().get(
+        INVOICES_URL,
+        headers=auth_headers(tech),
+    )
+    assert tech_list.status_code == 200
+    assert tech_list.json()["daily_total"] is None
+    assert tech_list.json()["results"][0]["total"] is None
+
+    # 5. Owner is unaffected
+    owner_det = Client().get(
+        f"{INVOICES_URL}/{invoice_id}",
+        headers=auth_headers(mi_setup["owner"]),
+    )
+    assert owner_det.status_code == 200
+    assert owner_det.json()["total"] == "1500.00"
+    assert owner_det.json()["items"][0]["unit_price"] == "1500.00"

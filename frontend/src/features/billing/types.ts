@@ -34,6 +34,7 @@ export interface InvoiceItem {
   unit_price: string;
   quantity: number;
   line_total: string;
+  reporting_time?: string | null;
 }
 
 export interface PaymentRecord {
@@ -136,6 +137,7 @@ export interface InvoiceDetail {
   net_paid: string;
   net_revenue?: string;
   balance?: string;
+  pickup_code?: string | null;
   created_at: string;
 }
 

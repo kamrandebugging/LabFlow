@@ -132,7 +132,26 @@ class ShareLedgerEntry(models.Model):
         related_name="share_ledger_entries",
         db_column="payment_id",
         db_index=False,
-        null=False,
+        null=True,
+        blank=True,
+    )
+    credit_note = models.ForeignKey(
+        "billing.CreditNote",
+        on_delete=models.PROTECT,
+        related_name="share_ledger_entries",
+        db_column="credit_note_id",
+        db_index=False,
+        null=True,
+        blank=True,
+    )
+    void_event = models.ForeignKey(
+        "billing.CreditNoteVoid",
+        on_delete=models.PROTECT,
+        related_name="share_ledger_entries",
+        db_column="void_event_id",
+        db_index=False,
+        null=True,
+        blank=True,
     )
     referral_partner = models.ForeignKey(
         "partners.ReferralPartner",
@@ -167,6 +186,7 @@ class ShareLedgerEntry(models.Model):
         null=False,
     )
     period = models.TextField(null=False, blank=False)
+    business_date = models.DateField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True, null=False)
 
     class Meta:
@@ -175,6 +195,14 @@ class ShareLedgerEntry(models.Model):
             models.Index(
                 fields=["payment"],
                 name="idx_share_ledger_entry_payment_id",
+            ),
+            models.Index(
+                fields=["credit_note"],
+                name="idx_share_ledger_entry_cn_id",
+            ),
+            models.Index(
+                fields=["void_event"],
+                name="idx_share_ledger_entry_void_id",
             ),
             models.Index(
                 fields=["referral_partner"],
@@ -188,7 +216,18 @@ class ShareLedgerEntry(models.Model):
         constraints = [
             models.UniqueConstraint(
                 fields=["payment"],
+                condition=Q(payment__isnull=False),
                 name="uq_share_ledger_entry_payment_id",
+            ),
+            models.UniqueConstraint(
+                fields=["credit_note"],
+                condition=Q(credit_note__isnull=False),
+                name="uq_share_ledger_entry_credit_note_id",
+            ),
+            models.UniqueConstraint(
+                fields=["void_event"],
+                condition=Q(void_event__isnull=False),
+                name="uq_share_ledger_entry_void_event_id",
             ),
             models.CheckConstraint(
                 condition=Q(

@@ -203,6 +203,7 @@
     "patient_label": "مریض",
     "mrn_label": "MRN",
     "datetime_label": "تاریخ و وقت",
+    "pickup_code_label": "رپورٹ وصولی کوڈ",
     "reporting_time_label": "رپورٹنگ وقت",
     "paid_label": "ادا شدہ",
     "format_a5": "A5 پورٹریٹ",

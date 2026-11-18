@@ -704,6 +704,7 @@ def record_share_entry(payment: Any) -> ShareLedgerEntry | None:
                 percent_applied=percent,
                 basis_amount=basis_amount,
                 period=period,
+                business_date=getattr(payment, "business_date", None) or on_date,
             )
             logger.info(
                 "Share ledger: created entry %s for payment %s "
@@ -758,26 +759,40 @@ def _has_live_settlement(partner: ReferralPartner, period: str) -> bool:
 def _route_reversal_period(
     *,
     original_entry: ShareLedgerEntry,
-    refund_payment: Any,
+    refund_payment: Any = None,
+    reversal_date: date | None = None,
 ) -> str:
     """Route the reversal's period per SL-11.
 
-    - Original period closed (APPROVED/SENT/PAID) → refund's YYYY-MM (current)
-    - Original period has live DRAFT → refund's YYYY-MM (current)
+    - Original period closed (APPROVED/SENT/PAID) → reversal's YYYY-MM
+    - Original period has live DRAFT → reversal's YYYY-MM
+    - Cross-month reversal (reversal date's month != original) → reversal's YYYY-MM
     - Otherwise → original period (settle together)
     """
     partner = original_entry.referral_partner
     original_period = original_entry.period
 
-    if _is_period_closed(partner, original_period):
-        # Closed → current open period (refund's YYYY-MM)
-        return refund_payment.created_at.astimezone(KARACHI_TZ).strftime("%Y-%m")
+    if reversal_date is None:
+        if refund_payment is not None:
+            biz = getattr(refund_payment, "business_date", None)
+            if biz is not None:
+                reversal_date = biz
+            elif getattr(refund_payment, "created_at", None):
+                reversal_date = refund_payment.created_at.astimezone(KARACHI_TZ).date()
+            else:
+                reversal_date = _today()
+        else:
+            reversal_date = _today()
 
-    if _has_live_settlement(partner, original_period):
-        # Live DRAFT exists → refund's YYYY-MM (joins next cycle)
-        return refund_payment.created_at.astimezone(KARACHI_TZ).strftime("%Y-%m")
+    reversal_period = reversal_date.strftime("%Y-%m")
 
-    # Otherwise → original period (settle together, net correctly)
+    if (
+        _is_period_closed(partner, original_period)
+        or _has_live_settlement(partner, original_period)
+        or original_period != reversal_period
+    ):
+        return reversal_period
+
     return original_period
 
 
@@ -797,9 +812,6 @@ def record_reversal(refund_payment: Any) -> ShareLedgerEntry | None:
 
     # Find the original payment's ledger entry
     # The refund references the invoice; we need the original payment(s)
-    # For simplicity: find the most recent payment entry for this invoice
-    # that hasn't been fully reversed. In practice, refunds are linked
-    # to specific payments via the invoice.
     invoice = refund_payment.invoice
 
     # Get all payment (non-refund) entries for this invoice, ordered by created
@@ -821,10 +833,6 @@ def record_reversal(refund_payment: Any) -> ShareLedgerEntry | None:
         )
         return None
 
-    # For now, use the first (oldest) original entry.
-    # A full implementation would track which payments have been reversed
-    # and allocate the refund across them. This is a v1 simplification
-    # that handles the common single-payment case correctly.
     original = original_entries.first()
     assert original is not None
 
@@ -851,10 +859,15 @@ def record_reversal(refund_payment: Any) -> ShareLedgerEntry | None:
         )
         return None
 
+    biz_date = getattr(refund_payment, "business_date", None)
+    if biz_date is None and getattr(refund_payment, "created_at", None):
+        biz_date = refund_payment.created_at.astimezone(KARACHI_TZ).date()
+
     # SL-11: Period routing
     period = _route_reversal_period(
         original_entry=original,
         refund_payment=refund_payment,
+        reversal_date=biz_date,
     )
 
     try:
@@ -867,6 +880,7 @@ def record_reversal(refund_payment: Any) -> ShareLedgerEntry | None:
                 percent_applied=percent_applied,
                 basis_amount=basis_amount,
                 period=period,
+                business_date=biz_date,
             )
             logger.info(
                 "Share ledger: created reversal %s for refund %s "
@@ -880,6 +894,155 @@ def record_reversal(refund_payment: Any) -> ShareLedgerEntry | None:
             return entry
     except IntegrityError:
         existing = ShareLedgerEntry.objects.filter(payment=refund_payment).first()
+        if existing is not None:
+            return existing
+        raise
+
+
+def record_credit_note_reversal(credit_note: Any) -> ShareLedgerEntry | None:
+    """Record a credit note compensating entry in the share ledger.
+
+    Called inside CreditNoteService.issue in the same transaction.
+    Reverses the partner share for the credit note amount.
+    """
+    invoice = credit_note.invoice
+    if invoice.referral_partner_id is None:
+        return None
+
+    # Idempotency replay check
+    existing = ShareLedgerEntry.objects.filter(credit_note=credit_note).first()
+    if existing is not None:
+        return existing
+
+    # Find the original positive ledger entries for this invoice
+    from apps.billing.models import Payment
+
+    original_entries = (
+        ShareLedgerEntry.objects.filter(
+            payment__invoice=invoice,
+            payment__kind=Payment.Kind.PAYMENT,
+            amount__gt=Decimal("0.00"),
+        )
+        .select_related("referral_partner", "rule")
+        .order_by("created_at")
+    )
+    if not original_entries.exists():
+        return None
+
+    original = original_entries.first()
+    assert original is not None
+
+    percent_applied = original.percent_applied
+    rule = original.rule
+    partner = original.referral_partner
+
+    basis_amount = credit_note.amount
+    raw_amount = -(basis_amount * percent_applied / Decimal("100"))
+    amount = _quantize(raw_amount)
+    if amount == Decimal("0.00"):
+        return None
+
+    biz_date = getattr(credit_note, "business_date", None)
+    if biz_date is None and getattr(credit_note, "issued_at", None):
+        biz_date = credit_note.issued_at.astimezone(KARACHI_TZ).date()
+
+    period = _route_reversal_period(
+        original_entry=original,
+        reversal_date=biz_date,
+    )
+
+    try:
+        with transaction.atomic():
+            entry = ShareLedgerEntry.objects.create(
+                credit_note=credit_note,
+                referral_partner=partner,
+                rule=rule,
+                amount=amount,  # Negative
+                percent_applied=percent_applied,
+                basis_amount=basis_amount,
+                period=period,
+                business_date=biz_date,
+            )
+            logger.info(
+                "Share ledger: created credit note reversal %s for note %s "
+                "(amount=%s, period=%s)",
+                entry.id,
+                credit_note.id,
+                amount,
+                period,
+            )
+            return entry
+    except IntegrityError:
+        existing = ShareLedgerEntry.objects.filter(credit_note=credit_note).first()
+        if existing is not None:
+            return existing
+        raise
+
+
+def record_void_compensation(void_event: Any) -> ShareLedgerEntry | None:
+    """Record a compensating restoration entry when a credit note is voided.
+
+    Called inside CreditNoteService.void in the same transaction.
+    Restores the partner share that was reversed by the credit note.
+    """
+    credit_note = void_event.credit_note
+    invoice = credit_note.invoice
+    if invoice.referral_partner_id is None:
+        return None
+
+    # Idempotency replay check
+    existing = ShareLedgerEntry.objects.filter(void_event=void_event).first()
+    if existing is not None:
+        return existing
+
+    # Find the credit note's reversal entry
+    cn_entry = ShareLedgerEntry.objects.filter(credit_note=credit_note).first()
+    if cn_entry is None:
+        return None
+
+    # Restores the exact share amount that was reversed (positive amount)
+    amount = -cn_entry.amount
+    basis_amount = cn_entry.basis_amount
+    percent_applied = cn_entry.percent_applied
+    rule = cn_entry.rule
+    partner = cn_entry.referral_partner
+
+    biz_date = getattr(void_event, "void_business_date", None)
+    if biz_date is None:
+        voided_at = getattr(void_event, "voided_at", None) or getattr(
+            void_event, "created_at", None
+        )
+        if voided_at:
+            biz_date = voided_at.astimezone(KARACHI_TZ).date()
+
+    period = _route_reversal_period(
+        original_entry=cn_entry,
+        reversal_date=biz_date,
+    )
+
+    try:
+        with transaction.atomic():
+            entry = ShareLedgerEntry.objects.create(
+                void_event=void_event,
+                referral_partner=partner,
+                rule=rule,
+                amount=amount,  # Positive restored share
+                percent_applied=percent_applied,
+                basis_amount=basis_amount,
+                period=period,
+                business_date=biz_date,
+            )
+            logger.info(
+                "Share ledger: created void compensation %s for void %s "
+                "(amount=%s, period=%s)",
+                entry.id,
+                void_event.id,
+                amount,
+                period,
+            )
+            return entry
+    except IntegrityError:
+        existing = ShareLedgerEntry.objects.filter(void_event=void_event).first()
         if existing is not None:
             return existing
         raise
@@ -911,7 +1074,11 @@ def reconcile_missing_ledger_entries() -> dict[str, int]:
                         kind=Payment.Kind.PAYMENT,
                         invoice__referral_partner__isnull=False,
                     )
-                    .exclude(id__in=ShareLedgerEntry.objects.values("payment_id"))
+                    .exclude(
+                        id__in=ShareLedgerEntry.objects.filter(
+                            payment__isnull=False
+                        ).values("payment_id")
+                    )
                     .select_related("invoice", "invoice__referral_partner")
                     .order_by("created_at")
                 )
