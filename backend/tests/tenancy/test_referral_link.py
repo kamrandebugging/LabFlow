@@ -211,7 +211,7 @@ def test_referral_discount_over_25_percent_needs_owner(
         },
         content_type="application/json",
         HTTP_IDEMPOTENCY_KEY="rf-invoice-5",
-        **owner_headers,
+        headers=owner_headers,
     )
     assert owner_attempt.status_code == 201, owner_attempt.content
     assert owner_attempt.json()["discount_amount"] == "300.00"

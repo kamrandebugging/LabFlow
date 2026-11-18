@@ -404,7 +404,7 @@ def test_credit_note_idempotent_replay_and_tier(
         data={"amount": "6000.00", "reason": "Big reversal"},
         content_type="application/json",
         HTTP_IDEMPOTENCY_KEY="cn-tier-1",
-        **manager_headers,
+        headers=manager_headers,
     )
     assert blocked.status_code == 403
     assert blocked.json()["error"]["code"] == "owner_approval_required"

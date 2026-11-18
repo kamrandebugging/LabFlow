@@ -125,12 +125,17 @@ class InvoiceSerializer(serializers.Serializer):
     patient_id = serializers.UUIDField()
     branch_id = serializers.UUIDField()
     referral_partner_id = serializers.UUIDField(allow_null=True)
+    referral_partner_name = serializers.SerializerMethodField()
     status = serializers.CharField()
     subtotal = MoneyField()
     discount_amount = MoneyField()
     discount_reason = serializers.CharField(allow_null=True)
     total = MoneyField()
     items = InvoiceItemSerializer(many=True)
+
+    def get_referral_partner_name(self, obj: Any) -> str | None:
+        partner = getattr(obj, "referral_partner", None)
+        return getattr(partner, "name", None)
 
 
 class PositiveMoneyField(MoneyField):
