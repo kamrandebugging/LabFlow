@@ -13,7 +13,7 @@ InvoiceQueryService.
 """
 
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from typing import Any, cast
 
@@ -27,8 +27,13 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.accounts.models import StaffUser
-from apps.billing.models import Invoice, Payment
+from apps.billing.models import CreditNote, Invoice, Payment
 from apps.billing.serializers import (
+    CreditNoteCreateSerializer,
+    CreditNoteSerializer,
+    CreditNoteVoidSerializer,
+    DayCloseCreateSerializer,
+    DayCloseSummarySerializer,
     InvoiceCancelSerializer,
     InvoiceCreateSerializer,
     InvoiceDetailSerializer,
@@ -40,15 +45,20 @@ from apps.billing.serializers import (
 from apps.billing.services import (
     BILLING_READ_ROLES,
     BILLING_WRITE_ROLES,
+    CREDIT_NOTE_ROLES,
+    DAY_CLOSE_ROLES,
     PAYMENT_WRITE_ROLES,
     BillingError,
     BillingService,
+    CreditNoteService,
+    DayCloseService,
     InvalidFilterError,
     InvoiceQueryService,
     PaymentService,
 )
 from apps.branches.scope_views import BranchScopedAPIView, IsInBranchScope
 from apps.catalog.services import TestNotPricedError
+from apps.core.authorization import OWNER_ONLY
 
 
 def _get_client_ip(request: Request) -> str:
@@ -97,12 +107,20 @@ class InvoiceCollectionView(BranchScopedAPIView):
                 status=exc.status_code,
             )
         today = timezone.localdate()
-        today_total = (
+        today_qs = (
             Invoice.objects.scoped_to(user)
             .filter(created_at__date=today)
             .exclude(status=Invoice.Status.CANCELLED)
-            .aggregate(sum=Sum("total"))["sum"]
-        ) or Decimal("0.00")
+        )
+        billed = today_qs.aggregate(sum=Sum("total"))["sum"] or Decimal("0.00")
+        refunded = Payment.objects.filter(
+            invoice__in=today_qs, kind=Payment.Kind.REFUND
+        ).aggregate(sum=Sum("amount"))["sum"] or Decimal("0.00")
+        credited = CreditNote.objects.filter(
+            invoice__in=today_qs, voided_at__isnull=True
+        ).aggregate(sum=Sum("amount"))["sum"] or Decimal("0.00")
+        # Net revenue = billed − refunds − credit notes (never client-computed).
+        today_total = billed - refunded - credited
         body = {
             "results": InvoiceSummarySerializer(rows, many=True).data,
             "next_cursor": next_cursor,
@@ -255,6 +273,7 @@ class PaymentCreateView(APIView):
                 method=data["method"],
                 amount=data["amount"],
                 reference=data.get("reference"),
+                refund_reason=data.get("refund_reason"),
                 idempotency_key=idempotency_key,
                 actor=user,
                 ip=ip,
@@ -420,6 +439,7 @@ class InvoiceDetailView(APIView):
             "branch_id": invoice.branch_id,
             "branch_name": invoice.branch.name,
             "referral_partner_id": invoice.referral_partner_id,
+            "referral_partner_name": getattr(invoice.referral_partner, "name", None),
             "status": invoice.status,
             "subtotal": invoice.subtotal,
             "discount_amount": invoice.discount_amount,
@@ -427,11 +447,171 @@ class InvoiceDetailView(APIView):
             "total": invoice.total,
             "items": list(invoice.items.all()),
             "payments": list(invoice.payments.all()),
+            "credit_notes": list(
+                invoice.credit_notes.select_related("issued_by", "voided_by").order_by(
+                    "issued_at"
+                )
+            ),
             "net_paid": detail["net_paid"],
+            "net_revenue": detail["net_revenue"],
             "created_at": invoice.created_at,
         }
         return Response(
             InvoiceDetailSerializer(payload, context={"request": request}).data,
+            status=status.HTTP_200_OK,
+        )
+
+
+class InvoiceHistoryView(APIView):
+    """GET /api/v1/invoices/{id}/history — read-only append-only event trail.
+
+    Derives created / payment / refund / cancel / discount events from the
+    immutable Payment rows, the invoice row and its AuditLog entries. No
+    write method exists: history rows can never be edited or deleted.
+    Same read roles and branch scoping as InvoiceDetailView.
+    """
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request: Request, invoice_id: Any) -> Response:
+        user = cast(StaffUser, request.user)
+        if user.role not in BILLING_READ_ROLES:
+            return Response(
+                _format_error("forbidden", "Only staff may view invoices."),
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        iid = _resolve_invoice_reference(user, invoice_id)
+        if iid is None:
+            return Response(
+                _format_error("not_found", "Invoice not found."),
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        try:
+            detail = InvoiceQueryService.get_invoice_detail(invoice_id=iid, actor=user)
+        except BillingError as exc:
+            return Response(
+                _format_error(exc.error_code, str(exc) or exc.error_code),
+                status=exc.status_code,
+            )
+        invoice = detail["invoice"]
+
+        from apps.accounts.models import AuditLog
+        from apps.accounts.models import StaffUser as _Staff
+
+        events: list[dict[str, Any]] = []
+
+        # Actor names for audit rows (actor_id is a plain UUID, no FK).
+        audit_rows = list(
+            AuditLog.objects.filter(
+                entity_type="invoice", entity_id=invoice.id
+            ).order_by("at")
+        )
+        actor_ids: set[uuid.UUID] = set()
+        for row in audit_rows:
+            if row.actor_id is not None:
+                actor_ids.add(row.actor_id)
+        payment_rows = list(
+            invoice.payments.all().select_related("received_by").order_by("created_at")
+        )
+        for p in payment_rows:
+            if p.received_by_id is not None:
+                actor_ids.add(p.received_by_id)
+        credit_notes = list(
+            invoice.credit_notes.all()
+            .select_related("issued_by", "voided_by")
+            .order_by("issued_at")
+        )
+        for cn in credit_notes:
+            if cn.issued_by_id is not None:
+                actor_ids.add(cn.issued_by_id)
+            if cn.voided_by_id is not None:
+                actor_ids.add(cn.voided_by_id)
+        names: dict[Any, str] = {}
+        if actor_ids:
+            for s in _Staff.objects.filter(id__in=actor_ids):
+                names[s.id] = getattr(s, "name", None) or s.email
+
+        # created (+ discount applied at creation)
+        created_row = next(
+            (r for r in audit_rows if r.action == "invoice.created"), None
+        )
+        created_at = created_row.at if created_row else invoice.created_at
+        created_actor = names.get(created_row.actor_id) if created_row else None
+        events.append(
+            {
+                "event": "created",
+                "at": created_at.isoformat(),
+                "actor": created_actor,
+                "amount": f"{invoice.total:.2f}",
+                "referral_partner": getattr(invoice.referral_partner, "name", None),
+            }
+        )
+        if invoice.discount_amount > Decimal("0.00"):
+            events.append(
+                {
+                    "event": "discount",
+                    "at": created_at.isoformat(),
+                    "actor": created_actor,
+                    "amount": f"{invoice.discount_amount:.2f}",
+                    "reason": invoice.discount_reason,
+                }
+            )
+
+        # payment / refund rows (append-only financial facts)
+        for p in payment_rows:
+            ev: dict[str, Any] = {
+                "event": "refund" if p.kind == Payment.Kind.REFUND else "payment",
+                "at": p.created_at.isoformat(),
+                "actor": names.get(p.received_by_id),
+                "amount": f"{p.amount:.2f}",
+            }
+            if p.kind == Payment.Kind.REFUND:
+                ev["reason"] = p.refund_reason or p.reference
+            events.append(ev)
+
+        # credit notes (append-only reversal documents)
+        for cn in credit_notes:
+            events.append(
+                {
+                    "event": "credit_note",
+                    "at": cn.issued_at.isoformat(),
+                    "actor": names.get(cn.issued_by_id),
+                    "amount": f"{cn.amount:.2f}",
+                    "reason": cn.reason,
+                    "number": cn.number,
+                    "method": cn.method,
+                    "voided": cn.voided_at is not None,
+                }
+            )
+            if cn.voided_at is not None:
+                events.append(
+                    {
+                        "event": "credit_note_voided",
+                        "at": cn.voided_at.isoformat(),
+                        "actor": names.get(cn.voided_by_id),
+                        "amount": f"{cn.amount:.2f}",
+                        "reason": cn.void_reason,
+                        "number": cn.number,
+                    }
+                )
+
+        # cancel
+        for row in audit_rows:
+            if row.action == "invoice.cancelled":
+                after = row.after_jsonb or {}
+                events.append(
+                    {
+                        "event": "cancel",
+                        "at": row.at.isoformat(),
+                        "actor": names.get(row.actor_id),
+                        "amount": None,
+                        "reason": after.get("reason"),
+                    }
+                )
+
+        events.sort(key=lambda e: e["at"])
+        return Response(
+            {"invoice_id": str(invoice.id), "events": events},
             status=status.HTTP_200_OK,
         )
 
@@ -495,3 +675,261 @@ class InvoiceCancelView(APIView):
                 status=exc.status_code,
             )
         return Response(InvoiceSerializer(invoice).data, status=status.HTTP_200_OK)
+
+
+class CreditNoteCreateView(APIView):
+    """POST /api/v1/invoices/{id}/credit-notes — reverse a paid invoice.
+
+    Owner/Manager only. Creates an append-only credit-note document; the
+    invoice, its items and its payments are never modified.
+    """
+
+    permission_classes = [permissions.IsAuthenticated, IsInBranchScope]
+    scope_branch_source = None
+
+    def post(self, request: Request, invoice_id: Any) -> Response:
+        user = cast(StaffUser, request.user)
+        if user.role not in CREDIT_NOTE_ROLES:
+            return Response(
+                _format_error(
+                    "forbidden",
+                    "Only an Owner or Manager may issue a credit note.",
+                ),
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        iid = _parse_path_uuid(invoice_id)
+        if iid is None:
+            return Response(
+                _format_error("not_found", "Invoice not found."),
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        serializer = CreditNoteCreateSerializer(data=request.data)
+        if not serializer.is_valid():
+            err_dict = serializer.errors
+            if "reason" in err_dict:
+                return Response(
+                    _format_error(
+                        "credit_note_reason_required",
+                        "A reason is required to issue a credit note.",
+                        err_dict,
+                    ),
+                    status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                )
+            return Response(
+                _format_error("validation_error", "Invalid payload.", err_dict),
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+        idempotency_key = request.META.get("HTTP_IDEMPOTENCY_KEY")
+        if not idempotency_key:
+            return Response(
+                _format_error(
+                    "idempotency_key_required",
+                    "An Idempotency-Key header is required.",
+                ),
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+        data = serializer.validated_data
+        try:
+            note, created = CreditNoteService.issue(
+                invoice_id=iid,
+                amount=data["amount"],
+                reason=data["reason"],
+                method=data["method"],
+                idempotency_key=idempotency_key,
+                actor=user,
+                ip=_get_client_ip(request),
+                user_agent=request.META.get("HTTP_USER_AGENT", ""),
+            )
+        except BillingError as exc:
+            return Response(
+                _format_error(exc.error_code, str(exc) or exc.error_code),
+                status=exc.status_code,
+            )
+        return Response(
+            CreditNoteSerializer(note).data,
+            status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
+        )
+
+
+class CreditNoteVoidView(APIView):
+    """POST /api/v1/invoices/{id}/credit-notes/{note_id}/void — Owner only.
+
+    Voiding is append-only: the note row and its CN number stay, the void
+    stops it counting toward revenue, and the invoice status is re-derived.
+    """
+
+    permission_classes = [permissions.IsAuthenticated, IsInBranchScope]
+    scope_branch_source = None
+
+    def post(self, request: Request, invoice_id: Any, note_id: Any) -> Response:
+        user = cast(StaffUser, request.user)
+        if user.role not in OWNER_ONLY:
+            return Response(
+                _format_error("forbidden", "Only the Owner may void a credit note."),
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        iid = _parse_path_uuid(invoice_id)
+        nid = _parse_path_uuid(note_id)
+        if iid is None or nid is None:
+            return Response(
+                _format_error("not_found", "Credit note not found."),
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        serializer = CreditNoteVoidSerializer(data=request.data)
+        if not serializer.is_valid():
+            if "reason" in serializer.errors:
+                return Response(
+                    _format_error(
+                        "credit_note_reason_required",
+                        "A reason is required to void a credit note.",
+                        serializer.errors,
+                    ),
+                    status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                )
+            return Response(
+                _format_error(
+                    "validation_error", "Invalid payload.", serializer.errors
+                ),
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+        try:
+            note = CreditNoteService.void(
+                invoice_id=iid,
+                note_id=nid,
+                reason=serializer.validated_data["reason"],
+                actor=user,
+                ip=_get_client_ip(request),
+                user_agent=request.META.get("HTTP_USER_AGENT", ""),
+            )
+        except BillingError as exc:
+            return Response(
+                _format_error(exc.error_code, str(exc) or exc.error_code),
+                status=exc.status_code,
+            )
+        return Response(CreditNoteSerializer(note).data, status=status.HTTP_200_OK)
+
+
+class DayCloseView(APIView):
+    """GET/POST /api/v1/day-close — reconcile and lock one branch-day.
+
+    GET returns the server-computed totals for a day plus the locked record
+    when the day is already closed. POST closes the day (Owner/Manager only);
+    closing only writes the reconciliation document, never money.
+    """
+
+    permission_classes = [permissions.IsAuthenticated, IsInBranchScope]
+    scope_branch_source = None
+
+    @staticmethod
+    def _totals_payload(totals: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "method_totals": totals["method_totals"],
+            "total_in": f"{totals['total_in']:.2f}",
+            "total_out": f"{totals['total_out']:.2f}",
+            "net_total": f"{totals['net_total']:.2f}",
+            "total_invoices": totals["total_invoices"],
+            "total_discount": f"{totals['total_discount']:.2f}",
+            "total_credit_notes": f"{totals['total_credit_notes']:.2f}",
+            "expected_cash": f"{totals['expected_cash']:.2f}",
+        }
+
+    def get(self, request: Request) -> Response:
+        user = cast(StaffUser, request.user)
+        if user.role not in BILLING_READ_ROLES:
+            return Response(
+                _format_error("forbidden", "Only staff may read a day close."),
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        branch_raw = request.query_params.get("branch")
+        try:
+            branch_id = uuid.UUID(str(branch_raw))
+        except (ValueError, TypeError, AttributeError):
+            return Response(
+                _format_error(
+                    "validation_error", "A valid branch query parameter is required."
+                ),
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+        date_raw = request.query_params.get("date")
+        if date_raw:
+            try:
+                day = date.fromisoformat(date_raw)
+            except ValueError:
+                return Response(
+                    _format_error(
+                        "validation_error", "date must be an ISO date (YYYY-MM-DD)."
+                    ),
+                    status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                )
+        else:
+            day = timezone.localdate()
+        try:
+            data = DayCloseService.read(actor=user, branch_id=branch_id, day=day)
+        except BillingError as exc:
+            return Response(
+                _format_error(exc.error_code, str(exc) or exc.error_code),
+                status=exc.status_code,
+            )
+        close = data["close"]
+        return Response(
+            {
+                "branch_id": str(branch_id),
+                "date": day.isoformat(),
+                "closed": data["closed"],
+                "totals": self._totals_payload(data["totals"]),
+                "close": (
+                    DayCloseSummarySerializer(close).data if close is not None else None
+                ),
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    def post(self, request: Request) -> Response:
+        user = cast(StaffUser, request.user)
+        if user.role not in DAY_CLOSE_ROLES:
+            return Response(
+                _format_error("forbidden", "Only an Owner or Manager may close a day."),
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        serializer = DayCloseCreateSerializer(data=request.data)
+        if not serializer.is_valid():
+            err_dict = serializer.errors
+            if "counted_cash" in err_dict:
+                return Response(
+                    _format_error(
+                        "validation_error",
+                        "The cash counted in the drawer is required.",
+                        err_dict,
+                    ),
+                    status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                )
+            return Response(
+                _format_error("validation_error", "Invalid payload.", err_dict),
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+        data = serializer.validated_data
+        day = data.get("date") or timezone.localdate()
+        try:
+            close = DayCloseService.close(
+                actor=user,
+                branch_id=data["branch_id"],
+                day=day,
+                counted_cash=data["counted_cash"],
+                difference_note=data.get("difference_note"),
+                ip=_get_client_ip(request),
+                user_agent=request.META.get("HTTP_USER_AGENT", ""),
+            )
+        except BillingError as exc:
+            return Response(
+                _format_error(exc.error_code, str(exc) or exc.error_code),
+                status=exc.status_code,
+            )
+        return Response(
+            {
+                "branch_id": str(close.branch_id),
+                "date": close.business_date.isoformat(),
+                "closed": True,
+                "close": DayCloseSummarySerializer(close).data,
+            },
+            status=status.HTTP_201_CREATED,
+        )

@@ -11,6 +11,8 @@ from typing import Any
 
 from rest_framework import serializers
 
+from apps.billing.models import Payment
+
 
 class MoneyField(serializers.Field):
     """Monetary amount: Decimal string, max 2 decimals, >= 0 (BL-V1)."""
@@ -123,12 +125,17 @@ class InvoiceSerializer(serializers.Serializer):
     patient_id = serializers.UUIDField()
     branch_id = serializers.UUIDField()
     referral_partner_id = serializers.UUIDField(allow_null=True)
+    referral_partner_name = serializers.SerializerMethodField()
     status = serializers.CharField()
     subtotal = MoneyField()
     discount_amount = MoneyField()
     discount_reason = serializers.CharField(allow_null=True)
     total = MoneyField()
     items = InvoiceItemSerializer(many=True)
+
+    def get_referral_partner_name(self, obj: Any) -> str | None:
+        partner = getattr(obj, "referral_partner", None)
+        return getattr(partner, "name", None)
 
 
 class PositiveMoneyField(MoneyField):
@@ -157,8 +164,15 @@ class PaymentCreateSerializer(serializers.Serializer):
     reference = serializers.CharField(
         required=False, allow_null=True, allow_blank=True, default=None
     )
+    refund_reason = serializers.CharField(
+        required=False, allow_null=True, allow_blank=True, default=None
+    )
 
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        if attrs.get("refund_reason") and attrs.get("kind") != "refund":
+            raise serializers.ValidationError(
+                {"refund_reason": "refund_reason is only valid for kind=refund."}
+            )
         return _reject_unknown_fields(self, attrs)
 
 
@@ -171,6 +185,7 @@ class PaymentSerializer(serializers.Serializer):
     method = serializers.CharField()
     amount = MoneyField()
     reference = serializers.CharField(allow_null=True)
+    refund_reason = serializers.CharField(allow_null=True, required=False, default=None)
     received_by = serializers.SerializerMethodField()
     created_at = serializers.DateTimeField()
 
@@ -180,6 +195,110 @@ class PaymentSerializer(serializers.Serializer):
         if staff is None:
             return None
         return getattr(staff, "name", None) or getattr(staff, "email", None)
+
+
+class CreditNoteCreateSerializer(serializers.Serializer):
+    """Request body for POST /invoices/{id}/credit-notes (v1 full reversal)."""
+
+    amount = PositiveMoneyField()
+    reason = serializers.CharField()
+    method = serializers.ChoiceField(
+        choices=Payment.Method.choices, required=False, default=Payment.Method.CASH
+    )
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        return _reject_unknown_fields(self, attrs)
+
+
+class CreditNoteVoidSerializer(serializers.Serializer):
+    """Body for POST /invoices/{id}/credit-notes/{note}/void."""
+
+    reason = serializers.CharField()
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        return _reject_unknown_fields(self, attrs)
+
+
+class CreditNoteSerializer(serializers.Serializer):
+    """Response shape for an issued credit note (append-only document)."""
+
+    id = serializers.UUIDField()
+    number = serializers.CharField()
+    invoice_id = serializers.UUIDField()
+    amount = MoneyField()
+    reason = serializers.CharField()
+    method = serializers.CharField()
+    reversed_methods = serializers.DictField()
+    issued_by = serializers.UUIDField(allow_null=True)
+    issued_by_name = serializers.SerializerMethodField()
+    issued_at = serializers.DateTimeField()
+    voided_at = serializers.DateTimeField(allow_null=True)
+    void_reason = serializers.CharField(allow_null=True)
+    voided_by = serializers.UUIDField(allow_null=True)
+    voided_by_name = serializers.SerializerMethodField()
+
+    def get_issued_by_name(self, obj: Any) -> str | None:
+        staff = getattr(obj, "issued_by", None)
+        if staff is None:
+            return None
+        return getattr(staff, "name", None) or getattr(staff, "email", None)
+
+    def get_voided_by_name(self, obj: Any) -> str | None:
+        staff = getattr(obj, "voided_by", None)
+        if staff is None:
+            return None
+        return getattr(staff, "name", None) or getattr(staff, "email", None)
+
+
+class DayCloseCreateSerializer(serializers.Serializer):
+    """Body for POST /day-close — close one branch-day.
+
+    ``counted_cash`` is the money physically counted in the drawer; the server
+    compares it with the expected cash it derives from Payment rows.
+    """
+
+    branch_id = serializers.UUIDField()
+    date = serializers.DateField(required=False)
+    counted_cash = MoneyField()
+    difference_note = serializers.CharField(required=False, allow_blank=True)
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        return _reject_unknown_fields(self, attrs)
+
+
+class DayCloseSummarySerializer(serializers.Serializer):
+    """The immutable reconciliation document written by a close."""
+
+    id = serializers.UUIDField()
+    branch_id = serializers.UUIDField()
+    business_date = serializers.DateField()
+    method_totals = serializers.DictField()
+    total_invoices = serializers.IntegerField()
+    total_discount = MoneyField()
+    total_credit_notes = MoneyField()
+    expected_cash = MoneyField()
+    counted_cash = MoneyField()
+    difference = MoneyField()
+    difference_note = serializers.CharField(allow_null=True)
+    closed_by = serializers.UUIDField(allow_null=True)
+    closed_by_name = serializers.SerializerMethodField()
+    closed_at = serializers.DateTimeField()
+
+    def get_closed_by_name(self, obj: Any) -> str | None:
+        staff = getattr(obj, "closed_by", None)
+        if staff is None:
+            return None
+        return getattr(staff, "name", None) or getattr(staff, "email", None)
+
+
+class DayCloseReadSerializer(serializers.Serializer):
+    """Read shape for GET /day-close — live totals plus the locked record."""
+
+    branch_id = serializers.UUIDField()
+    date = serializers.DateField()
+    closed = serializers.BooleanField()
+    totals = serializers.DictField()
+    close = DayCloseSummarySerializer(allow_null=True)
 
 
 class InvoiceCancelSerializer(serializers.Serializer):
@@ -211,6 +330,7 @@ class InvoiceSummarySerializer(serializers.Serializer):
     discount_amount = MoneyField()
     total = MoneyField()
     net_paid = MoneyField()
+    net_revenue = MoneyField()
     created_at = serializers.DateTimeField()
 
 
@@ -234,6 +354,7 @@ class InvoiceDetailSerializer(serializers.Serializer):
     branch_id = serializers.UUIDField()
     branch_name = serializers.CharField()
     referral_partner_id = serializers.UUIDField(allow_null=True)
+    referral_partner_name = serializers.SerializerMethodField()
     status = serializers.CharField()
     subtotal = MoneyField()
     discount_amount = MoneyField()
@@ -241,8 +362,14 @@ class InvoiceDetailSerializer(serializers.Serializer):
     total = MoneyField()
     items = InvoiceItemSerializer(many=True)
     payments = PaymentSerializer(many=True)
+    credit_notes = CreditNoteSerializer(many=True, required=False)
     net_paid = MoneyField()
+    net_revenue = MoneyField(required=False)
     created_at = serializers.DateTimeField()
+
+    def get_referral_partner_name(self, obj: Any) -> str | None:
+        partner = getattr(obj, "referral_partner", None)
+        return getattr(partner, "name", None)
 
     def to_representation(self, instance: Any) -> dict[str, Any]:
         data = super().to_representation(instance)

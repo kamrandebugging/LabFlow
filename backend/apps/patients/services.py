@@ -123,6 +123,7 @@ class PatientService:
         sex: str,
         branch_id: uuid.UUID,
         date_of_birth: date | None = None,
+        referral_partner_id: uuid.UUID | None = None,
         confirm_duplicate: bool = False,
         whatsapp_number: str | None = None,
         consent_reports: bool = False,
@@ -161,6 +162,15 @@ class PatientService:
             if candidates:
                 raise PossibleDuplicateError(candidates)
 
+        partner = None
+        if referral_partner_id is not None:
+            from apps.partners.models import ReferralPartner
+
+            try:
+                partner = ReferralPartner.objects.get(pk=referral_partner_id)
+            except ReferralPartner.DoesNotExist as exc:
+                raise BranchScopeDeniedError("Invalid referral partner.") from exc
+
         with transaction.atomic():
             mrn = cls.generate_mrn(branch)
             patient = Patient.objects.create(
@@ -170,6 +180,7 @@ class PatientService:
                 sex=sex,
                 date_of_birth=date_of_birth,
                 branch=branch,
+                referral_partner=partner,
             )
 
             # Digital delivery destination. Only persisted when the operator

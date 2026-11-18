@@ -5,12 +5,15 @@ import {
   ArrowRight,
   CircleCheck,
   CreditCard,
+  Lock,
   Plus,
   Receipt,
   RefreshCw,
   Search,
 } from "lucide-react";
 import { billingService } from "./billingService";
+import { useAuthStore } from "../auth/authStore";
+import { useNavigate } from "react-router-dom";
 import { formatMoney, statusLabel } from "../../lib/format";
 import { messageForError } from "../../lib/errors";
 import type { InvoiceStatus, InvoiceSummary } from "./types";
@@ -39,6 +42,10 @@ export function InvoicesListScreen({
   service = billingService,
 }: InvoicesListScreenProps): JSX.Element {
   const { t } = useTranslation(["billing", "common"]);
+  const navigate = useNavigate();
+  const role = useAuthStore((state) => state.user?.role);
+  // Day Close is an Owner/Manager control only.
+  const canCloseDay = role === "owner" || role === "manager";
   const [invoices, setInvoices] = useState<InvoiceSummary[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
@@ -58,6 +65,9 @@ export function InvoicesListScreen({
       setInvoices(data.results);
       setDailyTotal(data.daily_total ?? null);
     } catch (err: unknown) {
+      // A failed filter must not leave the previous page's rows on screen.
+      setInvoices([]);
+      setDailyTotal(null);
       setError(messageForError(err, t));
     } finally {
       setIsLoading(false);
@@ -104,9 +114,10 @@ export function InvoicesListScreen({
     // when the status says money is still due AND the server gave a paid
     // figure. Never infer a balance from the total alone.
     if (inv.status !== "partial" && inv.status !== "unpaid") return null;
-    if (inv.net_paid === undefined || inv.net_paid === null) return null;
+    // Balance uses the server's net revenue (payments − refunds − credit
+    // notes) so a reversal restores the amount still due.
     const total = Number.parseFloat(inv.total || "0");
-    const paid = Number.parseFloat(inv.net_paid || "0");
+    const paid = Number.parseFloat(inv.net_revenue ?? inv.net_paid ?? "0");
     if (!Number.isFinite(total) || !Number.isFinite(paid)) return null;
     return Math.max(0, total - paid);
   };
@@ -156,12 +167,13 @@ export function InvoicesListScreen({
             style={{ maxWidth: 180 }}
           >
             <option value="all">{t("billing:list.all_statuses")}</option>
-            <option value="draft">Draft</option>
-            <option value="unpaid">Unpaid</option>
-            <option value="partial">Partial</option>
-            <option value="paid">Paid</option>
-            <option value="refunded">Refunded</option>
-            <option value="cancelled">Cancelled</option>
+            {(
+              ["unpaid", "partial", "paid", "refunded", "cancelled"] as const
+            ).map((value) => (
+              <option key={value} value={value}>
+                {t(`common:status.invoice.${value}`)}
+              </option>
+            ))}
           </select>
           <div className={styles.toolbarActions}>
             <button
@@ -176,6 +188,16 @@ export function InvoicesListScreen({
                 aria-hidden="true"
               />
             </button>
+            {canCloseDay ? (
+              <button
+                type="button"
+                onClick={() => navigate("/billing/day-close")}
+                className={styles.secondaryButton}
+              >
+                <Lock className={styles.buttonIcon} aria-hidden="true" />
+                <span>{t("billing:list.day_close")}</span>
+              </button>
+            ) : null}
             {onNewInvoice ? (
               <button
                 type="button"
@@ -221,9 +243,6 @@ export function InvoicesListScreen({
                     {t("common:labels.date")}
                   </th>
                   <th scope="col" className={styles.th}>
-                    {t("billing:list.col_tests")}
-                  </th>
-                  <th scope="col" className={styles.th}>
                     {t("billing:list.col_total")}
                   </th>
                   <th scope="col" className={styles.th}>
@@ -238,7 +257,7 @@ export function InvoicesListScreen({
                 {isLoading ? (
                   [0, 1, 2, 3].map((row) => (
                     <tr key={row} className={styles.row}>
-                      <td colSpan={7} className={styles.td}>
+                      <td colSpan={6} className={styles.td}>
                         <div
                           className={styles.skeletonRow}
                           aria-hidden="true"
@@ -259,7 +278,7 @@ export function InvoicesListScreen({
                   ))
                 ) : filteredInvoices.length === 0 ? (
                   <tr className={styles.row}>
-                    <td colSpan={7} className={styles.emptyCell}>
+                    <td colSpan={6} className={styles.emptyCell}>
                       <div className={styles.emptyInner}>
                         <span className={styles.emptyIconCircle}>
                           <Receipt
@@ -342,12 +361,6 @@ export function InvoicesListScreen({
                                 year: "numeric",
                               },
                             )}
-                          </span>
-                        </td>
-                        <td className={styles.td}>
-                          <span className={styles.patientMeta}>
-                            {inv.items_summary ||
-                              t("billing:list.tests_fallback")}
                           </span>
                         </td>
                         <td className={styles.td}>

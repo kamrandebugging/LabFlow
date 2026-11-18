@@ -5,8 +5,12 @@
 import { apiRequest, ApiError } from "../../lib/apiClient";
 import { useAuthStore } from "../auth/authStore";
 import type {
+  CreditNote,
+  DayCloseInput,
+  DayCloseResponse,
   InvoiceCreateInput,
   InvoiceDetail,
+  InvoiceHistoryResponse,
   InvoiceListResponse,
   PaymentCreateInput,
   PaymentRecord,
@@ -158,6 +162,8 @@ export const billingService = {
             method: input.method,
             amount: input.amount,
             reference: input.reference || null,
+            refund_reason:
+              input.kind === "refund" ? input.refund_reason || null : null,
           },
         },
       );
@@ -165,6 +171,77 @@ export const billingService = {
       if (err instanceof ApiError) {
         const error = new Error(
           err.message || `Failed to record payment (${err.status})`,
+        );
+        (error as Error & { code?: string }).code = err.code ?? undefined;
+        throw error;
+      }
+      throw err;
+    }
+  },
+
+  async getInvoiceHistory(invoiceId: string): Promise<InvoiceHistoryResponse> {
+    try {
+      return await apiRequest<InvoiceHistoryResponse>(
+        `/invoices/${invoiceId}/history`,
+        { method: "GET" },
+      );
+    } catch (err) {
+      if (err instanceof ApiError) {
+        const error = new Error(
+          err.message || `Failed to load invoice history (${err.status})`,
+        );
+        (error as Error & { code?: string }).code = err.code ?? undefined;
+        throw error;
+      }
+      throw err;
+    }
+  },
+
+  async issueCreditNote(
+    invoiceId: string,
+    amount: string,
+    reason: string,
+    method = "cash",
+  ): Promise<CreditNote> {
+    try {
+      return await apiRequest<CreditNote>(
+        `/invoices/${invoiceId}/credit-notes`,
+        {
+          method: "POST",
+          headers: { "Idempotency-Key": generateIdempotencyKey() },
+          body: { amount, reason, method },
+        },
+      );
+    } catch (err) {
+      if (err instanceof ApiError) {
+        const error = new Error(
+          err.message || `Failed to issue credit note (${err.status})`,
+        );
+        (error as Error & { code?: string }).code = err.code ?? undefined;
+        throw error;
+      }
+      throw err;
+    }
+  },
+
+  /** POST /invoices/{id}/credit-notes/{note}/void — Owner only, append-only. */
+  async voidCreditNote(
+    invoiceId: string,
+    noteId: string,
+    reason: string,
+  ): Promise<CreditNote> {
+    try {
+      return await apiRequest<CreditNote>(
+        `/invoices/${invoiceId}/credit-notes/${noteId}/void`,
+        {
+          method: "POST",
+          body: { reason },
+        },
+      );
+    } catch (err) {
+      if (err instanceof ApiError) {
+        const error = new Error(
+          err.message || `Failed to void credit note (${err.status})`,
         );
         (error as Error & { code?: string }).code = err.code ?? undefined;
         throw error;
@@ -186,6 +263,37 @@ export const billingService = {
       if (err instanceof ApiError) {
         const error = new Error(
           err.message || `Failed to cancel invoice (${err.status})`,
+        );
+        (error as Error & { code?: string }).code = err.code ?? undefined;
+        throw error;
+      }
+      throw err;
+    }
+  },
+
+  /** GET /day-close?branch=&date= — live totals plus the locked record. */
+  async getDayClose(
+    branchId: string,
+    date: string,
+    signal?: AbortSignal,
+  ): Promise<DayCloseResponse> {
+    return apiRequest<DayCloseResponse>("/day-close", {
+      query: { branch: branchId, date },
+      signal,
+    });
+  },
+
+  /** POST /day-close — lock the day (Owner/Manager only). */
+  async closeDay(input: DayCloseInput): Promise<DayCloseResponse> {
+    try {
+      return await apiRequest<DayCloseResponse>("/day-close", {
+        method: "POST",
+        body: input,
+      });
+    } catch (err) {
+      if (err instanceof ApiError) {
+        const error = new Error(
+          err.message || `Failed to close the day (${err.status})`,
         );
         (error as Error & { code?: string }).code = err.code ?? undefined;
         throw error;

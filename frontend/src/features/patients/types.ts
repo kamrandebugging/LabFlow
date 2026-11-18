@@ -39,6 +39,8 @@ export interface PatientSummary {
   year_of_birth?: number | null;
   branch_id: string;
   branch_name?: string;
+  referral_partner_id?: string | null;
+  referral_partner_name?: string | null;
   last_visit?: string | null;
   created_at: string;
   updated_at: string;
@@ -57,6 +59,7 @@ export interface PatientCreateInput {
   sex: "M" | "F";
   date_of_birth?: string | null;
   branch_id: string;
+  referral_partner_id?: string | null;
   whatsapp_number?: string;
   consent_reports?: boolean;
   confirm_duplicate?: boolean;

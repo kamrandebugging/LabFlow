@@ -26,6 +26,10 @@ from django.db import models
 # Format: {"app_label.ModelName": "Detailed justification per Doc 04 §13.7"}
 # Enforced by test_opt_out_allow_list_has_written_reasons (same directory).
 EXCLUDED_MODELS: dict[str, str] = {
+    "billing.CreditNoteSequence": (
+        "Single-row, schema-local counter (pk=1) by design; isolation is "
+        "covered by the credit-note sequence tests"
+    ),
     # Django framework models pulled into TENANT_APPS by LAB-5 (KAN-37) so
     # their tables exist per tenant. They are not LabFlow domain models and
     # have no <Model>Factory by design; isolation of domain models is what

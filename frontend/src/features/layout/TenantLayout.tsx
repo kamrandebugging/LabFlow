@@ -45,6 +45,7 @@ const CONTROL_PATHS = [
   "/settings/tenant",
   "/settings",
   "/settlements",
+  "/billing/day-close",
   "/partners",
   "/settings/branches",
   "/settings/account",
@@ -197,6 +198,8 @@ export function TenantLayout(): ReactElement {
       return { section: "Desk", page: t("nav.patients") };
     if (p.startsWith("/invoices"))
       return { section: "Desk", page: t("nav.invoices") };
+    if (p.startsWith("/billing"))
+      return { section: "Controls", page: t("nav.day_close") };
     if (p.startsWith("/samples"))
       return { section: "Desk", page: t("nav.samples") };
     if (p.startsWith("/worklist"))

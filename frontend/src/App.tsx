@@ -21,6 +21,7 @@ import { useInvoiceDrawer } from "./features/billing/invoiceDrawerContext";
 import { TestCatalogScreen } from "./features/catalog/TestCatalogScreen";
 import { TestPanelsScreen } from "./features/catalog/TestPanelsScreen";
 import { InvoicesListScreen } from "./features/billing/InvoicesListScreen";
+import { DayCloseScreen } from "./features/billing/DayCloseScreen";
 import { InvoicePrintScreen } from "./features/billing/InvoicePrintScreen";
 import {
   SampleAccessioningListScreen,
@@ -325,6 +326,15 @@ function InvoiceDetailRouteWrapper(): JSX.Element {
 function InvoicePrintWrapper(): JSX.Element {
   const { id } = useParams<{ id: string }>();
   return <InvoicePrintScreen invoiceId={id ?? ""} />;
+}
+
+/** Day Close is an Owner/Manager control; everyone else lands on the dashboard. */
+function DayCloseRouteWrapper(): JSX.Element {
+  const user = useAuthStore((state) => state.user);
+  if (user?.role !== "owner" && user?.role !== "manager") {
+    return <Navigate to="/" replace />;
+  }
+  return <DayCloseScreen />;
 }
 
 function SamplesListWrapper(): JSX.Element {
@@ -718,6 +728,7 @@ function App(): JSX.Element {
             element={<Navigate to="/invoices" replace />}
           />
           <Route path="/invoices/:id" element={<InvoiceDetailRouteWrapper />} />
+          <Route path="/billing/day-close" element={<DayCloseRouteWrapper />} />
 
           {/* Samples Management Suite (Screens 16–20) */}
           <Route path="/samples" element={<SamplesListWrapper />} />

@@ -61,6 +61,7 @@ export const patientService = {
           sex: input.sex,
           date_of_birth: input.date_of_birth || null,
           branch_id: input.branch_id,
+          referral_partner_id: input.referral_partner_id || null,
           // These two were declared on PatientCreateInput and collected by the
           // form, but were silently dropped here — so a consent ticked at
           // registration never reached the API and the record drawer always

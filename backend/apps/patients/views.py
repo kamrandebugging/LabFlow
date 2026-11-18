@@ -118,6 +118,7 @@ class PatientListCreateView(BranchScopedAPIView):
                 sex=data["sex"],
                 branch_id=data["branch_id"],
                 date_of_birth=data.get("date_of_birth"),
+                referral_partner_id=data.get("referral_partner_id"),
                 confirm_duplicate=data.get("confirm_duplicate", False),
                 whatsapp_number=data.get("whatsapp_number"),
                 consent_reports=data.get("consent_reports", False),

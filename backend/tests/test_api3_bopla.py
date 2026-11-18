@@ -103,7 +103,9 @@ class TestPerRoleOutputAllowlist:
             "total": "100.00",
             "items": [],
             "payments": [],
+            "credit_notes": [],
             "net_paid": "0.00",
+            "net_revenue": "0.00",
             "created_at": "2026-01-01T00:00:00Z",
         }
         technician_data = InvoiceDetailSerializer(

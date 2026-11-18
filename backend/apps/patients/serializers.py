@@ -66,6 +66,9 @@ class PatientCreateSerializer(PatientValidationMixin, StrictSerializer):
     phone = serializers.CharField(required=True)
     sex = serializers.ChoiceField(choices=Patient.Sex.choices, required=True)
     date_of_birth = serializers.DateField(required=False, allow_null=True)
+    referral_partner_id = serializers.UUIDField(
+        required=False, allow_null=True, default=None
+    )
     branch_id = serializers.UUIDField(required=True)
     whatsapp_number = serializers.CharField(
         required=False, allow_blank=True, allow_null=True, default=None
@@ -137,6 +140,8 @@ class PatientSummarySerializer(serializers.Serializer):
     year_of_birth = serializers.SerializerMethodField()
     branch_id = serializers.UUIDField(read_only=True)
     branch_name = serializers.SerializerMethodField()
+    referral_partner_id = serializers.SerializerMethodField()
+    referral_partner_name = serializers.SerializerMethodField()
     created_at = serializers.SerializerMethodField()
     updated_at = serializers.SerializerMethodField()
     is_cross_branch = serializers.SerializerMethodField()
@@ -147,6 +152,13 @@ class PatientSummarySerializer(serializers.Serializer):
             return None
         branch = getattr(obj, "branch", None)
         return branch.name if branch is not None else None
+
+    def get_referral_partner_id(self, obj: Patient) -> str | None:
+        return str(obj.referral_partner_id) if obj.referral_partner_id else None
+
+    def get_referral_partner_name(self, obj: Patient) -> str | None:
+        partner = getattr(obj, "referral_partner", None)
+        return partner.name if partner is not None else None
 
     def get_is_cross_branch(self, obj: Patient) -> bool:
         return getattr(obj, "_is_cross_branch", False)
@@ -197,6 +209,8 @@ class PatientDetailSerializer(serializers.ModelSerializer[Patient]):
 
     contacts = PatientContactSerializer(many=True, read_only=True)
     consents = PatientConsentSerializer(many=True, read_only=True)
+    referral_partner_id = serializers.SerializerMethodField()
+    referral_partner_name = serializers.SerializerMethodField()
     invoices = serializers.SerializerMethodField()
     samples = serializers.SerializerMethodField()
 
@@ -210,6 +224,8 @@ class PatientDetailSerializer(serializers.ModelSerializer[Patient]):
             "sex",
             "date_of_birth",
             "branch_id",
+            "referral_partner_id",
+            "referral_partner_name",
             "created_at",
             "updated_at",
             "contacts",
@@ -217,6 +233,15 @@ class PatientDetailSerializer(serializers.ModelSerializer[Patient]):
             "invoices",
             "samples",
         ]
+
+    def get_referral_partner_id(self, instance: Patient) -> str | None:
+        return (
+            str(instance.referral_partner_id) if instance.referral_partner_id else None
+        )
+
+    def get_referral_partner_name(self, instance: Patient) -> str | None:
+        partner = getattr(instance, "referral_partner", None)
+        return partner.name if partner is not None else None
 
     def to_representation(self, instance: Patient) -> dict[str, Any]:
         data = super().to_representation(instance)

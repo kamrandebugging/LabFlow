@@ -42,19 +42,26 @@ import binascii
 import hashlib
 import json
 import uuid
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from typing import Any, cast
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
-from django.db.models import DecimalField, Q, Sum, Value
+from django.db.models import DecimalField, F, OuterRef, Q, Subquery, Sum, Value
 from django.db.models.functions import Coalesce
 from django.utils import timezone
 
 from apps.accounts.models import AuditLog, Role, StaffUser
-from apps.billing.models import Invoice, InvoiceItem, Payment
+from apps.billing.models import (
+    CreditNote,
+    CreditNoteSequence,
+    DayClose,
+    Invoice,
+    InvoiceItem,
+    Payment,
+)
 from apps.branches.models import Branch
 from apps.branches.scoping import effective_branch_ids
 from apps.catalog.models import Panel, Test
@@ -74,8 +81,18 @@ BILLING_READ_ROLES = {
 DISCOUNT_ROLES = {Role.OWNER, Role.MANAGER}
 PAYMENT_WRITE_ROLES = {Role.OWNER, Role.MANAGER, Role.RECEPTION}
 REFUND_ROLES = {Role.OWNER, Role.MANAGER}
+# Credit notes reverse collected money, so front desk cannot issue them.
+CREDIT_NOTE_ROLES = {Role.OWNER, Role.MANAGER}
+# Closing a day locks the shift's money, so front desk cannot do it.
+DAY_CLOSE_ROLES = {Role.OWNER, Role.MANAGER}
 # Interim refund ceiling (Doc 05 §13, OQ-31): a Manager alone may refund up to
 # this amount; anything above requires the Owner.
+# Refund / credit-note policy (tiered approval + velocity):
+# - single document above PKR 5,000 -> Owner only (owner_approval_required);
+# - velocity: max REFUND_VELOCITY_PER_INVOICE_HOUR refunds per invoice in a
+#   rolling hour (default 3), and max REFUND_MANAGER_DAILY_CAP (PKR 25,000)
+#   refunded by one non-Owner staff member per calendar day. The Owner is
+#   exempt from both velocity caps.
 REFUND_MANAGER_CEILING = Decimal("5000.00")
 
 
@@ -155,6 +172,46 @@ class InvalidStateTransitionError(BillingError):
 class CancelReasonRequiredError(BillingError):
     status_code = 422
     error_code = "cancel_reason_required"
+
+
+class CreditNoteNotPermittedError(BillingError):
+    status_code = 403
+    error_code = "forbidden"
+
+
+class CreditNoteReasonRequiredError(BillingError):
+    status_code = 422
+    error_code = "credit_note_reason_required"
+
+
+class CreditNoteExceedsNetPaidError(BillingError):
+    status_code = 422
+    error_code = "credit_note_exceeds_net_paid"
+
+
+class CreditNoteAmountMismatchError(BillingError):
+    status_code = 422
+    error_code = "credit_note_amount_mismatch"
+
+
+class DayCloseAlreadyClosedError(BillingError):
+    status_code = 409
+    error_code = "day_close_exists"
+
+
+class DayCloseNoteRequiredError(BillingError):
+    status_code = 422
+    error_code = "day_close_note_required"
+
+
+class DayCloseInvalidDateError(BillingError):
+    status_code = 422
+    error_code = "day_close_invalid_date"
+
+
+class DayClosedError(BillingError):
+    status_code = 409
+    error_code = "day_closed"
 
 
 class InvalidFilterError(BillingError):
@@ -258,6 +315,9 @@ class BillingService:
                 raise DiscountReasonRequiredError(
                     "A discount requires a discount_reason."
                 )
+            # The partner is carried by the invoice's referral_partner_id, not
+            # inferred from the free-text reason; a referral discount is valid
+            # as long as the reason exists and the partner is on the invoice.
 
         # BL-V2: merge duplicate same-kind lines by summing qty.
         merged: dict[tuple[str, uuid.UUID], int] = {}
@@ -461,15 +521,24 @@ def _derive_invoice_status(
     total: Decimal,
     paid_sum: Decimal,
     refund_sum: Decimal,
+    credit_sum: Decimal = Decimal("0.00"),
 ) -> str:
-    """BL-6: derive invoice status from payment aggregates. Never set directly."""
-    net = paid_sum - refund_sum
-    if net == total:
+    """BL-6: derive invoice status from payment + credit-note aggregates.
+
+    Never set directly. Credit notes reverse collected money exactly like a
+    refund, so they participate in the same derivation:
+    - net (paid − refunded − credited) equals the total → paid;
+    - net is zero after money was reversed → refunded (full reversal);
+    - net is zero with nothing reversed → unpaid;
+    - anything else → partial (partially refunded).
+    """
+    net = paid_sum - refund_sum - credit_sum
+    if net == total and credit_sum == Decimal("0.00"):
         return Invoice.Status.PAID
     if (
         net == Decimal("0.00")
         and paid_sum > Decimal("0.00")
-        and refund_sum > Decimal("0.00")
+        and (refund_sum > Decimal("0.00") or credit_sum > Decimal("0.00"))
     ):
         return Invoice.Status.REFUNDED
     if net == Decimal("0.00"):
@@ -488,6 +557,36 @@ def _payment_aggregates(invoice: Invoice) -> tuple[Decimal, Decimal]:
     return paid_sum, refund_sum
 
 
+def _assert_branch_day_open(branch_id: uuid.UUID, day: date | None = None) -> None:
+    """Money is never back-dated into a closed branch-day.
+
+    A closed day is final: the close document is immutable and refuses new
+    money. Cash taken after close is recorded on the next open day.
+    """
+    business_day = day or timezone.localdate()
+    if DayClose.objects.filter(
+        branch_id=branch_id, business_date=business_day
+    ).exists():
+        raise DayClosedError(
+            "This branch-day is closed; record the money on the next open day."
+        )
+
+
+def _credit_note_sum(invoice: Invoice) -> Decimal:
+    """Σ credit notes issued against an invoice (append-only reversal total)."""
+    total: Decimal = CreditNote.objects.filter(
+        invoice=invoice, voided_at__isnull=True
+    ).aggregate(credited=Sum("amount"))["credited"] or Decimal("0.00")
+    return total
+
+
+def net_revenue(
+    *, paid_sum: Decimal, refund_sum: Decimal, credit_sum: Decimal
+) -> Decimal:
+    """Net revenue = payments − refunds − credit notes (one server-side rule)."""
+    return paid_sum - refund_sum - credit_sum
+
+
 class PaymentService:
     """Payment + refund recording: append-only, idempotent, BL-6 derived (KAN-130)."""
 
@@ -499,6 +598,7 @@ class PaymentService:
         method: str,
         amount: Decimal,
         reference: str | None,
+        refund_reason: str | None = None,
         idempotency_key: str,
         actor: StaffUser,
         ip: str | None = None,
@@ -520,6 +620,11 @@ class PaymentService:
             raise InvalidStateTransitionError(
                 "Payments cannot be recorded on a cancelled invoice."
             )
+        if invoice.status == Invoice.Status.REFUNDED:
+            raise InvalidStateTransitionError(
+                "This invoice was fully reversed by a credit note; no further "
+                "payments can be recorded against it."
+            )
 
         # Role gates: refunds are Owner/Manager only (BL-7).
         if kind == Payment.Kind.REFUND:
@@ -540,9 +645,13 @@ class PaymentService:
         # aggregates are computed INSIDE the transaction under an invoice row
         # lock, so concurrent requests cannot both slip under the cap
         # (security review 2026-11-12).
-        # BL-10: reference required for non-cash methods and for all refunds.
-        if (method != Payment.Method.CASH or kind == Payment.Kind.REFUND) and (
-            not reference
+        # BL-10: reference required for non-cash methods. Refunds must carry
+        # a reference OR the first-class refund_reason (the drawer sends the
+        # reason as refund_reason; reference stays the payment reference).
+        if (kind == Payment.Kind.REFUND and not reference and not refund_reason) or (
+            kind != Payment.Kind.REFUND
+            and method != Payment.Method.CASH
+            and not reference
         ):
             raise ReferenceRequiredError(
                 "A reference is required for non-cash payments and all refunds."
@@ -559,11 +668,36 @@ class PaymentService:
         ).hexdigest()
 
         with transaction.atomic():
+            # Lock the invoice for the whole validate + insert window, so every
+            # amount is re-read at commit time; nothing is trusted from an
+            # earlier read in the request.
             invoice = Invoice.objects.select_for_update().get(pk=invoice.pk)
+
+            # Idempotent replay wins over state checks: a retry returns the
+            # original row even if the invoice has moved on since.
+            existing = Payment.objects.filter(idempotency_key=idempotency_key).first()
+            if existing is not None:
+                if existing.payload_sha256 != payload_hash:
+                    raise IdempotencyKeyReusedError(
+                        "Idempotency key was already used with a different payload."
+                    )
+                return existing, False
+
             if invoice.status == Invoice.Status.CANCELLED:
                 raise InvalidStateTransitionError(
                     "Payments cannot be recorded on a cancelled invoice."
                 )
+
+            credit_sum = _credit_note_sum(invoice)
+            if credit_sum > Decimal("0.00") or invoice.status == (
+                Invoice.Status.REFUNDED
+            ):
+                raise InvalidStateTransitionError(
+                    "This invoice was fully reversed by a credit note; no "
+                    "further payments or refunds can be recorded against it."
+                )
+
+            _assert_branch_day_open(invoice.branch_id)
 
             if kind == Payment.Kind.REFUND:
                 hour_ago = timezone.now() - timedelta(hours=1)
@@ -596,21 +730,14 @@ class PaymentService:
                         )
 
             paid_sum, refund_sum = _payment_aggregates(invoice)
+            net_revenue_now = paid_sum - refund_sum - credit_sum
             if kind == Payment.Kind.PAYMENT:
-                if paid_sum - refund_sum + amount > invoice.total:
+                if net_revenue_now + amount > invoice.total:
                     raise OverpaymentError("Payment would exceed the invoice total.")
-            elif refund_sum + amount > paid_sum:
+            elif amount > net_revenue_now:
                 raise RefundExceedsPaymentsError(
                     "Refund would exceed recorded payments."
                 )
-
-            existing = Payment.objects.filter(idempotency_key=idempotency_key).first()
-            if existing is not None:
-                if existing.payload_sha256 != payload_hash:
-                    raise IdempotencyKeyReusedError(
-                        "Idempotency key was already used with a different payload."
-                    )
-                return existing, False
 
             try:
                 with transaction.atomic():
@@ -621,30 +748,11 @@ class PaymentService:
                         amount=amount,
                         received_by=actor,
                         reference=reference,
+                        refund_reason=refund_reason,
                         idempotency_key=idempotency_key,
                         payload_sha256=payload_hash,
                     )
-                    # BL-6: recompute status in the SAME transaction as the insert.
-                    new_paid = (
-                        paid_sum + amount if kind == Payment.Kind.PAYMENT else paid_sum
-                    )
-                    new_refund = (
-                        refund_sum + amount
-                        if kind == Payment.Kind.REFUND
-                        else refund_sum
-                    )
-                    new_status = _derive_invoice_status(
-                        total=invoice.total,
-                        paid_sum=new_paid,
-                        refund_sum=new_refund,
-                    )
-                    old_status: str | None = None
-                    if new_status != invoice.status:
-                        old_status = invoice.status
-                        invoice.status = new_status
-                        invoice.save(update_fields=["status", "updated_at"])
             except IntegrityError:
-                # Concurrent record with the same key: fall back to replay path.
                 existing = Payment.objects.filter(
                     idempotency_key=idempotency_key
                 ).first()
@@ -655,6 +763,23 @@ class PaymentService:
                         "Idempotency key was already used with a different payload."
                     ) from None
                 return existing, False
+
+            # BL-6: recompute status in the SAME transaction as the insert.
+            new_paid = paid_sum + amount if kind == Payment.Kind.PAYMENT else paid_sum
+            new_refund = (
+                refund_sum + amount if kind == Payment.Kind.REFUND else refund_sum
+            )
+            new_status = _derive_invoice_status(
+                total=invoice.total,
+                paid_sum=new_paid,
+                refund_sum=new_refund,
+                credit_sum=credit_sum,
+            )
+            old_status: str | None = None
+            if new_status != invoice.status:
+                old_status = invoice.status
+                invoice.status = new_status
+                invoice.save(update_fields=["status", "updated_at"])
 
             # LAB-40 (KAN-165): Synchronous revenue-share ledger consumer
             # (Doc 05 §6.2). Called after payment insert, before commit, in the
@@ -755,6 +880,12 @@ class InvoiceQueryService:
         therefore yields no rows.
         """
         money_field = DecimalField(max_digits=12, decimal_places=2)
+        credit_total_subquery = (
+            CreditNote.objects.filter(invoice=OuterRef("pk"), voided_at__isnull=True)
+            .values("invoice")
+            .annotate(total=Sum("amount"))
+            .values("total")
+        )
         qs = (
             Invoice.objects.scoped_to(actor)
             .select_related("patient")
@@ -774,8 +905,14 @@ class InvoiceQueryService:
                     ),
                     Value(Decimal("0.00")),
                     output_field=money_field,
-                )
+                ),
+                credit_total=Coalesce(
+                    Subquery(credit_total_subquery, output_field=money_field),
+                    Value(Decimal("0.00")),
+                    output_field=money_field,
+                ),
             )
+            .annotate(net_revenue=F("net_paid") - F("credit_total"))
             .order_by("-created_at", "-id")
         )
         if status is not None:
@@ -819,6 +956,7 @@ class InvoiceQueryService:
                 Invoice.objects.scoped_to(actor)
                 .select_related("patient", "branch")
                 .prefetch_related("items", "payments")
+                .select_related("referral_partner")
                 .get(pk=invoice_id)
             )
         except (Invoice.DoesNotExist, ValidationError):
@@ -827,10 +965,19 @@ class InvoiceQueryService:
             paid=Sum("amount", filter=Q(kind=Payment.Kind.PAYMENT)),
             refunded=Sum("amount", filter=Q(kind=Payment.Kind.REFUND)),
         )
-        net_paid = (agg["paid"] or Decimal("0.00")) - (
-            agg["refunded"] or Decimal("0.00")
-        )
-        return {"invoice": invoice, "net_paid": net_paid}
+        paid_sum = agg["paid"] or Decimal("0.00")
+        refund_sum = agg["refunded"] or Decimal("0.00")
+        credit_sum = _credit_note_sum(invoice)
+        net_paid = paid_sum - refund_sum
+        return {
+            "invoice": invoice,
+            "net_paid": net_paid,
+            "net_revenue": net_revenue(
+                paid_sum=paid_sum,
+                refund_sum=refund_sum,
+                credit_sum=credit_sum,
+            ),
+        }
 
     @staticmethod
     def cancel_invoice(
@@ -893,3 +1040,428 @@ class InvoiceQueryService:
                 user_agent=user_agent,
             )
             return invoice
+
+
+class CreditNoteService:
+    """Credit-note issuance + voiding for paid / partially paid invoices (v1)."""
+
+    @staticmethod
+    def _payload_hash(
+        *, invoice_id: uuid.UUID, amount: Decimal, reason: str, method: str
+    ) -> str:
+        payload = json.dumps(
+            {
+                "invoice_id": str(invoice_id),
+                "amount": f"{amount:.2f}",
+                "reason": reason,
+                "method": method,
+            },
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+    @staticmethod
+    def issue(
+        *,
+        invoice_id: uuid.UUID,
+        amount: Decimal,
+        reason: str | None,
+        method: str,
+        idempotency_key: str,
+        actor: StaffUser,
+        ip: str | None = None,
+        user_agent: str | None = None,
+    ) -> tuple[CreditNote, bool]:
+        """Issue the invoice's one full-reversal credit note.
+
+        The invoice row is locked and the collected amount is recomputed in the
+        same transaction, so the amount checked is the amount at commit time.
+        Append-only: only the status column moves; payments and invoice money
+        stay intact. Returns (note, created) — created=False is an idempotent
+        replay of the same key + payload.
+        """
+        if actor.role not in CREDIT_NOTE_ROLES:
+            raise CreditNoteNotPermittedError(
+                "Only an Owner or Manager may issue a credit note."
+            )
+        if not reason or not reason.strip():
+            raise CreditNoteReasonRequiredError(
+                "A reason is required to issue a credit note."
+            )
+        if amount > REFUND_MANAGER_CEILING and actor.role != Role.OWNER:
+            raise OwnerApprovalRequiredError(
+                "Credit notes above PKR 5,000 require the Owner."
+            )
+        payload_hash = CreditNoteService._payload_hash(
+            invoice_id=invoice_id,
+            amount=amount,
+            reason=reason.strip(),
+            method=method,
+        )
+        with transaction.atomic():
+            try:
+                # Layer 2 (Doc 04 §8.5): scoped fetch — out-of-scope -> 404.
+                invoice = (
+                    Invoice.objects.scoped_to(actor)
+                    .select_for_update()
+                    .get(pk=invoice_id)
+                )
+            except (Invoice.DoesNotExist, ValidationError):
+                raise BillingNotFoundError("Invoice not found.") from None
+
+            # Replay wins over state checks (same key + payload -> original).
+            existing = CreditNote.objects.filter(
+                idempotency_key=idempotency_key
+            ).first()
+            if existing is not None:
+                if existing.payload_sha256 != payload_hash:
+                    raise IdempotencyKeyReusedError(
+                        "Idempotency key was already used with a different payload."
+                    )
+                return existing, False
+
+            _assert_branch_day_open(invoice.branch_id)
+
+            if CreditNote.objects.filter(invoice=invoice).exists():
+                raise InvalidStateTransitionError(
+                    "This invoice already has a credit note; it cannot be "
+                    "reversed twice."
+                )
+
+            agg = invoice.payments.aggregate(
+                paid=Sum("amount", filter=Q(kind=Payment.Kind.PAYMENT)),
+                refunded=Sum("amount", filter=Q(kind=Payment.Kind.REFUND)),
+            )
+            paid_sum = agg["paid"] or Decimal("0.00")
+            refund_sum = agg["refunded"] or Decimal("0.00")
+            net_paid = paid_sum - refund_sum
+            if invoice.status not in {
+                Invoice.Status.PAID,
+                Invoice.Status.PARTIAL,
+            } or net_paid <= Decimal("0.00"):
+                raise InvalidStateTransitionError(
+                    "Only a paid or partially paid invoice can take a credit note."
+                )
+            if amount > net_paid:
+                raise CreditNoteExceedsNetPaidError(
+                    "Credit note cannot exceed the collected amount "
+                    f"(PKR {net_paid:.2f})."
+                )
+            if amount != net_paid:
+                raise CreditNoteAmountMismatchError(
+                    "v1 issues full reversals only: the credit note must equal "
+                    f"the collected amount (PKR {net_paid:.2f})."
+                )
+
+            counter, _ = CreditNoteSequence.objects.select_for_update().get_or_create(
+                pk=1
+            )
+            counter.last_number += 1
+            counter.save(update_fields=["last_number"])
+            note = CreditNote.objects.create(
+                number=f"CN-{counter.last_number:06d}",
+                invoice=invoice,
+                amount=amount,
+                reason=reason.strip(),
+                method=method,
+                reversed_methods={method: f"{amount:.2f}"},
+                issued_by=actor,
+                idempotency_key=idempotency_key,
+                payload_sha256=payload_hash,
+            )
+            # Credit notes reverse collected money, so they feed the same
+            # status derivation as a refund (BL-6).
+            new_status = _derive_invoice_status(
+                total=invoice.total,
+                paid_sum=paid_sum,
+                refund_sum=refund_sum,
+                credit_sum=amount,
+            )
+            old_status = invoice.status
+            if new_status != invoice.status:
+                invoice.status = new_status
+                invoice.save(update_fields=["status", "updated_at"])
+            AuditLog.objects.create(
+                actor_id=actor.id,
+                action="invoice.credit_note_issued",
+                entity_type="invoice",
+                entity_id=invoice.id,
+                before_jsonb={"status": old_status},
+                after_jsonb={
+                    "event": "invoice.credit_note_issued",
+                    "status": new_status,
+                    "credit_note_id": str(note.id),
+                    "number": note.number,
+                    "amount": f"{amount:.2f}",
+                    "method": method,
+                    "reason": note.reason,
+                },
+                ip=ip,
+                user_agent=user_agent,
+            )
+            return note, True
+
+    @staticmethod
+    def void(
+        *,
+        invoice_id: uuid.UUID,
+        note_id: uuid.UUID,
+        reason: str | None,
+        actor: StaffUser,
+        ip: str | None = None,
+        user_agent: str | None = None,
+    ) -> CreditNote:
+        """Owner-only void of an erroneous credit note (append-only).
+
+        The note row and its CN number stay; the void stops it counting toward
+        revenue and the invoice status is re-derived in the same transaction.
+        """
+        if actor.role != Role.OWNER:
+            raise CreditNoteNotPermittedError("Only the Owner may void a credit note.")
+        if not reason or not reason.strip():
+            raise CreditNoteReasonRequiredError(
+                "A reason is required to void a credit note."
+            )
+        with transaction.atomic():
+            try:
+                invoice = (
+                    Invoice.objects.scoped_to(actor)
+                    .select_for_update()
+                    .get(pk=invoice_id)
+                )
+            except (Invoice.DoesNotExist, ValidationError):
+                raise BillingNotFoundError("Invoice not found.") from None
+            note = (
+                CreditNote.objects.select_for_update()
+                .filter(pk=note_id, invoice=invoice)
+                .first()
+            )
+            if note is None:
+                raise BillingNotFoundError("Credit note not found.")
+            if note.voided_at is not None:
+                raise InvalidStateTransitionError("This credit note is already voided.")
+            note.voided_at = timezone.now()
+            note.voided_by = actor
+            note.void_reason = reason.strip()
+            note.save(update_fields=["voided_at", "voided_by", "void_reason"])
+
+            paid_sum, refund_sum = _payment_aggregates(invoice)
+            new_status = _derive_invoice_status(
+                total=invoice.total,
+                paid_sum=paid_sum,
+                refund_sum=refund_sum,
+                credit_sum=_credit_note_sum(invoice),
+            )
+            old_status = invoice.status
+            if new_status != invoice.status:
+                invoice.status = new_status
+                invoice.save(update_fields=["status", "updated_at"])
+            AuditLog.objects.create(
+                actor_id=actor.id,
+                action="invoice.credit_note_voided",
+                entity_type="invoice",
+                entity_id=invoice.id,
+                before_jsonb={"status": old_status},
+                after_jsonb={
+                    "event": "invoice.credit_note_voided",
+                    "status": new_status,
+                    "credit_note_id": str(note.id),
+                    "number": note.number,
+                    "amount": f"{note.amount:.2f}",
+                    "reason": note.void_reason,
+                },
+                ip=ip,
+                user_agent=user_agent,
+            )
+            return note
+
+
+DAY_CLOSE_METHODS: tuple[str, ...] = tuple(Payment.Method.values)
+
+
+def _money(value: object) -> Decimal:
+    """Coerce an aggregate/JSON value into exact Decimal PKR."""
+    if value is None:
+        return Decimal("0.00")
+    if isinstance(value, Decimal):
+        return value.quantize(Decimal("0.01"))
+    return Decimal(str(value)).quantize(Decimal("0.01"))
+
+
+class DayCloseService:
+    """Shift reconciliation for one branch and one business day.
+
+    Every total is derived from the append-only Payment / Invoice / CreditNote
+    rows in Decimal PKR. Closing writes one DayClose document; it never touches
+    a payment, an invoice or a credit note.
+    """
+
+    @staticmethod
+    def _assert_branch_in_scope(actor: StaffUser, branch_id: uuid.UUID) -> None:
+        if not Branch.objects.filter(pk=branch_id).exists():
+            raise BillingNotFoundError("Branch not found.")
+        if not actor.is_tenant_wide:
+            allowed = effective_branch_ids(actor)
+            if not allowed or branch_id not in allowed:
+                raise BillingNotFoundError("Branch not found.")
+
+    @staticmethod
+    def collect_totals(*, branch_id: uuid.UUID, day: date) -> dict[str, Any]:
+        """Server-computed totals for one branch-day (no client input)."""
+        payment_rows = (
+            Payment.objects.filter(invoice__branch_id=branch_id, created_at__date=day)
+            .values("method", "kind")
+            .annotate(total=Sum("amount"))
+        )
+        method_totals: dict[str, dict[str, str]] = {
+            method: {"in": "0.00", "out": "0.00", "net": "0.00"}
+            for method in DAY_CLOSE_METHODS
+        }
+        total_in = Decimal("0.00")
+        total_out = Decimal("0.00")
+        for row in payment_rows:
+            method = str(row["method"])
+            amount = _money(row["total"])
+            bucket = method_totals.setdefault(
+                method, {"in": "0.00", "out": "0.00", "net": "0.00"}
+            )
+            if row["kind"] == Payment.Kind.REFUND:
+                bucket["out"] = f"{_money(bucket['out']) + amount:.2f}"
+                total_out += amount
+            else:
+                bucket["in"] = f"{_money(bucket['in']) + amount:.2f}"
+                total_in += amount
+        for bucket in method_totals.values():
+            bucket["net"] = f"{_money(bucket['in']) - _money(bucket['out']):.2f}"
+
+        # Credit notes are reversals too: they leave the drawer/card by the
+        # method(s) recorded on the note, so day close reconciles them as out.
+        note_rows = CreditNote.objects.filter(
+            invoice__branch_id=branch_id,
+            issued_at__date=day,
+            voided_at__isnull=True,
+        ).values_list("reversed_methods", "method", "amount")
+        total_credit_notes = Decimal("0.00")
+        for reversed_methods, fallback_method, amount in note_rows:
+            total_credit_notes += _money(amount)
+            breakdown = reversed_methods or {fallback_method: f"{amount:.2f}"}
+            for method, raw in breakdown.items():
+                method = str(method)
+                bucket = method_totals.setdefault(
+                    method, {"in": "0.00", "out": "0.00", "net": "0.00"}
+                )
+                moved = _money(raw)
+                bucket["out"] = f"{_money(bucket['out']) + moved:.2f}"
+                total_out += moved
+        for bucket in method_totals.values():
+            bucket["net"] = f"{_money(bucket['in']) - _money(bucket['out']):.2f}"
+
+        invoice_qs = Invoice.objects.filter(
+            branch_id=branch_id, created_at__date=day
+        ).exclude(status=Invoice.Status.CANCELLED)
+        total_invoices = invoice_qs.count()
+        total_discount = _money(
+            invoice_qs.aggregate(total=Sum("discount_amount"))["total"]
+        )
+        expected_cash = (
+            _money(method_totals["cash"]["net"])
+            if "cash" in method_totals
+            else Decimal("0.00")
+        )
+
+        return {
+            "branch_id": branch_id,
+            "date": day,
+            "method_totals": method_totals,
+            "total_in": total_in,
+            "total_out": total_out,
+            "net_total": total_in - total_out,
+            "total_invoices": total_invoices,
+            "total_discount": total_discount,
+            "total_credit_notes": total_credit_notes,
+            "expected_cash": expected_cash,
+        }
+
+    @staticmethod
+    def read(*, actor: StaffUser, branch_id: uuid.UUID, day: date) -> dict[str, Any]:
+        """Live totals for the day plus the locked record when it exists."""
+        DayCloseService._assert_branch_in_scope(actor, branch_id)
+        totals = DayCloseService.collect_totals(branch_id=branch_id, day=day)
+        close = (
+            DayClose.objects.filter(branch_id=branch_id, business_date=day)
+            .select_related("closed_by")
+            .first()
+        )
+        return {"totals": totals, "closed": close is not None, "close": close}
+
+    @staticmethod
+    def close(
+        *,
+        actor: StaffUser,
+        branch_id: uuid.UUID,
+        day: date,
+        counted_cash: Decimal,
+        difference_note: str | None,
+        ip: str | None = None,
+        user_agent: str | None = None,
+    ) -> DayClose:
+        """Lock one branch-day. Requires Manager/Owner; never edits money."""
+        if actor.role not in DAY_CLOSE_ROLES:
+            raise CreditNoteNotPermittedError(
+                "Only an Owner or Manager may close a day."
+            )
+        if day > timezone.localdate():
+            raise DayCloseInvalidDateError("A future day cannot be closed.")
+        DayCloseService._assert_branch_in_scope(actor, branch_id)
+
+        with transaction.atomic():
+            # Serialise concurrent closes for the same branch.
+            branch = Branch.objects.select_for_update().get(pk=branch_id)
+            existing = DayClose.objects.filter(branch=branch, business_date=day).first()
+            if existing is not None:
+                raise DayCloseAlreadyClosedError(
+                    f"{day.isoformat()} is already closed for this branch."
+                )
+            totals = DayCloseService.collect_totals(branch_id=branch_id, day=day)
+            expected_cash = totals["expected_cash"]
+            counted = _money(counted_cash)
+            difference = counted - expected_cash
+            note = (difference_note or "").strip()
+            if difference != Decimal("0.00") and not note:
+                raise DayCloseNoteRequiredError(
+                    "A written note is required when counted cash differs from "
+                    "the expected amount."
+                )
+            close = DayClose.objects.create(
+                branch=branch,
+                business_date=day,
+                method_totals=totals["method_totals"],
+                total_invoices=totals["total_invoices"],
+                total_discount=totals["total_discount"],
+                total_credit_notes=totals["total_credit_notes"],
+                expected_cash=expected_cash,
+                counted_cash=counted,
+                difference=difference,
+                difference_note=note or None,
+                closed_by=actor,
+            )
+            AuditLog.objects.create(
+                actor_id=actor.id,
+                action="day_close.closed",
+                entity_type="day_close",
+                entity_id=close.id,
+                before_jsonb=None,
+                after_jsonb={
+                    "event": "day_close.closed",
+                    "branch_id": str(branch_id),
+                    "date": day.isoformat(),
+                    "expected_cash": f"{expected_cash:.2f}",
+                    "counted_cash": f"{counted:.2f}",
+                    "difference": f"{difference:.2f}",
+                    "note": close.difference_note,
+                },
+                ip=ip,
+                user_agent=user_agent,
+            )
+            return close

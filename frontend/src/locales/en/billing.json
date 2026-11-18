@@ -24,7 +24,8 @@
     "col_total": "Total (PKR)",
     "col_action": "Action",
     "view": "View",
-    "showing": "Showing {{total}} invoices"
+    "showing": "Showing {{total}} invoices",
+    "day_close": "Day Close"
   },
   "new": {
     "breadcrumb_aria": "Breadcrumb",
@@ -69,7 +70,10 @@
     "error_patient_required": "Please select a patient for this invoice.",
     "error_items_required": "Please add at least one test or diagnostic panel.",
     "error_discount_reason": "A discount reason is required when a discount is applied.",
-    "error_discount_exceeds": "Discount amount cannot exceed the subtotal."
+    "error_discount_exceeds": "Discount amount cannot exceed the subtotal.",
+    "referred_by": "Referred by",
+    "walk_in": "Walk-in / Self",
+    "error_referral_reason": "The discount reason must name the referral partner ({{name}})."
   },
   "detail": {
     "type_badge": "Invoice",
@@ -158,7 +162,42 @@
     "toast_refund": "Refund of {{amount}} recorded successfully.",
     "toast_cancelled": "Invoice has been successfully cancelled.",
     "cancel_invoice": "Cancel Invoice",
-    "refund_reason_required": "Reason is mandatory for a refund."
+    "refund_reason_required": "Reason is mandatory for a refund.",
+    "history_title": "History",
+    "history_loading": "Loading history…",
+    "history_empty": "No history events for this invoice yet.",
+    "history_reason": "Reason",
+    "credit_note_action": "Issue credit note",
+    "credit_note_title": "Credit note",
+    "credit_note_explain": "Full reversal of {{amount}}. The original invoice stays unchanged — the credit note is the reversal record.",
+    "credit_note_reason": "Reason",
+    "credit_note_reason_hint": "e.g. Invoice raised twice",
+    "credit_note_reason_required": "A reason is required to issue a credit note.",
+    "credit_note_amount_label": "Amount to reverse",
+    "credit_note_confirm": "Confirm credit note",
+    "credit_note_issued": "Credit note {{number}}",
+    "credit_note_amount_mismatch": "The credit note must equal the amount collected on this invoice, and can never exceed it.",
+    "event": {
+      "created": "Invoice created",
+      "payment": "Payment received",
+      "refund": "Refund issued",
+      "credit_note": "Credit note issued",
+      "cancel": "Invoice cancelled",
+      "discount": "Discount applied",
+      "credit_note_voided": "Credit note voided"
+    },
+    "referred_by": "Referred by",
+    "walk_in": "Walk-in / Self",
+    "referral_partner_selected": "Referral partner",
+    "credit_note_method": "Reversal method",
+    "credit_note_voided": "Voided",
+    "credit_note_void": "Void credit note",
+    "credit_note_void_reason": "Void reason",
+    "credit_note_void_hint": "Why is this credit note erroneous?",
+    "credit_note_voided_note": "This credit note was voided and no longer counts toward revenue.",
+    "credit_note_void_confirm": "Confirm void",
+    "reversed_notice": "This invoice was fully reversed by a credit note; payments and refunds are closed.",
+    "credit_note_voided_only_refund": "This invoice's credit note was voided. Only a refund can reverse money now."
   },
   "print": {
     "patient_label": "Patient",
@@ -173,5 +212,36 @@
     "measuring": "Measuring paper height…",
     "pickup_en": "Report will be issued after full payment. Bring this receipt to collect your report.",
     "pickup_ur": "رپورٹ مکمل ادائیگی کے بعد جاری کی جائے گی۔ اپنی رپورٹ لینے کے لیے یہ رسید اپنے ساتھ لائیں۔"
+  },
+  "day_close": {
+    "title": "Day Close",
+    "subtitle": "Reconcile the shift's money and lock the day.",
+    "date": "Date",
+    "branch": "Branch",
+    "closed_badge": "Closed",
+    "methods_title": "Totals by payment method",
+    "method": "Method",
+    "in": "In",
+    "out": "Out",
+    "net": "Net",
+    "total_invoices": "Invoices",
+    "total_discount": "Discount given",
+    "total_credit_notes": "Credit notes",
+    "net_total": "Net total",
+    "expected_cash": "Expected cash",
+    "counted_cash": "Counted cash",
+    "difference": "Difference",
+    "note": "Difference note",
+    "note_hint": "Explain why the counted cash differs",
+    "counted_placeholder": "Cash counted in the drawer",
+    "reconcile_title": "Cash reconciliation",
+    "closed_title": "Closed day",
+    "closed_by": "Closed by {{name}} at {{time}}",
+    "unknown_user": "Unknown user",
+    "loading": "Loading day totals...",
+    "no_payments": "No payments recorded for this day.",
+    "close_button": "Close Day",
+    "closing": "Closing...",
+    "lock_hint": "Closing locks the day; it cannot be reopened."
   }
 }
