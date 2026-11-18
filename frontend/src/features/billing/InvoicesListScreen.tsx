@@ -242,9 +242,6 @@ export function InvoicesListScreen({
                     {t("common:labels.date")}
                   </th>
                   <th scope="col" className={styles.th}>
-                    {t("billing:list.col_tests")}
-                  </th>
-                  <th scope="col" className={styles.th}>
                     {t("billing:list.col_total")}
                   </th>
                   <th scope="col" className={styles.th}>
@@ -259,7 +256,7 @@ export function InvoicesListScreen({
                 {isLoading ? (
                   [0, 1, 2, 3].map((row) => (
                     <tr key={row} className={styles.row}>
-                      <td colSpan={7} className={styles.td}>
+                      <td colSpan={6} className={styles.td}>
                         <div
                           className={styles.skeletonRow}
                           aria-hidden="true"
@@ -280,7 +277,7 @@ export function InvoicesListScreen({
                   ))
                 ) : filteredInvoices.length === 0 ? (
                   <tr className={styles.row}>
-                    <td colSpan={7} className={styles.emptyCell}>
+                    <td colSpan={6} className={styles.emptyCell}>
                       <div className={styles.emptyInner}>
                         <span className={styles.emptyIconCircle}>
                           <Receipt
@@ -363,12 +360,6 @@ export function InvoicesListScreen({
                                 year: "numeric",
                               },
                             )}
-                          </span>
-                        </td>
-                        <td className={styles.td}>
-                          <span className={styles.patientMeta}>
-                            {inv.items_summary ||
-                              t("billing:list.tests_fallback")}
                           </span>
                         </td>
                         <td className={styles.td}>

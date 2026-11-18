@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { billingService } from "../../features/billing/billingService";
 import { InvoicesListScreen } from "../../features/billing/InvoicesListScreen";
@@ -58,7 +59,11 @@ describe("Screen 13: Invoices List (13-invoices.html & Doc 03 §5.3)", () => {
   });
 
   it("renders header, daily total badge, and table data", async () => {
-    render(<InvoicesListScreen />);
+    render(
+      <MemoryRouter>
+        <InvoicesListScreen />
+      </MemoryRouter>,
+    );
 
     expect(
       screen.getByRole("heading", { name: /Invoices/i }),
@@ -75,7 +80,11 @@ describe("Screen 13: Invoices List (13-invoices.html & Doc 03 §5.3)", () => {
   });
 
   it("filters invoices by status pill click", async () => {
-    render(<InvoicesListScreen />);
+    render(
+      <MemoryRouter>
+        <InvoicesListScreen />
+      </MemoryRouter>,
+    );
 
     await waitFor(() => {
       expect(screen.getByText("Muhammad Imran")).toBeInTheDocument();
@@ -93,7 +102,11 @@ describe("Screen 13: Invoices List (13-invoices.html & Doc 03 §5.3)", () => {
 
   it("triggers onNewInvoice callback when clicking New Invoice button", () => {
     const handleNewInvoice = vi.fn();
-    render(<InvoicesListScreen onNewInvoice={handleNewInvoice} />);
+    render(
+      <MemoryRouter>
+        <InvoicesListScreen onNewInvoice={handleNewInvoice} />
+      </MemoryRouter>,
+    );
 
     const newBtn = screen.getByRole("button", { name: /New invoice/i });
     fireEvent.click(newBtn);
@@ -106,7 +119,11 @@ describe("Screen 13: Invoices List (13-invoices.html & Doc 03 §5.3)", () => {
       results: [],
     });
 
-    render(<InvoicesListScreen />);
+    render(
+      <MemoryRouter>
+        <InvoicesListScreen />
+      </MemoryRouter>,
+    );
 
     expect(await screen.findByText("—")).toBeInTheDocument();
     expect(screen.queryByText("PKR 0.00")).not.toBeInTheDocument();
@@ -114,7 +131,11 @@ describe("Screen 13: Invoices List (13-invoices.html & Doc 03 §5.3)", () => {
 
   it("triggers onSelectInvoice callback when clicking view invoice action", async () => {
     const handleSelect = vi.fn();
-    render(<InvoicesListScreen onSelectInvoice={handleSelect} />);
+    render(
+      <MemoryRouter>
+        <InvoicesListScreen onSelectInvoice={handleSelect} />
+      </MemoryRouter>,
+    );
 
     await waitFor(() => {
       expect(screen.getByText("Muhammad Imran")).toBeInTheDocument();
@@ -129,7 +150,11 @@ describe("Screen 13: Invoices List (13-invoices.html & Doc 03 §5.3)", () => {
 
   it("renders Urdu invoice status labels, never raw i18n keys", async () => {
     await i18n.changeLanguage("ur");
-    render(<InvoicesListScreen />);
+    render(
+      <MemoryRouter>
+        <InvoicesListScreen />
+      </MemoryRouter>,
+    );
 
     await waitFor(() => {
       expect(screen.getByText("Muhammad Imran")).toBeInTheDocument();
