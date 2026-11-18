@@ -58,6 +58,9 @@ export function InvoicesListScreen({
       setInvoices(data.results);
       setDailyTotal(data.daily_total ?? null);
     } catch (err: unknown) {
+      // A failed filter must not leave the previous page's rows on screen.
+      setInvoices([]);
+      setDailyTotal(null);
       setError(messageForError(err, t));
     } finally {
       setIsLoading(false);
@@ -156,12 +159,13 @@ export function InvoicesListScreen({
             style={{ maxWidth: 180 }}
           >
             <option value="all">{t("billing:list.all_statuses")}</option>
-            <option value="draft">Draft</option>
-            <option value="unpaid">Unpaid</option>
-            <option value="partial">Partial</option>
-            <option value="paid">Paid</option>
-            <option value="refunded">Refunded</option>
-            <option value="cancelled">Cancelled</option>
+            {(
+              ["unpaid", "partial", "paid", "refunded", "cancelled"] as const
+            ).map((value) => (
+              <option key={value} value={value}>
+                {t(`common:status.invoice.${value}`)}
+              </option>
+            ))}
           </select>
           <div className={styles.toolbarActions}>
             <button
