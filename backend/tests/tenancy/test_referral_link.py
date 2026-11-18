@@ -13,7 +13,7 @@ from django.test import Client
 from django_tenants.utils import tenant_context
 
 from apps.accounts.auth_service import AuthService
-from apps.accounts.models import Role
+from apps.accounts.models import Role, StaffBranch
 from apps.billing.models import Invoice
 from tests.factories.branch import BranchFactory
 from tests.factories.catalog import TestFactory, TestPriceFactory
@@ -47,6 +47,10 @@ def referral_setup(tenant_a: Any) -> dict[str, Any]:
         )
         receptionist = StaffUserFactory(
             role=Role.RECEPTION, branch=branch, email="rf_recep@t.com"
+        )
+        StaffBranch.objects.create(staff_user=manager, branch=branch, is_primary=True)
+        StaffBranch.objects.create(
+            staff_user=receptionist, branch=branch, is_primary=True
         )
         partner = ReferralPartnerFactory(name="Dr. Ayesha Khan")
         test = TestFactory(name="CBC Test", code="RF-CBC")

@@ -12,7 +12,7 @@ from django.utils import timezone
 from django_tenants.utils import tenant_context
 
 from apps.accounts.auth_service import AuthService
-from apps.accounts.models import Role
+from apps.accounts.models import Role, StaffBranch
 from apps.billing.models import CreditNote, DayClose, Invoice, Payment
 from apps.billing.services import (
     BillingError,
@@ -46,6 +46,9 @@ def mi_setup(tenant_a: Any) -> dict[str, Any]:
         owner = StaffUserFactory(role=Role.OWNER, branch=None, email="mi_owner@t.com")
         receptionist = StaffUserFactory(
             role=Role.RECEPTION, branch=branch, email="mi_recep@t.com"
+        )
+        StaffBranch.objects.create(
+            staff_user=receptionist, branch=branch, is_primary=True
         )
         patient = PatientFactory(branch=branch)
         return {

@@ -48,6 +48,7 @@ class TestPaymentModelSchemaAndConstraints:
                 "reference",
                 "idempotency_key",
                 "payload_sha256",  # LAB-19: idempotency payload fingerprint
+                "refund_reason",  # refund justification (credit-note batch)
                 "created_at",
             }
             assert set(cols.keys()) == expected_cols
