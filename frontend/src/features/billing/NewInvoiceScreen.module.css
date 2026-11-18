@@ -2,7 +2,7 @@
    One raised form card; pressed wells for every control; flat totals + empty panel. */
 
 .page {
-  min-height: 100vh;
+  min-height: var(--lf-vh);
   padding: 32px;
   background: var(--color-bg);
   color: var(--color-text);
@@ -608,6 +608,15 @@
   gap: 24px;
 }
 
+/* The test/panel pickers get the full card width at every breakpoint: the
+   dropdown lists are the user's main working surface and must never be
+   squeezed into a half column. */
+.gridStack {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 18px;
+}
+
 .field {
   display: flex;
   flex-direction: column;
@@ -655,6 +664,15 @@
   min-width: 0;
 }
 
+/* Wrapper around the searchable picker: takes the row's spare width so the
+   catalogue labels are readable. The border/padding live on the input, not
+   here (putting styles.select on both produced a double ring). */
+.selectWrap {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
 .addRow > .field {
   flex: 1;
 }
@@ -663,15 +681,15 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  min-height: 44px;
-  padding: 0 16px;
+  gap: 5px;
+  min-height: 40px;
+  padding: 0 12px;
   border-radius: 10px;
   border: 1px solid var(--color-brand-fill);
   background: var(--color-brand-fill);
   color: var(--color-on-brand-fill);
   font-family: var(--font-body);
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 700;
   white-space: nowrap;
   cursor: pointer;

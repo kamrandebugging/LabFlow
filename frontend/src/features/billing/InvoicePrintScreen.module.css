@@ -5,7 +5,7 @@
    ============================================================ */
 
 .stage {
-  min-height: 100vh;
+  min-height: var(--lf-vh);
   background: var(--veyla-page, #eaecec);
   display: flex;
   flex-direction: column;

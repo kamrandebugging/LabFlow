@@ -2,7 +2,7 @@
    Raised cards, flat badges, flat line-item table, flat totals chips. */
 
 .page {
-  min-height: 100vh;
+  min-height: var(--lf-vh);
   padding: 32px;
   background: var(--color-bg);
   color: var(--color-text);
