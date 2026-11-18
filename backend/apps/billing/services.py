@@ -162,6 +162,16 @@ class RefundExceedsPaymentsError(BillingError):
     error_code = "refund_exceeds_payments"
 
 
+class RefundExceedsMethodPaymentsError(BillingError):
+    status_code = 422
+    error_code = "refund_exceeds_method_payments"
+
+
+class CreditNoteExceedsMethodPaymentsError(BillingError):
+    status_code = 422
+    error_code = "credit_note_exceeds_method_payments"
+
+
 class RefundVelocityExceededError(BillingError):
     """A6-1/A6-2: daily/per-invoice refund velocity tripwire."""
 
@@ -591,6 +601,36 @@ def _payment_aggregates(invoice: Invoice) -> tuple[Decimal, Decimal]:
     return paid_sum, refund_sum
 
 
+def get_net_paid_by_method(invoice: Invoice) -> dict[str, Decimal]:
+    """Calculate remaining net balance per payment method for an invoice.
+
+    remaining_m = payments_m − refunds_m − active_credit_notes_m (Phase 2 Rule 1).
+    """
+    money_by_method: dict[str, Decimal] = {
+        m: Decimal("0.00") for m in Payment.Method.values
+    }
+    for row in (
+        Payment.objects.filter(invoice=invoice)
+        .values("method", "kind")
+        .annotate(total=Sum("amount"))
+    ):
+        m = str(row["method"])
+        amt = Decimal(str(row["total"] or "0.00"))
+        if row["kind"] == Payment.Kind.REFUND:
+            money_by_method[m] = money_by_method.get(m, Decimal("0.00")) - amt
+        else:
+            money_by_method[m] = money_by_method.get(m, Decimal("0.00")) + amt
+
+    for cn in CreditNote.objects.filter(invoice=invoice, voided_at__isnull=True):
+        breakdown = cn.reversed_methods or {cn.method: str(cn.amount)}
+        for m, raw in breakdown.items():
+            money_by_method[m] = money_by_method.get(m, Decimal("0.00")) - Decimal(
+                str(raw)
+            )
+
+    return money_by_method
+
+
 def _assert_branch_day_open(branch_id: uuid.UUID, day: date | None = None) -> None:
     """Money is never back-dated into a closed branch-day.
 
@@ -768,10 +808,17 @@ class PaymentService:
             if kind == Payment.Kind.PAYMENT:
                 if net_revenue_now + amount > invoice.total:
                     raise OverpaymentError("Payment would exceed the invoice total.")
-            elif amount > net_revenue_now:
-                raise RefundExceedsPaymentsError(
-                    "Refund would exceed recorded payments."
-                )
+            elif kind == Payment.Kind.REFUND:
+                net_by_method = get_net_paid_by_method(invoice)
+                available_m = net_by_method.get(method, Decimal("0.00"))
+                if amount <= Decimal("0.00") or amount > available_m:
+                    raise RefundExceedsMethodPaymentsError(
+                        f"Refund exceeds recorded payments for method '{method}'."
+                    )
+                if amount > net_revenue_now:
+                    raise RefundExceedsPaymentsError(
+                        "Refund would exceed recorded payments."
+                    )
 
             try:
                 with transaction.atomic():
@@ -1097,19 +1144,23 @@ class CreditNoteService:
 
     @staticmethod
     def _payload_hash(
-        *, invoice_id: uuid.UUID, amount: Decimal, reason: str, method: str
+        *,
+        invoice_id: uuid.UUID,
+        amount: Decimal,
+        reason: str,
+        method: str,
+        reversed_methods: dict[str, Any] | None = None,
     ) -> str:
-        payload = json.dumps(
-            {
-                "invoice_id": str(invoice_id),
-                "amount": f"{amount:.2f}",
-                "reason": reason,
-                "method": method,
-            },
-            sort_keys=True,
-            separators=(",", ":"),
-        )
-        return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+        payload = {
+            "invoice_id": str(invoice_id),
+            "amount": f"{amount:.2f}",
+            "reason": reason,
+            "method": method,
+            "reversed_methods": reversed_methods or {},
+        }
+        return hashlib.sha256(
+            json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        ).hexdigest()
 
     @staticmethod
     def issue(
@@ -1120,6 +1171,7 @@ class CreditNoteService:
         method: str,
         idempotency_key: str,
         actor: StaffUser,
+        reversed_methods: dict[str, Any] | None = None,
         ip: str | None = None,
         user_agent: str | None = None,
     ) -> tuple[CreditNote, bool]:
@@ -1209,13 +1261,46 @@ class CreditNoteService:
             )
             counter.last_number += 1
             counter.save(update_fields=["last_number"])
+
+            net_by_method = get_net_paid_by_method(invoice)
+            if reversed_methods:
+                breakdown_total = Decimal("0.00")
+                norm_breakdown: dict[str, str] = {}
+                for m, raw in reversed_methods.items():
+                    val = Decimal(str(raw)).quantize(Decimal("0.01"))
+                    available_m = net_by_method.get(m, Decimal("0.00"))
+                    if val <= Decimal("0.00") or val > available_m:
+                        raise CreditNoteExceedsMethodPaymentsError(
+                            f"Credit note exceeds recorded payments for method '{m}'."
+                        )
+                    breakdown_total += val
+                    norm_breakdown[m] = f"{val:.2f}"
+                if breakdown_total != amount:
+                    raise CreditNoteAmountMismatchError(
+                        "Reversed methods total does not match credit note amount."
+                    )
+                final_reversed_methods = norm_breakdown
+            else:
+                final_reversed_methods = {
+                    m: f"{amt:.2f}"
+                    for m, amt in net_by_method.items()
+                    if amt > Decimal("0.00")
+                }
+
+            chosen_method = method
+            if chosen_method not in final_reversed_methods and final_reversed_methods:
+                chosen_method = max(
+                    final_reversed_methods.keys(),
+                    key=lambda k: Decimal(final_reversed_methods[k]),
+                )
+
             note = CreditNote.objects.create(
                 number=f"CN-{counter.last_number:06d}",
                 invoice=invoice,
                 amount=amount,
                 reason=reason.strip(),
-                method=method,
-                reversed_methods={method: f"{amount:.2f}"},
+                method=chosen_method,
+                reversed_methods=final_reversed_methods,
                 issued_by=actor,
                 idempotency_key=idempotency_key,
                 payload_sha256=payload_hash,

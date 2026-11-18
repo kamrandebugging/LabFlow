@@ -379,3 +379,170 @@ def test_balance_is_zero_on_cancelled_invoice(
     data = detail_resp.json()
     assert data["status"] == "cancelled"
     assert data["balance"] == "0.00"
+
+
+@pytest.mark.django_db
+def test_refund_cannot_exceed_method_net_paid(
+    tenant_a: Any, mi_setup: dict[str, Any], auth_headers: Any
+) -> None:
+    """Pay 1,000 cash + 1,000 card; two 1,000 refunds both tagged cash
+    -> second fails 422 refund_exceeds_method_payments.
+    """
+    with tenant_context(tenant_a):
+        invoice = InvoiceFactory(
+            patient=mi_setup["patient"],
+            branch=mi_setup["branch"],
+            status=Invoice.Status.PAID,
+            subtotal=Decimal("2000.00"),
+            total=Decimal("2000.00"),
+        )
+        invoice_id = invoice.id
+        PaymentFactory(
+            invoice=invoice,
+            kind=Payment.Kind.PAYMENT,
+            method=Payment.Method.CASH,
+            amount=Decimal("1000.00"),
+            received_by=mi_setup["owner"],
+        )
+        PaymentFactory(
+            invoice=invoice,
+            kind=Payment.Kind.PAYMENT,
+            method=Payment.Method.CARD,
+            amount=Decimal("1000.00"),
+            received_by=mi_setup["owner"],
+        )
+
+    # First refund 1,000 cash -> succeeds
+    ref1 = Client().post(
+        f"{INVOICES_URL}/{invoice_id}/payments",
+        data={
+            "kind": "refund",
+            "method": "cash",
+            "amount": "1000.00",
+            "refund_reason": "Refund cash portion",
+        },
+        content_type="application/json",
+        HTTP_IDEMPOTENCY_KEY="mi-ref-meth-1",
+        headers=auth_headers(mi_setup["owner"]),
+    )
+    assert ref1.status_code == 201, ref1.content
+
+    # Second refund 1,000 cash -> cash has 0 left, card has 1,000
+    # -> 422 refund_exceeds_method_payments
+    ref2 = Client().post(
+        f"{INVOICES_URL}/{invoice_id}/payments",
+        data={
+            "kind": "refund",
+            "method": "cash",
+            "amount": "1000.00",
+            "refund_reason": "Attempt second cash refund",
+        },
+        content_type="application/json",
+        HTTP_IDEMPOTENCY_KEY="mi-ref-meth-2",
+        headers=auth_headers(mi_setup["owner"]),
+    )
+    assert ref2.status_code == 422
+    assert ref2.json()["error"]["code"] == "refund_exceeds_method_payments"
+
+
+@pytest.mark.django_db
+def test_credit_note_decomposes_across_methods(
+    tenant_a: Any, mi_setup: dict[str, Any], auth_headers: Any
+) -> None:
+    """Pay 1,000 cash + 1,400 card; CN 2,400 reverses 1,000 cash + 1,400 card."""
+    with tenant_context(tenant_a):
+        invoice = InvoiceFactory(
+            patient=mi_setup["patient"],
+            branch=mi_setup["branch"],
+            status=Invoice.Status.PAID,
+            subtotal=Decimal("2400.00"),
+            total=Decimal("2400.00"),
+        )
+        invoice_id = invoice.id
+        PaymentFactory(
+            invoice=invoice,
+            kind=Payment.Kind.PAYMENT,
+            method=Payment.Method.CASH,
+            amount=Decimal("1000.00"),
+            received_by=mi_setup["owner"],
+        )
+        PaymentFactory(
+            invoice=invoice,
+            kind=Payment.Kind.PAYMENT,
+            method=Payment.Method.CARD,
+            amount=Decimal("1400.00"),
+            received_by=mi_setup["owner"],
+        )
+
+    cn_resp = Client().post(
+        f"{INVOICES_URL}/{invoice_id}/credit-notes",
+        data={
+            "amount": "2400.00",
+            "reason": "Full reversal decomposing methods",
+            "method": "cash",
+        },
+        content_type="application/json",
+        HTTP_IDEMPOTENCY_KEY="mi-cn-decomp-1",
+        headers=auth_headers(mi_setup["owner"]),
+    )
+    assert cn_resp.status_code == 201, cn_resp.content
+    note_data = cn_resp.json()
+    assert note_data["reversed_methods"] == {"cash": "1000.00", "card": "1400.00"}
+
+
+@pytest.mark.django_db
+def test_day_close_counts_credit_note_per_method(
+    tenant_a: Any, mi_setup: dict[str, Any], auth_headers: Any
+) -> None:
+    """Day Close out bucket matches the decomposition above."""
+    with tenant_context(tenant_a):
+        invoice = InvoiceFactory(
+            patient=mi_setup["patient"],
+            branch=mi_setup["branch"],
+            status=Invoice.Status.PAID,
+            subtotal=Decimal("2400.00"),
+            total=Decimal("2400.00"),
+        )
+        invoice_id = invoice.id
+        PaymentFactory(
+            invoice=invoice,
+            kind=Payment.Kind.PAYMENT,
+            method=Payment.Method.CASH,
+            amount=Decimal("1000.00"),
+            received_by=mi_setup["owner"],
+        )
+        PaymentFactory(
+            invoice=invoice,
+            kind=Payment.Kind.PAYMENT,
+            method=Payment.Method.CARD,
+            amount=Decimal("1400.00"),
+            received_by=mi_setup["owner"],
+        )
+
+    # Issue CN 2,400
+    Client().post(
+        f"{INVOICES_URL}/{invoice_id}/credit-notes",
+        data={
+            "amount": "2400.00",
+            "reason": "Full reversal for day close test",
+            "method": "cash",
+        },
+        content_type="application/json",
+        HTTP_IDEMPOTENCY_KEY="mi-cn-dc-1",
+        headers=auth_headers(mi_setup["owner"]),
+    )
+
+    with tenant_context(tenant_a):
+        from apps.billing.services import DayCloseService
+
+        totals = DayCloseService.collect_totals(
+            branch_id=mi_setup["branch"].id, day=timezone.localdate()
+        )
+        method_totals = totals["method_totals"]
+        assert method_totals["cash"]["in"] == "1000.00"
+        assert method_totals["cash"]["out"] == "1000.00"
+        assert method_totals["cash"]["net"] == "0.00"
+        assert method_totals["card"]["in"] == "1400.00"
+        assert method_totals["card"]["out"] == "1400.00"
+        assert method_totals["card"]["net"] == "0.00"
+        assert totals["total_credit_notes"] == Decimal("2400.00")

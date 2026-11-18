@@ -205,6 +205,7 @@ class CreditNoteCreateSerializer(serializers.Serializer):
     method = serializers.ChoiceField(
         choices=Payment.Method.choices, required=False, default=Payment.Method.CASH
     )
+    reversed_methods = serializers.DictField(required=False, default=dict)
 
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
         return _reject_unknown_fields(self, attrs)

@@ -455,9 +455,11 @@ class CreditNote(models.Model):
 class DayClose(models.Model):
     """One branch's reconciled, locked business day (append-only).
 
-    Built only from the append-only Payment, Invoice and CreditNote rows of
-    that branch and day; closing records the reconciliation and never edits
-    any money that was already recorded. There is no update or reopen path.
+    Day Close per-method "out" totals are built from BOTH Payment(kind='refund')
+    rows AND non-voided CreditNote per-method reversals for that branch-day.
+    Day Close also reports total invoices, total discount given, and total credit
+    notes issued — these live on Invoice/CreditNote, not Payment; the aggregation
+    rule must name all three sources.
 
     ``method_totals`` is ``{method: {"in": "0.00", "out": "0.00",
     "net": "0.00"}}`` — the same six payment methods, Decimal PKR rendered as

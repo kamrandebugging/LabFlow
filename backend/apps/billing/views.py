@@ -738,6 +738,7 @@ class CreditNoteCreateView(APIView):
                 method=data["method"],
                 idempotency_key=idempotency_key,
                 actor=user,
+                reversed_methods=data.get("reversed_methods"),
                 ip=_get_client_ip(request),
                 user_agent=request.META.get("HTTP_USER_AGENT", ""),
             )
