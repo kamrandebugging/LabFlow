@@ -5,12 +5,15 @@ import {
   ArrowRight,
   CircleCheck,
   CreditCard,
+  Lock,
   Plus,
   Receipt,
   RefreshCw,
   Search,
 } from "lucide-react";
 import { billingService } from "./billingService";
+import { useAuthStore } from "../auth/authStore";
+import { useNavigate } from "react-router-dom";
 import { formatMoney, statusLabel } from "../../lib/format";
 import { messageForError } from "../../lib/errors";
 import type { InvoiceStatus, InvoiceSummary } from "./types";
@@ -39,6 +42,10 @@ export function InvoicesListScreen({
   service = billingService,
 }: InvoicesListScreenProps): JSX.Element {
   const { t } = useTranslation(["billing", "common"]);
+  const navigate = useNavigate();
+  const role = useAuthStore((state) => state.user?.role);
+  // Day Close is an Owner/Manager control only.
+  const canCloseDay = role === "owner" || role === "manager";
   const [invoices, setInvoices] = useState<InvoiceSummary[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
@@ -180,6 +187,16 @@ export function InvoicesListScreen({
                 aria-hidden="true"
               />
             </button>
+            {canCloseDay ? (
+              <button
+                type="button"
+                onClick={() => navigate("/billing/day-close")}
+                className={styles.secondaryButton}
+              >
+                <Lock className={styles.buttonIcon} aria-hidden="true" />
+                <span>{t("billing:list.day_close")}</span>
+              </button>
+            ) : null}
             {onNewInvoice ? (
               <button
                 type="button"

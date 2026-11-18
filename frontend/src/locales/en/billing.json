@@ -24,7 +24,8 @@
     "col_total": "Total (PKR)",
     "col_action": "Action",
     "view": "View",
-    "showing": "Showing {{total}} invoices"
+    "showing": "Showing {{total}} invoices",
+    "day_close": "Day Close"
   },
   "new": {
     "breadcrumb_aria": "Breadcrumb",

@@ -24,7 +24,8 @@
     "col_total": "کل (PKR)",
     "col_action": "کارروائی",
     "view": "دیکھیں",
-    "showing": "کل {{total}} بل دکھائے جا رہے ہیں"
+    "showing": "کل {{total}} بل دکھائے جا رہے ہیں",
+    "day_close": "?? ????"
   },
   "new": {
     "breadcrumb_aria": "صفحے کا راستہ",
