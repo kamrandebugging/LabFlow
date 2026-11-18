@@ -37,8 +37,10 @@ from apps.billing.serializers import (
     InvoiceCancelSerializer,
     InvoiceCreateSerializer,
     InvoiceDetailSerializer,
+    InvoiceLineCancelSerializer,
     InvoiceSerializer,
     InvoiceSummarySerializer,
+    InvoiceUpdateSerializer,
     PaymentCreateSerializer,
     PaymentSerializer,
 )
@@ -47,6 +49,7 @@ from apps.billing.services import (
     BILLING_WRITE_ROLES,
     CREDIT_NOTE_ROLES,
     DAY_CLOSE_ROLES,
+    DISCOUNT_ROLES,
     PAYMENT_WRITE_ROLES,
     BillingError,
     BillingService,
@@ -462,6 +465,49 @@ class InvoiceDetailView(APIView):
             status=status.HTTP_200_OK,
         )
 
+    def patch(self, request: Request, invoice_id: Any) -> Response:
+        user = cast(StaffUser, request.user)
+        if user.role not in BILLING_WRITE_ROLES:
+            return Response(
+                _format_error(
+                    "forbidden",
+                    "Only Owner, Manager or Receptionist may update invoices.",
+                ),
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        iid = _resolve_invoice_reference(user, invoice_id)
+        if iid is None:
+            return Response(
+                _format_error("not_found", "Invoice not found."),
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        serializer = InvoiceUpdateSerializer(data=request.data)
+        if not serializer.is_valid():
+            err_dict = serializer.errors
+            return Response(
+                _format_error("validation_error", "Invalid payload.", err_dict),
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+        data = serializer.validated_data
+        ip = _get_client_ip(request)
+        user_agent = request.META.get("HTTP_USER_AGENT", "")
+        try:
+            invoice = InvoiceQueryService.update_invoice(
+                invoice_id=iid,
+                actor=user,
+                discount_amount=data.get("discount_amount"),
+                discount_reason=data.get("discount_reason"),
+                referral_partner_id=data.get("referral_partner_id"),
+                ip=ip,
+                user_agent=user_agent,
+            )
+        except BillingError as exc:
+            return Response(
+                _format_error(exc.error_code, str(exc) or exc.error_code),
+                status=exc.status_code,
+            )
+        return Response(InvoiceSerializer(invoice).data, status=status.HTTP_200_OK)
+
 
 class InvoiceHistoryView(APIView):
     """GET /api/v1/invoices/{id}/history — read-only append-only event trail.
@@ -596,7 +642,7 @@ class InvoiceHistoryView(APIView):
                     }
                 )
 
-        # cancel
+        # cancel and line cancellation
         for row in audit_rows:
             if row.action == "invoice.cancelled":
                 after = row.after_jsonb or {}
@@ -606,6 +652,17 @@ class InvoiceHistoryView(APIView):
                         "at": row.at.isoformat(),
                         "actor": names.get(row.actor_id),
                         "amount": None,
+                        "reason": after.get("reason"),
+                    }
+                )
+            elif row.action == "invoice.line_cancelled":
+                after = row.after_jsonb or {}
+                events.append(
+                    {
+                        "event": "line_cancelled",
+                        "at": row.at.isoformat(),
+                        "actor": names.get(row.actor_id),
+                        "amount": after.get("amount_removed"),
                         "reason": after.get("reason"),
                     }
                 )
@@ -637,7 +694,7 @@ class InvoiceCancelView(APIView):
                 ),
                 status=status.HTTP_403_FORBIDDEN,
             )
-        iid = _parse_path_uuid(invoice_id)
+        iid = _resolve_invoice_reference(user, invoice_id)
         if iid is None:
             return Response(
                 _format_error("not_found", "Invoice not found."),
@@ -665,6 +722,70 @@ class InvoiceCancelView(APIView):
         try:
             invoice = InvoiceQueryService.cancel_invoice(
                 invoice_id=iid,
+                reason=data["reason"],
+                actor=user,
+                ip=ip,
+                user_agent=user_agent,
+            )
+        except BillingError as exc:
+            return Response(
+                _format_error(exc.error_code, str(exc) or exc.error_code),
+                status=exc.status_code,
+            )
+        return Response(InvoiceSerializer(invoice).data, status=status.HTTP_200_OK)
+
+
+class InvoiceLineCancelView(APIView):
+    """POST /api/v1/invoices/{id}/lines/{line_id}/cancel — cancel unperformed line."""
+
+    permission_classes = [permissions.IsAuthenticated, IsInBranchScope]
+    scope_branch_source = None
+
+    def post(self, request: Request, invoice_id: Any, line_id: Any) -> Response:
+        user = cast(StaffUser, request.user)
+        if user.role not in DISCOUNT_ROLES:
+            return Response(
+                _format_error(
+                    "forbidden",
+                    "Only an Owner or Manager may cancel an invoice line.",
+                ),
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        iid = _resolve_invoice_reference(user, invoice_id)
+        if iid is None:
+            return Response(
+                _format_error("not_found", "Invoice not found."),
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        lid = _parse_path_uuid(line_id)
+        if lid is None:
+            return Response(
+                _format_error("not_found", "Invoice line not found."),
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        serializer = InvoiceLineCancelSerializer(data=request.data)
+        if not serializer.is_valid():
+            err_dict = serializer.errors
+            if "reason" in err_dict:
+                return Response(
+                    _format_error(
+                        "cancel_reason_required",
+                        "A reason is required to cancel an invoice line.",
+                        err_dict,
+                    ),
+                    status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                )
+            return Response(
+                _format_error("validation_error", "Invalid payload.", err_dict),
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+        data = serializer.validated_data
+        ip = _get_client_ip(request)
+        user_agent = request.META.get("HTTP_USER_AGENT", "")
+        try:
+            invoice = InvoiceQueryService.cancel_line(
+                invoice_id=iid,
+                item_id=lid,
                 reason=data["reason"],
                 actor=user,
                 ip=ip,

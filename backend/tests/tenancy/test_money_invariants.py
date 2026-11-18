@@ -1063,3 +1063,452 @@ def test_manager_daily_cap_race_across_invoices(
         # 18,000 + 4,000 = 22,000 <= 25,000
         assert total_rev == Decimal("22000.00")
         assert total_rev <= Decimal("25000.00")
+
+
+@pytest.mark.django_db
+def test_discount_locked_after_full_refund(
+    tenant_a: Any, mi_setup: dict[str, Any], auth_headers: Any
+) -> None:
+    """Pay 500, refund 500, then discount edit -> 409 discount_locked.
+
+    net_paid is 0 but a Payment row exists.
+    """
+    with tenant_context(tenant_a):
+        invoice = _paid_invoice(mi_setup, "500.00")
+        invoice_id = invoice.id
+
+    # Refund 500
+    ref_resp = Client().post(
+        f"{INVOICES_URL}/{invoice_id}/payments",
+        data={
+            "kind": "refund",
+            "method": "cash",
+            "amount": "500.00",
+            "refund_reason": "Full refund test",
+        },
+        content_type="application/json",
+        HTTP_IDEMPOTENCY_KEY="mi-ref-500-full",
+        headers=auth_headers(mi_setup["owner"]),
+    )
+    assert ref_resp.status_code == 201, ref_resp.content
+
+    # Now attempt discount edit
+    patch_resp = Client().patch(
+        f"{INVOICES_URL}/{invoice_id}",
+        data={"discount_amount": "50.00", "discount_reason": "Belated discount"},
+        content_type="application/json",
+        headers=auth_headers(mi_setup["owner"]),
+    )
+    assert patch_resp.status_code == 409
+    assert patch_resp.json()["error"]["code"] == "discount_locked"
+
+
+@pytest.mark.django_db
+def test_zero_total_invoice_can_be_cancelled(
+    tenant_a: Any, mi_setup: dict[str, Any], auth_headers: Any
+) -> None:
+    """100% discount, total 0, no samples -> Cancelled.
+
+    With a collected sample -> 409.
+    """
+    with tenant_context(tenant_a):
+        inv1 = InvoiceFactory(
+            patient=mi_setup["patient"],
+            branch=mi_setup["branch"],
+            status=Invoice.Status.PAID,
+            subtotal=Decimal("500.00"),
+            discount_amount=Decimal("500.00"),
+            discount_reason="100% courtesy discount",
+            total=Decimal("0.00"),
+        )
+        inv1_id = inv1.id
+
+    cancel1 = Client().post(
+        f"{INVOICES_URL}/{inv1_id}/cancel",
+        data={"reason": "Patient decided not to test"},
+        content_type="application/json",
+        headers=auth_headers(mi_setup["owner"]),
+    )
+    assert cancel1.status_code == 200, cancel1.content
+    assert cancel1.json()["status"] == "cancelled"
+
+    # With a collected sample:
+    with tenant_context(tenant_a):
+        from tests.factories.samples import SampleFactory
+
+        inv2 = InvoiceFactory(
+            patient=mi_setup["patient"],
+            branch=mi_setup["branch"],
+            status=Invoice.Status.PAID,
+            subtotal=Decimal("500.00"),
+            discount_amount=Decimal("500.00"),
+            discount_reason="100% courtesy discount",
+            total=Decimal("0.00"),
+        )
+        SampleFactory(invoice=inv2, branch=mi_setup["branch"])
+        inv2_id = inv2.id
+
+    cancel2 = Client().post(
+        f"{INVOICES_URL}/{inv2_id}/cancel",
+        data={"reason": "Try cancelling after sample"},
+        content_type="application/json",
+        headers=auth_headers(mi_setup["owner"]),
+    )
+    assert cancel2.status_code == 409
+    assert cancel2.json()["error"]["code"] == "invalid_state_transition"
+
+
+@pytest.mark.django_db
+def test_cash_refund_needs_no_reference(
+    tenant_a: Any, mi_setup: dict[str, Any], auth_headers: Any
+) -> None:
+    """Cash refund with reason, no reference -> 201.
+
+    Card refund without reference -> 422.
+    """
+    with tenant_context(tenant_a):
+        inv = InvoiceFactory(
+            patient=mi_setup["patient"],
+            branch=mi_setup["branch"],
+            status=Invoice.Status.PAID,
+            subtotal=Decimal("2000.00"),
+            total=Decimal("2000.00"),
+        )
+        PaymentFactory(
+            invoice=inv,
+            kind=Payment.Kind.PAYMENT,
+            method=Payment.Method.CASH,
+            amount=Decimal("1000.00"),
+            received_by=mi_setup["owner"],
+        )
+        PaymentFactory(
+            invoice=inv,
+            kind=Payment.Kind.PAYMENT,
+            method=Payment.Method.CARD,
+            amount=Decimal("1000.00"),
+            reference="TXN-CARD-999",
+            received_by=mi_setup["owner"],
+        )
+        inv_id = inv.id
+
+    # Cash refund without reference -> 201
+    cash_ref = Client().post(
+        f"{INVOICES_URL}/{inv_id}/payments",
+        data={
+            "kind": "refund",
+            "method": "cash",
+            "amount": "500.00",
+            "refund_reason": "Cash refund reason",
+            "reference": None,
+        },
+        content_type="application/json",
+        HTTP_IDEMPOTENCY_KEY="mi-cash-ref-no-ref",
+        headers=auth_headers(mi_setup["owner"]),
+    )
+    assert cash_ref.status_code == 201, cash_ref.content
+
+    # Card refund without reference -> 422 reference_required
+    card_ref = Client().post(
+        f"{INVOICES_URL}/{inv_id}/payments",
+        data={
+            "kind": "refund",
+            "method": "card",
+            "amount": "500.00",
+            "refund_reason": "Card refund reason",
+            "reference": None,
+        },
+        content_type="application/json",
+        HTTP_IDEMPOTENCY_KEY="mi-card-ref-no-ref",
+        headers=auth_headers(mi_setup["owner"]),
+    )
+    assert card_ref.status_code == 422
+    assert card_ref.json()["error"]["code"] == "reference_required"
+
+
+@pytest.mark.django_db
+def test_referral_discount_requires_active_partner_id(
+    tenant_a: Any, mi_setup: dict[str, Any], auth_headers: Any
+) -> None:
+    """Inactive partner -> 422 inactive_referral_partner;
+    reason without partner_id -> 422 referral_partner_required;
+    partner name typed in reason but partner_id null -> 422 referral_partner_required.
+    """
+    with tenant_context(tenant_a):
+        from tests.factories.catalog import TestFactory
+        from tests.factories.partners import ReferralPartnerFactory
+
+        test = TestFactory(price=Decimal("1000.00"))
+        inactive_partner = ReferralPartnerFactory(is_active=False, name="Dr. Inactive")
+        ReferralPartnerFactory(is_active=True, name="Dr. Active")
+        patient = mi_setup["patient"]
+        branch = mi_setup["branch"]
+        test_id = str(test.id)
+        inact_id = str(inactive_partner.id)
+
+    # Inactive partner -> 422 inactive_referral_partner
+    resp1 = Client().post(
+        f"{INVOICES_URL}",
+        data={
+            "patient_id": str(patient.id),
+            "branch_id": str(branch.id),
+            "items": [{"test_id": test_id, "quantity": 1}],
+            "referral_partner_id": inact_id,
+            "discount_amount": "100.00",
+            "discount_reason": "Referral discount",
+        },
+        content_type="application/json",
+        HTTP_IDEMPOTENCY_KEY="mi-ref-inact-1",
+        headers=auth_headers(mi_setup["owner"]),
+    )
+    assert resp1.status_code == 422
+    assert resp1.json()["error"]["code"] == "inactive_referral_partner"
+
+    # Reason with 'referral' but partner_id null -> 422 referral_partner_required
+    resp2 = Client().post(
+        f"{INVOICES_URL}",
+        data={
+            "patient_id": str(patient.id),
+            "branch_id": str(branch.id),
+            "items": [{"test_id": test_id, "quantity": 1}],
+            "referral_partner_id": None,
+            "discount_amount": "100.00",
+            "discount_reason": "Referral discount from hospital",
+        },
+        content_type="application/json",
+        HTTP_IDEMPOTENCY_KEY="mi-ref-null-partner-1",
+        headers=auth_headers(mi_setup["owner"]),
+    )
+    assert resp2.status_code == 422
+    assert resp2.json()["error"]["code"] == "referral_partner_required"
+
+    # Partner name typed in reason but partner_id null -> 422 referral_partner_required
+    resp3 = Client().post(
+        f"{INVOICES_URL}",
+        data={
+            "patient_id": str(patient.id),
+            "branch_id": str(branch.id),
+            "items": [{"test_id": test_id, "quantity": 1}],
+            "referral_partner_id": None,
+            "discount_amount": "100.00",
+            "discount_reason": "Dr. Active",
+        },
+        content_type="application/json",
+        HTTP_IDEMPOTENCY_KEY="mi-ref-partner-name-1",
+        headers=auth_headers(mi_setup["owner"]),
+    )
+    assert resp3.status_code == 422
+    assert resp3.json()["error"]["code"] == "referral_partner_required"
+
+
+@pytest.mark.django_db
+def test_invoice_referral_snapshot_immutable(
+    tenant_a: Any, mi_setup: dict[str, Any], auth_headers: Any
+) -> None:
+    """Change patient.referral_partner after invoice creation.
+
+    Invoice referral_partner_id unchanged; discount edit on that invoice -> 409.
+    """
+    with tenant_context(tenant_a):
+        from tests.factories.partners import ReferralPartnerFactory
+
+        partner1 = ReferralPartnerFactory(is_active=True, name="Partner One")
+        partner2 = ReferralPartnerFactory(is_active=True, name="Partner Two")
+        patient = mi_setup["patient"]
+        patient.referral_partner = partner1
+        patient.save()
+
+        invoice = InvoiceFactory(
+            patient=patient,
+            branch=mi_setup["branch"],
+            referral_partner=partner1,
+            status=Invoice.Status.PAID,
+            subtotal=Decimal("1000.00"),
+            total=Decimal("1000.00"),
+        )
+        PaymentFactory(
+            invoice=invoice,
+            kind=Payment.Kind.PAYMENT,
+            method=Payment.Method.CASH,
+            amount=Decimal("1000.00"),
+            received_by=mi_setup["owner"],
+        )
+        invoice_id = invoice.id
+        p2_id = partner2.id
+
+    # Change patient referral partner
+    with tenant_context(tenant_a):
+        patient.referral_partner = partner2
+        patient.save()
+        invoice.refresh_from_db()
+        assert invoice.referral_partner_id == partner1.id
+
+    # Try to edit referral partner on invoice with existing payment -> 409
+    patch_resp = Client().patch(
+        f"{INVOICES_URL}/{invoice_id}",
+        data={"referral_partner_id": str(p2_id)},
+        content_type="application/json",
+        headers=auth_headers(mi_setup["owner"]),
+    )
+    assert patch_resp.status_code == 409
+    assert patch_resp.json()["error"]["code"] == "invalid_state_transition"
+
+
+@pytest.mark.django_db
+def test_line_cancel_removes_unperformed_test(
+    tenant_a: Any, mi_setup: dict[str, Any], auth_headers: Any
+) -> None:
+    """Pay 2,400 for two tests, cancel the unperformed 1,600 line, refund 1,600
+    -> net_revenue 800, balance 0, status Paid.
+    """
+    with tenant_context(tenant_a):
+        from tests.factories.billing import InvoiceItemFactory
+        from tests.factories.catalog import TestFactory
+
+        test1 = TestFactory(name="Sputum for AFB", price=Decimal("1600.00"))
+        test2 = TestFactory(name="CBC", price=Decimal("800.00"))
+
+        invoice = InvoiceFactory(
+            patient=mi_setup["patient"],
+            branch=mi_setup["branch"],
+            status=Invoice.Status.PAID,
+            subtotal=Decimal("2400.00"),
+            discount_amount=Decimal("0.00"),
+            total=Decimal("2400.00"),
+        )
+        item1 = InvoiceItemFactory(
+            invoice=invoice,
+            test=test1,
+            unit_price=Decimal("1600.00"),
+            quantity=1,
+            line_total=Decimal("1600.00"),
+        )
+        InvoiceItemFactory(
+            invoice=invoice,
+            test=test2,
+            unit_price=Decimal("800.00"),
+            quantity=1,
+            line_total=Decimal("800.00"),
+        )
+        PaymentFactory(
+            invoice=invoice,
+            kind=Payment.Kind.PAYMENT,
+            method=Payment.Method.CASH,
+            amount=Decimal("2400.00"),
+            received_by=mi_setup["owner"],
+        )
+        invoice_id = invoice.id
+        item1_id = item1.id
+
+    # Cancel unperformed line 1 (1,600.00)
+    cancel_line_resp = Client().post(
+        f"{INVOICES_URL}/{invoice_id}/lines/{item1_id}/cancel",
+        data={"reason": "Patient refused Sputum test"},
+        content_type="application/json",
+        headers=auth_headers(mi_setup["owner"]),
+    )
+    assert cancel_line_resp.status_code == 200, cancel_line_resp.content
+
+    # Refund 1,600.00
+    ref_resp = Client().post(
+        f"{INVOICES_URL}/{invoice_id}/payments",
+        data={
+            "kind": "refund",
+            "method": "cash",
+            "amount": "1600.00",
+            "refund_reason": "Refund for cancelled Sputum line",
+        },
+        content_type="application/json",
+        HTTP_IDEMPOTENCY_KEY="mi-ref-line-cancel-1600",
+        headers=auth_headers(mi_setup["owner"]),
+    )
+    assert ref_resp.status_code == 201, ref_resp.content
+
+    # Check invoice detail: net_revenue 800, balance 0, status Paid
+    detail_resp = Client().get(
+        f"{INVOICES_URL}/{invoice_id}",
+        headers=auth_headers(mi_setup["owner"]),
+    )
+    assert detail_resp.status_code == 200
+    detail = detail_resp.json()
+    assert detail["total"] == "800.00"
+    assert detail["net_revenue"] == "800.00"
+    assert detail["balance"] == "0.00"
+    assert detail["status"] == "paid"
+
+
+@pytest.mark.django_db
+def test_fully_refunded_invoice_can_be_closed_after_void(
+    tenant_a: Any, mi_setup: dict[str, Any], auth_headers: Any
+) -> None:
+    """CN issued, voided, full refund 2,400.
+
+    Owner closes it to Cancelled, balance 0.
+    """
+    with tenant_context(tenant_a):
+        invoice = _paid_invoice(mi_setup, "2400.00")
+        invoice_id = invoice.id
+
+    # 1. Issue credit note 2,400
+    cn_resp = Client().post(
+        f"{INVOICES_URL}/{invoice_id}/credit-notes",
+        data={
+            "amount": "2400.00",
+            "reason": "Mistaken billing",
+            "method": "cash",
+        },
+        content_type="application/json",
+        HTTP_IDEMPOTENCY_KEY="mi-cn-close-2400",
+        headers=auth_headers(mi_setup["owner"]),
+    )
+    assert cn_resp.status_code == 201, cn_resp.content
+    note_id = cn_resp.json()["id"]
+
+    # 2. Void the credit note
+    void_resp = Client().post(
+        f"{INVOICES_URL}/{invoice_id}/credit-notes/{note_id}/void",
+        data={"reason": "Voiding credit note to allow proper refund"},
+        content_type="application/json",
+        headers=auth_headers(mi_setup["owner"]),
+    )
+    assert void_resp.status_code == 200, void_resp.content
+
+    # Sample drawn afterwards (proving terminal closure works even if a sample exists)
+    with tenant_context(tenant_a):
+        from tests.factories.samples import SampleFactory
+
+        SampleFactory(invoice=invoice, branch=mi_setup["branch"])
+
+    # 3. Full refund 2,400
+    ref_resp = Client().post(
+        f"{INVOICES_URL}/{invoice_id}/payments",
+        data={
+            "kind": "refund",
+            "method": "cash",
+            "amount": "2400.00",
+            "refund_reason": "Full refund after void",
+        },
+        content_type="application/json",
+        HTTP_IDEMPOTENCY_KEY="mi-ref-after-void-2400",
+        headers=auth_headers(mi_setup["owner"]),
+    )
+    assert ref_resp.status_code == 201, ref_resp.content
+
+    # 4. Owner closes it to Cancelled
+    close_resp = Client().post(
+        f"{INVOICES_URL}/{invoice_id}/cancel",
+        data={"reason": "Terminal closure after void and full refund"},
+        content_type="application/json",
+        headers=auth_headers(mi_setup["owner"]),
+    )
+    assert close_resp.status_code == 200, close_resp.content
+    assert close_resp.json()["status"] == "cancelled"
+
+    detail_resp = Client().get(
+        f"{INVOICES_URL}/{invoice_id}",
+        headers=auth_headers(mi_setup["owner"]),
+    )
+    assert detail_resp.status_code == 200
+    detail = detail_resp.json()
+    assert detail["status"] == "cancelled"
+    assert detail["balance"] == "0.00"
+    assert detail["net_revenue"] == "0.00"

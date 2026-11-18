@@ -72,6 +72,7 @@ from apps.billing.models import (
     DayClose,
     Invoice,
     InvoiceItem,
+    InvoiceLineCancelled,
     Payment,
 )
 from apps.branches.models import Branch
@@ -80,6 +81,7 @@ from apps.catalog.models import Panel, Test
 from apps.catalog.services import CatalogService
 from apps.partners.models import ReferralPartner
 from apps.patients.models import Patient
+from apps.results.models import Result
 from apps.samples.models import Sample
 
 BILLING_WRITE_ROLES = {Role.OWNER, Role.MANAGER, Role.RECEPTION}
@@ -194,6 +196,31 @@ class InvalidStateTransitionError(BillingError):
 class CancelReasonRequiredError(BillingError):
     status_code = 422
     error_code = "cancel_reason_required"
+
+
+class CancelNotPermittedError(BillingError):
+    status_code = 403
+    error_code = "forbidden"
+
+
+class DiscountLockedError(BillingError):
+    status_code = 409
+    error_code = "discount_locked"
+
+
+class InactiveReferralPartnerError(BillingError):
+    status_code = 422
+    error_code = "inactive_referral_partner"
+
+
+class ReferralDiscountRequiresPartnerError(BillingError):
+    status_code = 422
+    error_code = "referral_partner_required"
+
+
+class RefundReasonRequiredError(BillingError):
+    status_code = 422
+    error_code = "refund_reason_required"
 
 
 class CreditNoteNotPermittedError(BillingError):
@@ -329,6 +356,8 @@ class BillingService:
                 partner = ReferralPartner.objects.get(pk=referral_partner_id)
             except ReferralPartner.DoesNotExist:
                 raise BillingNotFoundError("Referral partner not found.") from None
+            if not partner.is_active:
+                raise InactiveReferralPartnerError("Referral partner is inactive.")
 
         # BL-3: discount gates (LAB-49 Phase 2.3). A discount above 25% of the
         # subtotal or above PKR 10,000 needs the Owner; a 100% discount is the
@@ -338,13 +367,21 @@ class BillingService:
                 raise DiscountNotPermittedError(
                     "Only a Manager or Owner may apply a discount."
                 )
-            if not discount_reason:
+            if not discount_reason or not discount_reason.strip():
                 raise DiscountReasonRequiredError(
                     "A discount requires a discount_reason."
                 )
-            # The partner is carried by the invoice's referral_partner_id, not
-            # inferred from the free-text reason; a referral discount is valid
-            # as long as the reason exists and the partner is on the invoice.
+            # Phase 6 Rule 4: a referral discount requires referral_partner_id
+            if referral_partner_id is None and (
+                "referral" in discount_reason.lower()
+                or "partner" in discount_reason.lower()
+                or ReferralPartner.objects.filter(
+                    name__iexact=discount_reason.strip()
+                ).exists()
+            ):
+                raise ReferralDiscountRequiresPartnerError(
+                    "A referral discount requires an active referral_partner_id."
+                )
 
         # BL-V2: merge duplicate same-kind lines by summing qty.
         merged: dict[tuple[str, uuid.UUID], int] = {}
@@ -531,6 +568,7 @@ def _canonical_payment_payload(
     method: str,
     amount: Decimal,
     reference: str | None,
+    refund_reason: str | None = None,
 ) -> str:
     """Deterministic payload fingerprint for BL-4 replay comparison on payments."""
     payload = {
@@ -539,6 +577,7 @@ def _canonical_payment_payload(
         "method": method,
         "amount": f"{amount:.2f}",
         "reference": reference,
+        "refund_reason": refund_reason,
     }
     return json.dumps(payload, sort_keys=True, separators=(",", ":"))
 
@@ -588,7 +627,7 @@ def _derive_invoice_status(
     net = paid_sum - refund_sum - credit_sum
     if paid_sum > Decimal("0.00") and net == Decimal("0.00"):
         return Invoice.Status.REFUNDED
-    if net == total:
+    if net >= total:
         return Invoice.Status.PAID
     if Decimal("0.00") < net < total:
         return Invoice.Status.PARTIAL
@@ -793,17 +832,21 @@ class PaymentService:
         # aggregates are computed INSIDE the transaction under an invoice row
         # lock, so concurrent requests cannot both slip under the cap
         # (security review 2026-11-12).
-        # BL-10: reference required for non-cash methods. Refunds must carry
-        # a reference OR the first-class refund_reason (the drawer sends the
-        # reason as refund_reason; reference stays the payment reference).
-        if (kind == Payment.Kind.REFUND and not reference and not refund_reason) or (
-            kind != Payment.Kind.REFUND
-            and method != Payment.Method.CASH
-            and not reference
-        ):
-            raise ReferenceRequiredError(
-                "A reference is required for non-cash payments and all refunds."
-            )
+        # Phase 6 Rule 3: Cash reference rule
+        if kind == Payment.Kind.REFUND:
+            if not refund_reason or not refund_reason.strip():
+                raise RefundReasonRequiredError(
+                    "A refund reason is required for all refunds."
+                )
+            if method != Payment.Method.CASH and not reference:
+                raise ReferenceRequiredError(
+                    "A reference is required for non-cash refunds."
+                )
+        else:
+            if method != Payment.Method.CASH and not reference:
+                raise ReferenceRequiredError(
+                    "A reference is required for non-cash payments."
+                )
 
         payload_hash = hashlib.sha256(
             _canonical_payment_payload(
@@ -812,6 +855,7 @@ class PaymentService:
                 method=method,
                 amount=amount,
                 reference=reference,
+                refund_reason=refund_reason,
             ).encode("utf-8")
         ).hexdigest()
 
@@ -886,6 +930,10 @@ class PaymentService:
                 if net_revenue_now + amount > invoice.total:
                     raise OverpaymentError("Payment would exceed the invoice total.")
             elif kind == Payment.Kind.REFUND:
+                if amount <= Decimal("0.00") or net_revenue_now <= Decimal("0.00"):
+                    raise RefundExceedsPaymentsError(
+                        "Refund requires amount > 0 and net_paid > 0."
+                    )
                 net_by_method = get_net_paid_by_method(invoice)
                 available_m = net_by_method.get(method, Decimal("0.00"))
                 if amount <= Decimal("0.00") or amount > available_m:
@@ -1185,20 +1233,46 @@ class InvoiceQueryService:
                 )
             except (Invoice.DoesNotExist, ValidationError):
                 raise BillingNotFoundError("Invoice not found.") from None
-            if invoice.status != Invoice.Status.UNPAID:
-                raise InvalidStateTransitionError(
-                    "Only unpaid invoices can be cancelled."
-                )
-            collected = (
-                Sample.objects.filter(invoice=invoice)
-                .exclude(status=Sample.Status.CANCELLED)
-                .exists()
+            if actor.role not in DISCOUNT_ROLES and actor.role != Role.RECEPTION:
+                raise CancelNotPermittedError("Not permitted to cancel this invoice.")
+
+            paid_sum, refund_sum = _payment_aggregates(invoice)
+            credit_sum = _credit_note_sum(invoice)
+            net_rev = paid_sum - refund_sum - credit_sum
+
+            unpaid_case = invoice.status == Invoice.Status.UNPAID
+            zero_total_case = (
+                invoice.total == Decimal("0.00")
+                and not Payment.objects.filter(invoice=invoice).exists()
             )
-            if collected:
-                raise InvalidStateTransitionError(
-                    "Cannot cancel: a sample has already been collected "
-                    "against this invoice."
+            has_voided_cn = CreditNote.objects.filter(
+                invoice=invoice, voided_at__isnull=False
+            ).exists()
+            has_approved_result = Result.objects.filter(
+                sample__invoice=invoice, status=Result.Status.APPROVED
+            ).exists()
+            terminal_case = (
+                net_rev == Decimal("0.00") and has_voided_cn and not has_approved_result
+            )
+
+            if invoice.status == Invoice.Status.CANCELLED:
+                raise InvalidStateTransitionError("This invoice is already cancelled.")
+
+            if not (unpaid_case or zero_total_case or terminal_case):
+                raise InvalidStateTransitionError("This invoice cannot be cancelled.")
+
+            if (unpaid_case or zero_total_case) and not terminal_case:
+                collected = (
+                    Sample.objects.filter(invoice=invoice)
+                    .exclude(status=Sample.Status.CANCELLED)
+                    .exists()
                 )
+                if collected:
+                    raise InvalidStateTransitionError(
+                        "Cannot cancel: a sample has already been collected "
+                        "against this invoice."
+                    )
+            old_status = invoice.status
             invoice.status = Invoice.Status.CANCELLED
             invoice.save(update_fields=["status", "updated_at"])
             AuditLog.objects.create(
@@ -1206,11 +1280,264 @@ class InvoiceQueryService:
                 action="invoice.cancelled",
                 entity_type="invoice",
                 entity_id=invoice.id,
-                before_jsonb={"status": Invoice.Status.UNPAID.value},
+                before_jsonb={"status": old_status},
                 after_jsonb={
                     "event": "invoice.cancelled",
                     "status": Invoice.Status.CANCELLED.value,
                     "reason": reason.strip(),
+                },
+                ip=ip,
+                user_agent=user_agent,
+            )
+            return invoice
+
+    @staticmethod
+    def cancel_line(
+        *,
+        invoice_id: uuid.UUID,
+        item_id: uuid.UUID,
+        reason: str | None,
+        actor: StaffUser,
+        ip: str | None = None,
+        user_agent: str | None = None,
+    ) -> Invoice:
+        """Cancel an unperformed invoice line (Phase 6 Rule 6)."""
+        if actor.role not in DISCOUNT_ROLES:
+            raise CancelNotPermittedError(
+                "Only an Owner or Manager may cancel an invoice line."
+            )
+        if not reason or not reason.strip():
+            raise CancelReasonRequiredError(
+                "A reason is required to cancel an invoice line."
+            )
+
+        with transaction.atomic():
+            try:
+                invoice = (
+                    Invoice.objects.scoped_to(actor)
+                    .select_for_update()
+                    .get(pk=invoice_id)
+                )
+            except (Invoice.DoesNotExist, ValidationError):
+                raise BillingNotFoundError("Invoice not found.") from None
+
+            if invoice.status in {Invoice.Status.CANCELLED, Invoice.Status.REFUNDED}:
+                raise InvalidStateTransitionError(
+                    "Cannot cancel lines on a closed or cancelled invoice."
+                )
+
+            try:
+                item = InvoiceItem.objects.select_for_update().get(
+                    pk=item_id, invoice=invoice
+                )
+            except (InvoiceItem.DoesNotExist, ValidationError):
+                raise BillingNotFoundError("Invoice line not found.") from None
+
+            if item.is_cancelled:
+                raise InvalidStateTransitionError(
+                    "This invoice line is already cancelled."
+                )
+
+            from apps.samples.models import SampleTest
+
+            has_sample = (
+                SampleTest.objects.filter(invoice_item_id=item.id)
+                .exclude(sample__status=Sample.Status.CANCELLED)
+                .exists()
+            )
+            has_result = (
+                item.test_id is not None
+                and Result.objects.filter(sample__invoice=invoice, test_id=item.test_id)
+                .exclude(status=Result.Status.WITHDRAWN)
+                .exists()
+            )
+            if has_sample or has_result:
+                raise InvalidStateTransitionError(
+                    "Cannot cancel line: a sample has been collected or result exists."
+                )
+
+            item.is_cancelled = True
+            item.save(update_fields=["is_cancelled"])
+
+            InvoiceLineCancelled.objects.create(
+                invoice=invoice,
+                item=item,
+                cancelled_by=actor,
+                reason=reason.strip(),
+                amount_removed=item.line_total,
+            )
+
+            new_subtotal = (invoice.subtotal - item.line_total).quantize(
+                Decimal("0.01")
+            )
+            if invoice.discount_amount > new_subtotal:
+                raise DiscountExceedsSubtotalError(
+                    "Discount amount must never exceed the new subtotal."
+                )
+            new_total = (new_subtotal - invoice.discount_amount).quantize(
+                Decimal("0.01")
+            )
+            invoice.subtotal = new_subtotal
+            invoice.total = new_total
+
+            paid_sum, refund_sum = _payment_aggregates(invoice)
+            credit_sum = _credit_note_sum(invoice)
+            invoice.status = _derive_invoice_status(
+                total=new_total,
+                paid_sum=paid_sum,
+                refund_sum=refund_sum,
+                credit_sum=credit_sum,
+            )
+            invoice.save(update_fields=["subtotal", "total", "status", "updated_at"])
+
+            AuditLog.objects.create(
+                actor_id=actor.id,
+                action="invoice.line_cancelled",
+                entity_type="invoice",
+                entity_id=invoice.id,
+                before_jsonb={"subtotal": f"{new_subtotal + item.line_total:.2f}"},
+                after_jsonb={
+                    "event": "invoice.line_cancelled",
+                    "item_id": str(item.id),
+                    "amount_removed": f"{item.line_total:.2f}",
+                    "new_subtotal": f"{new_subtotal:.2f}",
+                    "new_total": f"{new_total:.2f}",
+                    "reason": reason.strip(),
+                },
+                ip=ip,
+                user_agent=user_agent,
+            )
+            return invoice
+
+    @staticmethod
+    def update_invoice(
+        *,
+        invoice_id: uuid.UUID,
+        actor: StaffUser,
+        discount_amount: Decimal | None = None,
+        discount_reason: str | None = None,
+        referral_partner_id: uuid.UUID | None = None,
+        ip: str | None = None,
+        user_agent: str | None = None,
+    ) -> Invoice:
+        """Update discount or referral partner under strict Phase 6 rules."""
+        with transaction.atomic():
+            try:
+                invoice = (
+                    Invoice.objects.scoped_to(actor)
+                    .select_for_update()
+                    .get(pk=invoice_id)
+                )
+            except (Invoice.DoesNotExist, ValidationError):
+                raise BillingNotFoundError("Invoice not found.") from None
+
+            has_payments = Payment.objects.filter(invoice=invoice).exists()
+
+            before_dict = {
+                "discount_amount": f"{invoice.discount_amount:.2f}",
+                "discount_reason": invoice.discount_reason,
+                "total": f"{invoice.total:.2f}",
+                "referral_partner_id": (
+                    str(invoice.referral_partner_id)
+                    if invoice.referral_partner_id
+                    else None
+                ),
+            }
+
+            if (
+                referral_partner_id is not None
+                and referral_partner_id != invoice.referral_partner_id
+            ):
+                # Phase 6 Rule 5: Referral snapshot immutability
+                if has_payments or invoice.discount_amount > Decimal("0.00"):
+                    raise InvalidStateTransitionError(
+                        "Referral partner snapshot is immutable once a discount "
+                        "or payment exists."
+                    )
+                try:
+                    partner = ReferralPartner.objects.get(pk=referral_partner_id)
+                except ReferralPartner.DoesNotExist:
+                    raise BillingNotFoundError("Referral partner not found.") from None
+                if not partner.is_active:
+                    raise InactiveReferralPartnerError("Referral partner is inactive.")
+                invoice.referral_partner = partner
+
+            if discount_amount is not None:
+                # Phase 6 Rule 1: Discount lock
+                if has_payments or invoice.status in {
+                    Invoice.Status.PAID,
+                    Invoice.Status.CANCELLED,
+                }:
+                    raise DiscountLockedError(
+                        "Discount is locked once payments exist or invoice is closed."
+                    )
+                if actor.role not in DISCOUNT_ROLES:
+                    raise DiscountNotPermittedError(
+                        "Only a Manager or Owner may apply a discount."
+                    )
+                if discount_amount > Decimal("0.00"):
+                    if not discount_reason or not discount_reason.strip():
+                        raise DiscountReasonRequiredError(
+                            "A discount requires a discount_reason."
+                        )
+                    if discount_amount > invoice.subtotal:
+                        raise DiscountExceedsSubtotalError(
+                            "Discount cannot exceed the invoice subtotal."
+                        )
+                    if (
+                        discount_amount > Decimal("10000.00")
+                        or discount_amount > invoice.subtotal * Decimal("0.25")
+                        or discount_amount == invoice.subtotal
+                    ) and actor.role != Role.OWNER:
+                        raise DiscountNotPermittedError(
+                            "Discount requires Owner approval."
+                        )
+
+                    # Phase 6 Rule 4: Referral discount requires active partner
+                    if (
+                        "referral" in discount_reason.lower()
+                        or "partner" in discount_reason.lower()
+                        or ReferralPartner.objects.filter(
+                            name__iexact=discount_reason.strip()
+                        ).exists()
+                    ) and invoice.referral_partner_id is None:
+                        raise ReferralDiscountRequiresPartnerError(
+                            "Referral discounts require an active referral_partner_id."
+                        )
+
+                invoice.discount_amount = discount_amount
+                invoice.discount_reason = (
+                    discount_reason.strip() if discount_reason else None
+                )
+                invoice.total = (invoice.subtotal - discount_amount).quantize(
+                    Decimal("0.01")
+                )
+                paid_sum, refund_sum = _payment_aggregates(invoice)
+                credit_sum = _credit_note_sum(invoice)
+                invoice.status = _derive_invoice_status(
+                    total=invoice.total,
+                    paid_sum=paid_sum,
+                    refund_sum=refund_sum,
+                    credit_sum=credit_sum,
+                )
+
+            invoice.save()
+            AuditLog.objects.create(
+                actor_id=actor.id,
+                action="invoice.updated",
+                entity_type="invoice",
+                entity_id=invoice.id,
+                before_jsonb=before_dict,
+                after_jsonb={
+                    "event": "invoice.updated",
+                    "discount_amount": f"{invoice.discount_amount:.2f}",
+                    "discount_reason": invoice.discount_reason,
+                    "total": f"{invoice.total:.2f}",
+                    "referral_partner_id": (
+                        str(invoice.referral_partner_id)
+                        if invoice.referral_partner_id
+                        else None
+                    ),
                 },
                 ip=ip,
                 user_agent=user_agent,
@@ -1335,10 +1662,14 @@ class CreditNoteService:
             paid_sum = agg["paid"] or Decimal("0.00")
             refund_sum = agg["refunded"] or Decimal("0.00")
             net_paid = paid_sum - refund_sum
+            if amount <= Decimal("0.00") or net_paid <= Decimal("0.00"):
+                raise CreditNoteExceedsNetPaidError(
+                    "Credit note requires amount > 0 and net_paid > 0."
+                )
             if invoice.status not in {
                 Invoice.Status.PAID,
                 Invoice.Status.PARTIAL,
-            } or net_paid <= Decimal("0.00"):
+            }:
                 raise InvalidStateTransitionError(
                     "Only a paid or partially paid invoice can take a credit note."
                 )

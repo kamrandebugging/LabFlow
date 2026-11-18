@@ -11,6 +11,7 @@ from apps.billing.views import (
     InvoiceCollectionView,
     InvoiceDetailView,
     InvoiceHistoryView,
+    InvoiceLineCancelView,
     PaymentCreateView,
 )
 
@@ -22,14 +23,24 @@ urlpatterns = [
         name="invoice-collection-slash",
     ),
     path(
-        "invoices/<uuid:invoice_id>/cancel",
+        "invoices/<str:invoice_id>/cancel",
         InvoiceCancelView.as_view(),
         name="invoice-cancel",
     ),
     path(
-        "invoices/<uuid:invoice_id>/cancel/",
+        "invoices/<str:invoice_id>/cancel/",
         InvoiceCancelView.as_view(),
         name="invoice-cancel-slash",
+    ),
+    path(
+        "invoices/<str:invoice_id>/lines/<str:line_id>/cancel",
+        InvoiceLineCancelView.as_view(),
+        name="invoice-line-cancel",
+    ),
+    path(
+        "invoices/<str:invoice_id>/lines/<str:line_id>/cancel/",
+        InvoiceLineCancelView.as_view(),
+        name="invoice-line-cancel-slash",
     ),
     path(
         "invoices/<str:invoice_id>",

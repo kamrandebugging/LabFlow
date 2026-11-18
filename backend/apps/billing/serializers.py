@@ -116,6 +116,7 @@ class InvoiceItemSerializer(serializers.Serializer):
     unit_price = MoneyField()
     quantity = serializers.IntegerField()
     line_total = MoneyField()
+    is_cancelled = serializers.BooleanField(default=False)
 
 
 class InvoiceSerializer(serializers.Serializer):
@@ -304,6 +305,30 @@ class DayCloseReadSerializer(serializers.Serializer):
 
 class InvoiceCancelSerializer(serializers.Serializer):
     """Body for POST /invoices/{id}/cancel — reason required (BL-8)."""
+
+    reason = serializers.CharField(
+        required=True, allow_blank=False, trim_whitespace=True
+    )
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        return _reject_unknown_fields(self, attrs)
+
+
+class InvoiceUpdateSerializer(serializers.Serializer):
+    """Body for PATCH /invoices/{id} — update discount or referral partner."""
+
+    discount_amount = MoneyField(required=False)
+    discount_reason = serializers.CharField(
+        required=False, allow_null=True, allow_blank=True, trim_whitespace=True
+    )
+    referral_partner_id = serializers.UUIDField(required=False, allow_null=True)
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        return _reject_unknown_fields(self, attrs)
+
+
+class InvoiceLineCancelSerializer(serializers.Serializer):
+    """Body for POST /invoices/{id}/lines/{line_id}/cancel — reason required."""
 
     reason = serializers.CharField(
         required=True, allow_blank=False, trim_whitespace=True
