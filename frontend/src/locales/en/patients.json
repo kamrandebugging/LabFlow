@@ -62,7 +62,9 @@
     },
     "errors": {
       "failed": "Failed to register patient."
-    }
+    },
+    "referred_by": "Referred by",
+    "walk_in": "Walk-in / Self"
   },
   "details": {
     "active": "ACTIVE",

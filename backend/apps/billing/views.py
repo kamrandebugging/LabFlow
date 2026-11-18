@@ -437,6 +437,7 @@ class InvoiceDetailView(APIView):
             "branch_id": invoice.branch_id,
             "branch_name": invoice.branch.name,
             "referral_partner_id": invoice.referral_partner_id,
+            "referral_partner_name": getattr(invoice.referral_partner, "name", None),
             "status": invoice.status,
             "subtotal": invoice.subtotal,
             "discount_amount": invoice.discount_amount,
@@ -534,6 +535,7 @@ class InvoiceHistoryView(APIView):
                 "at": created_at.isoformat(),
                 "actor": created_actor,
                 "amount": f"{invoice.total:.2f}",
+                "referral_partner": getattr(invoice.referral_partner, "name", None),
             }
         )
         if invoice.discount_amount > Decimal("0.00"):

@@ -304,6 +304,15 @@ class BillingService:
                 raise DiscountReasonRequiredError(
                     "A discount requires a discount_reason."
                 )
+            # A referral discount must name the partner it is attributed to;
+            # the partner itself never carries a commission here.
+            if partner is not None and partner.name.strip().casefold() not in (
+                " ".join(discount_reason.split()).casefold()
+            ):
+                raise DiscountReasonRequiredError(
+                    "A referral discount requires a discount_reason naming "
+                    f"the referral partner ({partner.name})."
+                )
 
         # BL-V2: merge duplicate same-kind lines by summing qty.
         merged: dict[tuple[str, uuid.UUID], int] = {}
@@ -908,6 +917,7 @@ class InvoiceQueryService:
                 Invoice.objects.scoped_to(actor)
                 .select_related("patient", "branch")
                 .prefetch_related("items", "payments")
+                .select_related("referral_partner")
                 .get(pk=invoice_id)
             )
         except (Invoice.DoesNotExist, ValidationError):

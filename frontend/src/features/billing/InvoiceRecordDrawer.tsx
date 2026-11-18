@@ -398,6 +398,17 @@ export function InvoiceRecordDrawer({
                     </div>
                     <div>
                       <p className={record.fieldLabel}>
+                        {t("billing:detail.referred_by")}
+                      </p>
+                      <p className={record.fieldValue}>
+                        {invoice.referral_partner_name ||
+                          (invoice.referral_partner_id
+                            ? t("billing:detail.referral_partner_selected")
+                            : t("billing:detail.walk_in"))}
+                      </p>
+                    </div>
+                    <div>
+                      <p className={record.fieldLabel}>
                         {t("billing:detail.balance_due")}
                       </p>
                       <p className={record.fieldValue} dir="ltr">
@@ -695,6 +706,7 @@ export function InvoiceRecordDrawer({
                         <div className={record.note}>
                           {[
                             ev.amount ? formatMoney(ev.amount, "en") : null,
+                            ev.referral_partner,
                             ev.actor,
                             ev.reason,
                           ]

@@ -13,6 +13,8 @@ import { catalogService } from "../catalog/catalogService";
 import type { DiagnosticPanel, DiagnosticTest } from "../catalog/types";
 import { patientService } from "../patients/patientService";
 import type { PatientSummary } from "../patients/types";
+import { partnersService } from "../partners/partnersService";
+import type { ReferralPartner } from "../partners/types";
 import { billingService } from "./billingService";
 import { SearchSelect } from "./SearchSelect";
 import { formatMoney } from "../../lib/format";
@@ -78,6 +80,10 @@ export function NewInvoiceScreen({
   const [discountAmount, setDiscountAmount] = useState<string>("0");
   const [discountReason, setDiscountReason] = useState<string>("");
 
+  // Referral: the patient's partner carries onto the invoice and can be changed.
+  const [partners, setPartners] = useState<ReferralPartner[]>([]);
+  const [referralPartnerId, setReferralPartnerId] = useState<string>("");
+
   // Submission & Feedback
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -109,6 +115,27 @@ export function NewInvoiceScreen({
       active = false;
     };
   }, [t]);
+
+  // Referral partners: the patient's partner carries onto the invoice, and
+  // the operator can change it before the invoice is created.
+  useEffect(() => {
+    let active = true;
+    partnersService
+      .getPartners()
+      .then((rows) => {
+        if (active) setPartners(rows.filter((p) => p.is_active));
+      })
+      .catch(() => {
+        // The picker degrades to Walk-in only; the server still validates.
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    setReferralPartnerId(selectedPatient?.referral_partner_id ?? "");
+  }, [selectedPatient]);
 
   // Pre-load patient if initialPatientId passed
   useEffect(() => {
@@ -237,6 +264,17 @@ export function NewInvoiceScreen({
       setErrorMessage(t("billing:new.error_discount_reason"));
       return;
     }
+    const partnerName = partners.find((p) => p.id === referralPartnerId)?.name;
+    if (
+      partnerName &&
+      discountVal > 0 &&
+      !discountReason.toLowerCase().includes(partnerName.trim().toLowerCase())
+    ) {
+      setErrorMessage(
+        t("billing:new.error_referral_reason", { name: partnerName }),
+      );
+      return;
+    }
     if (discountVal > subtotal) {
       setErrorMessage(t("billing:new.error_discount_exceeds"));
       return;
@@ -253,6 +291,7 @@ export function NewInvoiceScreen({
       const created = await billingService.createInvoice({
         patient_id: selectedPatient.id,
         branch_id: selectedPatient.branch_id,
+        referral_partner_id: referralPartnerId || null,
         items: invoiceItems,
         discount_amount: discountVal > 0 ? discountVal.toFixed(2) : "0.00",
         discount_reason: discountVal > 0 ? discountReason.trim() : null,
@@ -592,6 +631,24 @@ export function NewInvoiceScreen({
 
             {/* 3. DISCOUNTS SECTION */}
             <div className={styles.section}>
+              <div className={styles.field} style={{ marginBottom: 12 }}>
+                <label htmlFor="referralPartner" className={styles.label}>
+                  {t("billing:new.referred_by")}
+                </label>
+                <select
+                  id="referralPartner"
+                  value={referralPartnerId}
+                  onChange={(e) => setReferralPartnerId(e.target.value)}
+                  className={styles.input}
+                >
+                  <option value="">{t("billing:new.walk_in")}</option>
+                  {partners.map((partner) => (
+                    <option key={partner.id} value={partner.id}>
+                      {partner.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
               <div className={styles.grid2}>
                 <div className={styles.field}>
                   <label htmlFor={discountAmountId} className={styles.label}>

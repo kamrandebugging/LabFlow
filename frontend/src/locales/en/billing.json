@@ -69,7 +69,10 @@
     "error_patient_required": "Please select a patient for this invoice.",
     "error_items_required": "Please add at least one test or diagnostic panel.",
     "error_discount_reason": "A discount reason is required when a discount is applied.",
-    "error_discount_exceeds": "Discount amount cannot exceed the subtotal."
+    "error_discount_exceeds": "Discount amount cannot exceed the subtotal.",
+    "referred_by": "Referred by",
+    "walk_in": "Walk-in / Self",
+    "error_referral_reason": "The discount reason must name the referral partner ({{name}})."
   },
   "detail": {
     "type_badge": "Invoice",
@@ -180,7 +183,10 @@
       "credit_note": "Credit note issued",
       "cancel": "Invoice cancelled",
       "discount": "Discount applied"
-    }
+    },
+    "referred_by": "Referred by",
+    "walk_in": "Walk-in / Self",
+    "referral_partner_selected": "Referral partner"
   },
   "print": {
     "patient_label": "Patient",

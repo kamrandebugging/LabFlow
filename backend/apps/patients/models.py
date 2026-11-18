@@ -38,6 +38,15 @@ class Patient(models.Model):
     phone = models.TextField()
     sex = models.TextField(choices=Sex.choices)
     date_of_birth = models.DateField(null=True, blank=True)
+    referral_partner = models.ForeignKey(
+        "partners.ReferralPartner",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="patients",
+        db_column="referral_partner_id",
+        db_index=False,
+    )
     created_at = models.DateTimeField(
         auto_now_add=True,
         db_default=Now(),
@@ -64,6 +73,10 @@ class Patient(models.Model):
             models.Index(
                 fields=["branch"],
                 name="idx_patient_branch_id",
+            ),
+            models.Index(
+                fields=["referral_partner"],
+                name="idx_patient_referral_partner_id",
             ),
             GinIndex(
                 fields=["name"],

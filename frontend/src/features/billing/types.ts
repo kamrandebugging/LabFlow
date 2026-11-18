@@ -66,6 +66,7 @@ export interface InvoiceHistoryEvent {
   amount?: string | null;
   reason?: string | null;
   number?: string | null;
+  referral_partner?: string | null;
 }
 
 export interface CreditNote {
@@ -115,6 +116,7 @@ export interface InvoiceDetail {
   branch_id: string;
   branch_name?: string;
   referral_partner_id?: string | null;
+  referral_partner_name?: string | null;
   status: InvoiceStatus;
   subtotal: string;
   discount_amount: string;

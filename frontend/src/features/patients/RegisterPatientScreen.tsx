@@ -16,6 +16,8 @@ import { useDialogFocus } from "../../lib/dialogFocus";
 import { FadeValue } from "../../components/ui/FadeValue";
 import styles from "./PatientForm.module.css";
 import { DuplicatePatientError, patientService } from "./patientService";
+import { partnersService } from "../partners/partnersService";
+import type { ReferralPartner } from "../partners/types";
 import { VeylaDrawer as PatientRegisterDrawer } from "./VeylaDrawer";
 import { calculatePatientAge } from "./patientAge";
 import type {
@@ -69,6 +71,9 @@ export const RegisterPatientScreen: React.FC<RegisterPatientScreenProps> = ({
   const [dateOfBirth, setDateOfBirth] = useState("");
   const [whatsappNumber, setWhatsappNumber] = useState("");
   const [consentReports, setConsentReports] = useState(false);
+  // Referral link: walk-in by default, otherwise the existing partner master.
+  const [partners, setPartners] = useState<ReferralPartner[]>([]);
+  const [referralPartnerId, setReferralPartnerId] = useState<string>("");
 
   const [isLoading, setIsLoading] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -121,6 +126,22 @@ export const RegisterPatientScreen: React.FC<RegisterPatientScreenProps> = ({
   useEffect(() => {
     if (savedPatient) successRef.current?.focus();
   }, [savedPatient]);
+
+  // Referral partners for the "Referred by" picker (Walk-in when empty).
+  useEffect(() => {
+    let active = true;
+    partnersService
+      .getPartners()
+      .then((rows) => {
+        if (active) setPartners(rows.filter((p) => p.is_active));
+      })
+      .catch(() => {
+        // Degrade to Walk-in only; the server still validates the id.
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const nameError = useMemo(() => {
     const trimmed = name.trim();
@@ -194,6 +215,7 @@ export const RegisterPatientScreen: React.FC<RegisterPatientScreenProps> = ({
         sex,
         date_of_birth: dateOfBirth || null,
         branch_id: branchId,
+        referral_partner_id: referralPartnerId || null,
         whatsapp_number: whatsappNumber
           ? normalisePhoneInput(whatsappNumber)
           : undefined,
@@ -423,6 +445,27 @@ export const RegisterPatientScreen: React.FC<RegisterPatientScreenProps> = ({
           className={`${styles.input} ${styles.inputDate}`}
         />
         <p className={styles.hint}>{t("patients:register.dob_hint")}</p>
+      </div>
+
+      {/* Referred by */}
+      <div className={styles.field}>
+        <label htmlFor="referralPartner" className={styles.label}>
+          {t("patients:register.referred_by")}
+        </label>
+        <select
+          id="referralPartner"
+          value={referralPartnerId}
+          onChange={(e) => setReferralPartnerId(e.target.value)}
+          className={styles.input}
+          disabled={isLoading}
+        >
+          <option value="">{t("patients:register.walk_in")}</option>
+          {partners.map((partner) => (
+            <option key={partner.id} value={partner.id}>
+              {partner.name}
+            </option>
+          ))}
+        </select>
       </div>
     </section>
   );
