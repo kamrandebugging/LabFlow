@@ -28,6 +28,7 @@ from apps.patients.serializers import (
 from apps.patients.services import (
     BranchScopeDeniedError,
     IdentityEditForbiddenError,
+    OpenInvoicesExistError,
     PatientNotFoundError,
     PatientService,
     PossibleDuplicateError,
@@ -292,6 +293,16 @@ class PatientDetailView(APIView):
                     }
                 },
                 status=status.HTTP_404_NOT_FOUND,
+            )
+        except OpenInvoicesExistError as exc:
+            return Response(
+                {
+                    "error": {
+                        "code": "open_invoices_exist",
+                        "message": str(exc),
+                    }
+                },
+                status=status.HTTP_409_CONFLICT,
             )
         except SamplesInFlightError as exc:
             return Response(

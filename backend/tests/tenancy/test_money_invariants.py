@@ -1712,3 +1712,210 @@ def test_sample_collect_and_cancel_race(
             assert len(collected_samples) > 0
             assert outcomes["collect"] == "collected"
             assert outcomes["cancel"] == "invalid_state_transition"
+
+
+@pytest.mark.django_db
+def test_patient_search_is_tenant_wide_invoices_are_branch_scoped(
+    tenant_a: Any, mi_setup: dict[str, Any], auth_headers: Any
+) -> None:
+    """Patient search is tenant-wide across branches; invoices are branch-scoped."""
+    with tenant_context(tenant_a):
+        br1 = mi_setup["branch"]
+        br2 = BranchFactory(code="BR2", name="Branch Two")
+        recep_br2 = StaffUserFactory(
+            role=Role.RECEPTION, branch=br2, email="recep_br2@t.com"
+        )
+        StaffBranch.objects.create(staff_user=recep_br2, branch=br2, is_primary=True)
+
+        # Patient registered at br1
+        pat = PatientFactory(branch=br1, phone="+923001234567", name="Tenant Patient")
+        inv_br1 = InvoiceFactory(
+            patient=pat,
+            branch=br1,
+            status=Invoice.Status.UNPAID,
+            subtotal=Decimal("500.00"),
+            total=Decimal("500.00"),
+        )
+        inv_br1_id = inv_br1.id
+
+    # Recep from br2 searches for patient by phone -> 200 and finds patient
+    search_resp = Client().get(
+        "/api/v1/patients",
+        {"q": pat.phone},
+        headers=auth_headers(recep_br2),
+    )
+    assert search_resp.status_code == 200
+    results = search_resp.json()
+    assert any(p["id"] == str(pat.id) for p in results)
+
+    # Recep from br2 tries to GET br1's invoice -> 404 (strictly branch scoped)
+    inv_resp = Client().get(
+        f"{INVOICES_URL}/{inv_br1_id}",
+        headers=auth_headers(recep_br2),
+    )
+    assert inv_resp.status_code == 404
+
+
+@pytest.mark.django_db
+def test_pathologist_cross_branch_read_only(
+    tenant_a: Any, mi_setup: dict[str, Any], auth_headers: Any
+) -> None:
+    """Pathologist GET on another branch's invoice -> 200; POST payment -> 403."""
+    with tenant_context(tenant_a):
+        br1 = mi_setup["branch"]
+        br2 = BranchFactory(code="BR2", name="Branch Two")
+        pathologist = StaffUserFactory(
+            role=Role.PATHOLOGIST, branch=br2, email="patho@t.com"
+        )
+        StaffBranch.objects.create(staff_user=pathologist, branch=br2, is_primary=True)
+
+        inv_br1 = InvoiceFactory(
+            patient=mi_setup["patient"],
+            branch=br1,
+            status=Invoice.Status.UNPAID,
+            subtotal=Decimal("500.00"),
+            total=Decimal("500.00"),
+        )
+        inv_id = inv_br1.id
+
+    # Pathologist GET on br1's invoice -> 200 (clinical context read)
+    get_resp = Client().get(
+        f"{INVOICES_URL}/{inv_id}",
+        headers=auth_headers(pathologist),
+    )
+    assert get_resp.status_code == 200
+
+    # Pathologist POST payment on invoice -> 403 (forbidden for billing writes)
+    post_resp = Client().post(
+        f"{INVOICES_URL}/{inv_id}/payments",
+        data={"kind": "payment", "method": "cash", "amount": "500.00"},
+        content_type="application/json",
+        HTTP_IDEMPOTENCY_KEY="mi-patho-pay-1",
+        headers=auth_headers(pathologist),
+    )
+    assert post_resp.status_code == 403
+
+
+@pytest.mark.django_db
+def test_disabled_role_rejected_mid_session(
+    tenant_a: Any, mi_setup: dict[str, Any], auth_headers: Any
+) -> None:
+    """Platform disables Manager while session live -> next request 403."""
+    with tenant_context(tenant_a):
+        manager = StaffUserFactory(
+            role=Role.MANAGER, branch=mi_setup["branch"], email="mgr_live@t.com"
+        )
+        StaffBranch.objects.create(
+            staff_user=manager, branch=mi_setup["branch"], is_primary=True
+        )
+        tenant_a.enabled_roles = ["owner", "manager", "reception"]
+        tenant_a.save()
+
+    # Manager makes a valid request -> 200
+    r1 = Client().get(
+        f"{INVOICES_URL}",
+        headers=auth_headers(manager),
+    )
+    assert r1.status_code == 200
+
+    # Platform disables Manager
+    with tenant_context(tenant_a):
+        tenant_a.enabled_roles = ["owner", "reception"]
+        tenant_a.save()
+
+    # Manager's very next request with same session token -> 403
+    r2 = Client().get(
+        f"{INVOICES_URL}",
+        headers=auth_headers(manager),
+    )
+    assert r2.status_code == 403
+
+
+@pytest.mark.django_db
+def test_soft_delete_blocked_with_open_invoice(
+    tenant_a: Any, mi_setup: dict[str, Any], auth_headers: Any
+) -> None:
+    """Patient with Partial invoice -> soft-delete 409 open_invoices_exist."""
+    with tenant_context(tenant_a):
+        patient = PatientFactory(branch=mi_setup["branch"])
+        inv = InvoiceFactory(
+            patient=patient,
+            branch=mi_setup["branch"],
+            status=Invoice.Status.PARTIAL,
+            subtotal=Decimal("1000.00"),
+            total=Decimal("1000.00"),
+        )
+        PaymentFactory(
+            invoice=inv,
+            kind=Payment.Kind.PAYMENT,
+            method=Payment.Method.CASH,
+            amount=Decimal("400.00"),
+            received_by=mi_setup["owner"],
+        )
+        pat_id = patient.id
+
+    del_resp = Client().delete(
+        f"/api/v1/patients/{pat_id}",
+        headers=auth_headers(mi_setup["owner"]),
+    )
+    assert del_resp.status_code == 409
+    assert del_resp.json()["error"]["code"] == "open_invoices_exist"
+
+
+@pytest.mark.django_db
+def test_idempotency_scoped_per_invoice(
+    tenant_a: Any, mi_setup: dict[str, Any], auth_headers: Any
+) -> None:
+    """Same key on two different invoices -> both succeed;
+    same key + changed amount on same invoice -> 409.
+    """
+    with tenant_context(tenant_a):
+        inv1 = InvoiceFactory(
+            patient=mi_setup["patient"],
+            branch=mi_setup["branch"],
+            status=Invoice.Status.UNPAID,
+            subtotal=Decimal("1000.00"),
+            total=Decimal("1000.00"),
+        )
+        inv2 = InvoiceFactory(
+            patient=mi_setup["patient"],
+            branch=mi_setup["branch"],
+            status=Invoice.Status.UNPAID,
+            subtotal=Decimal("1000.00"),
+            total=Decimal("1000.00"),
+        )
+        inv1_id = inv1.id
+        inv2_id = inv2.id
+
+    shared_key = "mi-scoped-idem-key-123"
+
+    # Payment on inv1 with shared_key -> 201
+    p1 = Client().post(
+        f"{INVOICES_URL}/{inv1_id}/payments",
+        data={"kind": "payment", "method": "cash", "amount": "500.00"},
+        content_type="application/json",
+        HTTP_IDEMPOTENCY_KEY=shared_key,
+        headers=auth_headers(mi_setup["owner"]),
+    )
+    assert p1.status_code == 201, p1.content
+
+    # Payment on inv2 with SAME shared_key -> 201 (scoped per invoice!)
+    p2 = Client().post(
+        f"{INVOICES_URL}/{inv2_id}/payments",
+        data={"kind": "payment", "method": "cash", "amount": "500.00"},
+        content_type="application/json",
+        HTTP_IDEMPOTENCY_KEY=shared_key,
+        headers=auth_headers(mi_setup["owner"]),
+    )
+    assert p2.status_code == 201, p2.content
+
+    # Payment on inv1 with same shared_key but CHANGED amount -> 409
+    p3 = Client().post(
+        f"{INVOICES_URL}/{inv1_id}/payments",
+        data={"kind": "payment", "method": "cash", "amount": "300.00"},
+        content_type="application/json",
+        HTTP_IDEMPOTENCY_KEY=shared_key,
+        headers=auth_headers(mi_setup["owner"]),
+    )
+    assert p3.status_code == 409
+    assert p3.json()["error"]["code"] == "idempotency_key_reused"

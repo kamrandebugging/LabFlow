@@ -42,6 +42,10 @@ class SamplesInFlightError(Exception):
     pass
 
 
+class OpenInvoicesExistError(Exception):
+    pass
+
+
 class BranchScopeDeniedError(Exception):
     pass
 
@@ -436,6 +440,18 @@ class PatientService:
         # Idempotent second delete returns 204
         if patient.deleted_at is not None:
             return
+
+        # Phase 8 Rule 4: Open invoice guard (unpaid or partial invoices)
+        from apps.billing.models import Invoice
+
+        has_open_invoices = Invoice.objects.filter(
+            patient=patient,
+            status__in=[Invoice.Status.UNPAID, Invoice.Status.PARTIAL],
+        ).exists()
+        if has_open_invoices:
+            raise OpenInvoicesExistError(
+                "Cannot delete patient with unpaid or partially paid invoices."
+            )
 
         # PT-5 sample guard: samples in flight block deletion
         from apps.samples.models import Sample
