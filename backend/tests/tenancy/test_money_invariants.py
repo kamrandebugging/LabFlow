@@ -867,3 +867,199 @@ def test_void_is_append_only_event(
         assert void_event.void_reason == "Customer mistake corrected"
         assert void_event.voided_by == mi_setup["owner"]
         assert void_event.restored_methods == {"cash": "1000.00"}
+
+
+@pytest.mark.django_db
+def test_manager_daily_cap_counts_credit_notes(
+    tenant_a: Any, mi_setup: dict[str, Any], auth_headers: Any
+) -> None:
+    """Manager does 5 × 5,000 refunds then a 5,000 credit note -> 429."""
+    with tenant_context(tenant_a):
+        manager = StaffUserFactory(
+            role=Role.MANAGER, branch=mi_setup["branch"], email="mi_mgr_cap@t.com"
+        )
+        StaffBranch.objects.create(
+            staff_user=manager, branch=mi_setup["branch"], is_primary=True
+        )
+
+        invoices = []
+        for _ in range(5):
+            inv = InvoiceFactory(
+                patient=mi_setup["patient"],
+                branch=mi_setup["branch"],
+                status=Invoice.Status.PAID,
+                subtotal=Decimal("5000.00"),
+                total=Decimal("5000.00"),
+            )
+            PaymentFactory(
+                invoice=inv,
+                kind=Payment.Kind.PAYMENT,
+                method=Payment.Method.CASH,
+                amount=Decimal("5000.00"),
+                received_by=manager,
+            )
+            invoices.append(inv)
+
+        inv6 = InvoiceFactory(
+            patient=mi_setup["patient"],
+            branch=mi_setup["branch"],
+            status=Invoice.Status.PAID,
+            subtotal=Decimal("5000.00"),
+            total=Decimal("5000.00"),
+        )
+        PaymentFactory(
+            invoice=inv6,
+            kind=Payment.Kind.PAYMENT,
+            method=Payment.Method.CASH,
+            amount=Decimal("5000.00"),
+            received_by=manager,
+        )
+        inv6_id = inv6.id
+
+    for i, inv in enumerate(invoices):
+        r = Client().post(
+            f"{INVOICES_URL}/{inv.id}/payments",
+            data={
+                "kind": "refund",
+                "method": "cash",
+                "amount": "5000.00",
+                "refund_reason": f"Cap test refund {i}",
+            },
+            content_type="application/json",
+            HTTP_IDEMPOTENCY_KEY=f"mi-mgr-ref-{i}",
+            headers=auth_headers(manager),
+        )
+        assert r.status_code == 201, r.content
+
+    cn_resp = Client().post(
+        f"{INVOICES_URL}/{inv6_id}/credit-notes",
+        data={
+            "amount": "5000.00",
+            "reason": "Exceeding daily pool",
+            "method": "cash",
+        },
+        content_type="application/json",
+        HTTP_IDEMPOTENCY_KEY="mi-mgr-cn-cap-exceeded",
+        headers=auth_headers(manager),
+    )
+    assert cn_resp.status_code == 429, cn_resp.content
+    assert cn_resp.json()["code"] == "refund_velocity_exceeded"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_manager_daily_cap_race_across_invoices(
+    tenant_a: Any, mi_setup: dict[str, Any]
+) -> None:
+    """Two concurrent 4k refunds with 18k prior -> one succeeds (total <= 25k)."""
+    from apps.billing.services import PaymentService
+
+    tenant = mi_setup["tenant"]
+    with tenant_context(tenant):
+        manager = StaffUserFactory(
+            role=Role.MANAGER, branch=mi_setup["branch"], email="mi_mgr_race@t.com"
+        )
+        StaffBranch.objects.create(
+            staff_user=manager, branch=mi_setup["branch"], is_primary=True
+        )
+        manager_id = manager.id
+
+        # Prior 18,000 refunded
+        inv_prior = InvoiceFactory(
+            patient=mi_setup["patient"],
+            branch=mi_setup["branch"],
+            status=Invoice.Status.PAID,
+            subtotal=Decimal("20000.00"),
+            total=Decimal("20000.00"),
+        )
+        PaymentFactory(
+            invoice=inv_prior,
+            kind=Payment.Kind.PAYMENT,
+            method=Payment.Method.CASH,
+            amount=Decimal("20000.00"),
+            received_by=manager,
+        )
+        PaymentFactory(
+            invoice=inv_prior,
+            kind=Payment.Kind.REFUND,
+            method=Payment.Method.CASH,
+            amount=Decimal("18000.00"),
+            received_by=manager,
+        )
+
+        # Invoices 1 and 2 for the race
+        inv1 = InvoiceFactory(
+            patient=mi_setup["patient"],
+            branch=mi_setup["branch"],
+            status=Invoice.Status.PAID,
+            subtotal=Decimal("5000.00"),
+            total=Decimal("5000.00"),
+        )
+        PaymentFactory(
+            invoice=inv1,
+            kind=Payment.Kind.PAYMENT,
+            method=Payment.Method.CASH,
+            amount=Decimal("5000.00"),
+            received_by=manager,
+        )
+        inv1_id = inv1.id
+
+        inv2 = InvoiceFactory(
+            patient=mi_setup["patient"],
+            branch=mi_setup["branch"],
+            status=Invoice.Status.PAID,
+            subtotal=Decimal("5000.00"),
+            total=Decimal("5000.00"),
+        )
+        PaymentFactory(
+            invoice=inv2,
+            kind=Payment.Kind.PAYMENT,
+            method=Payment.Method.CASH,
+            amount=Decimal("5000.00"),
+            received_by=manager,
+        )
+        inv2_id = inv2.id
+
+    outcomes: list[str] = []
+
+    def refund_target(inv_id: Any, key: str) -> None:
+        try:
+            with tenant_context(tenant):
+                from apps.accounts.models import StaffUser
+
+                actor = StaffUser.objects.get(pk=manager_id)
+                PaymentService.record_payment(
+                    invoice_id=inv_id,
+                    kind="refund",
+                    method="cash",
+                    amount=Decimal("4000.00"),
+                    reference=None,
+                    refund_reason="Race test",
+                    idempotency_key=key,
+                    actor=actor,
+                )
+                outcomes.append("success")
+        except BillingError as exc:
+            outcomes.append(exc.error_code)
+        finally:
+            connection.close()
+
+    t1 = threading.Thread(target=refund_target, args=(inv1_id, "mi-mgr-race-1"))
+    t2 = threading.Thread(target=refund_target, args=(inv2_id, "mi-mgr-race-2"))
+    t1.start()
+    t2.start()
+    t1.join()
+    t2.join()
+
+    # Exactly one succeeded and one was blocked by velocity cap
+    assert outcomes.count("success") == 1
+    assert outcomes.count("refund_velocity_exceeded") == 1
+
+    with tenant_context(tenant):
+        from apps.accounts.models import StaffUser
+        from apps.billing.services import get_daily_staff_reversal_sum
+
+        actor = StaffUser.objects.get(pk=manager_id)
+        total_rev = get_daily_staff_reversal_sum(actor)
+        # 18,000 + 4,000 = 22,000 <= 25,000
+        assert total_rev == Decimal("22000.00")
+        assert total_rev <= Decimal("25000.00")

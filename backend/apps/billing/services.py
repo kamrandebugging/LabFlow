@@ -638,6 +638,28 @@ def get_net_paid_by_method(invoice: Invoice) -> dict[str, Decimal]:
     return money_by_method
 
 
+def get_daily_staff_reversal_sum(actor: StaffUser) -> Decimal:
+    """Sum both refunds and non-voided credit notes by actor today (PKT) (Phase 5)."""
+    today = timezone.localdate()
+    start_of_day = timezone.make_aware(
+        datetime.combine(today, datetime.min.time()),
+        timezone.get_current_timezone(),
+    )
+    refund_total: Decimal = Payment.objects.filter(
+        kind=Payment.Kind.REFUND,
+        received_by=actor,
+        created_at__gte=start_of_day,
+    ).aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
+
+    cn_total: Decimal = CreditNote.objects.filter(
+        issued_by=actor,
+        issued_at__gte=start_of_day,
+        voided_at__isnull=True,
+    ).aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
+
+    return refund_total + cn_total
+
+
 def is_branch_day_closed(branch_id: uuid.UUID, target_date: date) -> bool:
     """Check if a specific branch-day is closed."""
     if BranchDay.objects.filter(
@@ -829,6 +851,13 @@ class PaymentService:
             lock_branch_day(invoice.branch_id, target_date)
 
             if kind == Payment.Kind.REFUND:
+                if actor.role != Role.OWNER:
+                    # Phase 5 Rule 2: Deterministic 2nd lock on acting StaffUser
+                    actor = StaffUser.objects.select_for_update().get(pk=actor.pk)
+                    if amount > REFUND_MANAGER_CEILING:
+                        raise OwnerApprovalRequiredError(
+                            "Refunds above 5000 require the Owner."
+                        )
                 hour_ago = timezone.now() - timedelta(hours=1)
                 hourly = Payment.objects.filter(
                     invoice=invoice,
@@ -842,18 +871,11 @@ class PaymentService:
                         "Too many refunds on this invoice in the last hour."
                     )
                 if actor.role != Role.OWNER:
-                    day_start = timezone.now().replace(
-                        hour=0, minute=0, second=0, microsecond=0
-                    )
-                    today_total = Payment.objects.filter(
-                        kind=Payment.Kind.REFUND,
-                        received_by=actor,
-                        created_at__gte=day_start,
-                    ).aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
+                    daily_total = get_daily_staff_reversal_sum(actor)
                     daily_cap = Decimal(
                         str(getattr(settings, "REFUND_MANAGER_DAILY_CAP", "25000.00"))
                     )
-                    if today_total + amount > daily_cap:
+                    if daily_total + amount > daily_cap:
                         raise RefundVelocityExceededError(
                             "Daily refund cap reached; ask the Owner to approve."
                         )
@@ -1283,6 +1305,22 @@ class CreditNoteService:
 
             target_date = get_active_business_date(invoice.branch_id)
             lock_branch_day(invoice.branch_id, target_date)
+
+            if actor.role != Role.OWNER:
+                # Phase 5 Rule 2: Deterministic 2nd lock on acting StaffUser
+                actor = StaffUser.objects.select_for_update().get(pk=actor.pk)
+                if amount > REFUND_MANAGER_CEILING:
+                    raise OwnerApprovalRequiredError(
+                        "Credit notes above PKR 5,000 require the Owner."
+                    )
+                daily_total = get_daily_staff_reversal_sum(actor)
+                daily_cap = Decimal(
+                    str(getattr(settings, "REFUND_MANAGER_DAILY_CAP", "25000.00"))
+                )
+                if daily_total + amount > daily_cap:
+                    raise RefundVelocityExceededError(
+                        "Daily reversal cap reached; ask the Owner to approve."
+                    )
 
             if CreditNote.objects.filter(invoice=invoice).exists():
                 raise CreditNoteAlreadyUsedError(
