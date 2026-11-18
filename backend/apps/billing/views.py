@@ -454,6 +454,7 @@ class InvoiceDetailView(APIView):
             ),
             "net_paid": detail["net_paid"],
             "net_revenue": detail["net_revenue"],
+            "balance": detail["balance"],
             "created_at": invoice.created_at,
         }
         return Response(

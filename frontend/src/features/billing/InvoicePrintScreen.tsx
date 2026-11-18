@@ -109,8 +109,19 @@ export function InvoicePrintScreen({
 
   const balance = useMemo(() => {
     if (!invoice) return 0;
+    if (invoice.balance !== undefined && invoice.balance !== null) {
+      return Number.parseFloat(invoice.balance) || 0;
+    }
+    const hasActiveCN = Boolean(
+      invoice.credit_notes && invoice.credit_notes.some((cn) => !cn.voided_at),
+    );
+    if (invoice.status === "cancelled" || hasActiveCN) {
+      return 0;
+    }
     const total = Number.parseFloat(invoice.total || "0");
-    const paid = Number.parseFloat(invoice.net_paid || "0");
+    const paid = Number.parseFloat(
+      invoice.net_revenue ?? invoice.net_paid ?? "0",
+    );
     if (!Number.isFinite(total) || !Number.isFinite(paid)) return 0;
     return Math.max(0, total - paid);
   }, [invoice]);

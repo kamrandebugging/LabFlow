@@ -49,7 +49,17 @@ from typing import Any, cast
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
-from django.db.models import DecimalField, F, OuterRef, Q, Subquery, Sum, Value
+from django.db.models import (
+    Case,
+    DecimalField,
+    F,
+    OuterRef,
+    Q,
+    Subquery,
+    Sum,
+    Value,
+    When,
+)
 from django.db.models.functions import Coalesce
 from django.utils import timezone
 
@@ -516,34 +526,58 @@ def _canonical_payment_payload(
     return json.dumps(payload, sort_keys=True, separators=(",", ":"))
 
 
+def compute_balance(
+    *,
+    status: str,
+    total: Decimal,
+    net_revenue: Decimal,
+    has_active_credit_note: bool,
+) -> Decimal:
+    """Canonical two-case invariant (Phase 1 Rule 1):
+    - If status == Cancelled OR an active (non-voided) CreditNote exists:
+      balance = PKR 0.00.
+    - Otherwise: balance = total − net_revenue.
+    """
+    if status == Invoice.Status.CANCELLED or has_active_credit_note:
+        return Decimal("0.00")
+    bal = total - net_revenue
+    return Decimal("0.00") if bal < Decimal("0.00") else bal.quantize(Decimal("0.01"))
+
+
 def _derive_invoice_status(
     *,
     total: Decimal,
     paid_sum: Decimal,
     refund_sum: Decimal,
     credit_sum: Decimal = Decimal("0.00"),
+    is_cancelled: bool = False,
+    has_active_credit_note: bool = False,
 ) -> str:
-    """BL-6: derive invoice status from payment + credit-note aggregates.
+    """BL-6: derive invoice status from aggregates (Phase 1 Rule 2).
 
-    Never set directly. Credit notes reverse collected money exactly like a
-    refund, so they participate in the same derivation:
-    - net (paid − refunded − credited) equals the total → paid;
-    - net is zero after money was reversed → refunded (full reversal);
-    - net is zero with nothing reversed → unpaid;
-    - anything else → partial (partially refunded).
+    Strict derivation order:
+    (a) Cancelled while unpaid (or zero-total with zero payments and no samples):
+        Cancelled.
+    (b) Active (non-voided) CreditNote exists: Refunded.
+    (c) payments > 0 and net_revenue == 0: Refunded.
+    (d) net_revenue == total (including total == 0 and not cancelled): Paid.
+    (e) 0 < net_revenue < total: Partial.
+    (f) payments == 0 and total > 0: Unpaid.
     """
-    net = paid_sum - refund_sum - credit_sum
-    if net == total and credit_sum == Decimal("0.00"):
-        return Invoice.Status.PAID
-    if (
-        net == Decimal("0.00")
-        and paid_sum > Decimal("0.00")
-        and (refund_sum > Decimal("0.00") or credit_sum > Decimal("0.00"))
-    ):
+    if is_cancelled:
+        return Invoice.Status.CANCELLED
+    if has_active_credit_note or credit_sum > Decimal("0.00"):
         return Invoice.Status.REFUNDED
-    if net == Decimal("0.00"):
+    net = paid_sum - refund_sum - credit_sum
+    if paid_sum > Decimal("0.00") and net == Decimal("0.00"):
+        return Invoice.Status.REFUNDED
+    if net == total:
+        return Invoice.Status.PAID
+    if Decimal("0.00") < net < total:
+        return Invoice.Status.PARTIAL
+    if paid_sum == Decimal("0.00") and total > Decimal("0.00"):
         return Invoice.Status.UNPAID
-    return Invoice.Status.PARTIAL
+    return Invoice.Status.UNPAID
 
 
 def _payment_aggregates(invoice: Invoice) -> tuple[Decimal, Decimal]:
@@ -912,7 +946,15 @@ class InvoiceQueryService:
                     output_field=money_field,
                 ),
             )
-            .annotate(net_revenue=F("net_paid") - F("credit_total"))
+            .annotate(
+                net_revenue=F("net_paid") - F("credit_total"),
+                balance=Case(
+                    When(status=Invoice.Status.CANCELLED, then=Value(Decimal("0.00"))),
+                    When(credit_total__gt=Decimal("0.00"), then=Value(Decimal("0.00"))),
+                    default=F("total") - (F("net_paid") - F("credit_total")),
+                    output_field=money_field,
+                ),
+            )
             .order_by("-created_at", "-id")
         )
         if status is not None:
@@ -969,14 +1011,22 @@ class InvoiceQueryService:
         refund_sum = agg["refunded"] or Decimal("0.00")
         credit_sum = _credit_note_sum(invoice)
         net_paid = paid_sum - refund_sum
+        net_rev = net_revenue(
+            paid_sum=paid_sum,
+            refund_sum=refund_sum,
+            credit_sum=credit_sum,
+        )
+        bal = compute_balance(
+            status=invoice.status,
+            total=invoice.total,
+            net_revenue=net_rev,
+            has_active_credit_note=credit_sum > Decimal("0.00"),
+        )
         return {
             "invoice": invoice,
             "net_paid": net_paid,
-            "net_revenue": net_revenue(
-                paid_sum=paid_sum,
-                refund_sum=refund_sum,
-                credit_sum=credit_sum,
-            ),
+            "net_revenue": net_rev,
+            "balance": bal,
         }
 
     @staticmethod

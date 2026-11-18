@@ -215,6 +215,15 @@ export function InvoiceRecordDrawer({
 
   const balance = useMemo(() => {
     if (!invoice) return 0;
+    if (invoice.balance !== undefined && invoice.balance !== null) {
+      return Number.parseFloat(invoice.balance) || 0;
+    }
+    const hasActiveCN = Boolean(
+      invoice.credit_notes && invoice.credit_notes.some((cn) => !cn.voided_at),
+    );
+    if (invoice.status === "cancelled" || hasActiveCN) {
+      return 0;
+    }
     const total = Number.parseFloat(invoice.total || "0");
     // Net revenue (payments − refunds − credit notes) is what the invoice has
     // actually kept, so a reversal correctly restores the outstanding balance.

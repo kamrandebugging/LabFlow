@@ -107,6 +107,7 @@ export interface InvoiceSummary {
   total: string;
   net_paid?: string;
   net_revenue?: string;
+  balance?: string;
   items_summary?: string;
   created_at: string;
 }
@@ -134,6 +135,7 @@ export interface InvoiceDetail {
   credit_notes?: CreditNote[];
   net_paid: string;
   net_revenue?: string;
+  balance?: string;
   created_at: string;
 }
 

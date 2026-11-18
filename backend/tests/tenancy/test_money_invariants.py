@@ -311,3 +311,71 @@ def test_money_after_day_close_is_rejected(
     )
     assert response.status_code == 409
     assert response.json()["error"]["code"] == "day_closed"
+
+
+@pytest.mark.django_db
+def test_balance_is_zero_after_full_credit_note(
+    tenant_a: Any, mi_setup: dict[str, Any], auth_headers: Any
+) -> None:
+    """INV-14FACCEF regression:
+    total 2,400, paid 2,400, CN 2,400 -> balance 0, status Refunded.
+    """
+    with tenant_context(tenant_a):
+        invoice = _paid_invoice(mi_setup, "2400.00")
+        invoice_id = invoice.id
+
+    cn_resp = Client().post(
+        f"{INVOICES_URL}/{invoice_id}/credit-notes",
+        data={
+            "amount": "2400.00",
+            "reason": "Customer cancellation INV-14FACCEF",
+            "method": "cash",
+        },
+        content_type="application/json",
+        HTTP_IDEMPOTENCY_KEY="mi-cn-full-2400",
+        headers=auth_headers(mi_setup["owner"]),
+    )
+    assert cn_resp.status_code == 201, cn_resp.content
+
+    detail_resp = Client().get(
+        f"{INVOICES_URL}/{invoice_id}",
+        headers=auth_headers(mi_setup["owner"]),
+    )
+    assert detail_resp.status_code == 200
+    data = detail_resp.json()
+    assert data["status"] == "refunded"
+    assert data["net_revenue"] == "0.00"
+    assert data["balance"] == "0.00"
+
+
+@pytest.mark.django_db
+def test_balance_is_zero_on_cancelled_invoice(
+    tenant_a: Any, mi_setup: dict[str, Any], auth_headers: Any
+) -> None:
+    """A cancelled invoice shows balance 0.00."""
+    with tenant_context(tenant_a):
+        invoice = InvoiceFactory(
+            patient=mi_setup["patient"],
+            branch=mi_setup["branch"],
+            status=Invoice.Status.UNPAID,
+            subtotal=Decimal("1500.00"),
+            total=Decimal("1500.00"),
+        )
+        invoice_id = invoice.id
+
+    cancel_resp = Client().post(
+        f"{INVOICES_URL}/{invoice_id}/cancel",
+        data={"reason": "Patient requested cancellation"},
+        content_type="application/json",
+        headers=auth_headers(mi_setup["owner"]),
+    )
+    assert cancel_resp.status_code == 200, cancel_resp.content
+
+    detail_resp = Client().get(
+        f"{INVOICES_URL}/{invoice_id}",
+        headers=auth_headers(mi_setup["owner"]),
+    )
+    assert detail_resp.status_code == 200
+    data = detail_resp.json()
+    assert data["status"] == "cancelled"
+    assert data["balance"] == "0.00"
