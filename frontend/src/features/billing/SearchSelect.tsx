@@ -1,5 +1,4 @@
 import { useMemo, useRef, useState } from "react";
-import { Check } from "lucide-react";
 
 export interface SearchOption {
   id: string;
@@ -12,14 +11,8 @@ interface SearchSelectProps {
   placeholder: string;
   ariaLabel: string;
   disabled?: boolean;
-  /** Single-select mode: called with the chosen option id. */
-  onSelect?: (id: string) => void;
-  /** Multi-select mode: clicking an option toggles it instead of choosing. */
-  multiple?: boolean;
-  /** Multi-select mode: ids that are currently selected (highlighted). */
-  selectedIds?: string[];
-  /** Multi-select mode: called when a row is toggled. */
-  onToggle?: (id: string) => void;
+  /** Called with the chosen option id. */
+  onSelect: (id: string) => void;
   className?: string;
   inputClassName?: string;
   /** Optional id so an external <label htmlFor> can target the input. */
@@ -29,10 +22,6 @@ interface SearchSelectProps {
 /**
  * Searchable picker: type to filter, click (or Enter) to choose. Used for the
  * invoice test and panel pickers so a 100+ item catalogue is navigable.
- *
- * With `multiple`, rows toggle on click and stay highlighted (teal fill + tick)
- * so the user can pick several tests and add them in one action; the list stays
- * open until the user clicks away or presses Escape.
  */
 export function SearchSelect({
   options,
@@ -40,9 +29,6 @@ export function SearchSelect({
   ariaLabel,
   disabled,
   onSelect,
-  multiple = false,
-  selectedIds,
-  onToggle,
   className,
   inputClassName,
   inputId,
@@ -64,14 +50,8 @@ export function SearchSelect({
     return rows.slice(0, 40);
   }, [options, query]);
 
-  const chosen = (id: string) => (selectedIds ?? []).includes(id);
-
-  const activate = (id: string) => {
-    if (multiple) {
-      onToggle?.(id);
-      return;
-    }
-    onSelect?.(id);
+  const choose = (id: string) => {
+    onSelect(id);
     setQuery("");
     setOpen(false);
     setHighlight(0);
@@ -118,7 +98,7 @@ export function SearchSelect({
           } else if (e.key === "Enter") {
             e.preventDefault();
             const pick = matches[highlight];
-            if (pick) activate(pick.id);
+            if (pick) choose(pick.id);
           } else if (e.key === "Escape") {
             setOpen(false);
           }
@@ -129,19 +109,13 @@ export function SearchSelect({
         <ul
           id="search-select-list"
           role="listbox"
-          aria-multiselectable={multiple || undefined}
           style={{
             position: "absolute",
             zIndex: 40,
             insetInlineStart: 0,
-            insetInlineEnd: "auto",
-            /* Wide enough for "Test name (CODE) … PKR 0000.00" on one line:
-               the panel is anchored to the input but grows past it. */
-            minWidth: "100%",
-            width: "max-content",
-            maxWidth: "min(560px, 92vw)",
+            insetInlineEnd: 0,
             top: "calc(100% + 4px)",
-            maxHeight: 320,
+            maxHeight: 260,
             overflowY: "auto",
             margin: 0,
             padding: 4,
@@ -152,91 +126,50 @@ export function SearchSelect({
             boxShadow: "var(--shadow-veyla-dropdown)",
           }}
         >
-          {matches.map((option, index) => {
-            const isSelected = multiple
-              ? chosen(option.id)
-              : index === highlight;
-            const isHighlighted = index === highlight;
-            return (
-              <li key={option.id}>
-                <button
-                  type="button"
-                  role="option"
-                  aria-selected={multiple ? chosen(option.id) : isHighlighted}
-                  data-selected={isSelected ? "true" : undefined}
-                  onMouseDown={(e) => e.preventDefault()}
-                  onMouseEnter={() => setHighlight(index)}
-                  onClick={() => activate(option.id)}
-                  style={{
-                    display: "flex",
-                    width: "100%",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    gap: 10,
-                    padding: "7px 10px",
-                    border: 0,
-                    borderRadius: 8,
-                    background: isSelected
-                      ? "var(--color-accent)"
-                      : isHighlighted
-                        ? "var(--veyla-well)"
-                        : "transparent",
-                    color: isSelected
-                      ? "var(--color-accent-text)"
-                      : "var(--color-text)",
-                    fontSize: 12,
-                    fontWeight: 600,
-                    textAlign: "start",
-                    cursor: "pointer",
-                  }}
-                >
+          {matches.map((option, index) => (
+            <li key={option.id}>
+              <button
+                type="button"
+                role="option"
+                aria-selected={index === highlight}
+                onMouseDown={(e) => e.preventDefault()}
+                onMouseEnter={() => setHighlight(index)}
+                onClick={() => choose(option.id)}
+                style={{
+                  display: "flex",
+                  width: "100%",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 10,
+                  padding: "7px 10px",
+                  border: 0,
+                  borderRadius: 8,
+                  background:
+                    index === highlight ? "var(--veyla-well)" : "transparent",
+                  color: "var(--color-text)",
+                  fontSize: 12,
+                  fontWeight: 600,
+                  textAlign: "start",
+                  cursor: "pointer",
+                }}
+              >
+                <span style={{ minWidth: 0, overflow: "hidden" }}>
+                  {option.label}
+                </span>
+                {option.meta ? (
                   <span
                     style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 6,
-                      minWidth: 0,
+                      fontFamily: "var(--font-mono)",
+                      color: "var(--color-text-muted)",
+                      whiteSpace: "nowrap",
                     }}
                   >
-                    {multiple ? (
-                      <Check
-                        size={13}
-                        aria-hidden="true"
-                        style={{
-                          visibility: isSelected ? "visible" : "hidden",
-                          flexShrink: 0,
-                        }}
-                      />
-                    ) : null}
-                    <span
-                      style={{
-                        minWidth: 0,
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      {option.label}
-                    </span>
+                    {option.meta}
                   </span>
-                  {option.meta ? (
-                    <span
-                      style={{
-                        fontFamily: "var(--font-mono)",
-                        color: isSelected
-                          ? "var(--color-accent-text)"
-                          : "var(--color-text-muted)",
-                        whiteSpace: "nowrap",
-                        flexShrink: 0,
-                      }}
-                    >
-                      {option.meta}
-                    </span>
-                  ) : null}
-                </button>
-              </li>
-            );
-          })}
+                ) : null}
+              </button>
+            </li>
+          ))}
         </ul>
       ) : null}
     </div>

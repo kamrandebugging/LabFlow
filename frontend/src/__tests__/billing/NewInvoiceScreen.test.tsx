@@ -194,49 +194,6 @@ describe("Screen 14: New Invoice (14-new-invoice.html & Doc 03 §5.3, §6.4)", (
     });
   });
 
-  it("marks clicked tests as selected, then adds all of them with one Add", async () => {
-    render(<NewInvoiceScreen />);
-
-    const testSelect = screen.getByLabelText(/Add individual test/i);
-    await waitFor(() => expect(testSelect).toBeEnabled());
-
-    // Ticking a row highlights it instead of adding it straight away.
-    fireEvent.change(testSelect, { target: { value: "CBC" } });
-    const cbc = await screen.findByRole("option", {
-      name: /Complete Blood Count \(CBC\)/i,
-    });
-    fireEvent.click(cbc);
-    expect(cbc).toHaveAttribute("aria-selected", "true");
-    expect(screen.getByTestId("invoice-subtotal")).toHaveTextContent(
-      "PKR 0.00",
-    );
-
-    fireEvent.change(testSelect, { target: { value: "HBA1C" } });
-    const a1c = await screen.findByRole("option", {
-      name: /Glycated Hemoglobin \(HBA1C\)/i,
-    });
-    fireEvent.click(a1c);
-
-    expect(screen.getByText(/2 tests selected/i)).toBeInTheDocument();
-
-    const addSelected = screen.getByRole("button", { name: /^Add$/i });
-    expect(addSelected).toBeEnabled();
-    fireEvent.click(addSelected);
-
-    await waitFor(() => {
-      expect(screen.getByTestId("invoice-subtotal")).toHaveTextContent(
-        "PKR 2050.00",
-      );
-      expect(screen.getByTestId("invoice-total")).toHaveTextContent(
-        "PKR 2050.00",
-      );
-    });
-    expect(screen.getByTestId("selected-items-list").children).toHaveLength(2);
-    // Selection is committed and cleared: nothing is ticked any more.
-    expect(screen.queryByText(/tests selected/i)).toBeNull();
-    expect(screen.getByRole("button", { name: /^Add$/i })).toBeDisabled();
-  });
-
   it("submits the invoice and triggers onSuccess", async () => {
     const handleSuccess = vi.fn();
     render(

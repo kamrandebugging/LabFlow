@@ -72,10 +72,7 @@ export function NewInvoiceScreen({
 
   // Line items
   const [items, setItems] = useState<SelectedLineItem[]>([]);
-  // Tests ticked in the picker but not added yet. Selection is intentionally
-  // separate from `items`: the user marks one or more rows (teal fill), then
-  // presses Add once to append them all.
-  const [selectedTestIds, setSelectedTestIds] = useState<string[]>([]);
+  const [selectedTestToAdd, setSelectedTestToAdd] = useState<string>("");
 
   // Discount
   const [discountAmount, setDiscountAmount] = useState<string>("0");
@@ -156,43 +153,35 @@ export function NewInvoiceScreen({
     return () => clearTimeout(timer);
   }, [patientQuery]);
 
-  // Toggle a test row in the picker (selection only; Add commits it).
-  const handleToggleTest = (testId: string) => {
-    setSelectedTestIds((prev) =>
-      prev.includes(testId)
-        ? prev.filter((id) => id !== testId)
-        : [...prev, testId],
-    );
-    setErrorMessage(null);
-  };
+  // Add individual test
+  const handleAddTest = (testId: string) => {
+    if (!testId) return;
+    const test = availableTests.find((candidate) => candidate.id === testId);
+    if (!test) return;
 
-  // Add every ticked test in one go, keeping catalogue order.
-  const handleAddSelectedTests = () => {
-    if (selectedTestIds.length === 0) return;
-    const picked = selectableTests.filter((test) =>
-      selectedTestIds.includes(test.id),
-    );
-    if (picked.length === 0) {
-      setSelectedTestIds([]);
+    if (test.is_panel_only) {
+      const panel = test.panel_codes?.length
+        ? test.panel_codes.join(", ")
+        : t("billing:new.a_panel");
+      setErrorMessage(t("billing:new.error_panel_only_test", { panel }));
       return;
     }
-    const unpriced = picked.find((test) => !test.price);
-    if (unpriced) {
-      setErrorMessage(t("billing:new.error_no_price", { name: unpriced.name }));
+    if (!test.price) {
+      setErrorMessage(t("billing:new.error_no_price", { name: test.name }));
       return;
     }
 
-    const stamp = Date.now();
-    const newItems: SelectedLineItem[] = picked.map((test, index) => ({
-      key: `test-${test.id}-${stamp}-${index}`,
+    const price = parseFloat(test.price);
+    const newItem: SelectedLineItem = {
+      key: `test-${test.id}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
       testId: test.id,
       code: test.code,
       name: test.name,
-      price: parseFloat(test.price as string),
+      price,
       quantity: 1,
-    }));
-    setItems((prev) => [...prev, ...newItems]);
-    setSelectedTestIds([]);
+    };
+    setItems((prev) => [...prev, newItem]);
+    setSelectedTestToAdd("");
     setErrorMessage(null);
   };
 
@@ -535,7 +524,7 @@ export function NewInvoiceScreen({
               )}
 
               {/* Add Test from Catalog */}
-              <div className={styles.gridStack}>
+              <div className={styles.grid2}>
                 <div className={styles.field}>
                   <label htmlFor={searchInputId} className={styles.fieldLabel}>
                     {t("billing:new.add_test_label")}
@@ -546,11 +535,8 @@ export function NewInvoiceScreen({
                       ariaLabel={t("billing:new.select_test_placeholder")}
                       placeholder={t("billing:new.select_test_placeholder")}
                       disabled={catalogLoading}
-                      className={styles.selectWrap}
+                      className={styles.select}
                       inputClassName={styles.select}
-                      multiple
-                      selectedIds={selectedTestIds}
-                      onToggle={handleToggleTest}
                       options={selectableTests.map((test) => ({
                         id: test.id,
                         label: `${test.name} (${test.code})`,
@@ -558,24 +544,18 @@ export function NewInvoiceScreen({
                           ? formatMoney(parseFloat(test.price).toFixed(2), lang)
                           : "",
                       }))}
+                      onSelect={(id) => setSelectedTestToAdd(id)}
                     />
                     <button
                       type="button"
-                      onClick={handleAddSelectedTests}
-                      disabled={selectedTestIds.length === 0}
+                      onClick={() => handleAddTest(selectedTestToAdd)}
+                      disabled={!selectedTestToAdd}
                       className={styles.addButton}
                     >
                       <Plus className={styles.icon} aria-hidden="true" />
                       <span>{t("common:actions.add")}</span>
                     </button>
                   </div>
-                  {selectedTestIds.length > 0 ? (
-                    <p className={styles.hint}>
-                      {t("billing:new.selected_count", {
-                        count: selectedTestIds.length,
-                      })}
-                    </p>
-                  ) : null}
                   {panelOnlyTests.length > 0 && (
                     <p className={styles.hint}>
                       {t("billing:new.panel_only_suffix")}
@@ -593,6 +573,7 @@ export function NewInvoiceScreen({
                     ariaLabel={t("billing:new.select_panel_placeholder")}
                     placeholder={t("billing:new.select_panel_placeholder")}
                     disabled={catalogLoading}
+                    className={styles.select}
                     inputClassName={styles.select}
                     options={availablePanels.map((panel) => ({
                       id: panel.id,

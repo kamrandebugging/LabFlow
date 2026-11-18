@@ -72,20 +72,6 @@ Applied via `data-theme="dark"` on `<html>`. Activated via circular-reveal view 
 - **Card Subtitles**: `font-medium` (500), `14px`, `color: var(--color-text-muted)`
 - **Data Figures (KPI)**: `font-bold` (700), `32px–40px`, tabular lining figures
 
-### 3.1 App-wide UI scale (80%)
-
-The whole product is reviewed and signed off at **80% density**. `index.css` therefore renders the
-app at `html { zoom: 0.8 }`, which is pixel-identical to the browser's own 80% zoom but applies for
-every user without asking them to change a setting. Consequences any new screen must respect:
-
-- Author every size as if the plate were at 100%; the 0.8 scale is applied once, globally.
-- `zoom` scales layout, hit boxes and scrolling, but **not** viewport units. A surface that must
-  fill the screen uses `min-height: var(--lf-vh)` (125vh), never a bare `100vh`; a header offset
-  uses `calc(var(--lf-vh) - 64px)`. Bare `100vh` here leaves a 20% gap.
-- `position: fixed; inset: 0` still fills the viewport and needs no special handling.
-- Print is exempt: `@media print` resets `zoom: 1` and `--lf-vh: 100vh`, so the invoice/report
-  routes keep their A4 contract.
-
 ---
 
 ## 4. Radiuses & Geometry

@@ -1,7 +1,7 @@
 /* Tenant shell — flat 1px-bordered frame, token-only hybrid neumorphism. */
 
 .shell {
-  min-height: var(--lf-vh);
+  min-height: 100vh;
   background: var(--color-bg);
   color: var(--color-text);
 }
@@ -318,14 +318,14 @@
 }
 
 .main {
-  min-height: var(--lf-vh);
+  min-height: 100vh;
   padding-block-start: 64px;
   padding-inline-start: 240px;
   background: var(--color-bg);
 }
 
 .content {
-  min-height: calc(var(--lf-vh) - 64px);
+  min-height: calc(100vh - 64px);
   display: flex;
   flex-direction: column;
 }

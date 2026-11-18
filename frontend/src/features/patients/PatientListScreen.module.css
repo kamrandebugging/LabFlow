@@ -5,7 +5,7 @@
    are hairlines. Loading rows are flat grey skeletons (strictly no shimmer). */
 
 .page {
-  min-height: var(--lf-vh);
+  min-height: 100vh;
   padding: 32px;
   background: var(--color-bg);
   color: var(--color-text);
