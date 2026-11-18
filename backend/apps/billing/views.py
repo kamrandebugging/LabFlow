@@ -819,7 +819,7 @@ class CreditNoteCreateView(APIView):
                 ),
                 status=status.HTTP_403_FORBIDDEN,
             )
-        iid = _parse_path_uuid(invoice_id)
+        iid = _resolve_invoice_reference(user, invoice_id)
         if iid is None:
             return Response(
                 _format_error("not_found", "Invoice not found."),

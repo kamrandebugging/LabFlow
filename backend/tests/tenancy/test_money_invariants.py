@@ -1512,3 +1512,203 @@ def test_fully_refunded_invoice_can_be_closed_after_void(
     assert detail["status"] == "cancelled"
     assert detail["balance"] == "0.00"
     assert detail["net_revenue"] == "0.00"
+
+
+@pytest.mark.django_db
+def test_credit_note_blocked_when_sample_collected(
+    tenant_a: Any, mi_setup: dict[str, Any], auth_headers: Any
+) -> None:
+    """Sample collected -> CN 409 sample_already_collected.
+
+    Clinically cancelled sample -> CN succeeds.
+    No sample -> CN succeeds.
+    """
+    from tests.factories.samples import SampleFactory
+
+    # 1. Invoice with collected sample -> 409 sample_already_collected
+    with tenant_context(tenant_a):
+        inv1 = _paid_invoice(mi_setup, "1000.00")
+        sample1 = SampleFactory(invoice=inv1, branch=mi_setup["branch"])
+        inv1_id = inv1.id
+        sample1_id = sample1.id
+
+    cn_fail = Client().post(
+        f"{INVOICES_URL}/{inv1_id}/credit-notes",
+        data={
+            "amount": "1000.00",
+            "reason": "Test CN with collected sample",
+            "method": "cash",
+        },
+        content_type="application/json",
+        HTTP_IDEMPOTENCY_KEY="mi-cn-sample-collected-1",
+        headers=auth_headers(mi_setup["owner"]),
+    )
+    assert cn_fail.status_code == 409, cn_fail.content
+    assert cn_fail.json()["error"]["code"] == "sample_already_collected"
+
+    # 2. Clinically cancel the sample -> credit note succeeds
+    with tenant_context(tenant_a):
+        from apps.samples.services import SampleService
+
+        SampleService.cancel_sample(
+            sample_id=sample1_id,
+            reason="Sample hemolyzed and cancelled clinically",
+            actor=mi_setup["owner"],
+        )
+
+    cn_ok = Client().post(
+        f"{INVOICES_URL}/{inv1_id}/credit-notes",
+        data={
+            "amount": "1000.00",
+            "reason": "Test CN after sample cancelled clinically",
+            "method": "cash",
+        },
+        content_type="application/json",
+        HTTP_IDEMPOTENCY_KEY="mi-cn-sample-cancelled-ok",
+        headers=auth_headers(mi_setup["owner"]),
+    )
+    assert cn_ok.status_code == 201, cn_ok.content
+
+    # 3. Invoice with NO sample -> credit note succeeds as today
+    with tenant_context(tenant_a):
+        inv2 = _paid_invoice(mi_setup, "1500.00")
+        inv2_id = inv2.id
+
+    cn_no_sample = Client().post(
+        f"{INVOICES_URL}/{inv2_id}/credit-notes",
+        data={
+            "amount": "1500.00",
+            "reason": "Test CN with no samples",
+            "method": "cash",
+        },
+        content_type="application/json",
+        HTTP_IDEMPOTENCY_KEY="mi-cn-no-sample-ok",
+        headers=auth_headers(mi_setup["owner"]),
+    )
+    assert cn_no_sample.status_code == 201, cn_no_sample.content
+
+
+@pytest.mark.django_db
+def test_credit_note_blocked_when_report_approved(
+    tenant_a: Any, mi_setup: dict[str, Any], auth_headers: Any
+) -> None:
+    """Approved report or approved result -> CN 409 report_already_approved."""
+    from apps.results.models import Result
+    from tests.factories.catalog import TestFactory
+    from tests.factories.results import ResultFactory
+    from tests.factories.samples import SampleFactory
+
+    with tenant_context(tenant_a):
+        inv = _paid_invoice(mi_setup, "2000.00")
+        sample = SampleFactory(invoice=inv, branch=mi_setup["branch"])
+        test = TestFactory(price=Decimal("2000.00"))
+        ResultFactory(
+            sample=sample,
+            test=test,
+            status=Result.Status.APPROVED,
+        )
+        inv_id = inv.id
+
+    cn_resp = Client().post(
+        f"{INVOICES_URL}/{inv_id}/credit-notes",
+        data={
+            "amount": "2000.00",
+            "reason": "Test CN with approved report",
+            "method": "cash",
+        },
+        content_type="application/json",
+        HTTP_IDEMPOTENCY_KEY="mi-cn-report-approved-1",
+        headers=auth_headers(mi_setup["owner"]),
+    )
+    assert cn_resp.status_code == 409, cn_resp.content
+    assert cn_resp.json()["error"]["code"] == "report_already_approved"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_sample_collect_and_cancel_race(
+    tenant_a: Any, mi_setup: dict[str, Any]
+) -> None:
+    """Cancel and Collect fired together:
+
+    Invoice ends Cancelled with NO collected sample, or collected with cancel rejected —
+    never Cancelled WITH a collected sample.
+    """
+    from apps.accounts.models import StaffUser
+    from apps.billing.services import InvoiceQueryService
+    from apps.samples.models import Sample
+    from apps.samples.services import SampleService
+    from tests.factories.billing import InvoiceItemFactory
+    from tests.factories.catalog import TestFactory
+
+    tenant = mi_setup["tenant"]
+    with tenant_context(tenant):
+        test = TestFactory(price=Decimal("1000.00"))
+        inv = InvoiceFactory(
+            patient=mi_setup["patient"],
+            branch=mi_setup["branch"],
+            status=Invoice.Status.UNPAID,
+            subtotal=Decimal("1000.00"),
+            total=Decimal("1000.00"),
+        )
+        InvoiceItemFactory(
+            invoice=inv,
+            test=test,
+            unit_price=Decimal("1000.00"),
+            quantity=1,
+            line_total=Decimal("1000.00"),
+        )
+        invoice_id = inv.id
+        owner_id = mi_setup["owner"].id
+
+    outcomes: dict[str, str] = {}
+
+    def do_collect() -> None:
+        try:
+            with tenant_context(tenant):
+                actor = StaffUser.objects.get(pk=owner_id)
+                SampleService.collect_sample(
+                    invoice_id=invoice_id,
+                    invoice_item_ids=None,
+                    actor=actor,
+                )
+                outcomes["collect"] = "collected"
+        except Exception as exc:
+            outcomes["collect"] = getattr(exc, "error_code", type(exc).__name__)
+        finally:
+            connection.close()
+
+    def do_cancel() -> None:
+        try:
+            with tenant_context(tenant):
+                actor = StaffUser.objects.get(pk=owner_id)
+                InvoiceQueryService.cancel_invoice(
+                    invoice_id=invoice_id,
+                    reason="Raced cancellation",
+                    actor=actor,
+                )
+                outcomes["cancel"] = "cancelled"
+        except Exception as exc:
+            outcomes["cancel"] = getattr(exc, "error_code", type(exc).__name__)
+        finally:
+            connection.close()
+
+    t1 = threading.Thread(target=do_collect)
+    t2 = threading.Thread(target=do_cancel)
+    t1.start()
+    t2.start()
+    t1.join()
+    t2.join()
+
+    with tenant_context(tenant):
+        inv.refresh_from_db()
+        collected_samples = list(
+            Sample.objects.filter(invoice=inv).exclude(status=Sample.Status.CANCELLED)
+        )
+        if inv.status == Invoice.Status.CANCELLED:
+            assert len(collected_samples) == 0
+            assert outcomes["cancel"] == "cancelled"
+            assert outcomes["collect"] in ("invoice_cancelled", "InvoiceCancelledError")
+        else:
+            assert len(collected_samples) > 0
+            assert outcomes["collect"] == "collected"
+            assert outcomes["cancel"] == "invalid_state_transition"

@@ -238,6 +238,16 @@ class CreditNoteExceedsNetPaidError(BillingError):
     error_code = "credit_note_exceeds_net_paid"
 
 
+class SampleAlreadyCollectedError(BillingError):
+    status_code = 409
+    error_code = "sample_already_collected"
+
+
+class ReportAlreadyApprovedError(BillingError):
+    status_code = 409
+    error_code = "report_already_approved"
+
+
 class CreditNoteAmountMismatchError(BillingError):
     status_code = 422
     error_code = "credit_note_amount_mismatch"
@@ -1653,6 +1663,33 @@ class CreditNoteService:
                 raise CreditNoteAlreadyUsedError(
                     "This invoice already has a credit note; it cannot be "
                     "reversed twice."
+                )
+
+            # Phase 7 Rule 1: Check clinical report / result approval
+            from apps.reports.models import Report
+
+            if (
+                Result.objects.filter(
+                    sample__invoice=invoice, status=Result.Status.APPROVED
+                ).exists()
+                or Report.objects.filter(
+                    sample__invoice=invoice,
+                    status__in=[Report.Status.FINAL, Report.Status.AMENDED],
+                ).exists()
+            ):
+                raise ReportAlreadyApprovedError(
+                    "Cannot issue credit note: a clinical report has "
+                    "already been approved."
+                )
+
+            # Phase 7 Rule 1: Check if any uncancelled sample exists
+            if (
+                Sample.objects.filter(invoice=invoice)
+                .exclude(status=Sample.Status.CANCELLED)
+                .exists()
+            ):
+                raise SampleAlreadyCollectedError(
+                    "Cannot issue credit note: samples have already been collected."
                 )
 
             agg = invoice.payments.aggregate(
