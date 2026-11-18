@@ -392,6 +392,14 @@ class CreditNote(models.Model):
     )
     amount = models.DecimalField(max_digits=12, decimal_places=2)
     reason = models.TextField()
+    # Which payment method(s) this reversal returns money from. Stored as
+    # {method: "0.00"} so day close can reconcile the cash drawer.
+    method = models.TextField(
+        choices=Payment.Method.choices,
+        default=Payment.Method.CASH,
+        db_default=Payment.Method.CASH,
+    )
+    reversed_methods = models.JSONField(default=dict)
     issued_by = models.ForeignKey(
         "accounts.StaffUser",
         on_delete=models.PROTECT,
@@ -400,6 +408,21 @@ class CreditNote(models.Model):
         db_index=False,
     )
     issued_at = models.DateTimeField(auto_now_add=True)
+    idempotency_key = models.TextField(null=True, blank=True)  # noqa: DJ001
+    payload_sha256 = models.TextField(null=True, blank=True)  # noqa: DJ001
+    # Void is an append-only correction: the row and its CN number stay, the
+    # voided document stops counting toward revenue, and the event is audited.
+    voided_at = models.DateTimeField(null=True, blank=True)
+    voided_by = models.ForeignKey(
+        "accounts.StaffUser",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="credit_notes_voided",
+        db_column="voided_by_id",
+        db_index=False,
+    )
+    void_reason = models.TextField(null=True, blank=True)  # noqa: DJ001
 
     class Meta:
         db_table = "billing_credit_note"
@@ -408,6 +431,17 @@ class CreditNote(models.Model):
             models.CheckConstraint(
                 condition=Q(amount__gt=0),
                 name="chk_credit_note_amount_pos",
+            ),
+            # Exactly one credit note per invoice, ever — voiding keeps the
+            # row, so it can never be replaced by a second note.
+            models.UniqueConstraint(
+                fields=["invoice"],
+                name="uq_credit_note_invoice",
+            ),
+            models.UniqueConstraint(
+                fields=["idempotency_key"],
+                condition=Q(idempotency_key__isnull=False),
+                name="uq_credit_note_idempotency_key",
             ),
         ]
         indexes = [

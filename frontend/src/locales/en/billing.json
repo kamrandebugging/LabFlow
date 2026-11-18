@@ -183,11 +183,20 @@
       "refund": "Refund issued",
       "credit_note": "Credit note issued",
       "cancel": "Invoice cancelled",
-      "discount": "Discount applied"
+      "discount": "Discount applied",
+      "credit_note_voided": "Credit note voided"
     },
     "referred_by": "Referred by",
     "walk_in": "Walk-in / Self",
-    "referral_partner_selected": "Referral partner"
+    "referral_partner_selected": "Referral partner",
+    "credit_note_method": "Reversal method",
+    "credit_note_voided": "Voided",
+    "credit_note_void": "Void credit note",
+    "credit_note_void_reason": "Void reason",
+    "credit_note_void_hint": "Why is this credit note erroneous?",
+    "credit_note_voided_note": "This credit note was voided and no longer counts toward revenue.",
+    "credit_note_void_confirm": "Confirm void",
+    "reversed_notice": "This invoice was fully reversed by a credit note; payments and refunds are closed."
   },
   "print": {
     "patient_label": "Patient",

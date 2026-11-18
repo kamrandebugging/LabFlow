@@ -10,6 +10,7 @@ import type {
 } from "./types";
 import { formatMoney, statusLabel } from "../../lib/format";
 import { messageForError } from "../../lib/errors";
+import { useAuthStore } from "../auth/authStore";
 import { VeylaDrawer } from "../patients/VeylaDrawer";
 import record from "../patients/PatientRecord.module.css";
 import styles from "./InvoiceDetailScreen.module.css";
@@ -55,9 +56,12 @@ export function InvoiceRecordDrawer({
   >("cash");
   const [reference, setReference] = useState("");
   const [creditReason, setCreditReason] = useState("");
+  const [creditMethod, setCreditMethod] = useState("cash");
+  const [voidReason, setVoidReason] = useState("");
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
+  const isOwner = useAuthStore((state) => state.user?.role) === "owner";
 
   const reload = () => setReloadKey((n) => n + 1);
 
@@ -117,6 +121,25 @@ export function InvoiceRecordDrawer({
     }
   };
 
+  const voidCreditNote = async (noteId: string) => {
+    if (!invoice) return;
+    if (!voidReason.trim()) {
+      setActionError(t("billing:detail.credit_note_reason_required"));
+      return;
+    }
+    setBusy(true);
+    setActionError(null);
+    try {
+      await service.voidCreditNote(invoice.id, noteId, voidReason.trim());
+      setVoidReason("");
+      reload();
+    } catch (err: unknown) {
+      setActionError(messageForError(err, t));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const issueCreditNote = async () => {
     if (!invoice) return;
     if (!creditReason.trim()) {
@@ -130,6 +153,7 @@ export function InvoiceRecordDrawer({
         invoice.id,
         invoice.net_paid || invoice.total,
         creditReason.trim(),
+        creditMethod,
       );
       setCreditReason("");
       reload();
@@ -201,18 +225,17 @@ export function InvoiceRecordDrawer({
     return Math.max(0, total - paid);
   }, [invoice]);
 
-  // A fully credited invoice is reversed; the credit note is the reversal
-  // record, so the action disappears once nothing is left to reverse.
-  const creditedTotal = (invoice?.credit_notes ?? []).reduce(
-    (sum, note) => sum + Number(note.amount || 0),
-    0,
+  // One credit note per invoice, ever (a voided note keeps its row too), so
+  // the issue action disappears as soon as any note exists.
+  const anyCreditNote = (invoice?.credit_notes?.length ?? 0) > 0;
+  const activeCreditNote = invoice?.credit_notes?.find(
+    (note) => !note.voided_at,
   );
-  const fullyCredited =
-    creditedTotal > 0 && creditedTotal >= Number(invoice?.net_paid || 0);
+  const reversed = Boolean(activeCreditNote) || invoice?.status === "refunded";
 
   const canCreditNote =
     (invoice?.status === "paid" || invoice?.status === "partial") &&
-    !fullyCredited;
+    !anyCreditNote;
 
   const header = invoice ? (
     <div className={record.nameRow}>
@@ -458,14 +481,6 @@ export function InvoiceRecordDrawer({
                     <bdi dir="ltr">{formatMoney(invoice.net_paid, "en")}</bdi>
                   </span>
                 </div>
-                <p className={record.fieldLabel}>
-                  {t("billing:detail.credit_note_explain", {
-                    amount: formatMoney(
-                      invoice.net_paid || invoice.total,
-                      "en",
-                    ),
-                  })}
-                </p>
 
                 {actionError ? (
                   <div role="alert" className={record.alert}>
@@ -477,36 +492,117 @@ export function InvoiceRecordDrawer({
                   </div>
                 ) : null}
 
-                <div className={record.field}>
-                  <span className={record.fieldLabel}>
-                    {t("billing:detail.credit_note_reason")} *
-                  </span>
-                  <input
-                    type="text"
-                    value={creditReason}
-                    onChange={(e) => setCreditReason(e.target.value)}
-                    className={styles.input}
-                    placeholder={t("billing:detail.credit_note_reason_hint")}
-                  />
-                </div>
+                {anyCreditNote ? (
+                  <>
+                    {(invoice.credit_notes ?? []).map((note) => (
+                      <div key={note.id} className={record.field}>
+                        <span className={record.fieldLabel}>
+                          <bdi dir="ltr">{note.number}</bdi> ·{" "}
+                          {formatMoney(note.amount, "en")} ·{" "}
+                          {t(`billing:detail.method.${note.method || "cash"}`)}
+                          {note.voided_at
+                            ? ` · ${t("billing:detail.credit_note_voided")}`
+                            : ""}
+                        </span>
+                        <span className={record.fieldLabel}>{note.reason}</span>
+                        {note.voided_at ? (
+                          <span className={record.fieldLabel}>
+                            {t("billing:detail.credit_note_voided_note")}
+                          </span>
+                        ) : isOwner ? (
+                          <div className={record.field}>
+                            <input
+                              type="text"
+                              value={voidReason}
+                              onChange={(e) => setVoidReason(e.target.value)}
+                              className={styles.input}
+                              placeholder={t(
+                                "billing:detail.credit_note_void_hint",
+                              )}
+                            />
+                            <button
+                              type="button"
+                              disabled={busy || !voidReason.trim()}
+                              onClick={() => void voidCreditNote(note.id)}
+                              className={record.secondaryButton}
+                              style={{ marginTop: 8 }}
+                            >
+                              {t("billing:detail.credit_note_void")}
+                            </button>
+                          </div>
+                        ) : null}
+                      </div>
+                    ))}
+                  </>
+                ) : (
+                  <>
+                    <p className={record.fieldLabel}>
+                      {t("billing:detail.credit_note_explain", {
+                        amount: formatMoney(
+                          invoice.net_paid || invoice.total,
+                          "en",
+                        ),
+                      })}
+                    </p>
 
-                <div className={record.field}>
-                  <span className={record.fieldLabel}>
-                    {t("billing:detail.credit_note_amount_label")}
-                  </span>
-                  <span className={record.fieldValue} dir="ltr">
-                    {formatMoney(invoice.net_paid || invoice.total, "en")}
-                  </span>
-                </div>
+                    <div className={record.field}>
+                      <span className={record.fieldLabel}>
+                        {t("billing:detail.credit_note_reason")} *
+                      </span>
+                      <input
+                        type="text"
+                        value={creditReason}
+                        onChange={(e) => setCreditReason(e.target.value)}
+                        className={styles.input}
+                        placeholder={t(
+                          "billing:detail.credit_note_reason_hint",
+                        )}
+                      />
+                    </div>
 
-                <button
-                  type="button"
-                  disabled={busy || !creditReason.trim()}
-                  onClick={() => void issueCreditNote()}
-                  className={record.primaryButton}
-                >
-                  {t("billing:detail.credit_note_confirm")}
-                </button>
+                    <div className={record.field}>
+                      <span className={record.fieldLabel}>
+                        {t("billing:detail.credit_note_method")}
+                      </span>
+                      <select
+                        value={creditMethod}
+                        onChange={(e) => setCreditMethod(e.target.value)}
+                        className={styles.input}
+                      >
+                        {[
+                          "cash",
+                          "card",
+                          "bank_transfer",
+                          "easypaisa",
+                          "jazzcash",
+                          "other",
+                        ].map((method) => (
+                          <option key={method} value={method}>
+                            {t(`billing:detail.method.${method}`)}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className={record.field}>
+                      <span className={record.fieldLabel}>
+                        {t("billing:detail.credit_note_amount_label")}
+                      </span>
+                      <span className={record.fieldValue} dir="ltr">
+                        {formatMoney(invoice.net_paid || invoice.total, "en")}
+                      </span>
+                    </div>
+
+                    <button
+                      type="button"
+                      disabled={busy || !creditReason.trim()}
+                      onClick={() => void issueCreditNote()}
+                      className={record.primaryButton}
+                    >
+                      {t("billing:detail.credit_note_confirm")}
+                    </button>
+                  </>
+                )}
               </div>
             ) : tab === "refund" ? (
               <div className={record.card}>
@@ -519,6 +615,12 @@ export function InvoiceRecordDrawer({
                     <bdi dir="ltr">{formatMoney(invoice.net_paid, "en")}</bdi>
                   </span>
                 </div>
+
+                {reversed ? (
+                  <p className={record.fieldLabel}>
+                    {t("billing:detail.reversed_notice")}
+                  </p>
+                ) : null}
 
                 {actionError ? (
                   <div role="alert" className={record.alert}>
@@ -598,6 +700,7 @@ export function InvoiceRecordDrawer({
                     type="button"
                     disabled={
                       busy ||
+                      reversed ||
                       !amount ||
                       Number(amount) <= 0 ||
                       Number(amount) > Number(invoice.net_paid || 0)
@@ -810,7 +913,9 @@ export function InvoiceRecordDrawer({
                 >
                   <button
                     type="button"
-                    disabled={busy || !amount || Number(amount) <= 0}
+                    disabled={
+                      busy || reversed || !amount || Number(amount) <= 0
+                    }
                     onClick={() => void submitSettle("payment")}
                     className={record.primaryButton}
                   >

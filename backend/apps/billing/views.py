@@ -31,6 +31,7 @@ from apps.billing.models import CreditNote, Invoice, Payment
 from apps.billing.serializers import (
     CreditNoteCreateSerializer,
     CreditNoteSerializer,
+    CreditNoteVoidSerializer,
     DayCloseCreateSerializer,
     DayCloseSummarySerializer,
     InvoiceCancelSerializer,
@@ -57,6 +58,7 @@ from apps.billing.services import (
 )
 from apps.branches.scope_views import BranchScopedAPIView, IsInBranchScope
 from apps.catalog.services import TestNotPricedError
+from apps.core.authorization import OWNER_ONLY
 
 
 def _get_client_ip(request: Request) -> str:
@@ -114,9 +116,9 @@ class InvoiceCollectionView(BranchScopedAPIView):
         refunded = Payment.objects.filter(
             invoice__in=today_qs, kind=Payment.Kind.REFUND
         ).aggregate(sum=Sum("amount"))["sum"] or Decimal("0.00")
-        credited = CreditNote.objects.filter(invoice__in=today_qs).aggregate(
-            sum=Sum("amount")
-        )["sum"] or Decimal("0.00")
+        credited = CreditNote.objects.filter(
+            invoice__in=today_qs, voided_at__isnull=True
+        ).aggregate(sum=Sum("amount"))["sum"] or Decimal("0.00")
         # Net revenue = billed − refunds − credit notes (never client-computed).
         today_total = billed - refunded - credited
         body = {
@@ -446,7 +448,9 @@ class InvoiceDetailView(APIView):
             "items": list(invoice.items.all()),
             "payments": list(invoice.payments.all()),
             "credit_notes": list(
-                invoice.credit_notes.select_related("issued_by").order_by("issued_at")
+                invoice.credit_notes.select_related("issued_by", "voided_by").order_by(
+                    "issued_at"
+                )
             ),
             "net_paid": detail["net_paid"],
             "net_revenue": detail["net_revenue"],
@@ -513,11 +517,15 @@ class InvoiceHistoryView(APIView):
             if p.received_by_id is not None:
                 actor_ids.add(p.received_by_id)
         credit_notes = list(
-            invoice.credit_notes.all().select_related("issued_by").order_by("issued_at")
+            invoice.credit_notes.all()
+            .select_related("issued_by", "voided_by")
+            .order_by("issued_at")
         )
         for cn in credit_notes:
             if cn.issued_by_id is not None:
                 actor_ids.add(cn.issued_by_id)
+            if cn.voided_by_id is not None:
+                actor_ids.add(cn.voided_by_id)
         names: dict[Any, str] = {}
         if actor_ids:
             for s in _Staff.objects.filter(id__in=actor_ids):
@@ -571,8 +579,21 @@ class InvoiceHistoryView(APIView):
                     "amount": f"{cn.amount:.2f}",
                     "reason": cn.reason,
                     "number": cn.number,
+                    "method": cn.method,
+                    "voided": cn.voided_at is not None,
                 }
             )
+            if cn.voided_at is not None:
+                events.append(
+                    {
+                        "event": "credit_note_voided",
+                        "at": cn.voided_at.isoformat(),
+                        "actor": names.get(cn.voided_by_id),
+                        "amount": f"{cn.amount:.2f}",
+                        "reason": cn.void_reason,
+                        "number": cn.number,
+                    }
+                )
 
         # cancel
         for row in audit_rows:
@@ -698,12 +719,23 @@ class CreditNoteCreateView(APIView):
                 _format_error("validation_error", "Invalid payload.", err_dict),
                 status=status.HTTP_422_UNPROCESSABLE_ENTITY,
             )
+        idempotency_key = request.META.get("HTTP_IDEMPOTENCY_KEY")
+        if not idempotency_key:
+            return Response(
+                _format_error(
+                    "idempotency_key_required",
+                    "An Idempotency-Key header is required.",
+                ),
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
         data = serializer.validated_data
         try:
-            note = CreditNoteService.issue(
+            note, created = CreditNoteService.issue(
                 invoice_id=iid,
                 amount=data["amount"],
                 reason=data["reason"],
+                method=data["method"],
+                idempotency_key=idempotency_key,
                 actor=user,
                 ip=_get_client_ip(request),
                 user_agent=request.META.get("HTTP_USER_AGENT", ""),
@@ -713,7 +745,68 @@ class CreditNoteCreateView(APIView):
                 _format_error(exc.error_code, str(exc) or exc.error_code),
                 status=exc.status_code,
             )
-        return Response(CreditNoteSerializer(note).data, status=status.HTTP_201_CREATED)
+        return Response(
+            CreditNoteSerializer(note).data,
+            status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
+        )
+
+
+class CreditNoteVoidView(APIView):
+    """POST /api/v1/invoices/{id}/credit-notes/{note_id}/void — Owner only.
+
+    Voiding is append-only: the note row and its CN number stay, the void
+    stops it counting toward revenue, and the invoice status is re-derived.
+    """
+
+    permission_classes = [permissions.IsAuthenticated, IsInBranchScope]
+    scope_branch_source = None
+
+    def post(self, request: Request, invoice_id: Any, note_id: Any) -> Response:
+        user = cast(StaffUser, request.user)
+        if user.role not in OWNER_ONLY:
+            return Response(
+                _format_error("forbidden", "Only the Owner may void a credit note."),
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        iid = _parse_path_uuid(invoice_id)
+        nid = _parse_path_uuid(note_id)
+        if iid is None or nid is None:
+            return Response(
+                _format_error("not_found", "Credit note not found."),
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        serializer = CreditNoteVoidSerializer(data=request.data)
+        if not serializer.is_valid():
+            if "reason" in serializer.errors:
+                return Response(
+                    _format_error(
+                        "credit_note_reason_required",
+                        "A reason is required to void a credit note.",
+                        serializer.errors,
+                    ),
+                    status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                )
+            return Response(
+                _format_error(
+                    "validation_error", "Invalid payload.", serializer.errors
+                ),
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+        try:
+            note = CreditNoteService.void(
+                invoice_id=iid,
+                note_id=nid,
+                reason=serializer.validated_data["reason"],
+                actor=user,
+                ip=_get_client_ip(request),
+                user_agent=request.META.get("HTTP_USER_AGENT", ""),
+            )
+        except BillingError as exc:
+            return Response(
+                _format_error(exc.error_code, str(exc) or exc.error_code),
+                status=exc.status_code,
+            )
+        return Response(CreditNoteSerializer(note).data, status=status.HTTP_200_OK)
 
 
 class DayCloseView(APIView):

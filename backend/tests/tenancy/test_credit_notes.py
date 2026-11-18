@@ -4,6 +4,7 @@ Append-only reversal documents: the original invoice, its items and its
 payments are never modified, and the credit note is the reversal record.
 """
 
+import itertools
 from decimal import Decimal
 from typing import Any
 
@@ -20,6 +21,11 @@ from tests.factories.patients import PatientFactory
 from tests.factories.staff_user import StaffUserFactory
 
 INVOICES_URL = "/api/v1/invoices"
+_key_counter = itertools.count(1)
+
+
+def _next_key() -> str:
+    return f"cn-test-key-{next(_key_counter)}"
 
 
 @pytest.fixture
@@ -40,6 +46,9 @@ def cn_setup(tenant_a: Any) -> dict[str, Any]:
     with tenant_context(tenant_a):
         branch = BranchFactory(code="CN1", name="Credit Note Lab")
         owner = StaffUserFactory(role=Role.OWNER, branch=None, email="cn_owner@t.com")
+        manager = StaffUserFactory(
+            role=Role.MANAGER, branch=branch, email="cn_manager@t.com"
+        )
         receptionist = StaffUserFactory(
             role=Role.RECEPTION, branch=branch, email="cn_recep@t.com"
         )
@@ -47,6 +56,7 @@ def cn_setup(tenant_a: Any) -> dict[str, Any]:
         return {
             "branch": branch,
             "owner": owner,
+            "manager": manager,
             "receptionist": receptionist,
             "patient": patient,
         }
@@ -86,6 +96,7 @@ def test_credit_note_is_sequential_append_only_and_visible_in_history(
         f"{INVOICES_URL}/{first_id}/credit-notes",
         data={"amount": "1500.00", "reason": "Invoice raised twice"},
         content_type="application/json",
+        HTTP_IDEMPOTENCY_KEY=_next_key(),
         **headers,
     )
     assert response.status_code == 201, response.content
@@ -98,6 +109,7 @@ def test_credit_note_is_sequential_append_only_and_visible_in_history(
         f"{INVOICES_URL}/{second.id}/credit-notes",
         data={"amount": "900.00", "reason": "Duplicate charge"},
         content_type="application/json",
+        HTTP_IDEMPOTENCY_KEY=_next_key(),
         **headers,
     )
     assert second_response.status_code == 201, second_response.content
@@ -142,6 +154,7 @@ def test_credit_note_rejects_amount_above_net_paid(
         f"{INVOICES_URL}/{invoice_id}/credit-notes",
         data={"amount": "1500.01", "reason": "Too much"},
         content_type="application/json",
+        HTTP_IDEMPOTENCY_KEY=_next_key(),
         **auth_headers(cn_setup["owner"]),
     )
     assert response.status_code == 422
@@ -160,6 +173,7 @@ def test_credit_note_requires_full_reversal(
         f"{INVOICES_URL}/{invoice_id}/credit-notes",
         data={"amount": "500.00", "reason": "Partial"},
         content_type="application/json",
+        HTTP_IDEMPOTENCY_KEY=_next_key(),
         **auth_headers(cn_setup["owner"]),
     )
     assert response.status_code == 422
@@ -178,6 +192,7 @@ def test_credit_note_reason_is_mandatory(
         f"{INVOICES_URL}/{invoice_id}/credit-notes",
         data={"amount": "1500.00", "reason": "   "},
         content_type="application/json",
+        HTTP_IDEMPOTENCY_KEY=_next_key(),
         **auth_headers(cn_setup["owner"]),
     )
     assert response.status_code == 422
@@ -199,6 +214,7 @@ def test_credit_note_requires_paid_invoice(
         f"{INVOICES_URL}/{invoice_id}/credit-notes",
         data={"amount": "1500.00", "reason": "Not paid"},
         content_type="application/json",
+        HTTP_IDEMPOTENCY_KEY=_next_key(),
         **auth_headers(cn_setup["owner"]),
     )
     assert response.status_code == 409
@@ -261,6 +277,7 @@ def test_full_credit_note_refunds_status_and_zeroes_revenue(
         f"{INVOICES_URL}/{invoice_id}/credit-notes",
         data={"amount": "2400.00", "reason": "Treatment cancelled"},
         content_type="application/json",
+        HTTP_IDEMPOTENCY_KEY=_next_key(),
         **headers,
     )
     assert response.status_code == 201, response.content
@@ -288,6 +305,7 @@ def test_full_credit_note_refunds_status_and_zeroes_revenue(
         f"{INVOICES_URL}/{invoice_id}/credit-notes",
         data={"amount": "2400.00", "reason": "Again"},
         content_type="application/json",
+        HTTP_IDEMPOTENCY_KEY=_next_key(),
         **headers,
     )
     assert second.status_code == 409
@@ -337,6 +355,7 @@ def test_payment_rejected_after_full_credit_note(
         f"{INVOICES_URL}/{invoice_id}/credit-notes",
         data={"amount": "2400.00", "reason": "Double entry"},
         content_type="application/json",
+        HTTP_IDEMPOTENCY_KEY=_next_key(),
         **headers,
     )
     assert note.status_code == 201, note.content
@@ -360,3 +379,123 @@ def test_payment_rejected_after_full_credit_note(
     assert detail["status"] == "refunded"
     assert detail["net_paid"] == "2400.00"
     assert len(detail["payments"]) == 1
+
+
+@pytest.mark.django_db
+def test_credit_note_idempotent_replay_and_tier(
+    tenant_a: Any, cn_setup: dict[str, Any], auth_headers: Any
+) -> None:
+    """Same key + payload replays the original; >PKR 5,000 needs the Owner."""
+    client = Client()
+    headers = auth_headers(cn_setup["owner"])
+    manager_headers = auth_headers(cn_setup["manager"])
+
+    with tenant_context(tenant_a):
+        invoice = _paid_invoice(cn_setup, "6000.00")
+        invoice_id = invoice.id
+
+    # A Manager cannot reverse more than the PKR 5,000 ceiling.
+    blocked = client.post(
+        f"{INVOICES_URL}/{invoice_id}/credit-notes",
+        data={"amount": "6000.00", "reason": "Big reversal"},
+        content_type="application/json",
+        HTTP_IDEMPOTENCY_KEY="cn-tier-1",
+        **manager_headers,
+    )
+    assert blocked.status_code == 403
+    assert blocked.json()["error"]["code"] == "owner_approval_required"
+
+    payload = {"amount": "6000.00", "reason": "Big reversal", "method": "cash"}
+    first = client.post(
+        f"{INVOICES_URL}/{invoice_id}/credit-notes",
+        data=payload,
+        content_type="application/json",
+        HTTP_IDEMPOTENCY_KEY="cn-idem-1",
+        **headers,
+    )
+    assert first.status_code == 201, first.content
+
+    replay = client.post(
+        f"{INVOICES_URL}/{invoice_id}/credit-notes",
+        data=payload,
+        content_type="application/json",
+        HTTP_IDEMPOTENCY_KEY="cn-idem-1",
+        **headers,
+    )
+    assert replay.status_code == 200
+    assert replay.json()["id"] == first.json()["id"]
+
+    different = client.post(
+        f"{INVOICES_URL}/{invoice_id}/credit-notes",
+        data={"amount": "6000.00", "reason": "Other reason"},
+        content_type="application/json",
+        HTTP_IDEMPOTENCY_KEY="cn-idem-1",
+        **headers,
+    )
+    assert different.status_code == 409
+    assert different.json()["error"]["code"] == "idempotency_key_reused"
+
+
+@pytest.mark.django_db
+def test_void_restores_revenue_without_deleting_rows(
+    tenant_a: Any, cn_setup: dict[str, Any], auth_headers: Any
+) -> None:
+    """Owner void is append-only: the CN row stays, revenue comes back."""
+    client = Client()
+    headers = auth_headers(cn_setup["owner"])
+
+    with tenant_context(tenant_a):
+        invoice = _paid_invoice(cn_setup, "10700.00")
+        invoice_id = invoice.id
+
+    issued = client.post(
+        f"{INVOICES_URL}/{invoice_id}/credit-notes",
+        data={"amount": "10700.00", "reason": "Double entry", "method": "cash"},
+        content_type="application/json",
+        HTTP_IDEMPOTENCY_KEY="cn-void-1",
+        **headers,
+    )
+    assert issued.status_code == 201, issued.content
+    note_id = issued.json()["id"]
+
+    detail = client.get(f"{INVOICES_URL}/{invoice_id}", **headers).json()
+    assert detail["status"] == "refunded"
+    assert detail["net_revenue"] == "0.00"
+
+    # A partial note of PKR 10,000 on net paid 10,700 is rejected.
+    with tenant_context(tenant_a):
+        partial_invoice = _paid_invoice(cn_setup, "10700.00")
+        partial_id = partial_invoice.id
+    other = client.post(
+        f"{INVOICES_URL}/{partial_id}/credit-notes",
+        data={"amount": "10000.00", "reason": "Partial"},
+        content_type="application/json",
+        HTTP_IDEMPOTENCY_KEY="cn-void-2",
+        **headers,
+    )
+    assert other.status_code == 422
+    assert other.json()["error"]["code"] == "credit_note_amount_mismatch"
+
+    voided = client.post(
+        f"{INVOICES_URL}/{invoice_id}/credit-notes/{note_id}/void",
+        data={"reason": "Issued by mistake"},
+        content_type="application/json",
+        **headers,
+    )
+    assert voided.status_code == 200, voided.content
+    assert voided.json()["voided_at"]
+    assert voided.json()["number"] == issued.json()["number"]
+
+    detail = client.get(f"{INVOICES_URL}/{invoice_id}", **headers).json()
+    assert detail["status"] == "paid"
+    assert detail["net_revenue"] == "10700.00"
+    assert len(detail["credit_notes"]) == 1
+    assert detail["credit_notes"][0]["voided_at"]
+
+    history = client.get(f"{INVOICES_URL}/{invoice_id}/history", **headers).json()
+    events = [e["event"] for e in history["events"]]
+    assert "credit_note" in events
+    assert "credit_note_voided" in events
+
+    with tenant_context(tenant_a):
+        assert CreditNote.objects.filter(invoice_id=invoice_id).count() == 1

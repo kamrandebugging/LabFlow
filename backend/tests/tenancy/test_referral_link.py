@@ -124,7 +124,7 @@ def test_patient_partner_carries_onto_invoice_and_shows_in_summary_and_history(
 
 
 @pytest.mark.django_db
-def test_referral_discount_reason_must_name_the_partner(
+def test_referral_discount_requires_a_reason(
     tenant_a: Any, referral_setup: dict[str, Any], auth_headers: Any
 ) -> None:
     client = Client()
@@ -148,7 +148,9 @@ def test_referral_discount_reason_must_name_the_partner(
     assert no_reason.status_code == 422
     assert no_reason.json()["error"]["code"] == "discount_reason_required"
 
-    wrong_reason = client.post(
+    # The referral is keyed by the invoice's partner_id, not by matching the
+    # partner's name in the free-text reason.
+    free_text = client.post(
         INVOICES_URL,
         data={
             "patient_id": patient["id"],
@@ -162,8 +164,8 @@ def test_referral_discount_reason_must_name_the_partner(
         HTTP_IDEMPOTENCY_KEY="rf-invoice-3",
         **headers,
     )
-    assert wrong_reason.status_code == 422
-    assert wrong_reason.json()["error"]["code"] == "discount_reason_required"
+    assert free_text.status_code == 201, free_text.content
+    assert free_text.json()["referral_partner_id"] == str(partner.id)
 
 
 @pytest.mark.django_db

@@ -11,6 +11,8 @@ from typing import Any
 
 from rest_framework import serializers
 
+from apps.billing.models import Payment
+
 
 class MoneyField(serializers.Field):
     """Monetary amount: Decimal string, max 2 decimals, >= 0 (BL-V1)."""
@@ -195,6 +197,18 @@ class CreditNoteCreateSerializer(serializers.Serializer):
 
     amount = PositiveMoneyField()
     reason = serializers.CharField()
+    method = serializers.ChoiceField(
+        choices=Payment.Method.choices, required=False, default=Payment.Method.CASH
+    )
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        return _reject_unknown_fields(self, attrs)
+
+
+class CreditNoteVoidSerializer(serializers.Serializer):
+    """Body for POST /invoices/{id}/credit-notes/{note}/void."""
+
+    reason = serializers.CharField()
 
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
         return _reject_unknown_fields(self, attrs)
@@ -208,12 +222,24 @@ class CreditNoteSerializer(serializers.Serializer):
     invoice_id = serializers.UUIDField()
     amount = MoneyField()
     reason = serializers.CharField()
+    method = serializers.CharField()
+    reversed_methods = serializers.DictField()
     issued_by = serializers.UUIDField(allow_null=True)
     issued_by_name = serializers.SerializerMethodField()
     issued_at = serializers.DateTimeField()
+    voided_at = serializers.DateTimeField(allow_null=True)
+    void_reason = serializers.CharField(allow_null=True)
+    voided_by = serializers.UUIDField(allow_null=True)
+    voided_by_name = serializers.SerializerMethodField()
 
     def get_issued_by_name(self, obj: Any) -> str | None:
         staff = getattr(obj, "issued_by", None)
+        if staff is None:
+            return None
+        return getattr(staff, "name", None) or getattr(staff, "email", None)
+
+    def get_voided_by_name(self, obj: Any) -> str | None:
+        staff = getattr(obj, "voided_by", None)
         if staff is None:
             return None
         return getattr(staff, "name", None) or getattr(staff, "email", None)

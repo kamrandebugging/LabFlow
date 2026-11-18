@@ -67,6 +67,8 @@ export interface InvoiceHistoryEvent {
   reason?: string | null;
   number?: string | null;
   referral_partner?: string | null;
+  method?: string | null;
+  voided?: boolean;
 }
 
 export interface CreditNote {
@@ -75,9 +77,14 @@ export interface CreditNote {
   invoice_id: string;
   amount: string;
   reason: string;
+  method?: string;
+  reversed_methods?: Record<string, string>;
   issued_by?: string | null;
   issued_by_name?: string | null;
   issued_at: string;
+  voided_at?: string | null;
+  void_reason?: string | null;
+  voided_by_name?: string | null;
 }
 
 export interface InvoiceHistoryResponse {
