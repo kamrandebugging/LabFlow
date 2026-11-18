@@ -114,9 +114,10 @@ export function InvoicesListScreen({
     // when the status says money is still due AND the server gave a paid
     // figure. Never infer a balance from the total alone.
     if (inv.status !== "partial" && inv.status !== "unpaid") return null;
-    if (inv.net_paid === undefined || inv.net_paid === null) return null;
+    // Balance uses the server's net revenue (payments − refunds − credit
+    // notes) so a reversal restores the amount still due.
     const total = Number.parseFloat(inv.total || "0");
-    const paid = Number.parseFloat(inv.net_paid || "0");
+    const paid = Number.parseFloat(inv.net_revenue ?? inv.net_paid ?? "0");
     if (!Number.isFinite(total) || !Number.isFinite(paid)) return null;
     return Math.max(0, total - paid);
   };

@@ -600,6 +600,11 @@ class PaymentService:
             raise InvalidStateTransitionError(
                 "Payments cannot be recorded on a cancelled invoice."
             )
+        if invoice.status == Invoice.Status.REFUNDED:
+            raise InvalidStateTransitionError(
+                "This invoice was fully reversed by a credit note; no further "
+                "payments can be recorded against it."
+            )
 
         # Role gates: refunds are Owner/Manager only (BL-7).
         if kind == Payment.Kind.REFUND:
@@ -647,6 +652,11 @@ class PaymentService:
             if invoice.status == Invoice.Status.CANCELLED:
                 raise InvalidStateTransitionError(
                     "Payments cannot be recorded on a cancelled invoice."
+                )
+            if invoice.status == Invoice.Status.REFUNDED:
+                raise InvalidStateTransitionError(
+                    "This invoice was fully reversed by a credit note; no "
+                    "further payments can be recorded against it."
                 )
 
             if kind == Payment.Kind.REFUND:

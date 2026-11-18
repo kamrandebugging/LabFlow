@@ -192,7 +192,11 @@ export function InvoiceRecordDrawer({
   const balance = useMemo(() => {
     if (!invoice) return 0;
     const total = Number.parseFloat(invoice.total || "0");
-    const paid = Number.parseFloat(invoice.net_paid || "0");
+    // Net revenue (payments − refunds − credit notes) is what the invoice has
+    // actually kept, so a reversal correctly restores the outstanding balance.
+    const paid = Number.parseFloat(
+      invoice.net_revenue ?? invoice.net_paid ?? "0",
+    );
     if (!Number.isFinite(total) || !Number.isFinite(paid)) return 0;
     return Math.max(0, total - paid);
   }, [invoice]);

@@ -319,3 +319,44 @@ def test_partial_reversal_derives_partial_status() -> None:
         )
         == Invoice.Status.REFUNDED
     )
+
+
+@pytest.mark.django_db
+def test_payment_rejected_after_full_credit_note(
+    tenant_a: Any, cn_setup: dict[str, Any], auth_headers: Any
+) -> None:
+    """A fully reversed invoice cannot collect more money afterwards."""
+    client = Client()
+    headers = auth_headers(cn_setup["owner"])
+
+    with tenant_context(tenant_a):
+        invoice = _paid_invoice(cn_setup, "2400.00")
+        invoice_id = invoice.id
+
+    note = client.post(
+        f"{INVOICES_URL}/{invoice_id}/credit-notes",
+        data={"amount": "2400.00", "reason": "Double entry"},
+        content_type="application/json",
+        **headers,
+    )
+    assert note.status_code == 201, note.content
+
+    payment = client.post(
+        f"{INVOICES_URL}/{invoice_id}/payments",
+        data={
+            "kind": "payment",
+            "method": "cash",
+            "amount": "700.00",
+            "reference": "Late cash",
+        },
+        content_type="application/json",
+        HTTP_IDEMPOTENCY_KEY="cn-after-reversal-1",
+        **headers,
+    )
+    assert payment.status_code == 409
+    assert payment.json()["error"]["code"] == "invalid_state_transition"
+
+    detail = client.get(f"{INVOICES_URL}/{invoice_id}", **headers).json()
+    assert detail["status"] == "refunded"
+    assert detail["net_paid"] == "2400.00"
+    assert len(detail["payments"]) == 1
