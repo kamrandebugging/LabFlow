@@ -248,6 +248,7 @@ class InvoiceSummarySerializer(serializers.Serializer):
     discount_amount = MoneyField()
     total = MoneyField()
     net_paid = MoneyField()
+    net_revenue = MoneyField()
     created_at = serializers.DateTimeField()
 
 
@@ -280,6 +281,7 @@ class InvoiceDetailSerializer(serializers.Serializer):
     payments = PaymentSerializer(many=True)
     credit_notes = CreditNoteSerializer(many=True)
     net_paid = MoneyField()
+    net_revenue = MoneyField()
     created_at = serializers.DateTimeField()
 
     def to_representation(self, instance: Any) -> dict[str, Any]:

@@ -105,8 +105,9 @@ def test_credit_note_is_sequential_append_only_and_visible_in_history(
 
     with tenant_context(tenant_a):
         invoice = Invoice.objects.get(pk=first_id)
-        # Original invoice untouched: same status, total, and payment rows.
-        assert invoice.status == Invoice.Status.PAID
+        # Money fields and payment rows are untouched; only status moves to
+        # reflect the full reversal (credit notes feed the BL-6 derivation).
+        assert invoice.status == Invoice.Status.REFUNDED
         assert invoice.total == Decimal("1500.00")
         assert invoice.payments.count() == 1
         assert CreditNote.objects.filter(invoice=invoice).count() == 1
@@ -114,7 +115,10 @@ def test_credit_note_is_sequential_append_only_and_visible_in_history(
     detail = client.get(f"{INVOICES_URL}/{first_id}", **headers)
     assert detail.status_code == 200
     assert len(detail.json()["credit_notes"]) == 1
-    assert detail.json()["status"] == "paid"
+    assert detail.json()["status"] == "refunded"
+    # Net revenue = payments - refunds - credit notes.
+    assert detail.json()["net_paid"] == "1500.00"
+    assert detail.json()["net_revenue"] == "0.00"
 
     history = client.get(f"{INVOICES_URL}/{first_id}/history", **headers)
     assert history.status_code == 200
@@ -239,3 +243,79 @@ def test_unpaid_cancel_path_is_unchanged(
     assert response.status_code == 200
     with tenant_context(tenant_a):
         assert Invoice.objects.get(pk=invoice_id).status == Invoice.Status.CANCELLED
+
+
+@pytest.mark.django_db
+def test_full_credit_note_refunds_status_and_zeroes_revenue(
+    tenant_a: Any, cn_setup: dict[str, Any], auth_headers: Any
+) -> None:
+    """PKR 2400 paid + PKR 2400 credit note -> refunded, net revenue 0."""
+    client = Client()
+    headers = auth_headers(cn_setup["owner"])
+
+    with tenant_context(tenant_a):
+        invoice = _paid_invoice(cn_setup, "2400.00")
+        invoice_id = invoice.id
+
+    response = client.post(
+        f"{INVOICES_URL}/{invoice_id}/credit-notes",
+        data={"amount": "2400.00", "reason": "Treatment cancelled"},
+        content_type="application/json",
+        **headers,
+    )
+    assert response.status_code == 201, response.content
+
+    detail = client.get(f"{INVOICES_URL}/{invoice_id}", **headers)
+    assert detail.status_code == 200
+    body = detail.json()
+    assert body["status"] == "refunded"
+    assert body["total"] == "2400.00"
+    assert body["net_paid"] == "2400.00"
+    assert body["net_revenue"] == "0.00"
+    assert len(body["credit_notes"]) == 1
+
+    listing = client.get(INVOICES_URL, **headers)
+    assert listing.status_code == 200
+    rows = listing.json()["results"]
+    row = next(r for r in rows if r["id"] == str(invoice_id))
+    assert row["status"] == "refunded"
+    assert row["net_revenue"] == "0.00"
+    # Daily total is billed - refunds - credit notes, computed server-side.
+    assert listing.json()["daily_total"] == "0.00"
+
+    # A fully credited invoice cannot be reversed twice.
+    second = client.post(
+        f"{INVOICES_URL}/{invoice_id}/credit-notes",
+        data={"amount": "2400.00", "reason": "Again"},
+        content_type="application/json",
+        **headers,
+    )
+    assert second.status_code == 409
+    assert second.json()["error"]["code"] == "invalid_state_transition"
+
+    with tenant_context(tenant_a):
+        assert CreditNote.objects.filter(invoice_id=invoice_id).count() == 1
+
+
+def test_partial_reversal_derives_partial_status() -> None:
+    """A credit note smaller than net_paid keeps the partial status value."""
+    from apps.billing.services import _derive_invoice_status
+
+    assert (
+        _derive_invoice_status(
+            total=Decimal("1000.00"),
+            paid_sum=Decimal("1000.00"),
+            refund_sum=Decimal("0.00"),
+            credit_sum=Decimal("400.00"),
+        )
+        == Invoice.Status.PARTIAL
+    )
+    assert (
+        _derive_invoice_status(
+            total=Decimal("1000.00"),
+            paid_sum=Decimal("1000.00"),
+            refund_sum=Decimal("0.00"),
+            credit_sum=Decimal("1000.00"),
+        )
+        == Invoice.Status.REFUNDED
+    )

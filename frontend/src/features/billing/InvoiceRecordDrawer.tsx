@@ -197,8 +197,18 @@ export function InvoiceRecordDrawer({
     return Math.max(0, total - paid);
   }, [invoice]);
 
+  // A fully credited invoice is reversed; the credit note is the reversal
+  // record, so the action disappears once nothing is left to reverse.
+  const creditedTotal = (invoice?.credit_notes ?? []).reduce(
+    (sum, note) => sum + Number(note.amount || 0),
+    0,
+  );
+  const fullyCredited =
+    creditedTotal > 0 && creditedTotal >= Number(invoice?.net_paid || 0);
+
   const canCreditNote =
-    invoice?.status === "paid" || invoice?.status === "partial";
+    (invoice?.status === "paid" || invoice?.status === "partial") &&
+    !fullyCredited;
 
   const header = invoice ? (
     <div className={record.nameRow}>

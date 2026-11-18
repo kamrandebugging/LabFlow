@@ -49,7 +49,7 @@ from typing import Any, cast
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
-from django.db.models import DecimalField, Q, Sum, Value
+from django.db.models import DecimalField, F, OuterRef, Q, Subquery, Sum, Value
 from django.db.models.functions import Coalesce
 from django.utils import timezone
 
@@ -489,15 +489,24 @@ def _derive_invoice_status(
     total: Decimal,
     paid_sum: Decimal,
     refund_sum: Decimal,
+    credit_sum: Decimal = Decimal("0.00"),
 ) -> str:
-    """BL-6: derive invoice status from payment aggregates. Never set directly."""
-    net = paid_sum - refund_sum
-    if net == total:
+    """BL-6: derive invoice status from payment + credit-note aggregates.
+
+    Never set directly. Credit notes reverse collected money exactly like a
+    refund, so they participate in the same derivation:
+    - net (paid − refunded − credited) equals the total → paid;
+    - net is zero after money was reversed → refunded (full reversal);
+    - net is zero with nothing reversed → unpaid;
+    - anything else → partial (partially refunded).
+    """
+    net = paid_sum - refund_sum - credit_sum
+    if net == total and credit_sum == Decimal("0.00"):
         return Invoice.Status.PAID
     if (
         net == Decimal("0.00")
         and paid_sum > Decimal("0.00")
-        and refund_sum > Decimal("0.00")
+        and (refund_sum > Decimal("0.00") or credit_sum > Decimal("0.00"))
     ):
         return Invoice.Status.REFUNDED
     if net == Decimal("0.00"):
@@ -514,6 +523,21 @@ def _payment_aggregates(invoice: Invoice) -> tuple[Decimal, Decimal]:
     paid_sum: Decimal = agg["paid"] or Decimal("0.00")
     refund_sum: Decimal = agg["refunded"] or Decimal("0.00")
     return paid_sum, refund_sum
+
+
+def _credit_note_sum(invoice: Invoice) -> Decimal:
+    """Σ credit notes issued against an invoice (append-only reversal total)."""
+    total: Decimal = CreditNote.objects.filter(invoice=invoice).aggregate(
+        credited=Sum("amount")
+    )["credited"] or Decimal("0.00")
+    return total
+
+
+def net_revenue(
+    *, paid_sum: Decimal, refund_sum: Decimal, credit_sum: Decimal
+) -> Decimal:
+    """Net revenue = payments − refunds − credit notes (one server-side rule)."""
+    return paid_sum - refund_sum - credit_sum
 
 
 class PaymentService:
@@ -671,6 +695,7 @@ class PaymentService:
                         total=invoice.total,
                         paid_sum=new_paid,
                         refund_sum=new_refund,
+                        credit_sum=_credit_note_sum(invoice),
                     )
                     old_status: str | None = None
                     if new_status != invoice.status:
@@ -789,6 +814,12 @@ class InvoiceQueryService:
         therefore yields no rows.
         """
         money_field = DecimalField(max_digits=12, decimal_places=2)
+        credit_total_subquery = (
+            CreditNote.objects.filter(invoice=OuterRef("pk"))
+            .values("invoice")
+            .annotate(total=Sum("amount"))
+            .values("total")
+        )
         qs = (
             Invoice.objects.scoped_to(actor)
             .select_related("patient")
@@ -808,8 +839,14 @@ class InvoiceQueryService:
                     ),
                     Value(Decimal("0.00")),
                     output_field=money_field,
-                )
+                ),
+                credit_total=Coalesce(
+                    Subquery(credit_total_subquery, output_field=money_field),
+                    Value(Decimal("0.00")),
+                    output_field=money_field,
+                ),
             )
+            .annotate(net_revenue=F("net_paid") - F("credit_total"))
             .order_by("-created_at", "-id")
         )
         if status is not None:
@@ -861,10 +898,19 @@ class InvoiceQueryService:
             paid=Sum("amount", filter=Q(kind=Payment.Kind.PAYMENT)),
             refunded=Sum("amount", filter=Q(kind=Payment.Kind.REFUND)),
         )
-        net_paid = (agg["paid"] or Decimal("0.00")) - (
-            agg["refunded"] or Decimal("0.00")
-        )
-        return {"invoice": invoice, "net_paid": net_paid}
+        paid_sum = agg["paid"] or Decimal("0.00")
+        refund_sum = agg["refunded"] or Decimal("0.00")
+        credit_sum = _credit_note_sum(invoice)
+        net_paid = paid_sum - refund_sum
+        return {
+            "invoice": invoice,
+            "net_paid": net_paid,
+            "net_revenue": net_revenue(
+                paid_sum=paid_sum,
+                refund_sum=refund_sum,
+                credit_sum=credit_sum,
+            ),
+        }
 
     @staticmethod
     def cancel_invoice(
@@ -973,9 +1019,15 @@ class CreditNoteService:
                 paid=Sum("amount", filter=Q(kind=Payment.Kind.PAYMENT)),
                 refunded=Sum("amount", filter=Q(kind=Payment.Kind.REFUND)),
             )
-            net_paid = (agg["paid"] or Decimal("0.00")) - (
-                agg["refunded"] or Decimal("0.00")
-            )
+            paid_sum = agg["paid"] or Decimal("0.00")
+            refund_sum = agg["refunded"] or Decimal("0.00")
+            net_paid = paid_sum - refund_sum
+            credit_sum = _credit_note_sum(invoice)
+            if credit_sum > Decimal("0.00"):
+                raise InvalidStateTransitionError(
+                    "This invoice already has a credit note; it cannot be "
+                    "reversed twice."
+                )
             if invoice.status not in {
                 Invoice.Status.PAID,
                 Invoice.Status.PARTIAL,
@@ -1006,14 +1058,28 @@ class CreditNoteService:
                 reason=reason.strip(),
                 issued_by=actor,
             )
+            # Credit notes reverse collected money, so they feed the same
+            # status derivation as a refund (BL-6). Only the status column
+            # moves — the invoice's money fields and payment rows stay intact.
+            new_status = _derive_invoice_status(
+                total=invoice.total,
+                paid_sum=paid_sum,
+                refund_sum=refund_sum,
+                credit_sum=credit_sum + amount,
+            )
+            old_status = invoice.status
+            if new_status != invoice.status:
+                invoice.status = new_status
+                invoice.save(update_fields=["status", "updated_at"])
             AuditLog.objects.create(
                 actor_id=actor.id,
                 action="invoice.credit_note_issued",
                 entity_type="invoice",
                 entity_id=invoice.id,
-                before_jsonb={"status": invoice.status},
+                before_jsonb={"status": old_status},
                 after_jsonb={
                     "event": "invoice.credit_note_issued",
+                    "status": new_status,
                     "credit_note_id": str(note.id),
                     "number": note.number,
                     "amount": f"{amount:.2f}",

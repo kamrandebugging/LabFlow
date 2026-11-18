@@ -27,7 +27,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.accounts.models import StaffUser
-from apps.billing.models import Invoice, Payment
+from apps.billing.models import CreditNote, Invoice, Payment
 from apps.billing.serializers import (
     CreditNoteCreateSerializer,
     CreditNoteSerializer,
@@ -101,12 +101,20 @@ class InvoiceCollectionView(BranchScopedAPIView):
                 status=exc.status_code,
             )
         today = timezone.localdate()
-        today_total = (
+        today_qs = (
             Invoice.objects.scoped_to(user)
             .filter(created_at__date=today)
             .exclude(status=Invoice.Status.CANCELLED)
-            .aggregate(sum=Sum("total"))["sum"]
-        ) or Decimal("0.00")
+        )
+        billed = today_qs.aggregate(sum=Sum("total"))["sum"] or Decimal("0.00")
+        refunded = Payment.objects.filter(
+            invoice__in=today_qs, kind=Payment.Kind.REFUND
+        ).aggregate(sum=Sum("amount"))["sum"] or Decimal("0.00")
+        credited = CreditNote.objects.filter(invoice__in=today_qs).aggregate(
+            sum=Sum("amount")
+        )["sum"] or Decimal("0.00")
+        # Net revenue = billed − refunds − credit notes (never client-computed).
+        today_total = billed - refunded - credited
         body = {
             "results": InvoiceSummarySerializer(rows, many=True).data,
             "next_cursor": next_cursor,
@@ -436,6 +444,7 @@ class InvoiceDetailView(APIView):
                 invoice.credit_notes.select_related("issued_by").order_by("issued_at")
             ),
             "net_paid": detail["net_paid"],
+            "net_revenue": detail["net_revenue"],
             "created_at": invoice.created_at,
         }
         return Response(

@@ -98,6 +98,7 @@ export interface InvoiceSummary {
   discount_amount: string;
   total: string;
   net_paid?: string;
+  net_revenue?: string;
   items_summary?: string;
   created_at: string;
 }
@@ -123,6 +124,7 @@ export interface InvoiceDetail {
   payments: PaymentRecord[];
   credit_notes?: CreditNote[];
   net_paid: string;
+  net_revenue?: string;
   created_at: string;
 }
 
