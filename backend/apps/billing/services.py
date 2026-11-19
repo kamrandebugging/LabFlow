@@ -1320,7 +1320,12 @@ class InvoiceQueryService:
             if (unpaid_case or zero_total_case) and not terminal_case:
                 collected = (
                     Sample.objects.filter(invoice=invoice)
-                    .exclude(status=Sample.Status.CANCELLED)
+                    .exclude(
+                        status__in=[
+                            Sample.Status.CANCELLED,
+                            Sample.Status.REJECTED,
+                        ]
+                    )
                     .exists()
                 )
                 if collected:
@@ -1398,7 +1403,12 @@ class InvoiceQueryService:
 
             has_sample = (
                 SampleTest.objects.filter(invoice_item_id=item.id)
-                .exclude(sample__status=Sample.Status.CANCELLED)
+                .exclude(
+                    sample__status__in=[
+                        Sample.Status.CANCELLED,
+                        Sample.Status.REJECTED,
+                    ]
+                )
                 .exists()
             )
             has_result = (
@@ -1724,7 +1734,12 @@ class CreditNoteService:
             # Phase 7 Rule 1: Check if any uncancelled sample exists
             if (
                 Sample.objects.filter(invoice=invoice)
-                .exclude(status=Sample.Status.CANCELLED)
+                .exclude(
+                    status__in=[
+                        Sample.Status.CANCELLED,
+                        Sample.Status.REJECTED,
+                    ]
+                )
                 .exists()
             ):
                 raise SampleAlreadyCollectedError(

@@ -73,15 +73,15 @@ from apps.samples.models import (
 
 KARACHI = ZoneInfo("Asia/Karachi")
 
-SAMPLE_WRITE_ROLES = {Role.OWNER, Role.MANAGER, Role.RECEPTION}
+SAMPLE_WRITE_ROLES = {Role.OWNER, Role.MANAGER, Role.RECEPTION, Role.TECHNICIAN}
 SAMPLE_LABEL_ROLES = {Role.OWNER, Role.MANAGER, Role.RECEPTION, Role.TECHNICIAN}
 SAMPLE_RECEIVE_ROLES = {Role.OWNER, Role.MANAGER, Role.TECHNICIAN}
 SAMPLE_REJECT_ROLES = {Role.OWNER, Role.MANAGER, Role.RECEPTION, Role.TECHNICIAN}
-SAMPLE_RECOLLECT_ROLES = {Role.OWNER, Role.MANAGER, Role.RECEPTION}
+SAMPLE_RECOLLECT_ROLES = {Role.OWNER, Role.MANAGER, Role.RECEPTION, Role.TECHNICIAN}
 SAMPLE_CANCEL_ROLES = {Role.OWNER, Role.MANAGER}
 
 TRANSFER_CREATE_ROLES = {Role.OWNER, Role.MANAGER, Role.RECEPTION, Role.TECHNICIAN}
-TRANSFER_RECEIVE_ROLES = {Role.OWNER, Role.MANAGER, Role.RECEPTION, Role.TECHNICIAN}
+TRANSFER_RECEIVE_ROLES = {Role.OWNER, Role.MANAGER, Role.TECHNICIAN}
 TRANSFER_CANCEL_ROLES = {Role.OWNER, Role.MANAGER}
 TRANSFER_MARK_LOST_ROLES = {Role.OWNER, Role.MANAGER}
 SAMPLE_EVENTS_ROLES = {
@@ -194,6 +194,11 @@ class BranchCannotReceiveError(SampleError):
 class MarkLostNoteRequiredError(SampleError):
     status_code = 422
     error_code = "mark_lost_note_required"
+
+
+class SampleForbiddenError(SampleError):
+    status_code = 403
+    error_code = "forbidden"
 
 
 def _tenant_prefix() -> str:
@@ -442,11 +447,15 @@ class SampleService:
         *,
         invoice_id: uuid.UUID,
         invoice_item_ids: list[uuid.UUID] | None,
+        notes: str | None = None,
         actor: StaffUser,
         ip: str | None = None,
         user_agent: str | None = None,
     ) -> Sample:
         """Collect a sample for an invoice's untested items (SM-1..SM-3)."""
+        clean_notes = (notes or "").strip() or None
+        if clean_notes and len(clean_notes) > 500:
+            raise SampleError("Notes cannot exceed 500 characters.")
         with transaction.atomic():
             try:
                 invoice = (
@@ -531,6 +540,7 @@ class SampleService:
                 status=Sample.Status.COLLECTED,
                 collected_at=now,
                 collected_by=actor,
+                collection_notes=clean_notes,
             )
             for _, (test, item) in distinct_tests.items():
                 SampleTest.objects.create(sample=sample, invoice_item=item, test=test)
@@ -539,6 +549,7 @@ class SampleService:
                 event=SampleEvent.EventType.COLLECTED,
                 actor=actor,
                 branch=collecting_branch,
+                note=clean_notes,
             )
             AuditLog.objects.create(
                 actor_id=actor.id,
@@ -554,6 +565,7 @@ class SampleService:
                     "collected_by": str(actor.id),
                     "test_count": len(distinct_tests),
                     "billing_hold_enabled": billing_hold,
+                    "notes": clean_notes,
                     "event": "sample.collected",
                 },
                 ip=ip,
@@ -613,7 +625,21 @@ class SampleService:
                 "payload": sample.accession_id,
             },
         }
+        return payload
 
+    @staticmethod
+    def print_label(
+        *,
+        sample_id: uuid.UUID,
+        actor: StaffUser,
+        ip: str | None = None,
+        user_agent: str | None = None,
+    ) -> dict[str, Any]:
+        """Explicitly record a print event and return label payload (D8)."""
+        payload = SampleService.get_label(
+            sample_id=sample_id, actor=actor, ip=ip, user_agent=user_agent
+        )
+        sample = _get_sample(sample_id)
         with transaction.atomic():
             AuditLog.objects.create(
                 actor_id=actor.id,
@@ -653,8 +679,15 @@ class SampleService:
             raise InvalidStateTransitionError(
                 "Only a collected sample can be received."
             )
-        branch = _caller_branch(actor)
-        if branch is not None and branch.id != sample.branch_id:
+        if SampleTransfer.objects.filter(
+            sample=sample, status=SampleTransfer.Status.OPEN
+        ).exists():
+            raise TransferAlreadyOpenError(
+                "Cannot receive a sample with an open transfer."
+            )
+        if not actor.is_tenant_wide and sample.branch_id not in effective_branch_ids(
+            actor
+        ):
             raise SampleNotHereError("This branch does not hold the sample.")
         with transaction.atomic():
             sample.status = Sample.Status.RECEIVED
@@ -667,6 +700,8 @@ class SampleService:
                 action="sample.received",
                 after_jsonb={
                     "accession_id": sample.accession_id,
+                    # "from_status": "collected" is always true here because
+                    # the guard above permits only COLLECTED.
                     "from_status": "collected",
                     "to_status": "received",
                     "branch_id": str(sample.branch_id),
@@ -691,7 +726,7 @@ class SampleService:
         """Reject for quality (SM-8). Stores code + note (A-2).
 
         Guards: 409 invalid_state_transition from rejected/cancelled/ready;
-        409 sample_has_results when any result exists; 409
+        409 sample_has_results when any non-withdrawn result exists; 409
         transfer_already_open when an open transfer exists; 422
         reject_note_required when code is `other` without a note.
         Enqueues samples.notify_rejection via transaction.on_commit.
@@ -702,6 +737,10 @@ class SampleService:
             raise RejectNoteRequiredError(
                 "A note is required when the reason code is 'other'."
             )
+        if actor.role == Role.RECEPTION and sample.status != Sample.Status.COLLECTED:
+            raise SampleForbiddenError(
+                "Reception may only reject a sample before it has been received."
+            )
         if sample.status in (
             Sample.Status.REJECTED,
             Sample.Status.CANCELLED,
@@ -710,7 +749,13 @@ class SampleService:
             raise InvalidStateTransitionError(
                 f"A sample in status '{sample.status}' cannot be rejected."
             )
-        if Result.objects.filter(sample=sample).exists():
+        # D1: Withdrawn results do not block rejection. Only active
+        # (non-withdrawn) results block.
+        if (
+            Result.objects.filter(sample=sample)
+            .exclude(status=Result.Status.WITHDRAWN)
+            .exists()
+        ):
             raise SampleHasResultsError(
                 "Cannot reject a sample that already has results."
             )
@@ -721,6 +766,7 @@ class SampleService:
                 "Cannot reject a sample with an open transfer."
             )
 
+        prior_status = sample.status
         with transaction.atomic():
             sample.status = Sample.Status.REJECTED
             sample.rejection_reason_code = reason_code
@@ -741,7 +787,7 @@ class SampleService:
                 action="sample.rejected",
                 after_jsonb={
                     "accession_id": sample.accession_id,
-                    "from_status": "collected",
+                    "from_status": prior_status,
                     "to_status": "rejected",
                     "rejection_reason_code": reason_code,
                     "rejection_note": clean_note or None,
@@ -778,31 +824,54 @@ class SampleService:
         Only on a rejected sample. Mints a fresh accession via the shared
         _mint_accession_id helper (per-tenant-per-day + SELECT FOR UPDATE —
         not duplicated). Copies the still-untested sample_test rows (tests
-        with no result row). Never touches the invoice (no double billing).
+        with no non-withdrawn result row). Never touches the invoice
+        (no double billing).
         Audit links old accession -> new accession.
         """
-        old = _get_scoped_sample(sample_id, actor)
-        if old.status != Sample.Status.REJECTED:
-            raise InvalidStateTransitionError(
-                "Only a rejected sample can be recollected."
-            )
-
-        # Still-untested = sample_test rows with no result row yet. Single
-        # bulk query (no N+1).
-        old_links = list(
-            SampleTest.objects.filter(sample=old).select_related("test", "invoice_item")
-        )
-        tested_test_ids = set(
-            Result.objects.filter(sample=old).values_list("test_id", flat=True)
-        )
-        untested = [link for link in old_links if link.test_id not in tested_test_ids]
-        if not untested:
-            raise InvalidStateTransitionError(
-                "Nothing left to recollect on this sample."
-            )
-
-        now = datetime.now(KARACHI)
         with transaction.atomic():
+            old = (
+                Sample.objects.select_for_update()
+                .select_related("invoice", "branch")
+                .get(pk=sample_id)
+            )
+            if not in_branch_scope(actor, old.branch_id):
+                raise SampleNotFoundError("Sample not found.")
+            if old.status != Sample.Status.REJECTED:
+                raise InvalidStateTransitionError(
+                    "Only a rejected sample can be recollected."
+                )
+
+            # Still-untested = sample_test rows with no non-withdrawn result row yet.
+            old_links = list(
+                SampleTest.objects.filter(sample=old).select_related(
+                    "test", "invoice_item"
+                )
+            )
+            tested_test_ids = set(
+                Result.objects.filter(sample=old)
+                .exclude(status=Result.Status.WITHDRAWN)
+                .values_list("test_id", flat=True)
+            )
+            untested = [
+                link for link in old_links if link.test_id not in tested_test_ids
+            ]
+            if not untested:
+                raise InvalidStateTransitionError(
+                    "Nothing left to recollect on this sample."
+                )
+
+            untested_item_ids = [link.invoice_item_id for link in untested]
+            if (
+                SampleTest.objects.filter(
+                    invoice_item_id__in=untested_item_ids,
+                    sample__status__in=LIVE_SAMPLE_STATUSES,
+                )
+                .exclude(sample=old)
+                .exists()
+            ):
+                raise InvalidStateTransitionError("Sample already recollected.")
+
+            now = datetime.now(KARACHI)
             new_accession = _mint_accession_id()
             new_sample = Sample.objects.create(
                 invoice=old.invoice,
@@ -811,6 +880,7 @@ class SampleService:
                 status=Sample.Status.COLLECTED,
                 collected_at=now,
                 collected_by=actor,
+                recollected_from=old,
             )
             for link in untested:
                 SampleTest.objects.create(
@@ -823,6 +893,7 @@ class SampleService:
                 event=SampleEvent.EventType.COLLECTED,
                 actor=actor,
                 branch=old.branch,
+                note=f"Recollected from {old.accession_id}",
             )
             AuditLog.objects.create(
                 actor_id=actor.id,
@@ -858,7 +929,7 @@ class SampleService:
                 ip=ip,
                 user_agent=user_agent,
             )
-        return new_sample
+            return new_sample
 
     @staticmethod
     def cancel_sample(
@@ -872,7 +943,7 @@ class SampleService:
         """Cancel a sample (SM-11): O/M only, reason required.
 
         Allowed only from collected|received; 409 invalid_state_transition
-        otherwise; 409 sample_has_results once any result exists (even
+        otherwise; 409 sample_has_results once any non-withdrawn result exists (even
         entered); 422 cancel_reason_required on empty reason.
         """
         sample = _get_scoped_sample(sample_id, actor)
@@ -883,9 +954,21 @@ class SampleService:
             raise InvalidStateTransitionError(
                 f"A sample in status '{sample.status}' cannot be cancelled."
             )
-        if Result.objects.filter(sample=sample).exists():
+        # D1: Withdrawn results do not block cancellation. Only active
+        # (non-withdrawn) results block.
+        if (
+            Result.objects.filter(sample=sample)
+            .exclude(status=Result.Status.WITHDRAWN)
+            .exists()
+        ):
             raise SampleHasResultsError(
                 "Cannot cancel a sample that already has results."
+            )
+        if SampleTransfer.objects.filter(
+            sample=sample, status=SampleTransfer.Status.OPEN
+        ).exists():
+            raise TransferAlreadyOpenError(
+                "Cannot cancel a sample with an open transfer."
             )
         from_status = sample.status
         with transaction.atomic():
@@ -1007,8 +1090,13 @@ class TransferService:
             raise InvalidStateTransitionError(
                 f"A sample in status '{sample.status}' cannot be transferred."
             )
-        branch = _caller_branch(actor)
-        if branch is not None and branch.id != sample.branch_id:
+        if to_branch_id == sample.branch_id:
+            raise BranchCannotReceiveError(
+                "Cannot transfer a sample to its own branch."
+            )
+        if not actor.is_tenant_wide and sample.branch_id not in effective_branch_ids(
+            actor
+        ):
             raise SampleNotHereError("This branch does not hold the sample.")
         if _open_transfer_for(sample) is not None:
             raise TransferAlreadyOpenError(
@@ -1074,12 +1162,19 @@ class TransferService:
         same transaction.
         """
         transfer = _get_transfer(transfer_id)
-        branch = _caller_branch(actor)
-        if branch is not None and branch.id != transfer.to_branch_id:
+        if (
+            not actor.is_tenant_wide
+            and transfer.to_branch_id not in effective_branch_ids(actor)
+        ):
             raise TransferNotFoundError("Transfer not found.") from None
         if transfer.status != SampleTransfer.Status.OPEN:
             raise InvalidStateTransitionError(
                 f"A transfer in status '{transfer.status}' cannot be received."
+            )
+        sample = transfer.sample
+        if sample.status not in (Sample.Status.COLLECTED, Sample.Status.RECEIVED):
+            raise InvalidStateTransitionError(
+                f"Cannot receive transfer: sample is in '{sample.status}' status."
             )
 
         now = datetime.now(KARACHI)
@@ -1088,7 +1183,6 @@ class TransferService:
             transfer.received_at = now
             transfer.received_by = actor
             transfer.save(update_fields=["status", "received_at", "received_by"])
-            sample = transfer.sample
             sample.branch = transfer.to_branch
             sample.status = Sample.Status.RECEIVED
             sample.save(update_fields=["branch", "status", "updated_at"])
@@ -1136,8 +1230,10 @@ class TransferService:
         transferable again or processed locally.
         """
         transfer = _get_transfer(transfer_id)
-        branch = _caller_branch(actor)
-        if branch is not None and branch.id != transfer.from_branch_id:
+        if (
+            not actor.is_tenant_wide
+            and transfer.from_branch_id not in effective_branch_ids(actor)
+        ):
             raise TransferNotFoundError("Transfer not found.") from None
         if transfer.status != SampleTransfer.Status.OPEN:
             raise InvalidStateTransitionError(
@@ -1183,8 +1279,10 @@ class TransferService:
         later through reject + recollect.
         """
         transfer = _get_transfer(transfer_id)
-        branch = _caller_branch(actor)
-        if branch is not None and branch.id != transfer.from_branch_id:
+        if (
+            not actor.is_tenant_wide
+            and transfer.from_branch_id not in effective_branch_ids(actor)
+        ):
             raise TransferNotFoundError("Transfer not found.") from None
         clean_note = (note or "").strip()
         if not clean_note:
@@ -1220,6 +1318,36 @@ class TransferService:
                 user_agent=user_agent,
             )
         return transfer
+
+    @staticmethod
+    def list_transfers(
+        *,
+        actor: StaffUser,
+        status: str | None = None,
+        direction: str | None = None,
+    ) -> list[SampleTransfer]:
+        """List transfers with status and direction filters and branch scoping (D12)."""
+        qs = SampleTransfer.objects.select_related(
+            "sample__invoice__patient",
+            "from_branch",
+            "to_branch",
+            "transferred_by",
+            "received_by",
+        ).order_by("-dispatched_at")
+        if not actor.is_tenant_wide:
+            assigned = effective_branch_ids(actor)
+            if direction == "incoming":
+                qs = qs.filter(to_branch_id__in=assigned)
+            elif direction == "outgoing":
+                qs = qs.filter(from_branch_id__in=assigned)
+            else:
+                qs = qs.filter(
+                    Q(from_branch_id__in=assigned) | Q(to_branch_id__in=assigned)
+                )
+
+        if status:
+            qs = qs.filter(status=status)
+        return list(qs)
 
     # ------------------------------------------------------------------
     # Reads: events timeline + exceptions (KAN-143 / LAB-23)
@@ -1279,12 +1407,14 @@ class TransferService:
         from->to pair counts with month filter. Managers see only pairs
         touching their branches; a branchless Owner sees all. Read-only.
         """
-        branch = _caller_branch(actor)
         qs = SampleTransfer.objects.select_related(
             "sample", "from_branch", "to_branch"
         ).order_by("-dispatched_at")
-        if branch is not None:
-            qs = qs.filter(Q(from_branch=branch) | Q(to_branch=branch))
+        if not actor.is_tenant_wide:
+            assigned = effective_branch_ids(actor)
+            qs = qs.filter(
+                Q(from_branch_id__in=assigned) | Q(to_branch_id__in=assigned)
+            )
         transfers = list(qs)
 
         sections: dict[str, Any] = {}
@@ -1315,6 +1445,8 @@ def _event_payload(ev: SampleEvent, transfers: list[SampleTransfer]) -> dict[str
         if ev.event == SampleEvent.EventType.TRANSFER_LOST:
             payload["note"] = ev.note
         return payload
+    if ev.note:
+        return {"note": ev.note}
     return {}
 
 

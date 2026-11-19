@@ -583,8 +583,9 @@ class ResultService:
             )
 
         # BS-3: a technician enters only on the holding branch.
-        caller_branch = _caller_branch(actor)
-        if caller_branch is not None and caller_branch.id != sample.branch_id:
+        if not actor.is_tenant_wide and sample.branch_id not in effective_branch_ids(
+            actor
+        ):
             raise SampleNotHereError("This branch does not hold the sample.")
 
         # RS-3 state rule.
@@ -1271,7 +1272,11 @@ def _maybe_complete_sample(
         return False
 
     sample = Sample.objects.select_for_update().get(pk=sample_id)
-    if sample.status == Sample.Status.READY:
+    if sample.status in (
+        Sample.Status.READY,
+        Sample.Status.REJECTED,
+        Sample.Status.CANCELLED,
+    ):
         return False
     before_status = sample.status
     sample.status = Sample.Status.READY
