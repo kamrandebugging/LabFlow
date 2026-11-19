@@ -221,8 +221,8 @@ def test_credit_note_requires_paid_invoice(
         HTTP_IDEMPOTENCY_KEY=_next_key(),
         headers=auth_headers(cn_setup["owner"]),
     )
-    assert response.status_code == 409
-    assert response.json()["error"]["code"] == "invalid_state_transition"
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "credit_note_exceeds_net_paid"
 
 
 @pytest.mark.django_db
@@ -313,14 +313,18 @@ def test_full_credit_note_refunds_status_and_zeroes_revenue(
         headers=headers,
     )
     assert second.status_code == 409
-    assert second.json()["error"]["code"] == "invalid_state_transition"
+    assert second.json()["error"]["code"] == "credit_note_already_used"
 
     with tenant_context(tenant_a):
         assert CreditNote.objects.filter(invoice_id=invoice_id).count() == 1
 
 
-def test_partial_reversal_derives_partial_status() -> None:
-    """A credit note smaller than net_paid keeps the partial status value."""
+def test_credit_note_derives_refunded_status() -> None:
+    """Phase 1 Rule 2(b): any active credit note derives Refunded.
+
+    Partial credit notes are unreachable at the API (the amount must equal net
+    paid), so a credited invoice is never Partial.
+    """
     from apps.billing.services import _derive_invoice_status
 
     assert (
@@ -330,7 +334,7 @@ def test_partial_reversal_derives_partial_status() -> None:
             refund_sum=Decimal("0.00"),
             credit_sum=Decimal("400.00"),
         )
-        == Invoice.Status.PARTIAL
+        == Invoice.Status.REFUNDED
     )
     assert (
         _derive_invoice_status(

@@ -1308,13 +1308,12 @@ class InvoiceQueryService:
 
             # Phase 6 Rule 1: an ordinary unpaid invoice may be cancelled by
             # Owner/Manager/Reception, but zero-total and terminal (post-void
-            # full-refund) closures are Owner/Manager decisions only.
-            allowed_to_cancel = (
-                unpaid_case and actor.role in {Role.OWNER, Role.MANAGER, Role.RECEPTION}
-            ) or ((zero_total_case or terminal_case) and actor.role in DISCOUNT_ROLES)
-            if not allowed_to_cancel:
+            # full-refund) closures are Owner/Manager decisions only. A state
+            # that is not cancellable at all still answers 409, not 403.
+            if (zero_total_case or terminal_case) and actor.role not in DISCOUNT_ROLES:
                 raise CancelNotPermittedError("Not permitted to cancel this invoice.")
-
+            if actor.role not in {Role.OWNER, Role.MANAGER, Role.RECEPTION}:
+                raise CancelNotPermittedError("Not permitted to cancel this invoice.")
             if not (unpaid_case or zero_total_case or terminal_case):
                 raise InvalidStateTransitionError("This invoice cannot be cancelled.")
 

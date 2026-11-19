@@ -530,7 +530,8 @@ describe("Item 9 — Refund confirmation modal", () => {
       expect.objectContaining({
         kind: "refund",
         amount: "200.00",
-        reference: "Test cancelled by doctor",
+        refund_reason: "Test cancelled by doctor",
+        reference: null,
       }),
     );
   });
