@@ -35,6 +35,7 @@ export interface InvoiceItem {
   quantity: number;
   line_total: string;
   reporting_time?: string | null;
+  is_cancelled?: boolean;
 }
 
 export interface PaymentRecord {

@@ -187,7 +187,8 @@ describe("Screen 15: Invoice Detail (15-invoice-detail.html & Doc 03 §5.3, §6.
         expect.objectContaining({
           kind: "refund",
           amount: "200.00",
-          reference: "Test cancelled by doctor",
+          refund_reason: "Test cancelled by doctor",
+          reference: null,
         }),
       );
     });

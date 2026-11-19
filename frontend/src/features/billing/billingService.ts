@@ -275,6 +275,32 @@ export const billingService = {
     }
   },
 
+  /** POST /invoices/{id}/lines/{line}/cancel — Owner/Manager, append-only. */
+  async cancelInvoiceLine(
+    invoiceId: string,
+    lineId: string,
+    reason: string,
+  ): Promise<InvoiceDetail> {
+    try {
+      return await apiRequest<InvoiceDetail>(
+        `/invoices/${invoiceId}/lines/${lineId}/cancel`,
+        {
+          method: "POST",
+          body: { reason },
+        },
+      );
+    } catch (err) {
+      if (err instanceof ApiError) {
+        const error = new Error(
+          err.message || `Failed to cancel invoice line (${err.status})`,
+        );
+        (error as Error & { code?: string }).code = err.code ?? undefined;
+        throw error;
+      }
+      throw err;
+    }
+  },
+
   /** GET /day-close?branch=&date= — live totals plus the locked record. */
   async getDayClose(
     branchId: string,

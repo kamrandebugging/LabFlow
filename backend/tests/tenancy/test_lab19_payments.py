@@ -357,7 +357,12 @@ class TestRefundRules:
             Client(),
             headers,
             invoice.id,
-            _pay_body(kind="refund", amount="500.00", reference="rsn-001"),
+            _pay_body(
+                kind="refund",
+                amount="500.00",
+                reference="rsn-001",
+                refund_reason="No payment exists",
+            ),
             idem_key="t36a-001",
         )
         assert resp.status_code == 422
@@ -400,9 +405,10 @@ class TestRefundRules:
         )
         assert resp.status_code == 403
 
-    def test_refund_requires_reference(
+    def test_refund_reference_required_only_for_non_cash(
         self, tenant_a: Any, billing_setup: dict[str, Any], auth_headers: Any
     ) -> None:
+        """Phase 6 Rule 3: cash refunds need a reason, never a fake reference."""
         invoice = _make_invoice(tenant_a, billing_setup, key_suffix="t36d")
         headers = auth_headers(billing_setup["manager"])
         pay = _post_payment(
@@ -413,15 +419,34 @@ class TestRefundRules:
             idem_key="t36d-pay",
         )
         assert pay.status_code == 201
-        resp = _post_payment(
+
+        # Cash refund with a reason and no reference succeeds.
+        cash_refund = _post_payment(
             Client(),
             headers,
             invoice.id,
-            _pay_body(kind="refund", amount="200.00"),
-            idem_key="t36d-ref",
+            _pay_body(
+                kind="refund", amount="200.00", refund_reason="Patient changed mind"
+            ),
+            idem_key="t36d-ref-cash",
         )
-        assert resp.status_code == 422
-        assert resp.json()["error"]["code"] == "reference_required"
+        assert cash_refund.status_code == 201
+
+        # Non-cash refund still requires a transaction reference.
+        card_refund = _post_payment(
+            Client(),
+            headers,
+            invoice.id,
+            _pay_body(
+                kind="refund",
+                method="card",
+                amount="100.00",
+                refund_reason="Card reversal",
+            ),
+            idem_key="t36d-ref-card",
+        )
+        assert card_refund.status_code == 422
+        assert card_refund.json()["error"]["code"] == "reference_required"
 
     def test_manager_refund_above_5000_needs_owner(
         self, tenant_a: Any, billing_setup: dict[str, Any], auth_headers: Any
@@ -475,7 +500,12 @@ class TestRefundRules:
             Client(),
             own_headers,
             invoice.id,
-            _pay_body(kind="refund", amount="6000.00", reference="rsn-004"),
+            _pay_body(
+                kind="refund",
+                amount="6000.00",
+                reference="rsn-004",
+                refund_reason="Owner approved refund",
+            ),
             idem_key="t36f-ref",
         )
         assert resp.status_code == 201
@@ -499,7 +529,12 @@ class TestRefundRules:
             Client(),
             headers,
             invoice.id,
-            _pay_body(kind="refund", amount="2300.00", reference="rsn-005"),
+            _pay_body(
+                kind="refund",
+                amount="2300.00",
+                reference="rsn-005",
+                refund_reason="Full refund",
+            ),
             idem_key="t36g-ref",
         )
         assert resp.status_code == 201
@@ -522,7 +557,12 @@ class TestRefundRules:
             Client(),
             headers,
             invoice.id,
-            _pay_body(kind="refund", amount="500.00", reference="rsn-006"),
+            _pay_body(
+                kind="refund",
+                amount="500.00",
+                reference="rsn-006",
+                refund_reason="Partial refund",
+            ),
             idem_key="t36h-ref",
         )
         assert resp.status_code == 201
@@ -642,7 +682,12 @@ class TestPaymentGuards:
             client,
             headers,
             invoice.id,
-            _pay_body(kind="refund", amount="200.00", reference="rsn-007"),
+            _pay_body(
+                kind="refund",
+                amount="200.00",
+                reference="rsn-007",
+                refund_reason="Audit refund",
+            ),
             idem_key="g7-ref",
         )
         assert ref.status_code == 201

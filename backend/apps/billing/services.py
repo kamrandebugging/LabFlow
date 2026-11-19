@@ -415,17 +415,9 @@ class BillingService:
                 raise DiscountReasonRequiredError(
                     "A discount requires a discount_reason."
                 )
-            # Phase 6 Rule 4: a referral discount requires referral_partner_id
-            if referral_partner_id is None and (
-                "referral" in discount_reason.lower()
-                or "partner" in discount_reason.lower()
-                or ReferralPartner.objects.filter(
-                    name__iexact=discount_reason.strip()
-                ).exists()
-            ):
-                raise ReferralDiscountRequiresPartnerError(
-                    "A referral discount requires an active referral_partner_id."
-                )
+            # Phase 6 Rule 4: a referral discount is identified ONLY by an
+            # explicit referral_partner_id (validated as active above). Free
+            # text in discount_reason is never inspected or name-matched.
 
         # BL-V2: merge duplicate same-kind lines by summing qty.
         merged: dict[tuple[str, uuid.UUID], int] = {}
@@ -990,15 +982,18 @@ class PaymentService:
                     raise RefundExceedsPaymentsError(
                         "Refund requires amount > 0 and net_paid > 0."
                     )
+                # Invoice-level ceiling is checked FIRST so an over-invoice
+                # refund keeps its historical error code; the per-method
+                # ceiling below catches drawer-level over-reversals (Phase 2).
+                if amount > net_revenue_now:
+                    raise RefundExceedsPaymentsError(
+                        "Refund would exceed recorded payments."
+                    )
                 net_by_method = get_net_paid_by_method(invoice)
                 available_m = net_by_method.get(method, Decimal("0.00"))
                 if amount <= Decimal("0.00") or amount > available_m:
                     raise RefundExceedsMethodPaymentsError(
                         f"Refund exceeds recorded payments for method '{method}'."
-                    )
-                if amount > net_revenue_now:
-                    raise RefundExceedsPaymentsError(
-                        "Refund would exceed recorded payments."
                     )
 
             try:
@@ -1289,8 +1284,8 @@ class InvoiceQueryService:
                 )
             except (Invoice.DoesNotExist, ValidationError):
                 raise BillingNotFoundError("Invoice not found.") from None
-            if actor.role not in DISCOUNT_ROLES and actor.role != Role.RECEPTION:
-                raise CancelNotPermittedError("Not permitted to cancel this invoice.")
+            if invoice.status == Invoice.Status.CANCELLED:
+                raise InvalidStateTransitionError("This invoice is already cancelled.")
 
             paid_sum, refund_sum = _payment_aggregates(invoice)
             credit_sum = _credit_note_sum(invoice)
@@ -1311,8 +1306,14 @@ class InvoiceQueryService:
                 net_rev == Decimal("0.00") and has_voided_cn and not has_approved_result
             )
 
-            if invoice.status == Invoice.Status.CANCELLED:
-                raise InvalidStateTransitionError("This invoice is already cancelled.")
+            # Phase 6 Rule 1: an ordinary unpaid invoice may be cancelled by
+            # Owner/Manager/Reception, but zero-total and terminal (post-void
+            # full-refund) closures are Owner/Manager decisions only.
+            allowed_to_cancel = (
+                unpaid_case and actor.role in {Role.OWNER, Role.MANAGER, Role.RECEPTION}
+            ) or ((zero_total_case or terminal_case) and actor.role in DISCOUNT_ROLES)
+            if not allowed_to_cancel:
+                raise CancelNotPermittedError("Not permitted to cancel this invoice.")
 
             if not (unpaid_case or zero_total_case or terminal_case):
                 raise InvalidStateTransitionError("This invoice cannot be cancelled.")
@@ -1549,17 +1550,10 @@ class InvoiceQueryService:
                             "Discount requires Owner approval."
                         )
 
-                    # Phase 6 Rule 4: Referral discount requires active partner
-                    if (
-                        "referral" in discount_reason.lower()
-                        or "partner" in discount_reason.lower()
-                        or ReferralPartner.objects.filter(
-                            name__iexact=discount_reason.strip()
-                        ).exists()
-                    ) and invoice.referral_partner_id is None:
-                        raise ReferralDiscountRequiresPartnerError(
-                            "Referral discounts require an active referral_partner_id."
-                        )
+                    # Phase 6 Rule 4: referral discounts are identified only by
+                    # the invoice's referral_partner_id snapshot, never by the
+                    # free-text reason. A missing partner on an ordinary
+                    # discount is a valid discount, not a referral discount.
 
                 invoice.discount_amount = discount_amount
                 invoice.discount_reason = (
@@ -1897,6 +1891,9 @@ class CreditNoteService:
                 raise InvalidStateTransitionError("This credit note is already voided.")
 
             void_biz_date = get_active_business_date(invoice.branch_id)
+            # The void lands on the OPEN day; locking its control record
+            # serialises it with a concurrent close of that same day (Phase 4).
+            lock_branch_day(invoice.branch_id, void_biz_date)
             restored = note.reversed_methods or {note.method: f"{note.amount:.2f}"}
 
             void_event = CreditNoteVoid.objects.create(
@@ -1978,7 +1975,47 @@ class DayCloseService:
 
     @staticmethod
     def collect_totals(*, branch_id: uuid.UUID, day: date) -> dict[str, Any]:
-        """Server-computed totals for one branch-day (no client input)."""
+        """Server-computed totals for one branch-day (no client input).
+
+        A closed day is final (Phase 4 Rule 1): once a DayClose document
+        exists, its stored totals are returned verbatim so a later void or
+        refund can never rewrite history. Only an OPEN day is aggregated live.
+        """
+        closed_doc = DayClose.objects.filter(
+            branch_id=branch_id, business_date=day
+        ).first()
+        if closed_doc is not None:
+            frozen_totals: dict[str, dict[str, str]] = {
+                method: {"in": "0.00", "out": "0.00", "net": "0.00"}
+                for method in DAY_CLOSE_METHODS
+            }
+            for method, raw_bucket in (closed_doc.method_totals or {}).items():
+                bucket = raw_bucket if isinstance(raw_bucket, dict) else {}
+                frozen_totals[str(method)] = {
+                    "in": f"{_money(bucket.get('in')):.2f}",
+                    "out": f"{_money(bucket.get('out')):.2f}",
+                    "net": f"{_money(bucket.get('net')):.2f}",
+                }
+            total_in = sum(
+                (_money(b["in"]) for b in frozen_totals.values()), Decimal("0.00")
+            )
+            total_out = sum(
+                (_money(b["out"]) for b in frozen_totals.values()), Decimal("0.00")
+            )
+            return {
+                "branch_id": branch_id,
+                "date": day,
+                "active_business_date": get_active_business_date(branch_id),
+                "method_totals": frozen_totals,
+                "total_in": total_in,
+                "total_out": total_out,
+                "net_total": total_in - total_out,
+                "total_invoices": closed_doc.total_invoices,
+                "total_discount": _money(closed_doc.total_discount),
+                "total_credit_notes": _money(closed_doc.total_credit_notes),
+                "expected_cash": _money(closed_doc.expected_cash),
+            }
+
         payment_rows = (
             Payment.objects.filter(invoice__branch_id=branch_id)
             .filter(
@@ -2117,8 +2154,9 @@ class DayCloseService:
         DayCloseService._assert_branch_in_scope(actor, branch_id)
 
         with transaction.atomic():
-            # Serialise concurrent closes for the same branch.
-            branch = Branch.objects.select_for_update().get(pk=branch_id)
+            # Serialise concurrent closes for the same branch-day. BranchDay is
+            # the single control record (same lock money mutations take), so
+            # there is one deterministic order: Invoice -> BranchDay -> Staff.
             branch_day, _ = BranchDay.objects.get_or_create(
                 branch_id=branch_id,
                 business_date=day,
@@ -2127,7 +2165,9 @@ class DayCloseService:
             branch_day = BranchDay.objects.select_for_update().get(pk=branch_day.pk)
             if (
                 branch_day.is_closed
-                or DayClose.objects.filter(branch=branch, business_date=day).exists()
+                or DayClose.objects.filter(
+                    branch_id=branch_id, business_date=day
+                ).exists()
             ):
                 raise DayCloseAlreadyClosedError(
                     f"{day.isoformat()} is already closed for this branch."
@@ -2143,7 +2183,7 @@ class DayCloseService:
                     "the expected amount."
                 )
             close = DayClose.objects.create(
-                branch=branch,
+                branch_id=branch_id,
                 business_date=day,
                 method_totals=totals["method_totals"],
                 total_invoices=totals["total_invoices"],

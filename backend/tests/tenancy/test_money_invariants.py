@@ -1,6 +1,7 @@
 """Money invariants: concurrency, DB-level idempotency, caps, scope, day lock."""
 
 import threading
+from datetime import timedelta
 from decimal import Decimal
 from typing import Any
 
@@ -276,16 +277,21 @@ def test_owner_keeps_tenant_wide_scope(
 
 
 @pytest.mark.django_db
-def test_money_after_day_close_is_rejected(
+def test_money_after_day_close_rolls_forward(
     tenant_a: Any, mi_setup: dict[str, Any], auth_headers: Any
 ) -> None:
-    """A closed branch-day is final; late cash belongs to the next open day."""
+    """A closed branch-day is final: late cash is stamped on the next open day.
+
+    Phase 3 locked decision — the counter is never bricked before midnight.
+    """
+    closed_day = timezone.localdate()
+    next_day = closed_day + timedelta(days=1)
     with tenant_context(tenant_a):
         invoice = _paid_invoice(mi_setup, "500.00")
         invoice_id = invoice.id
         DayClose.objects.create(
             branch=mi_setup["branch"],
-            business_date=timezone.localdate(),
+            business_date=closed_day,
             method_totals={},
             total_invoices=1,
             total_discount=Decimal("0.00"),
@@ -309,8 +315,16 @@ def test_money_after_day_close_is_rejected(
         HTTP_IDEMPOTENCY_KEY="mi-day-closed-1",
         headers=auth_headers(mi_setup["owner"]),
     )
-    assert response.status_code == 409
-    assert response.json()["error"]["code"] == "day_closed"
+    assert response.status_code == 201, response.content
+
+    with tenant_context(tenant_a):
+        refund = Payment.objects.get(pk=response.json()["id"])
+        assert refund.business_date == next_day
+        assert timezone.localtime(refund.created_at).date() == closed_day
+        # The closed day's document is untouched.
+        assert DayClose.objects.get(business_date=closed_day).counted_cash == Decimal(
+            "500.00"
+        )
 
 
 @pytest.mark.django_db
@@ -943,7 +957,7 @@ def test_manager_daily_cap_counts_credit_notes(
         headers=auth_headers(manager),
     )
     assert cn_resp.status_code == 429, cn_resp.content
-    assert cn_resp.json()["code"] == "refund_velocity_exceeded"
+    assert cn_resp.json()["error"]["code"] == "refund_velocity_exceeded"
 
 
 @pytest.mark.django_db(transaction=True)
@@ -1229,21 +1243,25 @@ def test_cash_refund_needs_no_reference(
 def test_referral_discount_requires_active_partner_id(
     tenant_a: Any, mi_setup: dict[str, Any], auth_headers: Any
 ) -> None:
-    """Inactive partner -> 422 inactive_referral_partner;
-    reason without partner_id -> 422 referral_partner_required;
-    partner name typed in reason but partner_id null -> 422 referral_partner_required.
+    """Referral discounts are validated ONLY by referral_partner_id (Phase 6 R4).
+
+    Inactive partner -> 422 inactive_referral_partner. Free text in the reason
+    ("referral", a partner's name) is never inspected, so a null partner on an
+    ordinary discount is valid and creates no referral snapshot.
     """
     with tenant_context(tenant_a):
-        from tests.factories.catalog import TestFactory
+        from tests.factories.catalog import TestFactory, TestPriceFactory
         from tests.factories.partners import ReferralPartnerFactory
 
-        test = TestFactory(price=Decimal("1000.00"))
+        test = TestFactory()
+        TestPriceFactory(test=test, price=Decimal("1000.00"))
         inactive_partner = ReferralPartnerFactory(is_active=False, name="Dr. Inactive")
-        ReferralPartnerFactory(is_active=True, name="Dr. Active")
+        active_partner = ReferralPartnerFactory(is_active=True, name="Dr. Active")
         patient = mi_setup["patient"]
         branch = mi_setup["branch"]
         test_id = str(test.id)
         inact_id = str(inactive_partner.id)
+        act_id = str(active_partner.id)
 
     # Inactive partner -> 422 inactive_referral_partner
     resp1 = Client().post(
@@ -1251,7 +1269,7 @@ def test_referral_discount_requires_active_partner_id(
         data={
             "patient_id": str(patient.id),
             "branch_id": str(branch.id),
-            "items": [{"test_id": test_id, "quantity": 1}],
+            "items": [{"test_id": test_id, "qty": 1}],
             "referral_partner_id": inact_id,
             "discount_amount": "100.00",
             "discount_reason": "Referral discount",
@@ -1260,16 +1278,17 @@ def test_referral_discount_requires_active_partner_id(
         HTTP_IDEMPOTENCY_KEY="mi-ref-inact-1",
         headers=auth_headers(mi_setup["owner"]),
     )
-    assert resp1.status_code == 422
-    assert resp1.json()["error"]["code"] == "inactive_referral_partner"
+    assert resp1.status_code == 422, resp1.content
+    assert resp1.json()["error"]["code"] == "inactive_referral_partner", resp1.content
 
-    # Reason with 'referral' but partner_id null -> 422 referral_partner_required
+    # Reason says "referral" but no partner_id -> accepted as an ordinary
+    # discount; text is never treated as a referral signal.
     resp2 = Client().post(
         f"{INVOICES_URL}",
         data={
             "patient_id": str(patient.id),
             "branch_id": str(branch.id),
-            "items": [{"test_id": test_id, "quantity": 1}],
+            "items": [{"test_id": test_id, "qty": 1}],
             "referral_partner_id": None,
             "discount_amount": "100.00",
             "discount_reason": "Referral discount from hospital",
@@ -1278,16 +1297,16 @@ def test_referral_discount_requires_active_partner_id(
         HTTP_IDEMPOTENCY_KEY="mi-ref-null-partner-1",
         headers=auth_headers(mi_setup["owner"]),
     )
-    assert resp2.status_code == 422
-    assert resp2.json()["error"]["code"] == "referral_partner_required"
+    assert resp2.status_code == 201, resp2.content
+    assert resp2.json()["referral_partner_id"] is None
 
-    # Partner name typed in reason but partner_id null -> 422 referral_partner_required
+    # A partner's name typed in the reason is just text -> no referral snapshot.
     resp3 = Client().post(
         f"{INVOICES_URL}",
         data={
             "patient_id": str(patient.id),
             "branch_id": str(branch.id),
-            "items": [{"test_id": test_id, "quantity": 1}],
+            "items": [{"test_id": test_id, "qty": 1}],
             "referral_partner_id": None,
             "discount_amount": "100.00",
             "discount_reason": "Dr. Active",
@@ -1296,8 +1315,26 @@ def test_referral_discount_requires_active_partner_id(
         HTTP_IDEMPOTENCY_KEY="mi-ref-partner-name-1",
         headers=auth_headers(mi_setup["owner"]),
     )
-    assert resp3.status_code == 422
-    assert resp3.json()["error"]["code"] == "referral_partner_required"
+    assert resp3.status_code == 201, resp3.content
+    assert resp3.json()["referral_partner_id"] is None
+
+    # An explicit ACTIVE partner_id snapshots the partner onto the invoice.
+    resp4 = Client().post(
+        f"{INVOICES_URL}",
+        data={
+            "patient_id": str(patient.id),
+            "branch_id": str(branch.id),
+            "items": [{"test_id": test_id, "qty": 1}],
+            "referral_partner_id": act_id,
+            "discount_amount": "100.00",
+            "discount_reason": "Partner agreed rate",
+        },
+        content_type="application/json",
+        HTTP_IDEMPOTENCY_KEY="mi-ref-active-partner-1",
+        headers=auth_headers(mi_setup["owner"]),
+    )
+    assert resp4.status_code == 201, resp4.content
+    assert resp4.json()["referral_partner_id"] == act_id
 
 
 @pytest.mark.django_db
@@ -1364,8 +1401,8 @@ def test_line_cancel_removes_unperformed_test(
         from tests.factories.billing import InvoiceItemFactory
         from tests.factories.catalog import TestFactory
 
-        test1 = TestFactory(name="Sputum for AFB", price=Decimal("1600.00"))
-        test2 = TestFactory(name="CBC", price=Decimal("800.00"))
+        test1 = TestFactory(name="Sputum for AFB")
+        test2 = TestFactory(name="CBC")
 
         invoice = InvoiceFactory(
             patient=mi_setup["patient"],
@@ -1601,7 +1638,7 @@ def test_credit_note_blocked_when_report_approved(
     with tenant_context(tenant_a):
         inv = _paid_invoice(mi_setup, "2000.00")
         sample = SampleFactory(invoice=inv, branch=mi_setup["branch"])
-        test = TestFactory(price=Decimal("2000.00"))
+        test = TestFactory()
         ResultFactory(
             sample=sample,
             test=test,
@@ -1642,7 +1679,7 @@ def test_sample_collect_and_cancel_race(
 
     tenant = mi_setup["tenant"]
     with tenant_context(tenant):
-        test = TestFactory(price=Decimal("1000.00"))
+        test = TestFactory()
         inv = InvoiceFactory(
             patient=mi_setup["patient"],
             branch=mi_setup["branch"],
@@ -2047,8 +2084,6 @@ def test_pickup_code_hashed_in_db_and_verifiable(
 
     never returned in plaintext on normal screens, and verifiable at report pickup.
     """
-    from datetime import date
-
     from apps.billing.services import BillingService
     from apps.catalog.models import Test, TestPrice
 
@@ -2059,7 +2094,7 @@ def test_pickup_code_hashed_in_db_and_verifiable(
         TestPrice.objects.create(
             test=test_obj,
             price=Decimal("500.00"),
-            effective_from=date(2026, 1, 1),
+            effective_from=timezone.now(),
         )
 
     # 1. Create invoice
@@ -2073,7 +2108,7 @@ def test_pickup_code_hashed_in_db_and_verifiable(
         },
         content_type="application/json",
         HTTP_IDEMPOTENCY_KEY="mi-pickup-code-create-1",
-        headers=auth_headers(mi_setup["reception"]),
+        headers=auth_headers(mi_setup["receptionist"]),
     )
     assert create_resp.status_code == 201
     data = create_resp.json()
@@ -2096,7 +2131,7 @@ def test_pickup_code_hashed_in_db_and_verifiable(
     # 3. GET /invoices/{id} normal detail screen does NOT return plaintext pickup_code
     detail_resp = Client().get(
         f"{INVOICES_URL}/{invoice_id}",
-        headers=auth_headers(mi_setup["reception"]),
+        headers=auth_headers(mi_setup["receptionist"]),
     )
     assert detail_resp.status_code == 200
     assert detail_resp.json().get("pickup_code") is None
@@ -2104,7 +2139,7 @@ def test_pickup_code_hashed_in_db_and_verifiable(
     # 4. GET /invoices/{id}?for_print=true returns pickup_code for printing
     print_resp = Client().get(
         f"{INVOICES_URL}/{invoice_id}?for_print=true",
-        headers=auth_headers(mi_setup["reception"]),
+        headers=auth_headers(mi_setup["receptionist"]),
     )
     assert print_resp.status_code == 200
     assert print_resp.json().get("pickup_code") == code
@@ -2114,7 +2149,7 @@ def test_pickup_code_hashed_in_db_and_verifiable(
         f"{INVOICES_URL}/{invoice_id}/verify-pickup-code",
         data={"code": code},
         content_type="application/json",
-        headers=auth_headers(mi_setup["reception"]),
+        headers=auth_headers(mi_setup["receptionist"]),
     )
     assert v_good.status_code == 200
     assert v_good.json()["valid"] is True
@@ -2123,7 +2158,7 @@ def test_pickup_code_hashed_in_db_and_verifiable(
         f"{INVOICES_URL}/{invoice_id}/verify-pickup-code",
         data={"code": "000000"},
         content_type="application/json",
-        headers=auth_headers(mi_setup["reception"]),
+        headers=auth_headers(mi_setup["receptionist"]),
     )
     assert v_bad.status_code == 200
     assert v_bad.json()["valid"] is False
@@ -2140,6 +2175,7 @@ def test_technician_price_visibility_toggle(
     """
     from apps.accounts.models import TenantSetting
     from apps.billing.models import InvoiceItem
+    from tests.factories.catalog import TestFactory
 
     with tenant_context(tenant_a):
         tech = StaffUserFactory(
@@ -2147,6 +2183,10 @@ def test_technician_price_visibility_toggle(
             branch=mi_setup["branch"],
             email="tech_pv@t.com",
         )
+        StaffBranch.objects.create(
+            staff_user=tech, branch=mi_setup["branch"], is_primary=True
+        )
+        priced_test = TestFactory()
         invoice = InvoiceFactory(
             patient=mi_setup["patient"],
             branch=mi_setup["branch"],
@@ -2157,6 +2197,7 @@ def test_technician_price_visibility_toggle(
         invoice_id = invoice.id
         InvoiceItem.objects.create(
             invoice=invoice,
+            test=priced_test,
             description="CBC Test",
             unit_price=Decimal("1500.00"),
             quantity=1,
