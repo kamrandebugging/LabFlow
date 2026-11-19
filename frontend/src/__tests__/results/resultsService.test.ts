@@ -283,7 +283,7 @@ describe("resultsService unit tests", () => {
     // Should contain smp-01 and smp-02, sorted oldest first (08:00 before 10:00)
     expect(worklist).toHaveLength(2);
     expect(worklist[0]!.sample_id).toBe("smp-01");
-    expect(worklist[0]!.status).toBe("ready");
+    expect(worklist[0]!.status).toBe("pending_entry");
     expect(worklist[1]!.sample_id).toBe("smp-02");
     expect(worklist[1]!.status).toBe("in_process");
   });

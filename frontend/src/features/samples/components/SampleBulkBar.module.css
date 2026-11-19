@@ -1,0 +1,72 @@
+/* SampleBulkBar.module.css - DESIGN.md tokens only */
+.bulkBarContainer {
+  position: fixed;
+  bottom: 1.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.625rem 1.25rem;
+  background-color: var(--color-veyla-worst-bg);
+  color: var(--color-veyla-worst-text);
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-veyla-dropdown);
+  animation: bulkBarSlideUp var(--motion-base) var(--ease-out) both;
+}
+
+@keyframes bulkBarSlideUp {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 0.75rem);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+.countText {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.clearButton {
+  padding: 0.3125rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  border-radius: var(--radius-pill);
+  background-color: rgba(128, 128, 128, 0.2);
+  color: inherit;
+  border: none;
+  cursor: pointer;
+  transition: opacity var(--motion-fast) var(--ease-out);
+}
+
+.clearButton:hover {
+  opacity: 0.8;
+}
+
+.actionButton {
+  padding: 0.375rem 0.875rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: var(--radius-pill);
+  background-color: var(--color-accent);
+  color: var(--color-accent-text);
+  border: none;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: opacity var(--motion-fast) var(--ease-out);
+}
+
+.actionButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.actionButton:not(:disabled):hover {
+  opacity: 0.9;
+}

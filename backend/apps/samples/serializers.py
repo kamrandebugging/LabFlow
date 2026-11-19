@@ -36,6 +36,9 @@ class SampleCreateSerializer(serializers.Serializer):
     invoice_item_ids = serializers.ListField(
         child=serializers.UUIDField(), required=False, allow_empty=True
     )
+    notes = serializers.CharField(
+        required=False, allow_blank=True, allow_null=True, max_length=500
+    )
 
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
         return _reject_unknown_fields(self, attrs)
@@ -195,6 +198,18 @@ class SampleDetailSerializer(SampleListSerializer):
     collected_by = serializers.CharField(
         source="collected_by.email", allow_null=True, required=False
     )
+    collection_notes = serializers.CharField(
+        read_only=True, allow_null=True, required=False
+    )
+    recollected_from_id = serializers.UUIDField(
+        source="recollected_from.id", read_only=True, allow_null=True, required=False
+    )
+    recollected_from_accession = serializers.CharField(
+        source="recollected_from.accession_id",
+        read_only=True,
+        allow_null=True,
+        required=False,
+    )
     sample_tests = SampleTestItemSerializer(many=True, read_only=True)
     events = serializers.SerializerMethodField()
 
@@ -204,7 +219,14 @@ class SampleDetailSerializer(SampleListSerializer):
         The detail screen renders this as the audit trail; without it the
         timeline is permanently empty even though sample_event rows exist.
         """
+        from apps.samples.services import _event_payload
+
         rows = obj.events.select_related("actor", "branch").order_by("created_at")
+        transfers = list(
+            obj.transfers.select_related("from_branch", "to_branch").order_by(
+                "created_at"
+            )
+        )
         return [
             {
                 "id": str(e.id),
@@ -216,7 +238,7 @@ class SampleDetailSerializer(SampleListSerializer):
                     else None
                 ),
                 "timestamp": e.created_at.isoformat(),
-                "payload": {"note": e.note} if e.note else {},
+                "payload": _event_payload(e, transfers),
             }
             for e in rows
         ]
@@ -307,6 +329,18 @@ class TransferSerializer(serializers.Serializer):
     id = serializers.UUIDField()
     sample_id = serializers.UUIDField(source="sample.id")
     accession_id = serializers.CharField(source="sample.accession_id")
+    patient_name = serializers.CharField(
+        source="sample.invoice.patient.name",
+        read_only=True,
+        allow_null=True,
+        required=False,
+    )
+    mrn = serializers.CharField(
+        source="sample.invoice.patient.mrn",
+        read_only=True,
+        allow_null=True,
+        required=False,
+    )
     from_branch = BranchRefSerializer()
     to_branch = BranchRefSerializer()
     status = serializers.CharField()

@@ -5,4 +5,4 @@ export * from "./CollectSampleStep1Screen";
 export * from "./CollectSampleStep2Screen";
 export * from "./SampleDetailScreen";
 export * from "./SampleLabelScreen";
-export * from "./components/Code128Barcode";
+export * from "./components";

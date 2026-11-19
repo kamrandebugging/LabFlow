@@ -1,0 +1,213 @@
+/* CollectSampleStep2Screen.module.css - 100% DESIGN.md tokens */
+.pageContainer {
+  width: 100%;
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 1.5rem 1rem 4rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+}
+
+@media (min-width: 640px) {
+  .pageContainer {
+    padding: 2rem 1.5rem 5rem 1.5rem;
+  }
+}
+
+.headerArea {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.title {
+  font-size: clamp(1.5rem, 2.5vw, 1.875rem);
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  color: var(--color-text);
+  margin: 0;
+}
+
+.subtitle {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+.mainCard {
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-veyla-card);
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+@media (min-width: 768px) {
+  .mainCard {
+    padding: 2rem;
+  }
+}
+
+.sectionTitle {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--color-text);
+  margin-bottom: 0.5rem;
+}
+
+.summaryStrip {
+  background-color: var(--color-well);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-panel);
+  padding: 0.875rem 1.25rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.summaryMeta {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.8125rem;
+  color: var(--color-body);
+}
+
+.mrnTag {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  padding: 0.125rem 0.5rem;
+  border-radius: var(--radius-sm);
+  color: var(--color-text);
+}
+
+.testItemCard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  background-color: var(--color-well);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-panel);
+}
+
+.testItemName {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.automaticBox {
+  background-color: var(--color-well);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-panel);
+  padding: 0.875rem 1.25rem;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.automaticLabel {
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.notesTextarea {
+  width: 100%;
+  padding: 0.75rem;
+  font-size: 0.8125rem;
+  background-color: var(--color-well);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-panel);
+  color: var(--color-text);
+  outline: none;
+  resize: vertical;
+  min-height: 80px;
+  transition:
+    border-color var(--motion-fast) var(--ease-out),
+    background-color var(--motion-fast) var(--ease-out);
+}
+
+.notesTextarea:focus {
+  border-color: var(--color-accent-text);
+  background-color: var(--color-surface);
+}
+
+.charCount {
+  display: flex;
+  justify-content: flex-end;
+  font-size: 0.6875rem;
+  color: var(--color-text-muted);
+  font-mono: tabular-nums;
+  margin-top: 0.25rem;
+}
+
+.stickyFooter {
+  position: sticky;
+  bottom: 0;
+  margin-top: 1rem;
+  padding: 1rem 1.5rem;
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-veyla-dropdown);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.primaryBlackPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1.5rem;
+  border-radius: var(--radius-pill);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  background-color: var(--color-veyla-worst-bg);
+  color: var(--color-veyla-worst-text);
+  border: none;
+  cursor: pointer;
+  box-shadow: var(--shadow-veyla-pill);
+  transition: opacity var(--motion-fast) var(--ease-out);
+}
+
+.primaryBlackPill:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.primaryBlackPill:not(:disabled):hover {
+  opacity: 0.9;
+}
+
+.outlinePill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1.25rem;
+  border-radius: var(--radius-pill);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  background-color: transparent;
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  cursor: pointer;
+  transition: background-color var(--motion-fast) var(--ease-out);
+}
+
+.outlinePill:hover {
+  background-color: var(--color-well);
+}

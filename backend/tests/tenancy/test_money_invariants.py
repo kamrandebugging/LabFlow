@@ -615,7 +615,7 @@ def test_post_close_payment_rolls_to_next_business_day(
         payment = Payment.objects.get(invoice_id=invoice_d_id)
         # business_date is D+1, created_at is today
         assert payment.business_date == today + timedelta(days=1)
-        assert payment.created_at.date() == today
+        assert timezone.localdate(payment.created_at) == today
 
         # Day D DayClose totals are unchanged (0 in)
         totals_d = DayCloseService.collect_totals(

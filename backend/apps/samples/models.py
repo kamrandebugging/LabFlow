@@ -1,4 +1,5 @@
 import uuid
+from typing import Any
 
 from django.db import models
 from django.db.models import Q
@@ -79,6 +80,16 @@ class Sample(models.Model):
         blank=True,
     )
     rejection_note = models.TextField(null=True, blank=True)  # noqa: DJ001
+    recollected_from = models.ForeignKey(
+        "self",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="recollections",
+        db_column="recollected_from_id",
+        db_index=False,
+    )
+    collection_notes = models.TextField(null=True, blank=True)  # noqa: DJ001
     created_at = models.DateTimeField(
         auto_now_add=True,
         db_default=Now(),
@@ -128,6 +139,10 @@ class Sample(models.Model):
             models.Index(
                 fields=["branch", "status"],
                 name="idx_sample_branch_id_status",
+            ),
+            models.Index(
+                fields=["recollected_from"],
+                name="idx_sample_recollected_from",
             ),
         ]
 
@@ -259,6 +274,25 @@ class SampleEvent(models.Model):
 
     class Meta:
         db_table = "sample_event"
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(
+                    event__in=[
+                        "COLLECTED",
+                        "RECEIVED",
+                        "IN_PROCESS",
+                        "REJECTED",
+                        "TRANSFERRED_IN",
+                        "TRANSFERRED_OUT",
+                        "TRANSFER_CANCELLED",
+                        "TRANSFER_LOST",
+                        "READY",
+                        "CANCELLED",
+                    ]
+                ),
+                name="chk_sample_event_event",
+            ),
+        ]
         indexes = [
             models.Index(
                 fields=["sample"],
@@ -276,6 +310,14 @@ class SampleEvent(models.Model):
 
     def __str__(self) -> str:
         return f"Sample({self.sample_id}) {self.event}"
+
+    def save(self, *args: Any, **kwargs: Any) -> None:
+        if not self._state.adding and self.pk:
+            raise RuntimeError("SampleEvent is append-only: updates are prohibited.")
+        super().save(*args, **kwargs)
+
+    def delete(self, *args: Any, **kwargs: Any) -> tuple[int, dict[str, int]]:
+        raise RuntimeError("SampleEvent is append-only: deletes are prohibited.")
 
 
 class SampleTransfer(models.Model):

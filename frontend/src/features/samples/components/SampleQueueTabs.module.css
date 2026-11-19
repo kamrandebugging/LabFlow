@@ -1,0 +1,61 @@
+/* SampleQueueTabs.module.css - DESIGN.md tokens only */
+.tabsContainer {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-bottom: 1px solid var(--color-border);
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.tabsContainer::-webkit-scrollbar {
+  display: none;
+}
+
+.tabButton {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 0.875rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    color var(--motion-fast) var(--ease-out),
+    border-color var(--motion-fast) var(--ease-out);
+}
+
+.tabButton:hover {
+  color: var(--color-text);
+}
+
+.tabButtonActive {
+  color: var(--color-text);
+  font-weight: 600;
+  border-bottom-color: var(--color-text);
+}
+
+.countBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.0625rem 0.4375rem;
+  border-radius: var(--radius-pill);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  background-color: var(--color-well);
+  color: var(--color-text-muted);
+}
+
+.tabButtonActive .countBadge {
+  background-color: var(--color-accent);
+  color: var(--color-accent-text);
+}

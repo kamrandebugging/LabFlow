@@ -535,7 +535,7 @@ class TestSampleRecollect:
             assert Invoice.objects.count() == invoice_count_before
             assert Invoice.objects.get(pk=inv.id).total == total_before
 
-    def test_recollect_technician_403(
+    def test_recollect_roles_technician_allowed_pathologist_forbidden(
         self, tenant_a: Any, lab22_setup: dict[str, Any], auth_headers: Any
     ) -> None:
         sample = _collect_sample(tenant_a, lab22_setup, auth_headers)
@@ -549,8 +549,16 @@ class TestSampleRecollect:
             ).status_code
             == 200
         )
+        # D7a: Technician is allowed to recollect
         resp = _post(Client(), f"{SAMPLES_URL}/{sample['id']}/recollect", tech_headers)
-        assert resp.status_code == 403
+        assert resp.status_code == 201
+
+        # Pathologist is forbidden
+        path_headers = auth_headers(lab22_setup["pathologist"])
+        resp_path = _post(
+            Client(), f"{SAMPLES_URL}/{sample['id']}/recollect", path_headers
+        )
+        assert resp_path.status_code == 403
 
 
 class TestSampleCancel:

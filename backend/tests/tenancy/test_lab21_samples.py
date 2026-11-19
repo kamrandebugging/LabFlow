@@ -87,6 +87,9 @@ def lab21_setup(tenant_a: Any) -> dict[str, Any]:
         StaffBranch.objects.create(
             staff_user=technician, branch=branch, is_primary=True
         )
+        pathologist = StaffUserFactory(
+            role=Role.PATHOLOGIST, branch=None, email="smp_path@tenant.com"
+        )
 
         patient = PatientFactory(branch=branch)
         test_a = TestFactory(name="CBC", code="CBC001")
@@ -107,6 +110,7 @@ def lab21_setup(tenant_a: Any) -> dict[str, Any]:
             "manager": manager,
             "receptionist": receptionist,
             "technician": technician,
+            "pathologist": pathologist,
             "patient": patient,
             "test_a": test_a,
             "test_b": test_b,
@@ -304,13 +308,18 @@ class TestSampleCollection:
                 action="sample.collected", entity_id=sample.id
             ).exists()
 
-    def test_rbac_technician_forbidden(
+    def test_rbac_technician_allowed_pathologist_forbidden(
         self, tenant_a: Any, lab21_setup: dict[str, Any], auth_headers: Any
     ) -> None:
-        headers = auth_headers(lab21_setup["technician"])
+        tech_headers = auth_headers(lab21_setup["technician"])
         inv = _make_invoice(tenant_a, lab21_setup, lab21_setup["receptionist"])
-        resp = _collect(Client(), headers, inv.id)
-        assert resp.status_code == 403
+        resp_tech = _collect(Client(), tech_headers, inv.id)
+        assert resp_tech.status_code == 201  # D7a: Technician allowed to collect
+
+        path_headers = auth_headers(lab21_setup["pathologist"])
+        inv2 = _make_invoice(tenant_a, lab21_setup, lab21_setup["receptionist"])
+        resp_path = _collect(Client(), path_headers, inv2.id)
+        assert resp_path.status_code == 403  # Pathologist forbidden
 
     def test_invoice_not_found(
         self, tenant_a: Any, lab21_setup: dict[str, Any], auth_headers: Any
@@ -354,12 +363,28 @@ class TestSampleLabel:
     def test_label_reprint_audited(
         self, tenant_a: Any, lab21_setup: dict[str, Any], auth_headers: Any
     ) -> None:
-        """Every print AND reprint is audited (mislabelling investigations)."""
+        """Every explicit print (POST .../label/print) is audited (D8).
+
+        GET is preview-only.
+        """
         headers = auth_headers(lab21_setup["receptionist"])
         created = self._collect_one(tenant_a, lab21_setup, headers)
-        url = f"{SAMPLES_URL}/{created['id']}/label"
-        assert Client().get(url, headers=headers).status_code == 200
-        assert Client().get(url, headers=headers).status_code == 200
+        get_url = f"{SAMPLES_URL}/{created['id']}/label"
+        print_url = f"{SAMPLES_URL}/{created['id']}/label/print"
+        # GET preview writes no audit row
+        assert Client().get(get_url, headers=headers).status_code == 200
+        with tenant_context(tenant_a):
+            assert (
+                AuditLog.objects.filter(
+                    action="sample.label_printed",
+                    entity_id=uuid.UUID(created["id"]),
+                ).count()
+                == 0
+            )
+
+        # POST print writes one audit row per print
+        assert Client().post(print_url, headers=headers).status_code == 200
+        assert Client().post(print_url, headers=headers).status_code == 200
         with tenant_context(tenant_a):
             count = AuditLog.objects.filter(
                 action="sample.label_printed",

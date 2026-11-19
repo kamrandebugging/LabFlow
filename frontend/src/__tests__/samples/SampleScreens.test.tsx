@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { MemoryRouter } from "react-router-dom";
 import {
   SampleAccessioningListScreen,
   CollectSampleStep1Screen,
@@ -11,6 +12,7 @@ import {
   type SampleLabelData,
   type SampleCreatedResponse,
 } from "../../features/samples";
+import { useAuthStore } from "../../features/auth/authStore";
 
 const mockSampleSummary: SampleSummary = {
   id: "sample-001",
@@ -32,7 +34,7 @@ const mockSampleSummary: SampleSummary = {
 const mockSampleDetail: SampleDetail = {
   ...mockSampleSummary,
   patient_dob: "1992-04-12",
-  collected_by: "Phleb. Bilal Ahmed",
+  collected_by: "Bilal Ahmed",
   custody_location: "Gulberg Branch — bench A",
   bench_code: "BENCH-01",
   sample_tests: [
@@ -44,6 +46,7 @@ const mockSampleDetail: SampleDetail = {
       invoice_item_id: "ii-1",
       specimen_type: "Whole Blood",
       tube_type: "Lavender EDTA",
+      required_volume_ml: 3,
     },
     {
       id: "st-2",
@@ -53,6 +56,7 @@ const mockSampleDetail: SampleDetail = {
       invoice_item_id: "ii-2",
       specimen_type: "Fluoride Plasma",
       tube_type: "Grey Fluoride",
+      required_volume_ml: 2,
     },
   ],
   events: [
@@ -93,55 +97,104 @@ const mockCreatedResponse: SampleCreatedResponse = {
 };
 
 describe("Screen 16: SampleAccessioningListScreen", () => {
-  it("renders sample accessions and filter controls", async () => {
+  beforeEach(() => {
+    useAuthStore.setState({
+      user: {
+        id: "u-1",
+        email: "tech@labflow.pk",
+        name: "Usman Tariq",
+        role: "technician",
+        branch_ids: ["br-001"],
+      },
+    });
+  });
+
+  it("renders sample accessions, KPI row, and tabs", async () => {
     const mockService = {
       listSamples: vi.fn().mockResolvedValue({
         results: [mockSampleSummary],
         total: 1,
       }),
+      listAwaitingCollection: vi.fn().mockResolvedValue({
+        results: [
+          {
+            invoice_id: "inv-001",
+            invoice_item_id: "ii-01",
+            patient_id: "pt-001",
+            patient_name: "Muhammad Imran",
+            patient_mrn: "MRN-2026-00417",
+            branch_id: "br-001",
+            branch_name: "Gulberg Branch",
+            ordered_at: "2026-10-20T08:00:00Z",
+            test_id: "t-1",
+            test_name: "Complete Blood Count",
+            test_code: "CBC",
+            panel_id: null,
+            panel_name: null,
+            description: "Complete Blood Count (CBC)",
+            status: "awaiting_collection",
+          },
+        ],
+        total: 1,
+      }),
+      listTransfers: vi.fn().mockResolvedValue({ results: [], total: 0 }),
     };
 
     render(
-      <SampleAccessioningListScreen
-        // @ts-expect-error partial mock
-        service={mockService}
-      />,
+      <MemoryRouter>
+        <SampleAccessioningListScreen
+          // @ts-expect-error partial mock
+          service={mockService}
+        />
+      </MemoryRouter>,
     );
 
     await waitFor(() => {
-      expect(screen.getAllByText("CDL20261020000041").length).toBeGreaterThan(
+      expect(screen.getByText("Samples")).toBeInTheDocument();
+      expect(screen.getAllByText("Awaiting collection").length).toBeGreaterThan(
         0,
       );
-      expect(screen.getByText("Muhammad Imran")).toBeInTheDocument();
-      expect(screen.getByText("MRN-2026-00417")).toBeInTheDocument();
+      expect(screen.getByText("All samples")).toBeInTheDocument();
+      expect(screen.getByText("Transfers")).toBeInTheDocument();
     });
+
+    // Awaiting tab renders awaiting row and Collect -> action
+    expect(screen.getByText("Muhammad Imran")).toBeInTheDocument();
+    expect(screen.getByText("MRN-2026-00417")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Collect →/i }),
+    ).toBeInTheDocument();
   });
 
-  it("calls onCollectNew when collect sample button is clicked", async () => {
+  it("calls onCollectNew when + Collect sample button is clicked", async () => {
     const mockCollect = vi.fn();
     const mockService = {
       listSamples: vi.fn().mockResolvedValue({
         results: [mockSampleSummary],
         total: 1,
       }),
+      listAwaitingCollection: vi
+        .fn()
+        .mockResolvedValue({ results: [], total: 0 }),
+      listTransfers: vi.fn().mockResolvedValue({ results: [], total: 0 }),
     };
 
     render(
-      <SampleAccessioningListScreen
-        onCollectNew={mockCollect}
-        // @ts-expect-error partial mock
-        service={mockService}
-      />,
+      <MemoryRouter>
+        <SampleAccessioningListScreen
+          onCollectNew={mockCollect}
+          // @ts-expect-error partial mock
+          service={mockService}
+        />
+      </MemoryRouter>,
     );
 
     await waitFor(() => {
-      expect(screen.getAllByText("CDL20261020000041").length).toBeGreaterThan(
-        0,
-      );
+      expect(screen.getByText("Samples")).toBeInTheDocument();
     });
 
     const collectBtn = screen.getByRole("button", {
-      name: /^collect sample$/i,
+      name: /\+ Collect sample/i,
     });
     fireEvent.click(collectBtn);
     expect(mockCollect).toHaveBeenCalledTimes(1);
@@ -158,7 +211,7 @@ describe("Screen 17: CollectSampleStep1Screen", () => {
         patient_name: "Muhammad Imran",
         patient_mrn: "MRN-2026-00417",
         patient_sex: "M",
-        patient_age_display: "34y",
+        patient_age: "34",
         branch_id: "br-001",
         branch_name: "Gulberg Branch",
         status: "settled",
@@ -175,9 +228,12 @@ describe("Screen 17: CollectSampleStep1Screen", () => {
       }),
     };
 
+    const onContinueMock = vi.fn();
+
     render(
       <CollectSampleStep1Screen
         preselectedInvoiceId="inv-001"
+        onContinue={onContinueMock}
         // @ts-expect-error partial mock
         billingServiceInstance={mockBillingService}
       />,
@@ -190,12 +246,20 @@ describe("Screen 17: CollectSampleStep1Screen", () => {
       expect(
         screen.getByText("Complete Blood Count (CBC)"),
       ).toBeInTheDocument();
+      expect(screen.getByText("MRN-2026-00417")).toBeInTheDocument();
     });
+
+    const continueBtn = screen.getByRole("button", {
+      name: /Continue to Step 2/i,
+    });
+    expect(continueBtn).not.toBeDisabled();
+    fireEvent.click(continueBtn);
+    expect(onContinueMock).toHaveBeenCalled();
   });
 });
 
 describe("Screen 18: CollectSampleStep2Screen", () => {
-  it("renders step 2 phlebotomy tubes verification and commits collection", async () => {
+  it("renders step 2 phlebotomy verification and commits collection", async () => {
     const mockCollect = vi.fn().mockResolvedValue(mockCreatedResponse);
     const mockConfirmed = vi.fn();
 
@@ -218,6 +282,7 @@ describe("Screen 18: CollectSampleStep2Screen", () => {
       ],
       collected_at: "2026-10-20T09:15:00Z",
       collected_by: "Bilal Ahmed",
+      notes: "Fasting confirmed",
     };
 
     render(
@@ -232,21 +297,39 @@ describe("Screen 18: CollectSampleStep2Screen", () => {
     expect(
       screen.getByRole("heading", { name: "Collect sample" }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/EDTA tube/i)).toBeInTheDocument();
+    expect(screen.getByText(/Lavender top \(EDTA\)/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /Recorded automatically: server time on confirm \/ logged-in user/i,
+      ),
+    ).toBeInTheDocument();
 
     const confirmBtn = screen.getByRole("button", {
-      name: /^collect sample$/i,
+      name: /✓ Collect sample/i,
     });
     fireEvent.click(confirmBtn);
 
     await waitFor(() => {
       expect(mockCollect).toHaveBeenCalledTimes(1);
+      expect(mockConfirmed).toHaveBeenCalledWith(mockCreatedResponse);
     });
   });
 });
 
 describe("Screen 19: SampleDetailScreen", () => {
-  it("renders sample information card and event timeline", async () => {
+  beforeEach(() => {
+    useAuthStore.setState({
+      user: {
+        id: "u-1",
+        email: "tech@labflow.pk",
+        name: "Usman Tariq",
+        role: "technician",
+        branch_ids: ["br-001"],
+      },
+    });
+  });
+
+  it("renders full page with NO drawer/dialog on load and displays custody timeline", async () => {
     const mockService = {
       getSample: vi.fn().mockResolvedValue(mockSampleDetail),
       receiveSample: vi
@@ -261,21 +344,26 @@ describe("Screen 19: SampleDetailScreen", () => {
     };
 
     render(
-      <SampleDetailScreen
-        sampleId="sample-001"
-        // @ts-expect-error partial mock
-        service={mockService}
-      />,
+      <MemoryRouter>
+        <SampleDetailScreen
+          sampleId="sample-001"
+          // @ts-expect-error partial mock
+          service={mockService}
+        />
+      </MemoryRouter>,
     );
 
     await waitFor(() => {
       expect(screen.getAllByText("CDL20261020000041").length).toBeGreaterThan(
         0,
       );
-      expect(screen.getByText("Sample information")).toBeInTheDocument();
-      expect(screen.getByText("Event timeline")).toBeInTheDocument();
-      expect(screen.getByText("Gulberg Branch — bench A")).toBeInTheDocument();
+      expect(screen.getByText("Specimen Status & Custody")).toBeInTheDocument();
+      expect(screen.getByText("Patient Identity")).toBeInTheDocument();
+      expect(screen.getByText("Chain of Custody Timeline")).toBeInTheDocument();
     });
+
+    // Hard ban on drawers: verify no drawer or modal dialog is rendered on initial load
+    expect(screen.queryByRole("dialog")).toBeNull();
   });
 
   it("handles receiving sample and updates state", async () => {
@@ -287,11 +375,13 @@ describe("Screen 19: SampleDetailScreen", () => {
     };
 
     render(
-      <SampleDetailScreen
-        sampleId="sample-001"
-        // @ts-expect-error partial mock
-        service={mockService}
-      />,
+      <MemoryRouter>
+        <SampleDetailScreen
+          sampleId="sample-001"
+          // @ts-expect-error partial mock
+          service={mockService}
+        />
+      </MemoryRouter>,
     );
 
     await waitFor(() => {
@@ -300,7 +390,7 @@ describe("Screen 19: SampleDetailScreen", () => {
       );
     });
 
-    const receiveBtn = screen.getByRole("button", { name: /receive/i });
+    const receiveBtn = screen.getByRole("button", { name: /receive sample/i });
     fireEvent.click(receiveBtn);
 
     await waitFor(() => {
@@ -308,7 +398,7 @@ describe("Screen 19: SampleDetailScreen", () => {
     });
   });
 
-  it("opens reject modal and confirms sample rejection", async () => {
+  it("opens reject modal with all reasons and confirms rejection", async () => {
     const mockService = {
       getSample: vi.fn().mockResolvedValue(mockSampleDetail),
       rejectSample: vi
@@ -317,11 +407,13 @@ describe("Screen 19: SampleDetailScreen", () => {
     };
 
     render(
-      <SampleDetailScreen
-        sampleId="sample-001"
-        // @ts-expect-error partial mock
-        service={mockService}
-      />,
+      <MemoryRouter>
+        <SampleDetailScreen
+          sampleId="sample-001"
+          // @ts-expect-error partial mock
+          service={mockService}
+        />
+      </MemoryRouter>,
     );
 
     await waitFor(() => {
@@ -330,17 +422,26 @@ describe("Screen 19: SampleDetailScreen", () => {
       );
     });
 
-    const rejectBtn = screen.getByRole("button", { name: /reject/i });
+    const rejectBtn = screen.getByRole("button", { name: /reject sample/i });
     fireEvent.click(rejectBtn);
 
     expect(screen.getByText("Reject Specimen")).toBeInTheDocument();
+
+    // Select reason
+    const select = screen.getByLabelText(/rejection reason code/i);
+    fireEvent.change(select, { target: { value: "hemolyzed" } });
+
     const confirmRejectBtn = screen.getByRole("button", {
       name: /confirm rejection/i,
     });
+    expect(confirmRejectBtn).not.toBeDisabled();
     fireEvent.click(confirmRejectBtn);
 
     await waitFor(() => {
-      expect(mockService.rejectSample).toHaveBeenCalled();
+      expect(mockService.rejectSample).toHaveBeenCalledWith("sample-001", {
+        reason_code: "hemolyzed",
+        note: undefined,
+      });
     });
   });
 });
@@ -350,17 +451,20 @@ describe("Screen 20: SampleLabelScreen", () => {
     window.print = vi.fn();
   });
 
-  it("renders 50x25mm thermal label preview with Code128 barcode", async () => {
+  it("renders thermal label preview with tenant header and barcode", async () => {
     const mockService = {
       getLabel: vi.fn().mockResolvedValue(mockLabelData),
+      printLabel: vi.fn().mockResolvedValue(mockLabelData),
     };
 
     render(
-      <SampleLabelScreen
-        sampleId="sample-001"
-        // @ts-expect-error partial mock
-        service={mockService}
-      />,
+      <MemoryRouter>
+        <SampleLabelScreen
+          sampleId="sample-001"
+          // @ts-expect-error partial mock
+          service={mockService}
+        />
+      </MemoryRouter>,
     );
 
     await waitFor(() => {
@@ -369,22 +473,26 @@ describe("Screen 20: SampleLabelScreen", () => {
         0,
       );
       expect(
-        screen.getByText("Thermal Specimen Label (50mm × 25mm)"),
+        screen.getByText("City Diagnostic Laboratory"),
       ).toBeInTheDocument();
+      expect(screen.getByText("Software by LabFlow")).toBeInTheDocument();
     });
   });
 
-  it("triggers window.print when print button is clicked", async () => {
+  it("calls printLabel (POST) and triggers window.print when print button is clicked", async () => {
     const mockService = {
       getLabel: vi.fn().mockResolvedValue(mockLabelData),
+      printLabel: vi.fn().mockResolvedValue(mockLabelData),
     };
 
     render(
-      <SampleLabelScreen
-        sampleId="sample-001"
-        // @ts-expect-error partial mock
-        service={mockService}
-      />,
+      <MemoryRouter>
+        <SampleLabelScreen
+          sampleId="sample-001"
+          // @ts-expect-error partial mock
+          service={mockService}
+        />
+      </MemoryRouter>,
     );
 
     await waitFor(() => {
@@ -394,6 +502,9 @@ describe("Screen 20: SampleLabelScreen", () => {
     const printBtn = screen.getByRole("button", { name: /^print$/i });
     fireEvent.click(printBtn);
 
-    expect(window.print).toHaveBeenCalledTimes(1);
+    await waitFor(() => {
+      expect(mockService.printLabel).toHaveBeenCalledWith("sample-001");
+      expect(window.print).toHaveBeenCalledTimes(1);
+    });
   });
 });

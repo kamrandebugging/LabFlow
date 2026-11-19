@@ -1,0 +1,121 @@
+/* SampleTimeline.module.css - DESIGN.md tokens only */
+.timeline {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  padding: 0.5rem 0;
+}
+
+.timelineItem {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  padding-bottom: 1.5rem;
+}
+
+.timelineItem:last-child {
+  padding-bottom: 0;
+}
+
+.spine {
+  position: absolute;
+  left: 0.4375rem;
+  top: 1rem;
+  bottom: 0;
+  width: 2px;
+  background-color: var(--color-border);
+}
+
+.timelineItem:last-child .spine {
+  display: none;
+}
+
+.dot {
+  position: relative;
+  z-index: 1;
+  width: 0.9375rem;
+  height: 0.9375rem;
+  border-radius: var(--radius-pill);
+  flex-shrink: 0;
+  margin-top: 0.25rem;
+  border: 2px solid var(--color-surface);
+}
+
+/* Event Family Colors */
+.mintDot {
+  background-color: var(--color-leaf);
+}
+
+.amberDot {
+  background-color: var(--color-gold);
+}
+
+.redDot {
+  background-color: var(--color-danger);
+}
+
+.greenDot {
+  background-color: var(--color-success);
+}
+
+.blueDot {
+  background-color: var(--color-info);
+}
+
+.greyDot {
+  background-color: var(--color-text-muted);
+}
+
+.content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.eventHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.eventName {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.timestamp {
+  font-size: 0.75rem;
+  font-mono: tabular-nums;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.meta {
+  font-size: 0.75rem;
+  color: var(--color-text-subtle);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  align-items: center;
+}
+
+.payloadBox {
+  margin-top: 0.25rem;
+  padding: 0.375rem 0.625rem;
+  background-color: var(--color-well);
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+  color: var(--color-body);
+}
+
+.emptyState {
+  padding: 2rem 1rem;
+  text-align: center;
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+}

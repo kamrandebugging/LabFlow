@@ -1,0 +1,134 @@
+/* LabelPrintSheet.module.css - DESIGN.md tokens only */
+.sheetContainer {
+  display: flex;
+  justify-content: center;
+  padding: 1.5rem 0;
+}
+
+.labelCard {
+  width: 100%;
+  max-width: 420px;
+  background-color: #ffffff;
+  color: #121011;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  padding: 1.5rem;
+  box-shadow: var(--shadow-veyla-card);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.tenantHeader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid rgba(18, 16, 17, 0.12);
+}
+
+.tenantName {
+  font-size: 1.125rem;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  color: #121011;
+}
+
+.tenantBranch {
+  font-size: 0.75rem;
+  color: #596060;
+  font-weight: 500;
+}
+
+.patientSection {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.patientName {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #121011;
+}
+
+.patientMeta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  color: #596060;
+}
+
+.mrnBadge {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  background-color: #f4f6f6;
+  padding: 0.125rem 0.375rem;
+  border-radius: var(--radius-sm);
+  color: #121011;
+}
+
+.barcodeSection {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0.75rem 0;
+}
+
+.accessionNumber {
+  font-family: var(--font-mono);
+  font-size: 1.125rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  color: #121011;
+  margin-top: 0.25rem;
+}
+
+.testsSection {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+}
+
+.testChip {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  padding: 0.125rem 0.5rem;
+  background-color: #f4f6f6;
+  border-radius: var(--radius-pill);
+  color: #242626;
+}
+
+.collectionMeta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.6875rem;
+  color: #596060;
+  padding-top: 0.5rem;
+  border-top: 1px dashed rgba(18, 16, 17, 0.12);
+}
+
+.footerCredit {
+  text-align: center;
+  font-size: 0.625rem;
+  color: #9ea3a3;
+  margin-top: 0.25rem;
+}
+
+/* Print Media Styles */
+@media print {
+  .sheetContainer {
+    padding: 0;
+  }
+  .labelCard {
+    box-shadow: none;
+    border: none;
+    max-width: 100%;
+    padding: 0.5rem;
+    page-break-inside: avoid;
+  }
+}

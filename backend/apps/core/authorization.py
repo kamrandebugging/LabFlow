@@ -93,24 +93,35 @@ ROLE_POLICY: Final[dict[str, dict[str, frozenset[str]]]] = {
     "payment-create": {"POST": FRONT_DESK},
     "day-close": {"GET": FRONT_DESK, "POST": ADMIN},
     # --- Samples -------------------------------------------------------------
-    "sample-collection": {"GET": ALL_STAFF, "POST": FRONT_DESK},
+    "sample-collection": {
+        "GET": ALL_STAFF,
+        "POST": frozenset({ROLE_OWNER, ROLE_MANAGER, ROLE_RECEPTION, ROLE_TECHNICIAN}),
+    },
     "sample-detail": {"GET": ALL_STAFF},
     "sample-label": {
         "GET": frozenset({ROLE_OWNER, ROLE_MANAGER, ROLE_RECEPTION, ROLE_TECHNICIAN})
+    },
+    "sample-label-print": {
+        "POST": frozenset({ROLE_OWNER, ROLE_MANAGER, ROLE_RECEPTION, ROLE_TECHNICIAN})
     },
     "sample-receive": {"POST": frozenset({ROLE_OWNER, ROLE_MANAGER, ROLE_TECHNICIAN})},
     "sample-reject": {
         "POST": frozenset({ROLE_OWNER, ROLE_MANAGER, ROLE_RECEPTION, ROLE_TECHNICIAN})
     },
-    "sample-recollect": {"POST": frozenset({ROLE_OWNER, ROLE_MANAGER, ROLE_RECEPTION})},
+    "sample-recollect": {
+        "POST": frozenset({ROLE_OWNER, ROLE_MANAGER, ROLE_RECEPTION, ROLE_TECHNICIAN})
+    },
     "sample-cancel": {"POST": ADMIN},
     "sample-transfer": {
         "POST": frozenset({ROLE_OWNER, ROLE_MANAGER, ROLE_RECEPTION, ROLE_TECHNICIAN})
     },
     "sample-events": {"GET": ALL_STAFF},
     "sample-daily-stats": {"GET": ALL_STAFF},
+    "transfer-list": {
+        "GET": frozenset({ROLE_OWNER, ROLE_MANAGER, ROLE_RECEPTION, ROLE_TECHNICIAN})
+    },
     "transfer-receive": {
-        "POST": frozenset({ROLE_OWNER, ROLE_MANAGER, ROLE_RECEPTION, ROLE_TECHNICIAN})
+        "POST": frozenset({ROLE_OWNER, ROLE_MANAGER, ROLE_TECHNICIAN})
     },
     "transfer-cancel": {"POST": ADMIN},
     "transfer-mark-lost": {"POST": ADMIN},

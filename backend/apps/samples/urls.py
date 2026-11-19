@@ -9,6 +9,7 @@ from apps.samples.views import (
     SampleCollectionView,
     SampleDetailView,
     SampleEventsView,
+    SampleLabelPrintView,
     SampleLabelView,
     SampleReceiveView,
     SampleRecollectView,
@@ -16,6 +17,7 @@ from apps.samples.views import (
     SampleTransferCreateView,
     TransferCancelView,
     TransferExceptionsView,
+    TransferListView,
     TransferMarkLostView,
     TransferReceiveView,
 )
@@ -71,6 +73,26 @@ urlpatterns = [
         "samples/<uuid:sample_id>/label/",
         SampleLabelView.as_view(),
         name="sample-label-slash",
+    ),
+    path(
+        "samples/<uuid:sample_id>/label/print",
+        SampleLabelPrintView.as_view(),
+        name="sample-label-print",
+    ),
+    path(
+        "samples/<uuid:sample_id>/label/print/",
+        SampleLabelPrintView.as_view(),
+        name="sample-label-print-slash",
+    ),
+    path(
+        "transfers",
+        TransferListView.as_view(),
+        name="transfer-list",
+    ),
+    path(
+        "transfers/",
+        TransferListView.as_view(),
+        name="transfer-list-slash",
     ),
     path(
         "transfers/exceptions",

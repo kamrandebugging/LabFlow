@@ -182,6 +182,7 @@ class SampleCollectionView(BranchScopedAPIView):
             sample = SampleService.collect_sample(
                 invoice_id=data["invoice_id"],
                 invoice_item_ids=data.get("invoice_item_ids"),
+                notes=data.get("notes"),
                 actor=user,
                 ip=_get_client_ip(request),
                 user_agent=request.META.get("HTTP_USER_AGENT", ""),
@@ -261,6 +262,33 @@ class SampleLabelView(APIView):
         return Response(SampleLabelSerializer(payload).data, status=status.HTTP_200_OK)
 
 
+class SampleLabelPrintView(APIView):
+    """POST /api/v1/samples/{id}/label/print — explicit print event + payload (D8)."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request: Request, sample_id: uuid.UUID) -> Response:
+        user = cast(StaffUser, request.user)
+        if user.role not in SAMPLE_LABEL_ROLES:
+            return Response(
+                _format_error("forbidden", "Only staff may print sample labels."),
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        try:
+            payload = SampleService.print_label(
+                sample_id=sample_id,
+                actor=user,
+                ip=_get_client_ip(request),
+                user_agent=request.META.get("HTTP_USER_AGENT", ""),
+            )
+        except SampleError as exc:
+            return Response(
+                _format_error(exc.error_code, str(exc) or exc.error_code),
+                status=exc.status_code,
+            )
+        return Response(SampleLabelSerializer(payload).data, status=status.HTTP_200_OK)
+
+
 def _role_guard(user: StaffUser, allowed: set[Role], message: str) -> Response | None:
     """Return a 403 response when the user's role is not allowed, else None."""
     if user.role not in allowed:
@@ -288,7 +316,7 @@ def _validate(
 class SampleReceiveView(APIView):
     """POST /api/v1/samples/{id}/receive — collected -> received (SM-7)."""
 
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, IsInBranchScope]
 
     def post(self, request: Request, sample_id: uuid.UUID) -> Response:
         user = cast(StaffUser, request.user)
@@ -317,7 +345,7 @@ class SampleReceiveView(APIView):
 class SampleRejectView(APIView):
     """POST /api/v1/samples/{id}/reject — quality rejection (SM-8)."""
 
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, IsInBranchScope]
 
     def post(self, request: Request, sample_id: uuid.UUID) -> Response:
         user = cast(StaffUser, request.user)
@@ -352,14 +380,14 @@ class SampleRejectView(APIView):
 class SampleRecollectView(APIView):
     """POST /api/v1/samples/{id}/recollect — new sample after rejection (SM-9)."""
 
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, IsInBranchScope]
 
     def post(self, request: Request, sample_id: uuid.UUID) -> Response:
         user = cast(StaffUser, request.user)
         denied = _role_guard(
             user,
             SAMPLE_RECOLLECT_ROLES,
-            "Only Owner, Manager or Receptionist may recollect samples.",
+            "Only Owner, Manager, Receptionist or Technician may recollect samples.",
         )
         if denied is not None:
             return denied
@@ -381,7 +409,7 @@ class SampleRecollectView(APIView):
 class SampleCancelView(APIView):
     """POST /api/v1/samples/{id}/cancel — sample cancellation (SM-11)."""
 
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, IsInBranchScope]
 
     def post(self, request: Request, sample_id: uuid.UUID) -> Response:
         user = cast(StaffUser, request.user)
@@ -415,7 +443,7 @@ class SampleCancelView(APIView):
 class SampleTransferCreateView(APIView):
     """POST /api/v1/samples/{id}/transfer — dispatch to a branch (SM-7)."""
 
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, IsInBranchScope]
 
     def post(self, request: Request, sample_id: uuid.UUID) -> Response:
         user = cast(StaffUser, request.user)
@@ -451,14 +479,14 @@ class SampleTransferCreateView(APIView):
 class TransferReceiveView(APIView):
     """POST /api/v1/transfers/{id}/receive — receive at destination (SM-7)."""
 
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, IsInBranchScope]
 
     def post(self, request: Request, transfer_id: uuid.UUID) -> Response:
         user = cast(StaffUser, request.user)
         denied = _role_guard(
             user,
             TRANSFER_RECEIVE_ROLES,
-            "Only Owner, Manager, Receptionist or Technician may receive transfers.",
+            "Only Owner, Manager or Technician may receive transfers.",
         )
         if denied is not None:
             return denied
@@ -480,7 +508,7 @@ class TransferReceiveView(APIView):
 class TransferCancelView(APIView):
     """POST /api/v1/transfers/{id}/cancel — sender cancels (Doc 04 §9.2)."""
 
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, IsInBranchScope]
 
     def post(self, request: Request, transfer_id: uuid.UUID) -> Response:
         user = cast(StaffUser, request.user)
@@ -509,7 +537,7 @@ class TransferCancelView(APIView):
 class TransferMarkLostView(APIView):
     """POST /api/v1/transfers/{id}/mark-lost — sender marks lost (SM-7)."""
 
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, IsInBranchScope]
 
     def post(self, request: Request, transfer_id: uuid.UUID) -> Response:
         user = cast(StaffUser, request.user)
@@ -633,3 +661,47 @@ class TransferExceptionsView(APIView):
             month=month,
         )
         return Response(sections, status=status.HTTP_200_OK)
+
+
+class TransferListView(APIView):
+    """GET /api/v1/transfers — list transfers with status/direction filters (D12)."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request: Request) -> Response:
+        user = cast(StaffUser, request.user)
+        role = getattr(user, "role", None)
+        if (
+            role is not None
+            and role not in SAMPLE_READ_ROLES
+            and str(role).lower() not in SAMPLE_READ_ROLES
+        ):
+            return Response(
+                _format_error("forbidden", "Role not permitted to view transfers."),
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        status_param = request.query_params.get("status")
+        direction_param = request.query_params.get("direction")
+        if direction_param and direction_param not in ("incoming", "outgoing", "all"):
+            return Response(
+                _format_error(
+                    "validation_error",
+                    "Invalid direction: expected incoming, outgoing or all.",
+                ),
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+        direction = None if direction_param == "all" else direction_param
+
+        transfers = TransferService.list_transfers(
+            actor=user,
+            status=status_param,
+            direction=direction,
+        )
+        return Response(
+            {
+                "results": TransferSerializer(transfers, many=True).data,
+                "total": len(transfers),
+            },
+            status=status.HTTP_200_OK,
+        )
