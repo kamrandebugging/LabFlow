@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import re
 import subprocess
 import sys
@@ -94,11 +93,12 @@ def run_command(
             encoding="utf-8",
             errors="replace",
             timeout=timeout,
+            check=False,
         )
         return proc.returncode, proc.stdout.strip(), proc.stderr.strip()
     except subprocess.TimeoutExpired:
         return 1, "", f"Command timed out after {timeout}s: {cmd}"
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 - surface any command failure as text
         return 1, "", str(exc)
 
 
@@ -129,11 +129,15 @@ import yaml
 def _parse_twg_output(raw_output: str) -> dict[str, Any] | None:
     """Parse output from twg CLI, reading full JSON from disk if available."""
     clean_text = raw_output.split("---END---")[0].strip()
+    parsed: dict[str, Any] | None = None
     try:
         # 1. Try direct JSON parsing
-        return json.loads(clean_text)
-    except Exception:
-        pass
+        candidate = json.loads(clean_text)
+        parsed = candidate if isinstance(candidate, dict) else None
+    except (ValueError, TypeError):
+        parsed = None
+    if parsed is not None:
+        return parsed
 
     try:
         # 2. Try parsing twg YAML envelope
@@ -148,7 +152,7 @@ def _parse_twg_output(raw_output: str) -> dict[str, Any] | None:
                 return meta["stdout_inline"]
             if "data" in meta:
                 return meta
-    except Exception as e:
+    except (yaml.YAMLError, OSError, ValueError) as e:
         log_warning(f"Error parsing twg output: {e}")
     return None
 
@@ -217,9 +221,17 @@ def _extract_adf_text(node: Any) -> str:
         return "".join(_extract_adf_text(c) for c in content) + "\n"
     elif node_type == "heading":
         level = node.get("attrs", {}).get("level", 2)
-        return f"{'#' * level} " + "".join(_extract_adf_text(c) for c in content).strip() + "\n\n"
+        return (
+            f"{'#' * level} "
+            + "".join(_extract_adf_text(c) for c in content).strip()
+            + "\n\n"
+        )
     elif node_type == "bulletList":
-        items = [_extract_adf_text(c).strip() for c in content if _extract_adf_text(c).strip()]
+        items = [
+            _extract_adf_text(c).strip()
+            for c in content
+            if _extract_adf_text(c).strip()
+        ]
         return "\n".join(f"* {it}" for it in items) + "\n\n"
     elif node_type == "listItem":
         return "".join(_extract_adf_text(c) for c in content)
@@ -242,7 +254,9 @@ def assemble_agent_prompt(
     """
     key = ticket.get("key", "UNKNOWN")
     summary = ticket.get("summary") or ticket.get("fields", {}).get("summary", "")
-    raw_desc = ticket.get("description") or ticket.get("fields", {}).get("description", "")
+    raw_desc = ticket.get("description") or ticket.get("fields", {}).get(
+        "description", ""
+    )
     description = _extract_adf_text(raw_desc).strip()
     if not description and isinstance(raw_desc, (dict, list)):
         description = json.dumps(raw_desc, indent=2)
@@ -290,8 +304,11 @@ def run_dod_verification_suite() -> tuple[bool, str]:
     if not check_docker_services():
         return (
             False,
-            "PREREQUISITE FAILED: Docker Desktop is not running or labflow-postgres/redis containers are down.\n"
-            "Please start Docker Desktop and run: docker compose up -d",
+            (
+                "PREREQUISITE FAILED: Docker Desktop is not running or "
+                "labflow-postgres/redis containers are down.\n"
+                "Please start Docker Desktop and run: docker compose up -d"
+            ),
         )
 
     py_exec = str(VENV_PYTHON)
@@ -330,7 +347,11 @@ def run_dod_verification_suite() -> tuple[bool, str]:
 
     total_gates = len(gates)
     for i, (name, command, cwd) in enumerate(gates, start=1):
-        print(f"  {CYAN}▸ [{i}/{total_gates}] Running {name}...{RESET}", end="", flush=True)
+        print(
+            f"  {CYAN}▸ [{i}/{total_gates}] Running {name}...{RESET}",
+            end="",
+            flush=True,
+        )
         code, stdout, stderr = run_command(command, cwd=cwd)
         if code == 0:
             print(f" {GREEN}[PASSED]{RESET}")
@@ -348,7 +369,7 @@ def run_dod_verification_suite() -> tuple[bool, str]:
 def transition_jira_to_review(key: str, lab_id: str, comment: str) -> bool:
     """Transition Jira ticket to In Review (Transition ID 41)."""
     cmd = (
-        f'twg jira workitem transition --id {key} --transition-id 41 '
+        f"twg jira workitem transition --id {key} --transition-id 41 "
         f'--transition-comment "{comment}" --transition-comment-format plain'
     )
     code, stdout, stderr = run_command(cmd)
@@ -375,13 +396,15 @@ def git_commit_and_push(branch: str, key: str, summary: str) -> bool:
     return False
 
 
-def generate_delivery_report(branch: str, key: str, lab_id: str, coverage_summary: str) -> None:
+def generate_delivery_report(
+    branch: str, key: str, lab_id: str, coverage_summary: str
+) -> None:
     """
     Generate and print the strict delivery report per Stage 6 Protocol:
     Report ticket key, branch, tests, coverage, files changed, and FULL STOP.
     """
     # Get changed files diff stat against origin/main or last commit
-    code, stdout, _ = run_command(f"git diff --stat origin/main...HEAD")
+    code, stdout, _ = run_command("git diff --stat origin/main...HEAD")
     if not stdout or code != 0:
         _, stdout, _ = run_command("git diff --stat HEAD~1")
 
@@ -390,9 +413,13 @@ def generate_delivery_report(branch: str, key: str, lab_id: str, coverage_summar
     print(f"{BOLD}{GREEN}{'=' * 78}{RESET}\n")
 
     print(f"  {BOLD}Ticket Key:{RESET}     {CYAN}{key}{RESET}")
-    print(f"  {BOLD}LAB Branch:{RESET}     {CYAN}{branch}{RESET} (pushed to origin/{branch} ONLY)")
+    print(
+        f"  {BOLD}LAB Branch:{RESET}     {CYAN}{branch}{RESET} (pushed to origin/{branch} ONLY)"
+    )
     print(f"  {BOLD}Jira Status:{RESET}    {GREEN}In Review{RESET} (Transition ID 41)")
-    print(f"  {BOLD}DoD Gates:{RESET}      {GREEN}All 6 Gates Passed (100% Green){RESET}")
+    print(
+        f"  {BOLD}DoD Gates:{RESET}      {GREEN}All 6 Gates Passed (100% Green){RESET}"
+    )
     print(f"  {BOLD}Coverage:{RESET}       {GREEN}>= 80% Minimum Met{RESET}")
     if coverage_summary:
         print(f"  {BOLD}Test Summary:{RESET}   {coverage_summary}")
@@ -404,14 +431,16 @@ def generate_delivery_report(branch: str, key: str, lab_id: str, coverage_summar
     print(f"  {'-' * 74}\n")
 
     print(f"{BOLD}{YELLOW}  🛑 FULL STOP RULES ENFORCED:{RESET}")
-    print(f"     1. NO Pull Request created.")
-    print(f"     2. NO merge to main performed.")
-    print(f"     3. NO auto-advance to next ticket.")
+    print("     1. NO Pull Request created.")
+    print("     2. NO merge to main performed.")
+    print("     3. NO auto-advance to next ticket.")
     print(f"     4. Merge manually when verified, then say {BOLD}'next'{RESET}.\n")
     print(f"{BOLD}{GREEN}{'=' * 78}{RESET}\n")
 
 
-def run_loop(ticket: dict[str, Any], max_retries: int = 4, auto_commit: bool = True) -> bool:
+def run_loop(
+    ticket: dict[str, Any], max_retries: int = 4, auto_commit: bool = True
+) -> bool:
     """
     Main Autonomous Agent Loop.
     Executes: Prompt formulation -> DoD Gates -> Self-Correction iterations -> Auto Delivery (STOP).
@@ -437,7 +466,9 @@ def run_loop(ticket: dict[str, Any], max_retries: int = 4, auto_commit: bool = T
     prompt_file = REPO_ROOT / ".agent_prompt.md"
 
     for iteration in range(1, max_retries + 1):
-        print(f"\n{BOLD}{YELLOW}--- Loop Iteration {iteration}/{max_retries} ---{RESET}")
+        print(
+            f"\n{BOLD}{YELLOW}--- Loop Iteration {iteration}/{max_retries} ---{RESET}"
+        )
 
         # 1. Assemble prompt
         prompt = assemble_agent_prompt(ticket, lab_id, feedback=feedback)
@@ -468,18 +499,39 @@ def run_loop(ticket: dict[str, Any], max_retries: int = 4, auto_commit: bool = T
             feedback = report
             time.sleep(1)
 
-    log_header(f"❌ LOOP TERMINATED: Reached {max_retries} iterations without passing DoD.")
+    log_header(
+        f"❌ LOOP TERMINATED: Reached {max_retries} iterations without passing DoD."
+    )
     log_warning(f"Review the error log above and in {prompt_file.name} to diagnose.")
     return False
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="LabFlow Autonomous Agent Loop Runner")
-    parser.add_argument("--ticket", type=str, help="Jira Ticket Key (e.g. KAN-138 or LAB-22)")
-    parser.add_argument("--next", action="store_true", help="Automatically fetch the next To Do ticket in Jira")
-    parser.add_argument("--verify-only", action="store_true", help="Run the 6 DoD verification gates only")
-    parser.add_argument("--max-retries", type=int, default=4, help="Maximum self-correction loop iterations")
-    parser.add_argument("--no-commit", action="store_true", help="Skip automatic git commit and Jira transition")
+    parser.add_argument(
+        "--ticket", type=str, help="Jira Ticket Key (e.g. KAN-138 or LAB-22)"
+    )
+    parser.add_argument(
+        "--next",
+        action="store_true",
+        help="Automatically fetch the next To Do ticket in Jira",
+    )
+    parser.add_argument(
+        "--verify-only",
+        action="store_true",
+        help="Run the 6 DoD verification gates only",
+    )
+    parser.add_argument(
+        "--max-retries",
+        type=int,
+        default=4,
+        help="Maximum self-correction loop iterations",
+    )
+    parser.add_argument(
+        "--no-commit",
+        action="store_true",
+        help="Skip automatic git commit and Jira transition",
+    )
 
     args = parser.parse_args()
 
@@ -507,7 +559,9 @@ def main() -> None:
         ticket = fetch_next_jira_ticket()
 
     if not ticket:
-        log_error("No Jira ticket found. Please provide --ticket <KEY> or verify Jira connection.")
+        log_error(
+            "No Jira ticket found. Please provide --ticket <KEY> or verify Jira connection."
+        )
         sys.exit(1)
 
     success = run_loop(

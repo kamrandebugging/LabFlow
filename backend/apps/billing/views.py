@@ -17,6 +17,7 @@ from datetime import UTC, date, datetime
 from decimal import Decimal
 from typing import Any, cast
 
+from django.core.exceptions import ValidationError
 from django.db.models import Sum, TextField
 from django.db.models.functions import Cast
 from django.http import QueryDict
@@ -26,7 +27,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.accounts.models import StaffUser
+from apps.accounts.models import Role, StaffUser
 from apps.billing.models import CreditNote, Invoice, Payment
 from apps.billing.serializers import (
     CreditNoteCreateSerializer,
@@ -37,8 +38,10 @@ from apps.billing.serializers import (
     InvoiceCancelSerializer,
     InvoiceCreateSerializer,
     InvoiceDetailSerializer,
+    InvoiceLineCancelSerializer,
     InvoiceSerializer,
     InvoiceSummarySerializer,
+    InvoiceUpdateSerializer,
     PaymentCreateSerializer,
     PaymentSerializer,
 )
@@ -47,6 +50,7 @@ from apps.billing.services import (
     BILLING_WRITE_ROLES,
     CREDIT_NOTE_ROLES,
     DAY_CLOSE_ROLES,
+    DISCOUNT_ROLES,
     PAYMENT_WRITE_ROLES,
     BillingError,
     BillingService,
@@ -121,10 +125,19 @@ class InvoiceCollectionView(BranchScopedAPIView):
         ).aggregate(sum=Sum("amount"))["sum"] or Decimal("0.00")
         # Net revenue = billed − refunds − credit notes (never client-computed).
         today_total = billed - refunded - credited
+        today_total_str: str | None = f"{today_total:.2f}"
+        if user.role == Role.TECHNICIAN:
+            from apps.platform.settings_accessor import get_setting
+
+            if get_setting("hide_prices_for_technicians"):
+                today_total_str = None
+
         body = {
-            "results": InvoiceSummarySerializer(rows, many=True).data,
+            "results": InvoiceSummarySerializer(
+                rows, many=True, context={"request": request}
+            ).data,
             "next_cursor": next_cursor,
-            "daily_total": f"{today_total:.2f}",
+            "daily_total": today_total_str,
         }
         return Response(body, status=status.HTTP_200_OK)
 
@@ -445,7 +458,7 @@ class InvoiceDetailView(APIView):
             "discount_amount": invoice.discount_amount,
             "discount_reason": invoice.discount_reason,
             "total": invoice.total,
-            "items": list(invoice.items.all()),
+            "items": list(invoice.items.select_related("test").all()),
             "payments": list(invoice.payments.all()),
             "credit_notes": list(
                 invoice.credit_notes.select_related("issued_by", "voided_by").order_by(
@@ -454,12 +467,59 @@ class InvoiceDetailView(APIView):
             ),
             "net_paid": detail["net_paid"],
             "net_revenue": detail["net_revenue"],
+            "balance": detail["balance"],
             "created_at": invoice.created_at,
         }
+        for_print = request.query_params.get("for_print") == "true"
         return Response(
-            InvoiceDetailSerializer(payload, context={"request": request}).data,
+            InvoiceDetailSerializer(
+                payload, context={"request": request, "for_print": for_print}
+            ).data,
             status=status.HTTP_200_OK,
         )
+
+    def patch(self, request: Request, invoice_id: Any) -> Response:
+        user = cast(StaffUser, request.user)
+        if user.role not in BILLING_WRITE_ROLES:
+            return Response(
+                _format_error(
+                    "forbidden",
+                    "Only Owner, Manager or Receptionist may update invoices.",
+                ),
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        iid = _resolve_invoice_reference(user, invoice_id)
+        if iid is None:
+            return Response(
+                _format_error("not_found", "Invoice not found."),
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        serializer = InvoiceUpdateSerializer(data=request.data)
+        if not serializer.is_valid():
+            err_dict = serializer.errors
+            return Response(
+                _format_error("validation_error", "Invalid payload.", err_dict),
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+        data = serializer.validated_data
+        ip = _get_client_ip(request)
+        user_agent = request.META.get("HTTP_USER_AGENT", "")
+        try:
+            invoice = InvoiceQueryService.update_invoice(
+                invoice_id=iid,
+                actor=user,
+                discount_amount=data.get("discount_amount"),
+                discount_reason=data.get("discount_reason"),
+                referral_partner_id=data.get("referral_partner_id"),
+                ip=ip,
+                user_agent=user_agent,
+            )
+        except BillingError as exc:
+            return Response(
+                _format_error(exc.error_code, str(exc) or exc.error_code),
+                status=exc.status_code,
+            )
+        return Response(InvoiceSerializer(invoice).data, status=status.HTTP_200_OK)
 
 
 class InvoiceHistoryView(APIView):
@@ -595,7 +655,7 @@ class InvoiceHistoryView(APIView):
                     }
                 )
 
-        # cancel
+        # cancel and line cancellation
         for row in audit_rows:
             if row.action == "invoice.cancelled":
                 after = row.after_jsonb or {}
@@ -608,8 +668,26 @@ class InvoiceHistoryView(APIView):
                         "reason": after.get("reason"),
                     }
                 )
+            elif row.action == "invoice.line_cancelled":
+                after = row.after_jsonb or {}
+                events.append(
+                    {
+                        "event": "line_cancelled",
+                        "at": row.at.isoformat(),
+                        "actor": names.get(row.actor_id),
+                        "amount": after.get("amount_removed"),
+                        "reason": after.get("reason"),
+                    }
+                )
 
         events.sort(key=lambda e: e["at"])
+        if getattr(user, "role", None) == Role.TECHNICIAN:
+            from apps.platform.settings_accessor import get_setting
+
+            if get_setting("hide_prices_for_technicians"):
+                for ev in events:
+                    ev["amount"] = None
+
         return Response(
             {"invoice_id": str(invoice.id), "events": events},
             status=status.HTTP_200_OK,
@@ -636,7 +714,7 @@ class InvoiceCancelView(APIView):
                 ),
                 status=status.HTTP_403_FORBIDDEN,
             )
-        iid = _parse_path_uuid(invoice_id)
+        iid = _resolve_invoice_reference(user, invoice_id)
         if iid is None:
             return Response(
                 _format_error("not_found", "Invoice not found."),
@@ -677,6 +755,70 @@ class InvoiceCancelView(APIView):
         return Response(InvoiceSerializer(invoice).data, status=status.HTTP_200_OK)
 
 
+class InvoiceLineCancelView(APIView):
+    """POST /api/v1/invoices/{id}/lines/{line_id}/cancel — cancel unperformed line."""
+
+    permission_classes = [permissions.IsAuthenticated, IsInBranchScope]
+    scope_branch_source = None
+
+    def post(self, request: Request, invoice_id: Any, line_id: Any) -> Response:
+        user = cast(StaffUser, request.user)
+        if user.role not in DISCOUNT_ROLES:
+            return Response(
+                _format_error(
+                    "forbidden",
+                    "Only an Owner or Manager may cancel an invoice line.",
+                ),
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        iid = _resolve_invoice_reference(user, invoice_id)
+        if iid is None:
+            return Response(
+                _format_error("not_found", "Invoice not found."),
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        lid = _parse_path_uuid(line_id)
+        if lid is None:
+            return Response(
+                _format_error("not_found", "Invoice line not found."),
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        serializer = InvoiceLineCancelSerializer(data=request.data)
+        if not serializer.is_valid():
+            err_dict = serializer.errors
+            if "reason" in err_dict:
+                return Response(
+                    _format_error(
+                        "cancel_reason_required",
+                        "A reason is required to cancel an invoice line.",
+                        err_dict,
+                    ),
+                    status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                )
+            return Response(
+                _format_error("validation_error", "Invalid payload.", err_dict),
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+        data = serializer.validated_data
+        ip = _get_client_ip(request)
+        user_agent = request.META.get("HTTP_USER_AGENT", "")
+        try:
+            invoice = InvoiceQueryService.cancel_line(
+                invoice_id=iid,
+                item_id=lid,
+                reason=data["reason"],
+                actor=user,
+                ip=ip,
+                user_agent=user_agent,
+            )
+        except BillingError as exc:
+            return Response(
+                _format_error(exc.error_code, str(exc) or exc.error_code),
+                status=exc.status_code,
+            )
+        return Response(InvoiceSerializer(invoice).data, status=status.HTTP_200_OK)
+
+
 class CreditNoteCreateView(APIView):
     """POST /api/v1/invoices/{id}/credit-notes — reverse a paid invoice.
 
@@ -697,7 +839,7 @@ class CreditNoteCreateView(APIView):
                 ),
                 status=status.HTTP_403_FORBIDDEN,
             )
-        iid = _parse_path_uuid(invoice_id)
+        iid = _resolve_invoice_reference(user, invoice_id)
         if iid is None:
             return Response(
                 _format_error("not_found", "Invoice not found."),
@@ -737,6 +879,7 @@ class CreditNoteCreateView(APIView):
                 method=data["method"],
                 idempotency_key=idempotency_key,
                 actor=user,
+                reversed_methods=data.get("reversed_methods"),
                 ip=_get_client_ip(request),
                 user_agent=request.META.get("HTTP_USER_AGENT", ""),
             )
@@ -875,6 +1018,9 @@ class DayCloseView(APIView):
             {
                 "branch_id": str(branch_id),
                 "date": day.isoformat(),
+                "active_business_date": data.get(
+                    "active_business_date", day.isoformat()
+                ),
                 "closed": data["closed"],
                 "totals": self._totals_payload(data["totals"]),
                 "close": (
@@ -928,8 +1074,39 @@ class DayCloseView(APIView):
             {
                 "branch_id": str(close.branch_id),
                 "date": close.business_date.isoformat(),
+                "active_business_date": DayCloseService.collect_totals(
+                    branch_id=close.branch_id, day=close.business_date
+                )["active_business_date"].isoformat(),
                 "closed": True,
                 "close": DayCloseSummarySerializer(close).data,
             },
             status=status.HTTP_201_CREATED,
         )
+
+
+class InvoiceVerifyPickupCodeView(APIView):
+    """POST /api/v1/invoices/{id}/verify-pickup-code — verify pickup access code."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request: Request, invoice_id: Any) -> Response:
+        user = cast(StaffUser, request.user)
+        try:
+            inv_uuid = uuid.UUID(str(invoice_id))
+            invoice = Invoice.objects.scoped_to(user).get(pk=inv_uuid)
+        except (ValueError, Invoice.DoesNotExist, ValidationError):
+            return Response(
+                _format_error("not_found", "Invoice not found."),
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        code_raw = (
+            request.data.get("code", "") if isinstance(request.data, dict) else ""
+        )
+        code = str(code_raw).strip()
+        if not code:
+            return Response(
+                _format_error("validation_error", "Access code is required."),
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+        valid = BillingService.verify_pickup_code(invoice, code)
+        return Response({"valid": valid}, status=status.HTTP_200_OK)

@@ -42,6 +42,10 @@ class SamplesInFlightError(Exception):
     pass
 
 
+class OpenInvoicesExistError(Exception):
+    pass
+
+
 class BranchScopeDeniedError(Exception):
     pass
 
@@ -437,7 +441,9 @@ class PatientService:
         if patient.deleted_at is not None:
             return
 
-        # PT-5 sample guard: samples in flight block deletion
+        # PT-5 sample guard runs first: a sample actually in the lab is the
+        # more specific and more urgent reason to refuse the delete (the
+        # legacy LAB-15 contract answers 409 samples_in_flight).
         from apps.samples.models import Sample
 
         in_flight = Sample.objects.filter(
@@ -446,6 +452,18 @@ class PatientService:
         ).exists()
         if in_flight:
             raise SamplesInFlightError("Cannot delete patient with samples in flight.")
+
+        # Phase 8 Rule 4: Open invoice guard (unpaid or partial invoices)
+        from apps.billing.models import Invoice
+
+        has_open_invoices = Invoice.objects.filter(
+            patient=patient,
+            status__in=[Invoice.Status.UNPAID, Invoice.Status.PARTIAL],
+        ).exists()
+        if has_open_invoices:
+            raise OpenInvoicesExistError(
+                "Cannot delete patient with unpaid or partially paid invoices."
+            )
 
         with transaction.atomic():
             now = timezone.now()

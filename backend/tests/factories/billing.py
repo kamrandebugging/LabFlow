@@ -4,11 +4,14 @@ from decimal import Decimal
 import factory
 
 from apps.billing.models import (
+    BranchDay,
     CreditNote,
     CreditNoteSequence,
+    CreditNoteVoid,
     DayClose,
     Invoice,
     InvoiceItem,
+    InvoiceLineCancelled,
     Payment,
 )
 from tests.factories.accounts import StaffUserFactory
@@ -97,3 +100,37 @@ class DayCloseFactory(TenantModelFactory):
     difference = Decimal("0.00")
     difference_note = None
     closed_by = factory.SubFactory(StaffUserFactory)
+
+
+class BranchDayFactory(TenantModelFactory):
+    class Meta:
+        model = BranchDay
+
+    branch = factory.SubFactory(BranchFactory)
+    business_date = factory.Sequence(lambda n: date(2026, 1, (n % 28) + 1))
+    is_closed = False
+
+
+class CreditNoteVoidFactory(TenantModelFactory):
+    class Meta:
+        model = CreditNoteVoid
+
+    credit_note = factory.SubFactory(CreditNoteFactory)
+    voided_by = factory.SubFactory(StaffUserFactory)
+    void_reason = "Test void"
+    void_business_date = factory.Sequence(lambda n: date(2026, 1, (n % 28) + 1))
+    restored_methods = factory.LazyAttribute(lambda o: {"cash": "1500.00"})
+
+
+class InvoiceLineCancelledFactory(TenantModelFactory):
+    class Meta:
+        model = InvoiceLineCancelled
+
+    invoice = factory.SubFactory(InvoiceFactory)
+    item = factory.SubFactory(
+        InvoiceItemFactory,
+        invoice=factory.SelfAttribute("..invoice"),
+    )
+    cancelled_by = factory.SubFactory(StaffUserFactory)
+    reason = "Test line cancellation"
+    amount_removed = Decimal("500.00")

@@ -110,6 +110,10 @@ export function InvoicesListScreen({
   );
 
   const balanceOf = (inv: InvoiceSummary): number | null => {
+    if (inv.balance !== undefined && inv.balance !== null) {
+      return Number.parseFloat(inv.balance) || 0;
+    }
+    if (inv.status === "cancelled" || inv.status === "refunded") return 0;
     // The list payload does not always carry net_paid; only claim a balance
     // when the status says money is still due AND the server gave a paid
     // figure. Never infer a balance from the total alone.

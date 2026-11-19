@@ -6,6 +6,7 @@
 """
 
 import re
+from datetime import timedelta
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
@@ -116,6 +117,25 @@ class InvoiceItemSerializer(serializers.Serializer):
     unit_price = MoneyField()
     quantity = serializers.IntegerField()
     line_total = MoneyField()
+    is_cancelled = serializers.BooleanField(default=False)
+    reporting_time = serializers.SerializerMethodField()
+
+    def get_reporting_time(self, obj: Any) -> str | None:
+        test = obj.get("test") if isinstance(obj, dict) else getattr(obj, "test", None)
+        created_at = (
+            obj.get("created_at")
+            if isinstance(obj, dict)
+            else getattr(obj, "created_at", None)
+        )
+        if test and getattr(test, "tat_hours", None) and created_at:
+            from zoneinfo import ZoneInfo
+
+            karachi = ZoneInfo("Asia/Karachi")
+            target_dt = (created_at + timedelta(hours=test.tat_hours)).astimezone(
+                karachi
+            )
+            return target_dt.isoformat()
+        return None
 
 
 class InvoiceSerializer(serializers.Serializer):
@@ -132,6 +152,7 @@ class InvoiceSerializer(serializers.Serializer):
     discount_reason = serializers.CharField(allow_null=True)
     total = MoneyField()
     items = InvoiceItemSerializer(many=True)
+    pickup_access_code = serializers.CharField(required=False, allow_null=True)
 
     def get_referral_partner_name(self, obj: Any) -> str | None:
         partner = getattr(obj, "referral_partner", None)
@@ -205,6 +226,7 @@ class CreditNoteCreateSerializer(serializers.Serializer):
     method = serializers.ChoiceField(
         choices=Payment.Method.choices, required=False, default=Payment.Method.CASH
     )
+    reversed_methods = serializers.DictField(required=False, default=dict)
 
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
         return _reject_unknown_fields(self, attrs)
@@ -312,6 +334,30 @@ class InvoiceCancelSerializer(serializers.Serializer):
         return _reject_unknown_fields(self, attrs)
 
 
+class InvoiceUpdateSerializer(serializers.Serializer):
+    """Body for PATCH /invoices/{id} — update discount or referral partner."""
+
+    discount_amount = MoneyField(required=False)
+    discount_reason = serializers.CharField(
+        required=False, allow_null=True, allow_blank=True, trim_whitespace=True
+    )
+    referral_partner_id = serializers.UUIDField(required=False, allow_null=True)
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        return _reject_unknown_fields(self, attrs)
+
+
+class InvoiceLineCancelSerializer(serializers.Serializer):
+    """Body for POST /invoices/{id}/lines/{line_id}/cancel — reason required."""
+
+    reason = serializers.CharField(
+        required=True, allow_blank=False, trim_whitespace=True
+    )
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        return _reject_unknown_fields(self, attrs)
+
+
 class InvoiceSummarySerializer(serializers.Serializer):
     """List row for GET /invoices (cursor page).
 
@@ -331,7 +377,24 @@ class InvoiceSummarySerializer(serializers.Serializer):
     total = MoneyField()
     net_paid = MoneyField()
     net_revenue = MoneyField()
+    balance = MoneyField(required=False)
     created_at = serializers.DateTimeField()
+
+    def to_representation(self, instance: Any) -> dict[str, Any]:
+        data = super().to_representation(instance)
+        request = self.context.get("request")
+        role = getattr(getattr(request, "user", None), "role", None)
+        if role == "technician":
+            from apps.platform.settings_accessor import get_setting
+
+            if get_setting("hide_prices_for_technicians"):
+                data["subtotal"] = None
+                data["discount_amount"] = None
+                data["total"] = None
+                data["net_paid"] = None
+                data["net_revenue"] = None
+                data["balance"] = None
+        return data
 
 
 class InvoiceDetailSerializer(serializers.Serializer):
@@ -365,9 +428,24 @@ class InvoiceDetailSerializer(serializers.Serializer):
     credit_notes = CreditNoteSerializer(many=True, required=False)
     net_paid = MoneyField()
     net_revenue = MoneyField(required=False)
+    balance = MoneyField(required=False)
+    pickup_code = serializers.SerializerMethodField()
     created_at = serializers.DateTimeField()
 
+    def get_pickup_code(self, obj: Any) -> str | None:
+        if self.context.get("for_print"):
+            from apps.billing.services import BillingService
+
+            inv_id = (
+                obj.get("id") if isinstance(obj, dict) else getattr(obj, "id", None)
+            )
+            if inv_id:
+                return BillingService.generate_pickup_code(inv_id)
+        return None
+
     def get_referral_partner_name(self, obj: Any) -> str | None:
+        if isinstance(obj, dict):
+            return obj.get("referral_partner_name")
         partner = getattr(obj, "referral_partner", None)
         return getattr(partner, "name", None)
 
@@ -379,4 +457,29 @@ class InvoiceDetailSerializer(serializers.Serializer):
             data["patient_phone"] = None
             data["patient_age"] = None
             data["discount_reason"] = None
+
+        if role == "technician":
+            from apps.platform.settings_accessor import get_setting
+
+            if get_setting("hide_prices_for_technicians"):
+                data["subtotal"] = None
+                data["discount_amount"] = None
+                data["total"] = None
+                data["net_paid"] = None
+                data["net_revenue"] = None
+                data["balance"] = None
+                if "items" in data and isinstance(data["items"], list):
+                    for it in data["items"]:
+                        if isinstance(it, dict):
+                            it["unit_price"] = None
+                            it["line_total"] = None
+                if "payments" in data and isinstance(data["payments"], list):
+                    for p in data["payments"]:
+                        if isinstance(p, dict):
+                            p["amount"] = None
+                if "credit_notes" in data and isinstance(data["credit_notes"], list):
+                    for cn in data["credit_notes"]:
+                        if isinstance(cn, dict):
+                            cn["amount"] = None
+                            cn["reversed_methods"] = {}
         return data

@@ -83,11 +83,13 @@ ROLE_POLICY: Final[dict[str, dict[str, frozenset[str]]]] = {
     },
     # --- Billing -------------------------------------------------------------
     "invoice-collection": {"GET": ALL_STAFF, "POST": FRONT_DESK},
-    "invoice-detail": {"GET": ALL_STAFF},
+    "invoice-detail": {"GET": ALL_STAFF, "PATCH": FRONT_DESK},
+    "invoice-line-cancel": {"POST": ADMIN},
     "invoice-history": {"GET": ALL_STAFF},
     "invoice-credit-note": {"POST": ADMIN},
     "invoice-credit-note-void": {"POST": OWNER_ONLY},
     "invoice-cancel": {"POST": FRONT_DESK},
+    "invoice-verify-pickup-code": {"POST": ALL_STAFF},
     "payment-create": {"POST": FRONT_DESK},
     "day-close": {"GET": FRONT_DESK, "POST": ADMIN},
     # --- Samples -------------------------------------------------------------

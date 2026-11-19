@@ -15,8 +15,13 @@ from tests.factories.base import (
     TenantModelFactory,
 )
 from tests.factories.billing import (
+    BranchDayFactory,
+    CreditNoteFactory,
+    CreditNoteVoidFactory,
+    DayCloseFactory,
     InvoiceFactory,
     InvoiceItemFactory,
+    InvoiceLineCancelledFactory,
     PaymentFactory,
 )
 from tests.factories.branch import BranchFactory
@@ -81,12 +86,17 @@ __all__ = [
     "AccessionCounterFactory",
     "AuditLogFactory",
     "BaseTenantFixtureFactory",
+    "BranchDayFactory",
     "BranchFactory",
+    "CreditNoteFactory",
+    "CreditNoteVoidFactory",
     "CriticalNotificationFactory",
     "DataExportFactory",
+    "DayCloseFactory",
     "DomainFactory",
     "InvoiceFactory",
     "InvoiceItemFactory",
+    "InvoiceLineCancelledFactory",
     "LoginEventFactory",
     "NotificationFactory",
     "NotificationTemplateFactory",

@@ -58,7 +58,7 @@ export function InvoicePrintScreen({
     setIsLoading(true);
     setError(null);
     service
-      .getInvoice(invoiceId)
+      .getInvoice(invoiceId, { forPrint: true })
       .then((data) => {
         if (active) setInvoice(data);
       })
@@ -109,8 +109,19 @@ export function InvoicePrintScreen({
 
   const balance = useMemo(() => {
     if (!invoice) return 0;
+    if (invoice.balance !== undefined && invoice.balance !== null) {
+      return Number.parseFloat(invoice.balance) || 0;
+    }
+    const hasActiveCN = Boolean(
+      invoice.credit_notes && invoice.credit_notes.some((cn) => !cn.voided_at),
+    );
+    if (invoice.status === "cancelled" || hasActiveCN) {
+      return 0;
+    }
     const total = Number.parseFloat(invoice.total || "0");
-    const paid = Number.parseFloat(invoice.net_paid || "0");
+    const paid = Number.parseFloat(
+      invoice.net_revenue ?? invoice.net_paid ?? "0",
+    );
     if (!Number.isFinite(total) || !Number.isFinite(paid)) return 0;
     return Math.max(0, total - paid);
   }, [invoice]);
@@ -326,6 +337,16 @@ export function InvoicePrintScreen({
                   {invoice.patient_mrn || "—"}
                 </span>
               </div>
+              {invoice.pickup_code ? (
+                <div className={styles.metaRow}>
+                  <span className={styles.metaLabel}>
+                    {t("billing:print.pickup_code_label")}
+                  </span>
+                  <span className={`${styles.metaValue} lf-ltr`}>
+                    {invoice.pickup_code}
+                  </span>
+                </div>
+              ) : null}
               <div className={styles.metaRow}>
                 <span className={styles.metaLabel}>
                   {t("billing:print.datetime_label")}
@@ -352,6 +373,12 @@ export function InvoicePrintScreen({
                   <div key={item.id} className={styles.lineItem}>
                     <span className={styles.lineName}>
                       {item.description || item.name || "—"}
+                      {item.reporting_time ? (
+                        <span className="text-xs text-muted-foreground block">
+                          {t("billing:print.reporting_time_label")}:{" "}
+                          {formatDateTime(item.reporting_time)}
+                        </span>
+                      ) : null}
                     </span>
                     <span className={`${styles.lineCalc} lf-ltr`}>
                       {item.quantity} × {formatMoney(item.unit_price, "en")} ={" "}

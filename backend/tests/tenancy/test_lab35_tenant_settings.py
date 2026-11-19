@@ -31,7 +31,7 @@ from apps.platform.settings_registry import (
 # ---------------------------------------------------------------------------
 
 
-def test_registry_contains_six_doc10_keys() -> None:
+def test_registry_contains_doc10_keys_plus_tech_price_visibility() -> None:
     expected = {
         "billing_hold_enabled",
         "report_default_language",
@@ -39,6 +39,8 @@ def test_registry_contains_six_doc10_keys() -> None:
         "transfer_late_after_hours",
         "brand_display_name",
         "brand_accent_colour",
+        # Phase 9 Rule 3: default OFF, registry-only addition.
+        "hide_prices_for_technicians",
     }
     assert set(SETTING_REGISTRY.keys()) == expected
 

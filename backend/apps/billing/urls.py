@@ -11,6 +11,8 @@ from apps.billing.views import (
     InvoiceCollectionView,
     InvoiceDetailView,
     InvoiceHistoryView,
+    InvoiceLineCancelView,
+    InvoiceVerifyPickupCodeView,
     PaymentCreateView,
 )
 
@@ -22,14 +24,24 @@ urlpatterns = [
         name="invoice-collection-slash",
     ),
     path(
-        "invoices/<uuid:invoice_id>/cancel",
+        "invoices/<str:invoice_id>/cancel",
         InvoiceCancelView.as_view(),
         name="invoice-cancel",
     ),
     path(
-        "invoices/<uuid:invoice_id>/cancel/",
+        "invoices/<str:invoice_id>/cancel/",
         InvoiceCancelView.as_view(),
         name="invoice-cancel-slash",
+    ),
+    path(
+        "invoices/<str:invoice_id>/lines/<str:line_id>/cancel",
+        InvoiceLineCancelView.as_view(),
+        name="invoice-line-cancel",
+    ),
+    path(
+        "invoices/<str:invoice_id>/lines/<str:line_id>/cancel/",
+        InvoiceLineCancelView.as_view(),
+        name="invoice-line-cancel-slash",
     ),
     path(
         "invoices/<str:invoice_id>",
@@ -80,6 +92,16 @@ urlpatterns = [
         "invoices/<str:invoice_id>/credit-notes/<str:note_id>/void/",
         CreditNoteVoidView.as_view(),
         name="invoice-credit-note-void-slash",
+    ),
+    path(
+        "invoices/<str:invoice_id>/verify-pickup-code",
+        InvoiceVerifyPickupCodeView.as_view(),
+        name="invoice-verify-pickup-code",
+    ),
+    path(
+        "invoices/<str:invoice_id>/verify-pickup-code/",
+        InvoiceVerifyPickupCodeView.as_view(),
+        name="invoice-verify-pickup-code-slash",
     ),
     path("day-close", DayCloseView.as_view(), name="day-close"),
     path("day-close/", DayCloseView.as_view(), name="day-close-slash"),

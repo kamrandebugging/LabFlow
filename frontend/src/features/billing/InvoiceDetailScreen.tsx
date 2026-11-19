@@ -111,7 +111,9 @@ export function InvoiceDetailScreen({
   const refundAmountId = useId();
   const refundMethodId = useId();
   const refundReasonId = useId();
+  const refundReferenceId = useId();
   const cancelReasonId = useId();
+  const lineCancelReasonId = useId();
 
   const [invoice, setInvoice] = useState<InvoiceDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -128,6 +130,7 @@ export function InvoiceDetailScreen({
   const [refundAmount, setRefundAmount] = useState<string>("");
   const [refundMethod, setRefundMethod] = useState<PaymentMethod>("cash");
   const [refundReason, setRefundReason] = useState<string>("");
+  const [refundReference, setRefundReference] = useState<string>("");
   const [submittingRefund, setSubmittingRefund] = useState(false);
   const [showRefundForm, setShowRefundForm] = useState(false);
   const [showRefundModal, setShowRefundModal] = useState(false);
@@ -136,6 +139,11 @@ export function InvoiceDetailScreen({
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancelReason, setCancelReason] = useState<string>("");
   const [submittingCancel, setSubmittingCancel] = useState(false);
+
+  // Line-cancel Modal State (unperformed test, Owner/Manager)
+  const [lineCancelItemId, setLineCancelItemId] = useState<string | null>(null);
+  const [lineCancelReason, setLineCancelReason] = useState<string>("");
+  const [submittingLineCancel, setSubmittingLineCancel] = useState(false);
 
   const cancelTriggerRef = useRef<HTMLButtonElement>(null);
   const refundTriggerRef = useRef<HTMLButtonElement>(null);
@@ -240,6 +248,11 @@ export function InvoiceDetailScreen({
       return;
     }
 
+    if (refundMethod !== "cash" && !refundReference.trim()) {
+      setErrorMessage(t("billing:detail.error_reference_required"));
+      return;
+    }
+
     // Validation passed — review the restated values before the call fires.
     setShowRefundModal(true);
   };
@@ -255,7 +268,8 @@ export function InvoiceDetailScreen({
         kind: "refund",
         method: refundMethod,
         amount: amt.toFixed(2),
-        reference: refundReason.trim(),
+        refund_reason: refundReason.trim(),
+        reference: refundMethod === "cash" ? null : refundReference.trim(),
       });
       showToast(
         t("billing:detail.toast_refund", {
@@ -264,6 +278,7 @@ export function InvoiceDetailScreen({
       );
       setRefundAmount("");
       setRefundReason("");
+      setRefundReference("");
       setShowRefundModal(false);
       await fetchInvoice();
     } catch (err) {
@@ -291,6 +306,31 @@ export function InvoiceDetailScreen({
       setErrorMessage(messageForError(err, t));
     } finally {
       setSubmittingCancel(false);
+    }
+  };
+
+  const handleConfirmLineCancel = async () => {
+    if (!invoice || !lineCancelItemId) return;
+    if (!lineCancelReason.trim()) {
+      setErrorMessage(t("billing:detail.error_line_cancel_reason"));
+      return;
+    }
+
+    try {
+      setSubmittingLineCancel(true);
+      await billingService.cancelInvoiceLine(
+        invoice.id,
+        lineCancelItemId,
+        lineCancelReason.trim(),
+      );
+      showToast(t("billing:detail.toast_line_cancelled"));
+      setLineCancelItemId(null);
+      setLineCancelReason("");
+      await fetchInvoice();
+    } catch (err) {
+      setErrorMessage(messageForError(err, t));
+    } finally {
+      setSubmittingLineCancel(false);
     }
   };
 
@@ -337,8 +377,33 @@ export function InvoiceDetailScreen({
   const discountNum = parseFloat(invoice.discount_amount || "0") || 0;
   const totalNum = parseFloat(invoice.total || "0") || 0;
   const netPaidNum = parseFloat(invoice.net_paid || "0") || 0;
-  const balanceDue = Math.max(0, totalNum - netPaidNum);
-  const canCancel = invoice.status === "unpaid" && netPaidNum === 0;
+  const hasActiveCreditNote = Boolean(
+    invoice.credit_notes && invoice.credit_notes.some((cn) => !cn.voided_at),
+  );
+  const balanceDue =
+    invoice.balance !== undefined && invoice.balance !== null
+      ? parseFloat(invoice.balance)
+      : invoice.status === "cancelled" || hasActiveCreditNote
+        ? 0
+        : Math.max(
+            0,
+            totalNum -
+              (parseFloat(invoice.net_revenue ?? invoice.net_paid ?? "0") || 0),
+          );
+  const hasVoidedCreditNote = Boolean(
+    invoice.credit_notes && invoice.credit_notes.some((cn) => cn.voided_at),
+  );
+  const netRevenueNum =
+    parseFloat(invoice.net_revenue ?? invoice.net_paid ?? "0") || 0;
+  // Phase 6: unpaid, zero-total, and terminal (post-void full refund) closures.
+  const canCancel =
+    (invoice.status === "unpaid" && netPaidNum === 0) ||
+    (invoice.status === "paid" && totalNum === 0 && netPaidNum === 0) ||
+    (invoice.status === "refunded" &&
+      netRevenueNum === 0 &&
+      hasVoidedCreditNote);
+  const canCancelLines =
+    invoice.status !== "cancelled" && invoice.status !== "refunded";
 
   return (
     <div className={styles.page}>
@@ -488,9 +553,32 @@ export function InvoiceDetailScreen({
                     <div key={it.id} className={styles.tableRow}>
                       <div className={styles.itemName}>
                         <bdi dir="ltr">{it.description}</bdi>
+                        {it.is_cancelled ? (
+                          <span className={styles.lineCancelled}>
+                            {t("billing:detail.line_cancelled_badge")}
+                          </span>
+                        ) : canCancelLines ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setLineCancelItemId(it.id);
+                              setLineCancelReason("");
+                            }}
+                            className={styles.lineCancelBtn}
+                          >
+                            {t("billing:detail.line_cancel_action")}
+                          </button>
+                        ) : null}
                       </div>
                       <div className={styles.qty}>{it.quantity}</div>
-                      <div className={styles.lineTotal} dir="ltr">
+                      <div
+                        className={
+                          it.is_cancelled
+                            ? `${styles.lineTotal} ${styles.lineTotalCancelled}`
+                            : styles.lineTotal
+                        }
+                        dir="ltr"
+                      >
                         {formatMoney(
                           parseFloat(
                             it.line_total || it.unit_price || "0",
@@ -887,6 +975,32 @@ export function InvoiceDetailScreen({
                       />
                     </div>
 
+                    {refundMethod !== "cash" && (
+                      <div className={styles.field}>
+                        <label
+                          htmlFor={refundReferenceId}
+                          className={styles.label}
+                        >
+                          {t("billing:detail.reference_label")}{" "}
+                          <span className={styles.required}>*</span>
+                        </label>
+                        <input
+                          id={refundReferenceId}
+                          type="text"
+                          value={refundReference}
+                          onChange={(e) => setRefundReference(e.target.value)}
+                          placeholder={t(
+                            "billing:detail.reference_placeholder",
+                          )}
+                          required
+                          className={styles.input}
+                        />
+                        <span className={styles.hint}>
+                          {t("billing:detail.reference_help")}
+                        </span>
+                      </div>
+                    )}
+
                     <button
                       type="submit"
                       ref={refundTriggerRef}
@@ -922,6 +1036,18 @@ export function InvoiceDetailScreen({
               <p className={styles.dangerText}>
                 {t("billing:detail.cancel_description")}
               </p>
+              {invoice.status === "paid" && totalNum === 0 && (
+                <p className={styles.dangerText}>
+                  {t("billing:detail.zero_total_close_hint")}
+                </p>
+              )}
+              {invoice.status === "refunded" &&
+                netRevenueNum === 0 &&
+                hasVoidedCreditNote && (
+                  <p className={styles.dangerText}>
+                    {t("billing:detail.terminal_close_hint")}
+                  </p>
+                )}
               <button
                 type="button"
                 ref={cancelTriggerRef}
@@ -984,6 +1110,62 @@ export function InvoiceDetailScreen({
                 {submittingCancel
                   ? t("billing:detail.cancelling")
                   : t("billing:detail.confirm_cancel")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Line-cancel Modal Dialog — unperformed test, Owner/Manager only. */}
+      {lineCancelItemId && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="line-cancel-dialog-title"
+          className={styles.scrim}
+        >
+          <div className={styles.modal}>
+            <h3 id="line-cancel-dialog-title" className={styles.modalTitle}>
+              {t("billing:detail.line_cancel_title")}
+            </h3>
+            <p className={styles.modalText}>
+              {t("billing:detail.line_cancel_hint")}
+            </p>
+            <div className={styles.field}>
+              <label htmlFor={lineCancelReasonId} className={styles.label}>
+                {t("billing:detail.cancel_reason_label")}{" "}
+                <span className={styles.required}>*</span>
+              </label>
+              <textarea
+                id={lineCancelReasonId}
+                rows={3}
+                value={lineCancelReason}
+                onChange={(e) => setLineCancelReason(e.target.value)}
+                placeholder={t("billing:detail.line_cancel_placeholder")}
+                className={styles.textarea}
+              />
+            </div>
+            <div className={styles.modalActions}>
+              <button
+                type="button"
+                onClick={() => {
+                  setLineCancelItemId(null);
+                  setLineCancelReason("");
+                }}
+                disabled={submittingLineCancel}
+                className={styles.textButton}
+              >
+                {t("billing:detail.keep_invoice")}
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmLineCancel}
+                disabled={submittingLineCancel || !lineCancelReason.trim()}
+                className={styles.confirmDanger}
+              >
+                {submittingLineCancel
+                  ? t("billing:detail.cancelling_line")
+                  : t("billing:detail.confirm_line_cancel")}
               </button>
             </div>
           </div>

@@ -87,9 +87,13 @@ export const billingService = {
     }
   },
 
-  async getInvoice(id: string): Promise<InvoiceDetail> {
+  async getInvoice(
+    id: string,
+    options?: { forPrint?: boolean },
+  ): Promise<InvoiceDetail> {
     try {
-      return await apiRequest<InvoiceDetail>(`/invoices/${id}`);
+      const qs = options?.forPrint ? "?for_print=true" : "";
+      return await apiRequest<InvoiceDetail>(`/invoices/${id}${qs}`);
     } catch (err) {
       if (err instanceof ApiError) {
         throw new Error(
@@ -263,6 +267,32 @@ export const billingService = {
       if (err instanceof ApiError) {
         const error = new Error(
           err.message || `Failed to cancel invoice (${err.status})`,
+        );
+        (error as Error & { code?: string }).code = err.code ?? undefined;
+        throw error;
+      }
+      throw err;
+    }
+  },
+
+  /** POST /invoices/{id}/lines/{line}/cancel — Owner/Manager, append-only. */
+  async cancelInvoiceLine(
+    invoiceId: string,
+    lineId: string,
+    reason: string,
+  ): Promise<InvoiceDetail> {
+    try {
+      return await apiRequest<InvoiceDetail>(
+        `/invoices/${invoiceId}/lines/${lineId}/cancel`,
+        {
+          method: "POST",
+          body: { reason },
+        },
+      );
+    } catch (err) {
+      if (err instanceof ApiError) {
+        const error = new Error(
+          err.message || `Failed to cancel invoice line (${err.status})`,
         );
         (error as Error & { code?: string }).code = err.code ?? undefined;
         throw error;

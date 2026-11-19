@@ -34,6 +34,8 @@ export interface InvoiceItem {
   unit_price: string;
   quantity: number;
   line_total: string;
+  reporting_time?: string | null;
+  is_cancelled?: boolean;
 }
 
 export interface PaymentRecord {
@@ -107,6 +109,7 @@ export interface InvoiceSummary {
   total: string;
   net_paid?: string;
   net_revenue?: string;
+  balance?: string;
   items_summary?: string;
   created_at: string;
 }
@@ -134,6 +137,8 @@ export interface InvoiceDetail {
   credit_notes?: CreditNote[];
   net_paid: string;
   net_revenue?: string;
+  balance?: string;
+  pickup_code?: string | null;
   created_at: string;
 }
 
@@ -183,6 +188,7 @@ export interface DayCloseRecord {
 export interface DayCloseResponse {
   branch_id: string;
   date: string;
+  active_business_date?: string;
   closed: boolean;
   totals?: DayCloseTotals;
   close?: DayCloseRecord | null;

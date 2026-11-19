@@ -191,7 +191,11 @@ def build_statement_context(
     partner = settlement.referral_partner
     lines = list(
         SettlementLine.objects.filter(settlement_id=settlement_id)
-        .select_related("share_ledger_entry__payment")
+        .select_related(
+            "share_ledger_entry__payment",
+            "share_ledger_entry__credit_note",
+            "share_ledger_entry__void_event__credit_note",
+        )
         .order_by("share_ledger_entry__created_at", "id")
     )
 
@@ -218,19 +222,49 @@ def build_statement_context(
     for line in lines:
         entry = line.share_ledger_entry
         payment = entry.payment
-        invoice_ref = str(payment.invoice_id) if payment else ""
+        if payment:
+            invoice_ref = str(payment.invoice_id)
+            date_val = (
+                payment.created_at.date().isoformat() if payment.created_at else ""
+            )
+        elif entry.credit_note:
+            invoice_ref = str(entry.credit_note.invoice_id)
+            date_val = (
+                entry.credit_note.issued_at.date().isoformat()
+                if entry.credit_note.issued_at
+                else ""
+            )
+        elif entry.void_event:
+            invoice_ref = str(entry.void_event.credit_note.invoice_id)
+            if entry.void_event.void_business_date:
+                date_val = entry.void_event.void_business_date.isoformat()
+            elif getattr(entry.void_event, "voided_at", None):
+                date_val = entry.void_event.voided_at.date().isoformat()
+            else:
+                date_val = ""
+        else:
+            invoice_ref = ""
+            date_val = ""
+
         is_reversal = line.amount < 0
+        if entry.credit_note:
+            label = "Credit note reversal"
+        elif entry.void_event:
+            label = "Credit note void restoration"
+        elif is_reversal:
+            label = "Refund reversal"
+        else:
+            label = ""
+
         line_rows.append(
             {
-                "payment_date": payment.created_at.date().isoformat()
-                if payment and payment.created_at
-                else "",
+                "payment_date": date_val,
                 "invoice_reference": invoice_ref,
                 "basis_amount": f"{entry.basis_amount:.2f}",
                 "percent_applied": f"{entry.percent_applied:.2f}",
                 "amount": f"{line.amount:.2f}",
                 "is_reversal": is_reversal,
-                "label": "Refund reversal" if is_reversal else "",
+                "label": label,
                 "period": entry.period,
             }
         )

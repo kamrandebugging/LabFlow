@@ -79,6 +79,7 @@ class Invoice(models.Model):
     )
     idempotency_key = models.TextField(null=True, blank=True)  # noqa: DJ001
     payload_sha256 = models.TextField(null=True, blank=True)  # noqa: DJ001
+    pickup_code_hash = models.TextField(null=True, blank=True)  # noqa: DJ001
     created_at = models.DateTimeField(
         auto_now_add=True,
         db_default=Now(),
@@ -87,6 +88,7 @@ class Invoice(models.Model):
         auto_now=True,
         db_default=Now(),
     )
+    pickup_access_code: str | None = None
 
     branch_scope_field = "branch_id"
     objects = BranchScopedManager()
@@ -191,6 +193,10 @@ class InvoiceItem(models.Model):
     line_total = models.DecimalField(
         max_digits=12,
         decimal_places=2,
+    )
+    is_cancelled = models.BooleanField(
+        default=False,
+        db_default=False,
     )
     created_at = models.DateTimeField(
         auto_now_add=True,
@@ -300,6 +306,7 @@ class Payment(models.Model):
     refund_reason = models.TextField(null=True, blank=True)  # noqa: DJ001
     idempotency_key = models.TextField(null=True, blank=True)  # noqa: DJ001
     payload_sha256 = models.TextField(null=True, blank=True)  # noqa: DJ001
+    business_date = models.DateField(null=True, blank=True)
     created_at = models.DateTimeField(
         auto_now_add=True,
         db_default=Now(),
@@ -330,7 +337,7 @@ class Payment(models.Model):
                 name="chk_payment_amount_pos",
             ),
             models.UniqueConstraint(
-                fields=["idempotency_key"],
+                fields=["invoice", "idempotency_key"],
                 condition=Q(idempotency_key__isnull=False),
                 name="uq_payment_idempotency_key",
             ),
@@ -408,6 +415,7 @@ class CreditNote(models.Model):
         db_index=False,
     )
     issued_at = models.DateTimeField(auto_now_add=True)
+    business_date = models.DateField(null=True, blank=True)
     idempotency_key = models.TextField(null=True, blank=True)  # noqa: DJ001
     payload_sha256 = models.TextField(null=True, blank=True)  # noqa: DJ001
     # Void is an append-only correction: the row and its CN number stay, the
@@ -439,7 +447,7 @@ class CreditNote(models.Model):
                 name="uq_credit_note_invoice",
             ),
             models.UniqueConstraint(
-                fields=["idempotency_key"],
+                fields=["invoice", "idempotency_key"],
                 condition=Q(idempotency_key__isnull=False),
                 name="uq_credit_note_idempotency_key",
             ),
@@ -455,9 +463,11 @@ class CreditNote(models.Model):
 class DayClose(models.Model):
     """One branch's reconciled, locked business day (append-only).
 
-    Built only from the append-only Payment, Invoice and CreditNote rows of
-    that branch and day; closing records the reconciliation and never edits
-    any money that was already recorded. There is no update or reopen path.
+    Day Close per-method "out" totals are built from BOTH Payment(kind='refund')
+    rows AND non-voided CreditNote per-method reversals for that branch-day.
+    Day Close also reports total invoices, total discount given, and total credit
+    notes issued — these live on Invoice/CreditNote, not Payment; the aggregation
+    rule must name all three sources.
 
     ``method_totals`` is ``{method: {"in": "0.00", "out": "0.00",
     "net": "0.00"}}`` — the same six payment methods, Decimal PKR rendered as
@@ -515,3 +525,119 @@ class DayClose(models.Model):
 
     def __str__(self) -> str:
         return f"DayClose({self.branch_id} {self.business_date})"
+
+
+class BranchDay(models.Model):
+    """Business-day control record for each branch (Phase 3 Rule 1 & 3)."""
+
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        db_default=models.Func(function="gen_random_uuid"),
+        editable=False,
+    )
+    branch = models.ForeignKey(
+        "branches.Branch",
+        on_delete=models.PROTECT,
+        related_name="branch_days",
+        db_column="branch_id",
+        db_index=False,
+    )
+    business_date = models.DateField()
+    is_closed = models.BooleanField(default=False)
+    closed_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "billing_branch_day"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["branch", "business_date"],
+                name="uq_branch_day_branch_date",
+            ),
+        ]
+        indexes = [
+            models.Index(
+                fields=["branch", "business_date"],
+                name="idx_branch_day_branch_date",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"BranchDay({self.branch_id} {self.business_date})"
+
+
+class CreditNoteVoid(models.Model):
+    """Append-only audit event for voiding a credit note on open business day."""
+
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        db_default=models.Func(function="gen_random_uuid"),
+        editable=False,
+    )
+    credit_note = models.OneToOneField(
+        "billing.CreditNote",
+        on_delete=models.PROTECT,
+        related_name="void_event",
+        db_column="credit_note_id",
+        db_index=False,
+    )
+    voided_by = models.ForeignKey(
+        "accounts.StaffUser",
+        on_delete=models.PROTECT,
+        related_name="credit_note_voids",
+        db_column="voided_by_id",
+        db_index=False,
+    )
+    voided_at = models.DateTimeField(auto_now_add=True)
+    void_reason = models.TextField()
+    void_business_date = models.DateField()
+    restored_methods = models.JSONField(default=dict)
+
+    class Meta:
+        db_table = "billing_credit_note_void"
+
+    def __str__(self) -> str:
+        return f"CreditNoteVoid({self.credit_note_id} on {self.void_business_date})"
+
+
+class InvoiceLineCancelled(models.Model):
+    """Append-only event for cancelling an unperformed invoice line (Phase 6 Rule 6)."""
+
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        db_default=models.Func(function="gen_random_uuid"),
+        editable=False,
+    )
+    invoice = models.ForeignKey(
+        "billing.Invoice",
+        on_delete=models.PROTECT,
+        related_name="cancelled_lines",
+        db_column="invoice_id",
+        db_index=False,
+    )
+    item = models.ForeignKey(
+        "billing.InvoiceItem",
+        on_delete=models.PROTECT,
+        related_name="cancelled_events",
+        db_column="item_id",
+        db_index=False,
+    )
+    cancelled_by = models.ForeignKey(
+        "accounts.StaffUser",
+        on_delete=models.PROTECT,
+        related_name="cancelled_invoice_lines",
+        db_column="cancelled_by_id",
+        db_index=False,
+    )
+    cancelled_at = models.DateTimeField(auto_now_add=True)
+    reason = models.TextField()
+    amount_removed = models.DecimalField(max_digits=12, decimal_places=2)
+
+    class Meta:
+        db_table = "billing_invoice_line_cancelled"
+
+    def __str__(self) -> str:
+        return f"InvoiceLineCancelled({self.item_id} PKR {self.amount_removed})"

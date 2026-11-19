@@ -447,76 +447,82 @@ class SampleService:
         user_agent: str | None = None,
     ) -> Sample:
         """Collect a sample for an invoice's untested items (SM-1..SM-3)."""
-        try:
-            invoice = Invoice.objects.select_related("patient", "branch").get(
-                pk=invoice_id
-            )
-        except Invoice.DoesNotExist:
-            raise SampleNotFoundError("Invoice not found.") from None
-
-        # BL-9: collection blocked while the invoice is cancelled.
-        if invoice.status == Invoice.Status.CANCELLED:
-            raise InvoiceCancelledError("Cannot collect against a cancelled invoice.")
-
-        # S5 (BOLA): a branch-scoped caller may only collect against an
-        # invoice inside their own branch scope. Foreign invoices are 404.
-        if not in_branch_scope(actor, invoice.branch_id):
-            raise SampleNotFoundError("Invoice not found.")
-
-        all_items = list(invoice.items.select_related("test", "panel"))
-        if invoice_item_ids is not None:
-            wanted = {str(i) for i in invoice_item_ids}
-            by_id = {str(i.id): i for i in all_items}
-            unknown = wanted - set(by_id)
-            if unknown:
-                raise SampleNotFoundError(
-                    f"Invoice items not on this invoice: {sorted(unknown)[0]}."
-                )
-            requested = [by_id[str(i)] for i in invoice_item_ids]
-        else:
-            requested = all_items
-
-        # Untested = no sample_test on a live sample for this item.
-        # Single bulk query (no N+1): all live links for the requested items.
-        live_links = (
-            SampleTest.objects.filter(
-                invoice_item__in=[item.id for item in requested],
-                sample__status__in=LIVE_SAMPLE_STATUSES,
-            )
-            .select_related("sample")
-            .order_by("created_at")
-        )
-        collected_by_item: dict[uuid.UUID, str] = {}
-        for link in live_links:
-            collected_by_item.setdefault(link.invoice_item_id, link.sample.accession_id)
-        untested = [item for item in requested if item.id not in collected_by_item]
-
-        if not untested:
-            if requested:
-                raise ItemsAlreadyCollectedError(
-                    "These items were already collected on sample "
-                    f"{collected_by_item[requested[0].id]}."
-                )
-            raise NoUntestedItemsError("No untested items left on this invoice.")
-
-        # SM-2: expand to DISTINCT tests (a test and a panel containing it
-        # may coexist on the invoice — one sample_test row per test).
-        distinct_tests: dict[uuid.UUID, tuple[Test, InvoiceItem]] = {}
-        for item in untested:
-            for test in _expand_item_tests(item):
-                distinct_tests.setdefault(test.id, (test, item))
-
-        # Billing hold (BL-9): notes but never blocks collection.
-        hold_row = TenantSetting.objects.filter(key="billing_hold_enabled").first()
-        billing_hold = hold_row is not None and hold_row.value.lower() == "true"
-
-        now = datetime.now(KARACHI)
-        # The sample belongs to the invoice's branch, never the caller's home
-        # branch: custody, downstream branch gates and revenue attribution must
-        # agree with the invoice (LAB-49 Phase 1.2, G3).
-        collecting_branch = invoice.branch
-
         with transaction.atomic():
+            try:
+                invoice = (
+                    Invoice.objects.select_for_update()
+                    .select_related("patient", "branch")
+                    .get(pk=invoice_id)
+                )
+            except Invoice.DoesNotExist:
+                raise SampleNotFoundError("Invoice not found.") from None
+
+            # BL-9: collection blocked while the invoice is cancelled.
+            if invoice.status == Invoice.Status.CANCELLED:
+                raise InvoiceCancelledError(
+                    "Cannot collect against a cancelled invoice."
+                )
+
+            # S5 (BOLA): a branch-scoped caller may only collect against an
+            # invoice inside their own branch scope. Foreign invoices are 404.
+            if not in_branch_scope(actor, invoice.branch_id):
+                raise SampleNotFoundError("Invoice not found.")
+
+            all_items = list(invoice.items.select_related("test", "panel"))
+            if invoice_item_ids is not None:
+                wanted = {str(i) for i in invoice_item_ids}
+                by_id = {str(i.id): i for i in all_items}
+                unknown = wanted - set(by_id)
+                if unknown:
+                    raise SampleNotFoundError(
+                        f"Invoice items not on this invoice: {sorted(unknown)[0]}."
+                    )
+                requested = [by_id[str(i)] for i in invoice_item_ids]
+            else:
+                requested = all_items
+
+            # Untested = no sample_test on a live sample for this item.
+            # Single bulk query (no N+1): all live links for the requested items.
+            live_links = (
+                SampleTest.objects.filter(
+                    invoice_item__in=[item.id for item in requested],
+                    sample__status__in=LIVE_SAMPLE_STATUSES,
+                )
+                .select_related("sample")
+                .order_by("created_at")
+            )
+            collected_by_item: dict[uuid.UUID, str] = {}
+            for link in live_links:
+                collected_by_item.setdefault(
+                    link.invoice_item_id, link.sample.accession_id
+                )
+            untested = [item for item in requested if item.id not in collected_by_item]
+
+            if not untested:
+                if requested:
+                    raise ItemsAlreadyCollectedError(
+                        "These items were already collected on sample "
+                        f"{collected_by_item[requested[0].id]}."
+                    )
+                raise NoUntestedItemsError("No untested items left on this invoice.")
+
+            # SM-2: expand to DISTINCT tests (a test and a panel containing it
+            # may coexist on the invoice — one sample_test row per test).
+            distinct_tests: dict[uuid.UUID, tuple[Test, InvoiceItem]] = {}
+            for item in untested:
+                for test in _expand_item_tests(item):
+                    distinct_tests.setdefault(test.id, (test, item))
+
+            # Billing hold (BL-9): notes but never blocks collection.
+            hold_row = TenantSetting.objects.filter(key="billing_hold_enabled").first()
+            billing_hold = hold_row is not None and hold_row.value.lower() == "true"
+
+            now = datetime.now(KARACHI)
+            # The sample belongs to the invoice's branch, never the caller's home
+            # branch: custody, downstream branch gates and revenue attribution must
+            # agree with the invoice (LAB-49 Phase 1.2, G3).
+            collecting_branch = invoice.branch
+
             accession_id = _mint_accession_id()
             sample = Sample.objects.create(
                 invoice=invoice,
@@ -553,7 +559,7 @@ class SampleService:
                 ip=ip,
                 user_agent=user_agent,
             )
-        return sample
+            return sample
 
     @staticmethod
     def get_label(
