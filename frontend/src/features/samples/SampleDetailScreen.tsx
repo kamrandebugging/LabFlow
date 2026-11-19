@@ -55,22 +55,9 @@ export function SampleDetailScreen({
   service = sampleService,
 }: SampleDetailScreenProps): JSX.Element {
   const { t } = useTranslation(["samples", "common"]);
-  let navigate = (to: string, _opts?: any) => {
-    window.location.href = to;
-  };
-  try {
-    navigate = useNavigate();
-  } catch {
-    // Outside router context
-  }
-
-  let toastFromLocation: string | null = null;
-  try {
-    const loc = useLocation();
-    toastFromLocation = (loc?.state as { toast?: string })?.toast || null;
-  } catch {
-    // Outside router context
-  }
+  const navigate = useNavigate();
+  const location = useLocation();
+  const toastFromLocation = (location?.state as { toast?: string })?.toast || null;
 
   const user = useAuthStore((s) => s.user);
   const userRole = (user?.role || "").toLowerCase();

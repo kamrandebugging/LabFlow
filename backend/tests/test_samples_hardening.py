@@ -13,7 +13,7 @@ Tests:
 
 import uuid
 from decimal import Decimal
-from typing import cast
+from typing import Any, cast
 
 import jwt
 import pytest
@@ -25,7 +25,7 @@ from rest_framework.test import APIClient
 from apps.accounts.models import AuditLog, Role, StaffUser
 from apps.billing.models import Invoice, Payment
 from apps.billing.services import CreditNoteService, InvoiceQueryService
-from apps.branches.models import Branch, StaffBranch
+from apps.branches.models import StaffBranch
 from apps.core.models import Tenant
 from apps.results.models import Result
 from apps.results.services import _maybe_complete_sample
@@ -47,7 +47,7 @@ from tests.factories.results import ResultFactory
 from tests.factories.samples import SampleFactory, SampleTestFactory
 
 
-def _staff_user(role: str = Role.OWNER, branch: Branch | None = None) -> StaffUser:
+def _staff_user(role: str = Role.OWNER, branch: Any = None) -> StaffUser:
     return cast(StaffUser, StaffUserFactory(role=role, branch=branch))
 
 
@@ -212,6 +212,7 @@ class TestSamplesHardening11:
                 .first()
             )
             assert audit1 is not None
+            assert isinstance(audit1.after_jsonb, dict)
             assert audit1.after_jsonb.get("from_status") == "collected"
             assert audit1.after_jsonb.get("to_status") == "rejected"
 
@@ -229,6 +230,7 @@ class TestSamplesHardening11:
                 .first()
             )
             assert audit2 is not None
+            assert isinstance(audit2.after_jsonb, dict)
             assert audit2.after_jsonb.get("from_status") == "received"
             assert audit2.after_jsonb.get("to_status") == "rejected"
 

@@ -27,14 +27,7 @@ export function SampleLabelScreen({
   service = sampleService,
 }: SampleLabelScreenProps): JSX.Element {
   const { t } = useTranslation(["samples", "common"]);
-  let navigate = (to: string) => {
-    window.location.href = to;
-  };
-  try {
-    navigate = useNavigate();
-  } catch {
-    // Outside router context
-  }
+  const navigate = useNavigate();
 
   const [labelData, setLabelData] = useState<SampleLabelData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
