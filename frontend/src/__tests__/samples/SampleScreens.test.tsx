@@ -151,7 +151,9 @@ describe("Screen 16: SampleAccessioningListScreen", () => {
 
     await waitFor(() => {
       expect(screen.getByText("Samples")).toBeInTheDocument();
-      expect(screen.getAllByText("Awaiting collection").length).toBeGreaterThan(0);
+      expect(screen.getAllByText("Awaiting collection").length).toBeGreaterThan(
+        0,
+      );
       expect(screen.getByText("All samples")).toBeInTheDocument();
       expect(screen.getByText("Transfers")).toBeInTheDocument();
     });
@@ -159,7 +161,9 @@ describe("Screen 16: SampleAccessioningListScreen", () => {
     // Awaiting tab renders awaiting row and Collect -> action
     expect(screen.getByText("Muhammad Imran")).toBeInTheDocument();
     expect(screen.getByText("MRN-2026-00417")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Collect →/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Collect →/i }),
+    ).toBeInTheDocument();
   });
 
   it("calls onCollectNew when + Collect sample button is clicked", async () => {
@@ -169,7 +173,9 @@ describe("Screen 16: SampleAccessioningListScreen", () => {
         results: [mockSampleSummary],
         total: 1,
       }),
-      listAwaitingCollection: vi.fn().mockResolvedValue({ results: [], total: 0 }),
+      listAwaitingCollection: vi
+        .fn()
+        .mockResolvedValue({ results: [], total: 0 }),
       listTransfers: vi.fn().mockResolvedValue({ results: [], total: 0 }),
     };
 
@@ -348,7 +354,9 @@ describe("Screen 19: SampleDetailScreen", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getAllByText("CDL20261020000041").length).toBeGreaterThan(0);
+      expect(screen.getAllByText("CDL20261020000041").length).toBeGreaterThan(
+        0,
+      );
       expect(screen.getByText("Specimen Status & Custody")).toBeInTheDocument();
       expect(screen.getByText("Patient Identity")).toBeInTheDocument();
       expect(screen.getByText("Chain of Custody Timeline")).toBeInTheDocument();
@@ -377,7 +385,9 @@ describe("Screen 19: SampleDetailScreen", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getAllByText("CDL20261020000041").length).toBeGreaterThan(0);
+      expect(screen.getAllByText("CDL20261020000041").length).toBeGreaterThan(
+        0,
+      );
     });
 
     const receiveBtn = screen.getByRole("button", { name: /receive sample/i });
@@ -407,7 +417,9 @@ describe("Screen 19: SampleDetailScreen", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getAllByText("CDL20261020000041").length).toBeGreaterThan(0);
+      expect(screen.getAllByText("CDL20261020000041").length).toBeGreaterThan(
+        0,
+      );
     });
 
     const rejectBtn = screen.getByRole("button", { name: /reject sample/i });
@@ -457,8 +469,12 @@ describe("Screen 20: SampleLabelScreen", () => {
 
     await waitFor(() => {
       expect(screen.getByText("Sample label")).toBeInTheDocument();
-      expect(screen.getAllByText("CDL20261020000041").length).toBeGreaterThan(0);
-      expect(screen.getByText("City Diagnostic Laboratory")).toBeInTheDocument();
+      expect(screen.getAllByText("CDL20261020000041").length).toBeGreaterThan(
+        0,
+      );
+      expect(
+        screen.getByText("City Diagnostic Laboratory"),
+      ).toBeInTheDocument();
       expect(screen.getByText("Software by LabFlow")).toBeInTheDocument();
     });
   });

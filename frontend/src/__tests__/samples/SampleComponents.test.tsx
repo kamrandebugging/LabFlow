@@ -9,7 +9,10 @@ import {
   CollectWizardStepper,
   LabelPrintSheet,
 } from "../../features/samples/components";
-import type { SampleEventItem, SampleLabelData } from "../../features/samples/types";
+import type {
+  SampleEventItem,
+  SampleLabelData,
+} from "../../features/samples/types";
 
 describe("Samples Veyla Components", () => {
   describe("SampleStatusPill", () => {
@@ -117,7 +120,9 @@ describe("Samples Veyla Components", () => {
       fireEvent.click(screen.getByRole("button", { name: /Clear/i }));
       expect(onClear).toHaveBeenCalled();
 
-      fireEvent.click(screen.getByRole("button", { name: /Print labels \(3\)/i }));
+      fireEvent.click(
+        screen.getByRole("button", { name: /Print labels \(3\)/i }),
+      );
       expect(onPrint).toHaveBeenCalled();
     });
   });
@@ -166,7 +171,9 @@ describe("Samples Veyla Components", () => {
       expect(screen.getByText(/First morning draw/i)).toBeInTheDocument();
 
       expect(screen.getByText("TRANSFERRED_OUT")).toBeInTheDocument();
-      expect(screen.getByText(/Gulberg Branch → DHA Central/i)).toBeInTheDocument();
+      expect(
+        screen.getByText(/Gulberg Branch → DHA Central/i),
+      ).toBeInTheDocument();
 
       expect(screen.getByText("REJECTED")).toBeInTheDocument();
       expect(screen.getByText(/hemolyzed/i)).toBeInTheDocument();
@@ -210,12 +217,16 @@ describe("Samples Veyla Components", () => {
         />,
       );
 
-      expect(screen.getByText("City Diagnostic Laboratory")).toBeInTheDocument();
+      expect(
+        screen.getByText("City Diagnostic Laboratory"),
+      ).toBeInTheDocument();
       expect(screen.getByText("Gulberg Main Lab")).toBeInTheDocument();
       expect(screen.getByText("Zainab Bibi")).toBeInTheDocument();
       expect(screen.getByText("MRN-2026-0912")).toBeInTheDocument();
       expect(screen.getByText("CDL202611190001")).toBeInTheDocument();
-      expect(screen.getByText("Complete Blood Count (CBC)")).toBeInTheDocument();
+      expect(
+        screen.getByText("Complete Blood Count (CBC)"),
+      ).toBeInTheDocument();
       expect(screen.getByText("Software by LabFlow")).toBeInTheDocument();
     });
 

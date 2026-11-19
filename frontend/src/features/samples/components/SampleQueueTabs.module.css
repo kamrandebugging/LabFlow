@@ -27,7 +27,9 @@
   border-bottom: 2px solid transparent;
   white-space: nowrap;
   cursor: pointer;
-  transition: color var(--motion-fast) var(--ease-out), border-color var(--motion-fast) var(--ease-out);
+  transition:
+    color var(--motion-fast) var(--ease-out),
+    border-color var(--motion-fast) var(--ease-out);
 }
 
 .tabButton:hover {

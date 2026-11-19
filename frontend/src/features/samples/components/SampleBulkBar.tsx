@@ -24,11 +24,7 @@ export function SampleBulkBar({
       <span className={styles.countText}>
         {selectedCount} {selectedCount === 1 ? "sample" : "samples"} selected
       </span>
-      <button
-        type="button"
-        onClick={onClear}
-        className={styles.clearButton}
-      >
+      <button type="button" onClick={onClear} className={styles.clearButton}>
         Clear
       </button>
       {onPrintLabels && (

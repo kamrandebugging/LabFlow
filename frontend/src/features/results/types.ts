@@ -115,11 +115,7 @@ export interface CriticalNotificationResponse {
 }
 
 export type WorklistStatus =
-  | "awaiting_receipt"
-  | "pending_entry"
-  | "in_process"
-  | "rejected"
-  | "ready";
+  "awaiting_receipt" | "pending_entry" | "in_process" | "rejected" | "ready";
 
 // UI Models for Worklist, Approvals, and Details
 export interface WorklistItem {

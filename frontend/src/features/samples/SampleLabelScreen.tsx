@@ -159,8 +159,9 @@ export function SampleLabelScreen({
       <div className={styles.instructionCard}>
         <Info className="w-4 h-4 text-slate-500 shrink-0" />
         <span>
-          Printing Note: Ensure browser print margins are set to &apos;None&apos; and Headers
-          &amp; Footers are unchecked for optimal thermal sticker alignment.
+          Printing Note: Ensure browser print margins are set to
+          &apos;None&apos; and Headers &amp; Footers are unchecked for optimal
+          thermal sticker alignment.
         </span>
       </div>
 

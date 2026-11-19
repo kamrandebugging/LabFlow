@@ -626,7 +626,9 @@ export function SampleAccessioningListScreen({
                       </td>
                       <td className={styles.td}>
                         <span className={styles.testChip}>
-                          {item.description || item.test_name || "Diagnostic Test"}
+                          {item.description ||
+                            item.test_name ||
+                            "Diagnostic Test"}
                         </span>
                       </td>
                       <td className={styles.td}>{item.branch_name}</td>
@@ -743,10 +745,12 @@ export function SampleAccessioningListScreen({
                         <td className={styles.td}>
                           <span className="font-mono text-xs">
                             {tItem.dispatched_at
-                              ? new Date(tItem.dispatched_at).toLocaleTimeString(
-                                  [],
-                                  { hour: "2-digit", minute: "2-digit" },
-                                )
+                              ? new Date(
+                                  tItem.dispatched_at,
+                                ).toLocaleTimeString([], {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })
                               : "—"}
                           </span>
                         </td>
@@ -998,12 +1002,15 @@ export function SampleAccessioningListScreen({
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/45 veyla-modal-scrim"
         >
           <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl border border-slate-200 veyla-modal space-y-4">
-            <h2 id="mark-lost-title" className="text-base font-bold text-slate-900">
+            <h2
+              id="mark-lost-title"
+              className="text-base font-bold text-slate-900"
+            >
               Mark Transfer as Lost
             </h2>
             <p className="text-xs text-slate-500">
-              A clinical non-conformance event will be logged in the audit trail.
-              Please provide a required reason note:
+              A clinical non-conformance event will be logged in the audit
+              trail. Please provide a required reason note:
             </p>
             <textarea
               rows={3}

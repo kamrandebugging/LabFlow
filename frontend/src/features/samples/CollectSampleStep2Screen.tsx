@@ -142,9 +142,7 @@ export function CollectSampleStep2Screen({
 
         {/* Read-Only Automatic Inputs (D6) */}
         <div className={styles.automaticBox}>
-          <div className={styles.automaticLabel}>
-            Specimen Custody Details
-          </div>
+          <div className={styles.automaticLabel}>Specimen Custody Details</div>
           <div className="flex items-center gap-1.5 mt-0.5">
             <Clock className="w-3.5 h-3.5 text-slate-500" />
             <span>

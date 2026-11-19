@@ -17,7 +17,9 @@ export function LabelPrintSheet({
     (labelData.barcode.symbology || "").toLowerCase() === "code128";
 
   return (
-    <div className={[styles.sheetContainer, className].filter(Boolean).join(" ")}>
+    <div
+      className={[styles.sheetContainer, className].filter(Boolean).join(" ")}
+    >
       <article className={styles.labelCard}>
         {/* Tenant Header (Prominent) */}
         <header className={styles.tenantHeader}>
@@ -69,9 +71,7 @@ export function LabelPrintSheet({
         {/* Collection Metadata */}
         <footer className={styles.collectionMeta}>
           <span>Collected: {labelData.collected_at}</span>
-          {labelData.collected_by && (
-            <span>By: {labelData.collected_by}</span>
-          )}
+          {labelData.collected_by && <span>By: {labelData.collected_by}</span>}
         </footer>
 
         {/* Tiny Software Credit */}

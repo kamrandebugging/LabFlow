@@ -19,10 +19,7 @@ import { sampleService } from "./sampleService";
 import { useAuthStore } from "../auth/authStore";
 import { settingsService } from "../settings/settingsService";
 import type { Branch } from "../settings/types";
-import type {
-  RejectionReasonCode,
-  SampleDetail,
-} from "./types";
+import type { RejectionReasonCode, SampleDetail } from "./types";
 import { SampleStatusPill, SampleTimeline } from "./components";
 import styles from "./SampleDetailScreen.module.css";
 
@@ -57,7 +54,8 @@ export function SampleDetailScreen({
   const { t } = useTranslation(["samples", "common"]);
   const navigate = useNavigate();
   const location = useLocation();
-  const toastFromLocation = (location?.state as { toast?: string })?.toast || null;
+  const toastFromLocation =
+    (location?.state as { toast?: string })?.toast || null;
 
   const user = useAuthStore((s) => s.user);
   const userRole = (user?.role || "").toLowerCase();
@@ -83,7 +81,9 @@ export function SampleDetailScreen({
 
   // Modals Open State
   const [rejectModalOpen, setRejectModalOpen] = useState(false);
-  const [rejectionCode, setRejectionCode] = useState<RejectionReasonCode | "">("");
+  const [rejectionCode, setRejectionCode] = useState<RejectionReasonCode | "">(
+    "",
+  );
   const [rejectionNote, setRejectionNote] = useState("");
 
   const [transferModalOpen, setTransferModalOpen] = useState(false);
@@ -531,7 +531,9 @@ export function SampleDetailScreen({
                   Age / Gender
                 </span>
                 <span className="text-slate-800 font-medium mt-0.5 block">
-                  {sample.patient_age_years ? `${sample.patient_age_years}y` : "—"}{" "}
+                  {sample.patient_age_years
+                    ? `${sample.patient_age_years}y`
+                    : "—"}{" "}
                   {sample.patient_sex ? `· ${sample.patient_sex}` : ""}
                 </span>
               </div>
@@ -568,7 +570,9 @@ export function SampleDetailScreen({
                       </span>
                     </div>
                     <div className="text-slate-500 mt-0.5 flex items-center gap-2">
-                      {tItem.category && <span>Category: {tItem.category}</span>}
+                      {tItem.category && (
+                        <span>Category: {tItem.category}</span>
+                      )}
                       {tItem.tube_type && (
                         <span>· Tube: {tItem.tube_type}</span>
                       )}

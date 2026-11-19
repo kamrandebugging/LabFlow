@@ -134,7 +134,9 @@
   outline: none;
   resize: vertical;
   min-height: 80px;
-  transition: border-color var(--motion-fast) var(--ease-out), background-color var(--motion-fast) var(--ease-out);
+  transition:
+    border-color var(--motion-fast) var(--ease-out),
+    background-color var(--motion-fast) var(--ease-out);
 }
 
 .notesTextarea:focus {
