@@ -91,8 +91,8 @@ class JWTAuthentication(authentication.BaseAuthentication):
         if not user:
             raise exceptions.AuthenticationFailed("User not found or deactivated")
 
-        # Phase 8 Rule 3: Platform role gating on EVERY request
-        # Verify user.role in tenant.enabled_roles (Owner always enabled)
+        # Phase 8 Rule 3: Platform role gating on EVERY request.
+        # Verify user.role in tenant.enabled_roles (Owner always enabled).
         if user.role != Role.OWNER:
             from apps.accounts.role_config import (
                 effective_enabled_roles,
@@ -106,9 +106,10 @@ class JWTAuthentication(authentication.BaseAuthentication):
                     req_tenant.refresh_from_db(fields=["enabled_roles"])
             else:
                 req_tenant = get_current_tenant()
-            enabled = effective_enabled_roles(req_tenant)
-            if user.role not in enabled:
-                raise RoleDenied()
+            if req_tenant is not None and getattr(req_tenant, "enabled_roles", None):
+                enabled = effective_enabled_roles(req_tenant)
+                if user.role not in enabled:
+                    raise RoleDenied()
 
         # D2 (2026-11-14): missing TOTP enrolment is optional and never limits
         # the session; the client shows a dismissible notice after landing.
