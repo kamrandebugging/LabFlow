@@ -96,12 +96,19 @@ class TestShareLedgerEntryModel:
             "percent_applied",
             "basis_amount",
             "period",
+            "business_date",
+            "credit_note_id",
+            "void_event_id",
             "created_at",
         }
         assert cols["amount"] == ("numeric", 12, 2, "NO")
         assert cols["percent_applied"] == ("numeric", 5, 2, "NO")
         assert cols["basis_amount"] == ("numeric", 12, 2, "NO")
-        assert cols["payment_id"][3] == "NO"
+        assert (
+            cols["payment_id"][3] == "YES"
+        )  # credit-note/void reversals have no payment
+        assert cols["credit_note_id"][3] == "YES"
+        assert cols["void_event_id"][3] == "YES"
         assert cols["referral_partner_id"][3] == "NO"
         assert cols["rule_id"][3] == "YES"
         assert cols["period"][3] == "NO"
