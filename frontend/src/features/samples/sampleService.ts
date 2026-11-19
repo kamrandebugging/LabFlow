@@ -14,7 +14,10 @@ import type {
   SampleListFilter,
   SampleListResponse,
   SampleRejectInput,
+  SampleTransfer,
   SampleTransferInput,
+  TransferDirection,
+  TransferExceptionsResponse,
 } from "./types";
 
 export const sampleService = {
@@ -79,7 +82,7 @@ export const sampleService = {
   },
 
   /**
-   * Get full sample detail by ID or accession number
+   * Get full sample detail by UUID (Doc 03 §5.4, GET /api/v1/samples/{id}).
    */
   async getSample(sampleId: string): Promise<SampleDetail> {
     try {
@@ -98,19 +101,44 @@ export const sampleService = {
   async collectSample(
     input: SampleCreateInput,
   ): Promise<SampleCreatedResponse> {
+    const body: Record<string, unknown> = {
+      invoice_id: input.invoice_id,
+    };
+    if (input.invoice_item_ids && input.invoice_item_ids.length > 0) {
+      body.invoice_item_ids = input.invoice_item_ids;
+    }
+    if (input.notes && input.notes.trim().length > 0) {
+      body.notes = input.notes.trim();
+    }
     try {
       return await apiRequest<SampleCreatedResponse>("/samples", {
         method: "POST",
-        body: {
-          invoice_id: input.invoice_id,
-          ...(input.invoice_item_ids && input.invoice_item_ids.length > 0
-            ? { invoice_item_ids: input.invoice_item_ids }
-            : {}),
-        },
+        body,
       });
     } catch (err) {
       if (err instanceof ApiError) {
         throw new Error(err.message || `Collection failed (${err.status})`);
+      }
+      throw err;
+    }
+  },
+
+  /**
+   * Explicit print action creating an audit record (D8, POST /api/v1/samples/{id}/label/print)
+   */
+  async printLabel(sampleId: string): Promise<SampleLabelData> {
+    try {
+      return await apiRequest<SampleLabelData>(
+        `/samples/${sampleId}/label/print`,
+        {
+          method: "POST",
+        },
+      );
+    } catch (err) {
+      if (err instanceof ApiError) {
+        throw new Error(
+          err.message || `Failed to print sample label (${err.status})`,
+        );
       }
       throw err;
     }
@@ -262,6 +290,137 @@ export const sampleService = {
       if (err instanceof ApiError) {
         throw new Error(
           err.message || `Failed to fetch events (${err.status})`,
+        );
+      }
+      throw err;
+    }
+  },
+
+  /**
+   * List transfers with status and direction filters (D12, GET /api/v1/transfers)
+   */
+  async listTransfers(
+    params?: {
+      status?: string;
+      direction?: TransferDirection;
+    },
+    signal?: AbortSignal,
+  ): Promise<{ results: SampleTransfer[]; total: number }> {
+    const query: Record<string, string | number | boolean | null | undefined> =
+      {};
+    if (params?.status) query.status = params.status;
+    if (params?.direction) query.direction = params.direction;
+
+    try {
+      return await apiRequest<{ results: SampleTransfer[]; total: number }>(
+        "/transfers",
+        { query, signal },
+      );
+    } catch (err) {
+      if (err instanceof ApiError) {
+        throw new Error(
+          err.message || `Failed to fetch transfers (${err.status})`,
+        );
+      }
+      throw err;
+    }
+  },
+
+  /**
+   * Receive specimen transfer at destination (SM-7, POST /api/v1/transfers/{id}/receive)
+   */
+  async receiveTransfer(transferId: string): Promise<SampleTransfer> {
+    try {
+      return await apiRequest<SampleTransfer>(
+        `/transfers/${transferId}/receive`,
+        {
+          method: "POST",
+        },
+      );
+    } catch (err) {
+      if (err instanceof ApiError) {
+        throw new Error(
+          err.message || `Failed to receive transfer (${err.status})`,
+        );
+      }
+      throw err;
+    }
+  },
+
+  /**
+   * Cancel specimen transfer (POST /api/v1/transfers/{id}/cancel)
+   */
+  async cancelTransfer(transferId: string): Promise<SampleTransfer> {
+    try {
+      return await apiRequest<SampleTransfer>(
+        `/transfers/${transferId}/cancel`,
+        {
+          method: "POST",
+        },
+      );
+    } catch (err) {
+      if (err instanceof ApiError) {
+        throw new Error(
+          err.message || `Failed to cancel transfer (${err.status})`,
+        );
+      }
+      throw err;
+    }
+  },
+
+  /**
+   * Mark specimen transfer as lost (SM-7, POST /api/v1/transfers/{id}/mark-lost)
+   */
+  async markLostTransfer(
+    transferId: string,
+    note: string,
+  ): Promise<SampleTransfer> {
+    try {
+      return await apiRequest<SampleTransfer>(
+        `/transfers/${transferId}/mark-lost`,
+        {
+          method: "POST",
+          body: { note },
+        },
+      );
+    } catch (err) {
+      if (err instanceof ApiError) {
+        throw new Error(
+          err.message || `Failed to mark transfer lost (${err.status})`,
+        );
+      }
+      throw err;
+    }
+  },
+
+  /**
+   * Fetch transfer exceptions (late, lost, route health) (GET /api/v1/transfers/exceptions)
+   */
+  async getTransferExceptions(
+    params?: {
+      report?: string;
+      from?: string;
+      to?: string;
+      month?: string;
+    },
+    signal?: AbortSignal,
+  ): Promise<TransferExceptionsResponse> {
+    const query: Record<string, string | number | boolean | null | undefined> =
+      {};
+    if (params?.report) query.report = params.report;
+    if (params?.from) query.from = params.from;
+    if (params?.to) query.to = params.to;
+    if (params?.month) query.month = params.month;
+
+    try {
+      return await apiRequest<TransferExceptionsResponse>(
+        "/transfers/exceptions",
+        { query, signal },
+      );
+    } catch (err) {
+      if (err instanceof ApiError) {
+        throw new Error(
+          err.message || `Failed to fetch transfer exceptions (${err.status})`,
         );
       }
       throw err;

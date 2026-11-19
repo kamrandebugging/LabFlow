@@ -1,81 +1,40 @@
-import { useCallback, useEffect, useId, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
-  ChevronRight,
-  Filter,
+  FlaskConical,
   Plus,
   Printer,
   RefreshCw,
   Search,
+  Truck,
   X,
+  AlertTriangle,
 } from "lucide-react";
 import { messageForError } from "../../lib/errors";
 import { sampleService } from "./sampleService";
 import { useAuthStore } from "../auth/authStore";
 import { settingsService } from "../settings/settingsService";
 import type { Branch } from "../settings/types";
-import type { SampleStatus, SampleSummary } from "./types";
+import type {
+  AwaitingCollectionItem,
+  SampleSummary,
+  SampleTransfer,
+  TransferDirection,
+  TransferExceptionsResponse,
+} from "./types";
+import {
+  SampleKpiRow,
+  SampleQueueTabs,
+  SampleStatusPill,
+  SampleBulkBar,
+} from "./components";
+import styles from "./SampleAccessioningListScreen.module.css";
 
 export interface SampleAccessioningListScreenProps {
   onSelectSample?: (id: string) => void;
   onCollectNew?: () => void;
   onPrintLabels?: (accessionIds: string[]) => void;
   service?: typeof sampleService;
-}
-
-type Translator = (key: string) => string;
-
-function getStatusBadge(status: SampleStatus, t: Translator): JSX.Element {
-  switch (status) {
-    case "collected":
-      return (
-        <span className="inline-flex items-center gap-1.5 text-xs font-medium text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">
-          <span className="w-1.5 h-1.5 rounded-full bg-blue-600" />
-          {t("common:status.sample.collected")}
-        </span>
-      );
-    case "received":
-      return (
-        <span className="inline-flex items-center gap-1.5 text-xs font-medium text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-200">
-          <span className="w-1.5 h-1.5 rounded-full bg-indigo-600" />
-          {t("common:status.sample.received")}
-        </span>
-      );
-    case "in_process":
-      return (
-        <span className="inline-flex items-center gap-1.5 text-xs font-medium text-orange-700 bg-orange-50 px-2 py-0.5 rounded-full border border-orange-200">
-          <span className="w-1.5 h-1.5 rounded-full bg-orange-600" />
-          {t("common:status.sample.in_process")}
-        </span>
-      );
-    case "ready":
-      return (
-        <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
-          {t("samples:status.ready_reported")}
-        </span>
-      );
-    case "rejected":
-      return (
-        <span className="inline-flex items-center gap-1.5 text-xs font-medium text-red-700 bg-red-50 px-2 py-0.5 rounded-full border border-red-200">
-          <span className="w-1.5 h-1.5 rounded-full bg-red-600" />
-          {t("common:status.sample.rejected")}
-        </span>
-      );
-    case "cancelled":
-      return (
-        <span className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-600 bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200">
-          <span className="w-1.5 h-1.5 rounded-full bg-slate-500" />
-          {t("common:status.sample.cancelled")}
-        </span>
-      );
-    default:
-      return (
-        <span className="inline-flex items-center text-xs font-medium text-slate-600 bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200">
-          {t("common:labels.unknown")}
-        </span>
-      );
-  }
 }
 
 export function SampleAccessioningListScreen({
@@ -85,58 +44,76 @@ export function SampleAccessioningListScreen({
   service = sampleService,
 }: SampleAccessioningListScreenProps): JSX.Element {
   const { t } = useTranslation(["samples", "common"]);
+  const user = useAuthStore((s) => s.user);
+  const userRole = (user?.role || "").toLowerCase();
+  const canCollect =
+    userRole === "owner" ||
+    userRole === "manager" ||
+    userRole === "reception" ||
+    userRole === "technician";
+  const isManagerOrOwner = userRole === "owner" || userRole === "manager";
+
+  // Tab State
+  const [activeTab, setActiveTab] = useState<string>("awaiting_collection");
+  const [transferDirection, setTransferDirection] =
+    useState<TransferDirection>("all");
+  const [showExceptions, setShowExceptions] = useState(false);
+  const [exceptionsData, setExceptionsData] =
+    useState<TransferExceptionsResponse | null>(null);
+
+  // Data States
   const [samples, setSamples] = useState<SampleSummary[]>([]);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedStatus, setSelectedStatus] = useState<string>("all");
-  const [selectedBranch, setSelectedBranch] = useState<string>("all");
+  const [awaitingItems, setAwaitingItems] = useState<AwaitingCollectionItem[]>(
+    [],
+  );
+  const [transfers, setTransfers] = useState<SampleTransfer[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
+
+  // Selection & UI States
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const accessToken = useAuthStore((s) => s.accessToken);
+  // Filters
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedStatus, setSelectedStatus] = useState<string>("all");
+  const [selectedBranch, setSelectedBranch] = useState<string>("all");
+  const [sortOrder, setSortOrder] = useState<"oldest" | "newest">("oldest");
 
+  // Transfer Action Modals
+  const [markLostId, setMarkLostId] = useState<string | null>(null);
+  const [markLostNote, setMarkLostNote] = useState("");
+  const [transferActionLoading, setTransferActionLoading] = useState(false);
+
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const searchInputId = useId();
   const statusSelectId = useId();
   const branchSelectId = useId();
 
-  const loadSamples = useCallback(async () => {
-    // When using default sampleService, never fire without authentication
-    if (service === sampleService && !useAuthStore.getState().accessToken) {
-      setIsLoading(false);
-      return;
-    }
-    try {
-      setIsLoading(true);
-      setErrorMessage(null);
-      const res = await service.listSamples({
-        q: searchQuery.trim() || undefined,
-        status: selectedStatus !== "all" ? selectedStatus : undefined,
-        branch_id: selectedBranch !== "all" ? selectedBranch : undefined,
-      });
-      setSamples(res.results);
-    } catch (err) {
-      setErrorMessage(messageForError(err, t));
-    } finally {
-      setIsLoading(false);
-    }
-  }, [searchQuery, selectedStatus, selectedBranch, service, t]);
-
+  // Shortcut "/" focuses search input on this screen
   useEffect(() => {
-    if (service === sampleService && !accessToken) {
-      return;
-    }
-    loadSamples();
-  }, [loadSamples, service, accessToken]);
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (
+        e.key === "/" &&
+        document.activeElement?.tagName !== "INPUT" &&
+        document.activeElement?.tagName !== "TEXTAREA" &&
+        document.activeElement?.tagName !== "SELECT"
+      ) {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
+  // Fetch branches once
   useEffect(() => {
     let active = true;
     void settingsService
-      .getBranches()
+      .getBranches(false)
       .then((list) => {
-        if (active && Array.isArray(list)) {
-          setBranches(list);
-        }
+        if (active && Array.isArray(list)) setBranches(list);
       })
       .catch(() => {});
     return () => {
@@ -144,6 +121,87 @@ export function SampleAccessioningListScreen({
     };
   }, []);
 
+  // Fetch samples for the standard queue
+  const loadSamples = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      setErrorMessage(null);
+      const res = await service.listSamples({
+        q: searchQuery.trim() || undefined,
+        status: selectedStatus !== "all" ? selectedStatus : undefined,
+        branch_id: selectedBranch !== "all" ? selectedBranch : undefined,
+        order: sortOrder,
+      });
+      setSamples(res.results || []);
+    } catch (err) {
+      setErrorMessage(messageForError(err, t));
+    } finally {
+      setIsLoading(false);
+    }
+  }, [searchQuery, selectedStatus, selectedBranch, sortOrder, service, t]);
+
+  // Fetch awaiting collection items
+  const loadAwaiting = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      setErrorMessage(null);
+      const res = await service.listAwaitingCollection();
+      setAwaitingItems(res.results || []);
+    } catch (err) {
+      setErrorMessage(messageForError(err, t));
+    } finally {
+      setIsLoading(false);
+    }
+  }, [service, t]);
+
+  // Fetch transfers
+  const loadTransfers = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      setErrorMessage(null);
+      const res = await service.listTransfers({
+        status: "open",
+        direction: transferDirection,
+      });
+      setTransfers(res.results || []);
+    } catch (err) {
+      setErrorMessage(messageForError(err, t));
+    } finally {
+      setIsLoading(false);
+    }
+  }, [service, transferDirection, t]);
+
+  // Load exceptions if toggled
+  const loadExceptions = useCallback(async () => {
+    if (!isManagerOrOwner) return;
+    try {
+      const data = await service.getTransferExceptions();
+      setExceptionsData(data);
+    } catch {
+      // Ignored
+    }
+  }, [service, isManagerOrOwner]);
+
+  // Main reload effect per tab
+  useEffect(() => {
+    if (activeTab === "awaiting_collection") {
+      loadAwaiting();
+    } else if (activeTab === "transfers") {
+      loadTransfers();
+      if (showExceptions) loadExceptions();
+    } else {
+      loadSamples();
+    }
+  }, [
+    activeTab,
+    loadAwaiting,
+    loadTransfers,
+    loadSamples,
+    showExceptions,
+    loadExceptions,
+  ]);
+
+  // Checkbox Selection
   const toggleSelectAll = () => {
     if (selectedIds.size === samples.length) {
       setSelectedIds(new Set());
@@ -152,14 +210,12 @@ export function SampleAccessioningListScreen({
     }
   };
 
-  const toggleSelectOne = (id: string) => {
+  const toggleSelectOne = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
     setSelectedIds((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
   };
@@ -174,46 +230,175 @@ export function SampleAccessioningListScreen({
     }
   };
 
+  // Transfer action handlers
+  const handleReceiveTransfer = async (
+    transferId: string,
+    e: React.MouseEvent,
+  ) => {
+    e.stopPropagation();
+    try {
+      setTransferActionLoading(true);
+      await service.receiveTransfer(transferId);
+      await loadTransfers();
+    } catch (err) {
+      setErrorMessage(messageForError(err, t));
+    } finally {
+      setTransferActionLoading(false);
+    }
+  };
+
+  const handleCancelTransfer = async (
+    transferId: string,
+    e: React.MouseEvent,
+  ) => {
+    e.stopPropagation();
+    if (
+      !window.confirm(
+        "Are you sure you want to cancel this transfer? The sample will remain at the sending branch.",
+      )
+    ) {
+      return;
+    }
+    try {
+      setTransferActionLoading(true);
+      await service.cancelTransfer(transferId);
+      await loadTransfers();
+    } catch (err) {
+      setErrorMessage(messageForError(err, t));
+    } finally {
+      setTransferActionLoading(false);
+    }
+  };
+
+  const handleMarkLostSubmit = async () => {
+    if (!markLostId || !markLostNote.trim()) return;
+    try {
+      setTransferActionLoading(true);
+      await service.markLostTransfer(markLostId, markLostNote.trim());
+      setMarkLostId(null);
+      setMarkLostNote("");
+      await loadTransfers();
+    } catch (err) {
+      setErrorMessage(messageForError(err, t));
+    } finally {
+      setTransferActionLoading(false);
+    }
+  };
+
+  // KPIs derived strictly from real API responses
+  const awaitingTotal = awaitingItems.length;
+  const collectedCount = samples.filter((s) => s.status === "collected").length;
+  const inProcessCount = samples.filter(
+    (s) => s.status === "in_process",
+  ).length;
+  const readyCount = samples.filter((s) => s.status === "ready").length;
+
+  const kpiItems = [
+    {
+      id: "awaiting",
+      label: "Awaiting collection",
+      value: awaitingTotal,
+      subtitle: "Pending draw",
+    },
+    {
+      id: "collected",
+      label: "Collected today",
+      value: collectedCount,
+      subtitle: "Drawn / In lab",
+    },
+    {
+      id: "in_process",
+      label: "In process",
+      value: inProcessCount,
+      subtitle: "Bench testing",
+    },
+    {
+      id: "ready",
+      label: "Ready / Reported",
+      value: readyCount,
+      subtitle: "Results approved",
+    },
+  ];
+
+  // Tab Definitions
+  const tabs = [
+    {
+      id: "awaiting_collection",
+      label: "Awaiting collection",
+      count: awaitingTotal,
+    },
+    {
+      id: "all",
+      label: "All samples",
+      count: samples.length,
+    },
+    {
+      id: "transfers",
+      label: "Transfers",
+      count: transfers.length,
+    },
+  ];
+
+  // Filtered Awaiting Items
+  const filteredAwaiting = awaitingItems.filter((item) => {
+    if (selectedBranch !== "all" && item.branch_id !== selectedBranch)
+      return false;
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      const matchName = item.patient_name.toLowerCase().includes(q);
+      const matchMrn = item.patient_mrn.toLowerCase().includes(q);
+      const matchDesc = item.description?.toLowerCase().includes(q);
+      if (!matchName && !matchMrn && !matchDesc) return false;
+    }
+    return true;
+  });
+
   return (
-    <div className="w-full max-w-[1160px] mx-auto space-y-6 px-4 py-8">
-      {/* Title & Audit Header */}
-      <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-2">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-            {t("common:nav.samples")}
-          </h1>
-          <p className="text-xs text-slate-500 font-medium mt-0.5">
-            {t("samples:list.subtitle")}
+    <div className={styles.pageContainer}>
+      {/* 1. Header Area */}
+      <header className={styles.headerRow}>
+        <div className={styles.titleArea}>
+          <h1 className={styles.pageTitle}>Samples</h1>
+          <p className={styles.pageSubtitle}>
+            Central specimen accessioning and chain of custody tracking
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <span className="text-xs font-medium text-slate-500">
-            {t("samples:time.pkt_utc")}
-          </span>
-          {onCollectNew && (
+        <div className={styles.headerActions}>
+          <button
+            type="button"
+            onClick={handleBatchPrint}
+            disabled={selectedIds.size === 0}
+            className={styles.outlinePill}
+          >
+            <Printer className="w-4 h-4" />
+            <span>Print labels ({selectedIds.size})</span>
+          </button>
+          {onCollectNew && canCollect && (
             <button
               type="button"
               onClick={onCollectNew}
-              className="inline-flex items-center gap-1.5 bg-teal-600 hover:bg-teal-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg shadow-sm transition-colors"
+              className={styles.primaryBlackPill}
             >
               <Plus className="w-4 h-4" />
-              {t("samples:actions.collect_sample")}
+              <span>+ Collect sample</span>
             </button>
           )}
         </div>
-      </div>
+      </header>
 
-      {/* Error Banner */}
+      {/* 2. Real KPI Row */}
+      <SampleKpiRow items={kpiItems} />
+
+      {/* 3. Error Banner */}
       {errorMessage && (
         <div
           role="alert"
-          className="p-3 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700 flex items-center justify-between"
+          className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 flex items-center justify-between"
         >
           <span>{errorMessage}</span>
           <button
             type="button"
             onClick={() => setErrorMessage(null)}
-            aria-label={t("samples:list.dismiss_error")}
             className="text-red-500 hover:text-red-700"
           >
             <X className="w-4 h-4" />
@@ -221,77 +406,104 @@ export function SampleAccessioningListScreen({
         </div>
       )}
 
-      {/* Filter Bar (16-samples.html) */}
-      <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
-        <div className="flex flex-wrap items-center gap-3 flex-1">
-          {/* Search by Accession ID */}
-          <div className="relative flex-1 min-w-[240px] max-w-sm">
-            <Search className="w-4 h-4 absolute start-3 top-1/2 -translate-y-1/2 text-slate-400" />
+      {/* 4. Queue Tabs */}
+      <SampleQueueTabs
+        tabs={tabs}
+        activeTab={activeTab}
+        onSelectTab={(tabId) => {
+          setActiveTab(tabId);
+          setSelectedIds(new Set());
+        }}
+      />
+
+      {/* 5. Filters and Search */}
+      <div className={styles.filterCard}>
+        <div className={styles.filterGroup}>
+          <div className={styles.searchBox}>
+            <Search className={styles.searchIcon} />
             <input
+              ref={searchInputRef}
               id={searchInputId}
               type="text"
-              placeholder={t("samples:list.search_placeholder")}
+              placeholder={
+                activeTab === "awaiting_collection"
+                  ? "Search patient, MRN, or test..."
+                  : "Search by Accession ID (e.g. CDL2026...)"
+              }
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full ps-9 pe-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-teal-600 focus:bg-white font-mono transition-colors"
+              className={styles.searchInput}
             />
+            <span className={styles.shortcutHint} aria-hidden="true">
+              /
+            </span>
           </div>
 
-          {/* Status Select */}
-          <div className="relative w-40">
+          {activeTab === "all" && (
             <select
               id={statusSelectId}
-              aria-label={t("samples:list.filter_status_aria")}
               value={selectedStatus}
               onChange={(e) => setSelectedStatus(e.target.value)}
-              className="w-full appearance-none ps-3 pe-8 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-800 font-medium focus:outline-none focus:border-teal-600 focus:bg-white transition-colors cursor-pointer"
+              className={styles.selectDropdown}
             >
-              <option value="all">{t("samples:list.all_statuses")}</option>
-              <option value="collected">
-                {t("common:status.sample.collected")}
-              </option>
-              <option value="received">
-                {t("common:status.sample.received")}
-              </option>
-              <option value="in_process">
-                {t("common:status.sample.in_process")}
-              </option>
-              <option value="ready">
-                {t("samples:status.ready_reported")}
-              </option>
-              <option value="rejected">
-                {t("common:status.sample.rejected")}
-              </option>
-              <option value="cancelled">
-                {t("common:status.sample.cancelled")}
-              </option>
+              <option value="all">All statuses</option>
+              <option value="collected">Collected</option>
+              <option value="received">Received</option>
+              <option value="in_process">In process</option>
+              <option value="ready">Ready / Reported</option>
+              <option value="rejected">Rejected</option>
+              <option value="cancelled">Cancelled</option>
             </select>
-            <Filter className="w-3.5 h-3.5 absolute end-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-          </div>
+          )}
 
-          {/* Branch Select */}
-          <div className="relative w-44">
+          {activeTab === "transfers" && (
             <select
-              id={branchSelectId}
-              aria-label={t("samples:list.filter_branch_aria")}
-              value={selectedBranch}
-              onChange={(e) => setSelectedBranch(e.target.value)}
-              className="w-full appearance-none ps-3 pe-8 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-800 font-medium focus:outline-none focus:border-teal-600 focus:bg-white transition-colors cursor-pointer"
+              value={transferDirection}
+              onChange={(e) =>
+                setTransferDirection(e.target.value as TransferDirection)
+              }
+              className={styles.selectDropdown}
             >
-              <option value="all">{t("common:topbar.all_branches")}</option>
-              {branches.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.name}
-                </option>
-              ))}
+              <option value="all">All directions</option>
+              <option value="incoming">Incoming to branch</option>
+              <option value="outgoing">Outgoing from branch</option>
             </select>
-          </div>
+          )}
+
+          <select
+            id={branchSelectId}
+            value={selectedBranch}
+            onChange={(e) => setSelectedBranch(e.target.value)}
+            className={styles.selectDropdown}
+          >
+            <option value="all">All branches</option>
+            {branches.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.name}
+              </option>
+            ))}
+          </select>
+
+          <select
+            value={sortOrder}
+            onChange={(e) =>
+              setSortOrder(e.target.value as "oldest" | "newest")
+            }
+            className={styles.selectDropdown}
+          >
+            <option value="oldest">Oldest first</option>
+            <option value="newest">Newest first</option>
+          </select>
 
           <button
             type="button"
-            onClick={loadSamples}
-            aria-label={t("samples:list.refresh_aria")}
-            className="p-1.5 text-slate-400 hover:text-slate-600 border border-slate-200 rounded-lg bg-slate-50 hover:bg-slate-100"
+            onClick={() => {
+              if (activeTab === "awaiting_collection") loadAwaiting();
+              else if (activeTab === "transfers") loadTransfers();
+              else loadSamples();
+            }}
+            aria-label="Refresh"
+            className={styles.outlinePill}
           >
             <RefreshCw
               className={`w-3.5 h-3.5 ${isLoading ? "animate-spin" : ""}`}
@@ -299,161 +511,532 @@ export function SampleAccessioningListScreen({
           </button>
         </div>
 
-        {/* Batch Action Header Controls */}
-        <div className="flex items-center gap-3 justify-end shrink-0">
-          <span className="text-xs text-slate-500 font-medium">
-            {t("samples:list.selected_count", { n: selectedIds.size })}
-          </span>
+        {activeTab === "transfers" && isManagerOrOwner && (
           <button
             type="button"
-            onClick={handleBatchPrint}
-            disabled={selectedIds.size === 0}
-            className="inline-flex items-center gap-2 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-semibold px-3.5 py-2 rounded-lg transition-colors shadow-sm"
+            onClick={() => {
+              setShowExceptions(!showExceptions);
+              if (!showExceptions) loadExceptions();
+            }}
+            className={styles.outlinePill}
           >
-            <Printer className="w-4 h-4" />
+            <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
             <span>
-              {t("samples:actions.print_labels", { n: selectedIds.size })}
+              {showExceptions ? "Hide exceptions" : "Transfer exceptions"}
             </span>
           </button>
-        </div>
+        )}
       </div>
 
-      {/* Samples Table Card */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-start border-collapse">
-            <thead>
-              <tr className="border-b border-slate-200 bg-slate-50 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
-                <th className="py-3 px-4 w-10 text-center">
-                  <input
-                    type="checkbox"
-                    aria-label={t("samples:list.select_all_aria")}
-                    checked={
-                      samples.length > 0 && selectedIds.size === samples.length
-                    }
-                    onChange={toggleSelectAll}
-                    className="w-4 h-4 rounded border-slate-300 text-teal-600 focus:ring-teal-600 cursor-pointer"
-                  />
-                </th>
-                <th className="py-3 px-4">
-                  {t("samples:list.table.accession")}
-                </th>
-                <th className="py-3 px-4">{t("samples:list.table.patient")}</th>
-                <th className="py-3 px-4">{t("samples:list.table.tests")}</th>
-                <th className="py-3 px-4">{t("common:labels.status")}</th>
-                <th className="py-3 px-4">{t("samples:list.table.branch")}</th>
-                <th className="py-3 px-4">{t("common:labels.age")}</th>
-                <th className="py-3 px-4 text-end">
-                  {t("common:labels.actions")}
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 text-xs text-slate-700">
-              {isLoading && samples.length === 0 ? (
+      {/* Transfer Exceptions Oversight View (Phase 2.8) */}
+      {activeTab === "transfers" && showExceptions && exceptionsData && (
+        <div className="bg-amber-50/50 border border-amber-200 rounded-2xl p-5 space-y-4">
+          <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-amber-600" />
+            <span>Transfer Exceptions Oversight</span>
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+            <div className="bg-white p-3.5 rounded-xl border border-amber-200">
+              <span className="font-semibold text-slate-700 block mb-1">
+                Late Transfers (&gt;24h)
+              </span>
+              <span className="text-2xl font-bold text-slate-900">
+                {exceptionsData.late?.total || 0}
+              </span>
+            </div>
+            <div className="bg-white p-3.5 rounded-xl border border-amber-200">
+              <span className="font-semibold text-slate-700 block mb-1">
+                Lost Specimen Reports
+              </span>
+              <span className="text-2xl font-bold text-slate-900">
+                {exceptionsData.lost?.total || 0}
+              </span>
+            </div>
+            <div className="bg-white p-3.5 rounded-xl border border-amber-200">
+              <span className="font-semibold text-slate-700 block mb-1">
+                Active Transfer Routes
+              </span>
+              <span className="text-2xl font-bold text-slate-900">
+                {exceptionsData.route_health?.routes?.length || 0}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 6. Main Tables Card */}
+      <div className={styles.tableCard}>
+        {/* TAB 1: Awaiting Collection */}
+        {activeTab === "awaiting_collection" && (
+          <div className={styles.tableContainer}>
+            <table className={styles.table}>
+              <thead className={styles.tableHead}>
                 <tr>
-                  <td colSpan={8} className="py-8 text-center text-slate-500">
-                    {t("samples:list.loading")}
-                  </td>
+                  <th className={styles.th}>Patient</th>
+                  <th className={styles.th}>Ordered Tests / Panels</th>
+                  <th className={styles.th}>Branch</th>
+                  <th className={styles.th}>Ordered At</th>
+                  <th className={styles.thRight}>Action</th>
                 </tr>
-              ) : samples.length === 0 ? (
-                <tr>
-                  <td colSpan={8} className="py-8 text-center text-slate-500">
-                    {t("samples:list.empty")}
-                  </td>
-                </tr>
-              ) : (
-                samples.map((sample) => {
-                  const isChecked = selectedIds.has(sample.id);
-                  return (
-                    <tr
-                      key={sample.id}
-                      className={`hover:bg-slate-50 transition-colors ${
-                        isChecked ? "bg-teal-50/40" : ""
-                      }`}
-                    >
-                      <td className="py-3 px-4 text-center">
-                        <input
-                          type="checkbox"
-                          aria-label={t("samples:list.select_one_aria", {
-                            accession: sample.accession_id,
-                          })}
-                          checked={isChecked}
-                          onChange={() => toggleSelectOne(sample.id)}
-                          className="w-4 h-4 rounded border-slate-300 text-teal-600 focus:ring-teal-600 cursor-pointer"
-                        />
-                      </td>
-                      <td className="py-3 px-4">
-                        <button
-                          type="button"
-                          onClick={() => onSelectSample?.(sample.id)}
-                          className="font-mono font-medium text-teal-700 hover:text-teal-900 tracking-tight underline text-start"
-                          dir="ltr"
-                        >
-                          {sample.accession_id}
-                        </button>
-                      </td>
-                      <td className="py-3 px-4 font-medium text-slate-900">
-                        {sample.patient_name}
-                        <span className="block text-[11px] text-slate-500 font-mono">
-                          {sample.patient_mrn}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          {sample.tests.map((testName, idx) => (
-                            <span
-                              key={idx}
-                              className="inline-block bg-slate-100 border border-slate-200 text-slate-700 px-2 py-0.5 rounded text-[11px] font-medium"
-                            >
-                              {testName}
-                            </span>
-                          ))}
-                        </div>
-                      </td>
-                      <td className="py-3 px-4">
-                        {getStatusBadge(sample.status, t)}
-                      </td>
-                      <td className="py-3 px-4 text-slate-600">
-                        {sample.branch_name}
-                      </td>
-                      <td
-                        className={`py-3 px-4 font-medium ${
-                          sample.age_display &&
-                          sample.age_display.startsWith("6")
-                            ? "font-semibold text-orange-600"
-                            : "text-slate-600"
-                        }`}
-                      >
-                        {sample.age_display || t("samples:list.recent")}
-                      </td>
-                      <td className="py-3 px-4 text-end">
-                        <button
-                          type="button"
-                          onClick={() => onSelectSample?.(sample.id)}
-                          className="inline-flex items-center text-xs font-semibold text-teal-600 hover:text-teal-800"
-                        >
-                          {t("common:actions.view")}
-                          <ChevronRight className="w-3.5 h-3.5 ms-0.5 rtl:rotate-180" />
-                        </button>
+              </thead>
+              <tbody>
+                {isLoading && filteredAwaiting.length === 0 ? (
+                  Array.from({ length: 4 }).map((_, i) => (
+                    <tr key={i} className={styles.skeletonRow}>
+                      <td colSpan={5} className="py-4 px-4">
+                        <div className={styles.skeletonBar} />
                       </td>
                     </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
+                  ))
+                ) : filteredAwaiting.length === 0 ? (
+                  <tr>
+                    <td colSpan={5}>
+                      <div className={styles.emptyCard}>
+                        <div className={styles.emptyIconCircle}>
+                          <FlaskConical className="w-6 h-6" />
+                        </div>
+                        <h2 className={styles.emptyTitle}>
+                          No tests awaiting collection
+                        </h2>
+                        <p className={styles.emptySubtitle}>
+                          Specimens will appear here automatically when orders
+                          are created at the front desk.
+                        </p>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  filteredAwaiting.map((item) => (
+                    <tr
+                      key={item.invoice_item_id}
+                      className={styles.tableRow}
+                      onClick={() => {
+                        if (canCollect) {
+                          window.location.href = `/samples/collect/step1?invoice_id=${item.invoice_id}`;
+                        }
+                      }}
+                    >
+                      <td className={styles.td}>
+                        <div className={styles.patientName}>
+                          {item.patient_name}
+                        </div>
+                        <div className={styles.patientMrn}>
+                          {item.patient_mrn}
+                        </div>
+                      </td>
+                      <td className={styles.td}>
+                        <span className={styles.testChip}>
+                          {item.description || item.test_name || "Diagnostic Test"}
+                        </span>
+                      </td>
+                      <td className={styles.td}>{item.branch_name}</td>
+                      <td className={styles.td}>
+                        <span className="font-mono text-xs">
+                          {new Date(item.ordered_at).toLocaleTimeString([], {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                            hour12: false,
+                          })}
+                        </span>
+                      </td>
+                      <td className={styles.tdRight}>
+                        {canCollect ? (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              window.location.href = `/samples/collect/step1?invoice_id=${item.invoice_id}`;
+                            }}
+                            className={styles.primaryBlackPill}
+                          >
+                            <span>Collect →</span>
+                          </button>
+                        ) : (
+                          <span className="text-slate-400 text-xs">—</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
 
-        {/* Table Footer */}
-        <div className="border-t border-slate-200 px-4 py-3 bg-white flex items-center justify-between text-xs">
-          <span className="text-slate-500 font-medium">
-            {t("samples:list.showing", { n: samples.length })}
+        {/* TAB 2: Transfers Queue */}
+        {activeTab === "transfers" && (
+          <div className={styles.tableContainer}>
+            <table className={styles.table}>
+              <thead className={styles.tableHead}>
+                <tr>
+                  <th className={styles.th}>Accession ID</th>
+                  <th className={styles.th}>Patient</th>
+                  <th className={styles.th}>Route (From → To)</th>
+                  <th className={styles.th}>Dispatched At</th>
+                  <th className={styles.th}>Status</th>
+                  <th className={styles.thRight}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {isLoading && transfers.length === 0 ? (
+                  Array.from({ length: 4 }).map((_, i) => (
+                    <tr key={i} className={styles.skeletonRow}>
+                      <td colSpan={6} className="py-4 px-4">
+                        <div className={styles.skeletonBar} />
+                      </td>
+                    </tr>
+                  ))
+                ) : transfers.length === 0 ? (
+                  <tr>
+                    <td colSpan={6}>
+                      <div className={styles.emptyCard}>
+                        <div className={styles.emptyIconCircle}>
+                          <Truck className="w-6 h-6" />
+                        </div>
+                        <h2 className={styles.emptyTitle}>
+                          No active transfers
+                        </h2>
+                        <p className={styles.emptySubtitle}>
+                          Specimens in transit between laboratory branches will
+                          be tracked here.
+                        </p>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  transfers.map((tItem) => {
+                    return (
+                      <tr
+                        key={tItem.id}
+                        className={styles.tableRow}
+                        onClick={() => onSelectSample?.(tItem.sample_id)}
+                      >
+                        <td className={styles.td}>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onSelectSample?.(tItem.sample_id);
+                            }}
+                            className={styles.accessionLink}
+                          >
+                            {tItem.accession_id}
+                          </button>
+                        </td>
+                        <td className={styles.td}>
+                          <div className={styles.patientName}>
+                            {tItem.patient_name || "—"}
+                          </div>
+                          <div className={styles.patientMrn}>
+                            {tItem.mrn || "—"}
+                          </div>
+                        </td>
+                        <td className={styles.td}>
+                          <span className="font-semibold text-slate-800">
+                            {tItem.from_branch?.name}
+                          </span>{" "}
+                          →{" "}
+                          <span className="font-semibold text-slate-800">
+                            {tItem.to_branch?.name}
+                          </span>
+                        </td>
+                        <td className={styles.td}>
+                          <span className="font-mono text-xs">
+                            {tItem.dispatched_at
+                              ? new Date(tItem.dispatched_at).toLocaleTimeString(
+                                  [],
+                                  { hour: "2-digit", minute: "2-digit" },
+                                )
+                              : "—"}
+                          </span>
+                        </td>
+                        <td className={styles.td}>
+                          <SampleStatusPill status={tItem.status} />
+                        </td>
+                        <td className={styles.tdRight}>
+                          <div
+                            className="inline-flex items-center gap-2 justify-end"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {/* Destination Receive Action */}
+                            {(userRole === "owner" ||
+                              userRole === "manager" ||
+                              userRole === "technician") && (
+                              <button
+                                type="button"
+                                disabled={transferActionLoading}
+                                onClick={(e) =>
+                                  handleReceiveTransfer(tItem.id, e)
+                                }
+                                className={styles.primaryBlackPill}
+                              >
+                                Receive
+                              </button>
+                            )}
+                            {/* Sender Cancel & Mark Lost Actions */}
+                            {isManagerOrOwner && (
+                              <>
+                                <button
+                                  type="button"
+                                  disabled={transferActionLoading}
+                                  onClick={(e) =>
+                                    handleCancelTransfer(tItem.id, e)
+                                  }
+                                  className={styles.outlinePill}
+                                >
+                                  Cancel
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={transferActionLoading}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setMarkLostId(tItem.id);
+                                  }}
+                                  className={styles.outlinePill}
+                                >
+                                  Mark lost
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* TAB 3: All Samples List */}
+        {activeTab === "all" && (
+          <div className={styles.tableContainer}>
+            <table className={styles.table}>
+              <thead className={styles.tableHead}>
+                <tr>
+                  <th className={styles.thCenter}>
+                    <input
+                      type="checkbox"
+                      aria-label="Select all visible samples"
+                      checked={
+                        samples.length > 0 &&
+                        selectedIds.size === samples.length
+                      }
+                      onChange={toggleSelectAll}
+                      className="w-4 h-4 rounded border-slate-300 text-teal-600 cursor-pointer"
+                    />
+                  </th>
+                  <th className={styles.th}>Accession ID</th>
+                  <th className={styles.th}>Patient</th>
+                  <th className={styles.th}>Tests</th>
+                  <th className={styles.th}>Status</th>
+                  <th className={styles.th}>Branch</th>
+                  <th className={styles.th}>Age</th>
+                  <th className={styles.thRight}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {isLoading && samples.length === 0 ? (
+                  Array.from({ length: 5 }).map((_, i) => (
+                    <tr key={i} className={styles.skeletonRow}>
+                      <td colSpan={8} className="py-4 px-4">
+                        <div className={styles.skeletonBar} />
+                      </td>
+                    </tr>
+                  ))
+                ) : samples.length === 0 ? (
+                  <tr>
+                    <td colSpan={8}>
+                      <div className={styles.emptyCard}>
+                        <div className={styles.emptyIconCircle}>
+                          <FlaskConical className="w-6 h-6" />
+                        </div>
+                        <h2 className={styles.emptyTitle}>
+                          {searchQuery
+                            ? `No samples found for '${searchQuery}'`
+                            : "No accessions recorded"}
+                        </h2>
+                        <p className={styles.emptySubtitle}>
+                          {searchQuery
+                            ? "Try adjusting your search query or clear the filter."
+                            : "Collect your first sample to initiate chain of custody tracking."}
+                        </p>
+                        {onCollectNew && canCollect && (
+                          <button
+                            type="button"
+                            onClick={onCollectNew}
+                            className={styles.primaryBlackPill}
+                          >
+                            <Plus className="w-4 h-4" />
+                            <span>Collect first sample</span>
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  samples.map((sample) => {
+                    const isChecked = selectedIds.has(sample.id);
+                    return (
+                      <tr
+                        key={sample.id}
+                        onClick={() => onSelectSample?.(sample.id)}
+                        className={[
+                          styles.tableRow,
+                          isChecked ? "bg-teal-50/20" : "",
+                        ].join(" ")}
+                      >
+                        <td
+                          className={styles.tdCenter}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <input
+                            type="checkbox"
+                            aria-label={`Select ${sample.accession_id}`}
+                            checked={isChecked}
+                            onChange={(e) =>
+                              toggleSelectOne(
+                                sample.id,
+                                e as unknown as React.MouseEvent,
+                              )
+                            }
+                            className="w-4 h-4 rounded border-slate-300 text-teal-600 cursor-pointer"
+                          />
+                        </td>
+                        <td className={styles.td}>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onSelectSample?.(sample.id);
+                            }}
+                            className={styles.accessionLink}
+                          >
+                            {sample.accession_id}
+                          </button>
+                        </td>
+                        <td className={styles.td}>
+                          <div className={styles.patientName}>
+                            {sample.patient_name}
+                          </div>
+                          <div className={styles.patientMrn}>
+                            {sample.patient_mrn}
+                          </div>
+                        </td>
+                        <td className={styles.td}>
+                          <div className="flex items-center gap-1 flex-wrap">
+                            {(sample.tests || []).slice(0, 2).map((t, idx) => (
+                              <span key={idx} className={styles.testChip}>
+                                {t}
+                              </span>
+                            ))}
+                            {(sample.tests || []).length > 2 && (
+                              <span className={styles.testChip}>
+                                +{(sample.tests || []).length - 2}
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className={styles.td}>
+                          <SampleStatusPill status={sample.status} />
+                        </td>
+                        <td className={styles.td}>{sample.branch_name}</td>
+                        <td className={styles.td}>
+                          {sample.age_display || "Recent"}
+                        </td>
+                        <td className={styles.tdRight}>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onSelectSample?.(sample.id);
+                            }}
+                            className={styles.outlinePill}
+                          >
+                            <span>View ›</span>
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* Footer info */}
+        <footer className={styles.tableFooter}>
+          <span>
+            Showing{" "}
+            {activeTab === "awaiting_collection"
+              ? filteredAwaiting.length
+              : activeTab === "transfers"
+                ? transfers.length
+                : samples.length}{" "}
+            records
           </span>
-          <span className="text-slate-400 text-[11px]">
-            {t("samples:list.iso_compliant")}
-          </span>
-        </div>
+          <span className="font-mono text-xs">ISO 15189 Compliant</span>
+        </footer>
       </div>
+
+      {/* Floating Bulk Bar on Checkbox Selection */}
+      <SampleBulkBar
+        selectedCount={selectedIds.size}
+        onClear={() => setSelectedIds(new Set())}
+        onPrintLabels={handleBatchPrint}
+      />
+
+      {/* Mark Lost Modal */}
+      {markLostId && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="mark-lost-title"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/45 veyla-modal-scrim"
+        >
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl border border-slate-200 veyla-modal space-y-4">
+            <h2 id="mark-lost-title" className="text-base font-bold text-slate-900">
+              Mark Transfer as Lost
+            </h2>
+            <p className="text-xs text-slate-500">
+              A clinical non-conformance event will be logged in the audit trail.
+              Please provide a required reason note:
+            </p>
+            <textarea
+              rows={3}
+              value={markLostNote}
+              onChange={(e) => setMarkLostNote(e.target.value)}
+              placeholder="e.g. Courier vehicle accident / package unreceived at destination"
+              className="w-full p-2.5 text-xs border border-slate-200 rounded-xl outline-none focus:border-teal-600 focus:ring-1 focus:ring-teal-600"
+            />
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setMarkLostId(null);
+                  setMarkLostNote("");
+                }}
+                className={styles.outlinePill}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={!markLostNote.trim() || transferActionLoading}
+                onClick={handleMarkLostSubmit}
+                className={styles.primaryBlackPill}
+              >
+                Confirm Lost
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+
+export default SampleAccessioningListScreen;

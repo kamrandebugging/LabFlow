@@ -65,7 +65,7 @@ describe("Screen 21: Technician Worklist (/worklist)", () => {
         tests: ["Complete Blood Count (CBC)"],
         collected_at: new Date(Date.now() - 7500000).toISOString(),
         waiting_time: "2h 5m",
-        status: "ready",
+        status: "pending_entry",
       },
       {
         sample_id: "smp-002",
@@ -94,7 +94,7 @@ describe("Screen 21: Technician Worklist (/worklist)", () => {
     expect(await screen.findByText("CDL20261020000041")).toBeInTheDocument();
     expect(screen.getByText("Muhammad Imran")).toBeInTheDocument();
     expect(screen.getByText("2h 5m")).toBeInTheDocument();
-    expect(screen.getAllByText("Ready for entry")).toHaveLength(2);
+    expect(screen.getAllByText("Pending Entry")).toHaveLength(2);
     expect(screen.getAllByText("In process")).toHaveLength(2);
     expect(
       screen.getAllByRole("link", { name: /Enter results/i }),

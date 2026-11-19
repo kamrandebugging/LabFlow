@@ -177,8 +177,11 @@ export function WorklistScreen(): JSX.Element {
               className="w-full appearance-none bg-slate-50 text-slate-900 text-sm rounded-lg px-3 py-2 pe-8 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-600 cursor-pointer"
             >
               <option value="all">{t("common:labels.all")}</option>
-              <option value="ready">
-                {t("results:worklist.status_ready")}
+              <option value="awaiting_receipt">
+                {t("results:worklist.status_awaiting_receipt")}
+              </option>
+              <option value="pending_entry">
+                {t("results:worklist.status_pending_entry")}
               </option>
               <option value="in_process">
                 {t("common:status.sample.in_process")}
@@ -351,19 +354,19 @@ export function WorklistScreen(): JSX.Element {
                         </span>
                       </td>
                       <td className="py-4 px-6">
-                        {item.sample_status === "collected" && (
+                        {item.status === "awaiting_receipt" && (
                           <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700">
                             <span className="w-1.5 h-1.5 rounded-full bg-amber-600" />
                             {t("results:worklist.badge_awaiting_receipt")}
                           </span>
                         )}
-                        {item.status === "ready" &&
-                          item.sample_status !== "collected" && (
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700">
-                              <span className="w-1.5 h-1.5 rounded-full bg-blue-600" />
-                              {t("results:worklist.status_ready")}
-                            </span>
-                          )}
+                        {(item.status === "pending_entry" ||
+                          item.status === "ready") && (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700">
+                            <span className="w-1.5 h-1.5 rounded-full bg-blue-600" />
+                            {t("results:worklist.badge_pending_entry")}
+                          </span>
+                        )}
                         {item.status === "in_process" && (
                           <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-50 text-orange-700">
                             <span className="w-1.5 h-1.5 rounded-full bg-orange-600" />
@@ -382,7 +385,7 @@ export function WorklistScreen(): JSX.Element {
                           <span className="text-slate-300 font-mono text-xs select-none pe-3">
                             —
                           </span>
-                        ) : item.sample_status === "collected" ? (
+                        ) : item.status === "awaiting_receipt" ? (
                           <button
                             type="button"
                             onClick={() => handleReceive(item.sample_id)}

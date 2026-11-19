@@ -339,9 +339,13 @@ export const resultsService = {
       return timeA - timeB;
     });
 
-    return sorted.map((s): WorklistItem => {
-      let uiStatus: WorklistItem["status"] = "ready";
-      if (s.status === "in_process") {
+    const mapped = sorted.map((s): WorklistItem => {
+      let uiStatus: WorklistItem["status"] = "pending_entry";
+      if (s.status === "collected") {
+        uiStatus = "awaiting_receipt";
+      } else if (s.status === "received") {
+        uiStatus = "pending_entry";
+      } else if (s.status === "in_process") {
         uiStatus = "in_process";
       } else if (s.status === "rejected") {
         uiStatus = "rejected";
@@ -362,6 +366,18 @@ export const resultsService = {
         status: uiStatus,
       };
     });
+
+    if (options?.statusFilter && options.statusFilter !== "all") {
+      if (options.statusFilter === "ready") {
+        return mapped.filter(
+          (i) =>
+            i.status === "awaiting_receipt" || i.status === "pending_entry",
+        );
+      }
+      return mapped.filter((i) => i.status === options.statusFilter);
+    }
+
+    return mapped;
   },
 
   /**

@@ -1,0 +1,92 @@
+/* SampleStatusPill.module.css — 100% token-based per DESIGN.md §2.3 */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.125rem 0.625rem;
+  border-radius: var(--radius-pill);
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1rem;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.dot {
+  width: 0.375rem;
+  height: 0.375rem;
+  border-radius: var(--radius-pill);
+  flex-shrink: 0;
+}
+
+/* Ready / Approved */
+.ready {
+  background-color: var(--color-success-tint);
+  color: var(--color-success);
+}
+.ready .dot {
+  background-color: var(--color-success);
+}
+
+/* In Process / Review */
+.in_process {
+  background-color: var(--color-warning-tint);
+  color: var(--color-warning);
+}
+.in_process .dot {
+  background-color: var(--color-warning);
+}
+
+/* Received / Transit */
+.received {
+  background-color: var(--color-info-tint);
+  color: var(--color-info);
+}
+.received .dot {
+  background-color: var(--color-info);
+}
+
+/* Collected / Draft */
+.collected {
+  background-color: var(--color-well);
+  color: var(--color-body);
+}
+.collected .dot {
+  background-color: var(--color-body);
+}
+
+/* Critical / Rejected */
+.rejected {
+  background-color: var(--color-danger-tint);
+  color: var(--color-danger);
+}
+.rejected .dot {
+  background-color: var(--color-danger);
+}
+
+/* Cancelled */
+.cancelled {
+  background-color: var(--color-well);
+  color: var(--color-text-muted);
+}
+.cancelled .dot {
+  background-color: var(--color-text-muted);
+}
+
+/* Awaiting Collection */
+.awaiting_collection {
+  background-color: var(--color-well);
+  color: var(--color-text-muted);
+}
+.awaiting_collection .dot {
+  background-color: var(--color-text-muted);
+}
+
+/* Worst State */
+.worst {
+  background-color: var(--color-veyla-worst-bg);
+  color: var(--color-veyla-worst-text);
+}
+.worst .dot {
+  background-color: var(--color-veyla-worst-text);
+}

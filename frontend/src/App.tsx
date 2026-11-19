@@ -359,13 +359,30 @@ function SamplesListWrapper(): JSX.Element {
 function CollectSampleStep1Wrapper(): JSX.Element {
   const navigate = useNavigate();
   const location = useLocation();
+  const user = useAuthStore((s) => s.user);
+
+  if (user && !canAccessPath(user.role, "/samples/collect/step1")) {
+    return (
+      <Navigate
+        to="/samples"
+        replace
+        state={{ error: "You do not have permission to collect samples." }}
+      />
+    );
+  }
+
+  const stateDraft = (
+    location.state as { draft?: SampleCollectionDraft } | undefined
+  )?.draft;
   const queryParams = new URLSearchParams(location.search);
-  const invoiceIdParam = queryParams.get("invoice_id") || undefined;
+  const invoiceIdParam =
+    queryParams.get("invoice_id") || stateDraft?.invoice_id || undefined;
 
   return (
-    <main className="min-h-screen bg-slate-50 py-6">
+    <main className="min-h-screen py-6">
       <CollectSampleStep1Screen
         preselectedInvoiceId={invoiceIdParam}
+        initialDraft={stateDraft}
         onCancel={() => navigate("/samples")}
         onContinue={(draft) => {
           navigate("/samples/collect/step2", { state: { draft } });
@@ -378,6 +395,18 @@ function CollectSampleStep1Wrapper(): JSX.Element {
 function CollectSampleStep2Wrapper(): JSX.Element {
   const navigate = useNavigate();
   const location = useLocation();
+  const user = useAuthStore((s) => s.user);
+
+  if (user && !canAccessPath(user.role, "/samples/collect/step2")) {
+    return (
+      <Navigate
+        to="/samples"
+        replace
+        state={{ error: "You do not have permission to collect samples." }}
+      />
+    );
+  }
+
   const stateDraft = (
     location.state as { draft?: SampleCollectionDraft } | undefined
   )?.draft;
@@ -387,12 +416,16 @@ function CollectSampleStep2Wrapper(): JSX.Element {
   }
 
   return (
-    <main className="min-h-screen bg-slate-50 py-6">
+    <main className="min-h-screen py-6">
       <CollectSampleStep2Screen
         draft={stateDraft}
-        onBack={() => navigate("/samples/collect/step1")}
+        onBack={() =>
+          navigate("/samples/collect/step1", { state: { draft: stateDraft } })
+        }
         onConfirmed={(res) => {
-          navigate(`/samples/${res.id}/label`);
+          navigate(`/samples/${res.id}`, {
+            state: { toast: `✓ ${res.accession_id} collected` },
+          });
         }}
       />
     </main>
@@ -404,7 +437,7 @@ function SampleDetailWrapper(): JSX.Element {
   const { id } = useParams<{ id: string }>();
 
   return (
-    <main className="min-h-screen bg-slate-50 py-6">
+    <main className="min-h-screen py-6">
       <SampleDetailScreen
         sampleId={id || ""}
         onBack={() => navigate("/samples")}
@@ -420,7 +453,7 @@ function SampleLabelWrapper(): JSX.Element {
   const { id } = useParams<{ id: string }>();
 
   return (
-    <main className="min-h-screen bg-slate-50 py-6">
+    <main className="min-h-screen py-6">
       <SampleLabelScreen
         sampleId={id || ""}
         onBack={() => navigate(`/samples/${id}`)}

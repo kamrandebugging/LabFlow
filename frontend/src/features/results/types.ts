@@ -114,6 +114,13 @@ export interface CriticalNotificationResponse {
   recorded_by: string;
 }
 
+export type WorklistStatus =
+  | "awaiting_receipt"
+  | "pending_entry"
+  | "in_process"
+  | "rejected"
+  | "ready";
+
 // UI Models for Worklist, Approvals, and Details
 export interface WorklistItem {
   sample_id: string;
@@ -133,7 +140,7 @@ export interface WorklistItem {
   tests: string[];
   collected_at: string;
   waiting_time: string;
-  status: "ready" | "in_process" | "rejected";
+  status: WorklistStatus;
   priority?: "routine" | "urgent" | "stat";
 }
 

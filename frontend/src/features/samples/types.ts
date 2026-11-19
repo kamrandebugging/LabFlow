@@ -19,6 +19,8 @@ export type RejectionReasonCode =
 
 export type TransferStatus = "open" | "received" | "cancelled" | "lost";
 
+export type TransferDirection = "incoming" | "outgoing" | "all";
+
 export interface BranchRef {
   id: string;
   code: string;
@@ -131,6 +133,60 @@ export interface SampleDetail extends SampleSummary {
     status: TransferStatus;
   } | null;
   events?: SampleEventItem[];
+  collection_notes?: string | null;
+  recollected_from_id?: string | null;
+  recollected_from_accession?: string | null;
+}
+
+export interface SampleTransfer {
+  id: string;
+  sample_id: string;
+  accession_id: string;
+  patient_name?: string | null;
+  mrn?: string | null;
+  from_branch: BranchRef;
+  to_branch: BranchRef;
+  status: TransferStatus;
+  dispatched_at: string | null;
+  received_at?: string | null;
+  transferred_by?: string | null;
+  received_by?: string | null;
+}
+
+export interface TransferExceptionLateItem {
+  transfer_id: string;
+  accession_id: string;
+  patient_name: string;
+  from_branch: string;
+  to_branch: string;
+  dispatched_at: string;
+  hours_open: number;
+}
+
+export interface TransferExceptionLostItem {
+  transfer_id: string;
+  accession_id: string;
+  patient_name: string;
+  from_branch: string;
+  to_branch: string;
+  dispatched_at: string;
+  lost_at: string | null;
+  note: string | null;
+}
+
+export interface TransferRouteHealthItem {
+  from_branch: string;
+  to_branch: string;
+  total_transfers: number;
+  received: number;
+  lost: number;
+  avg_transit_hours: number | null;
+}
+
+export interface TransferExceptionsResponse {
+  late?: { items: TransferExceptionLateItem[]; total: number };
+  lost?: { items: TransferExceptionLostItem[]; total: number };
+  route_health?: { routes: TransferRouteHealthItem[] };
 }
 
 export interface SampleLabelData {

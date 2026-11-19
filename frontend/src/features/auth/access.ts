@@ -252,7 +252,9 @@ export function canAccessPath(
     return role === "manager" || role === "reception";
   }
   if (path.startsWith("/samples/collect")) {
-    return role === "manager" || role === "reception";
+    return (
+      role === "manager" || role === "reception" || role === "technician"
+    );
   }
 
   return ALLOWED_PREFIXES[role].some(
