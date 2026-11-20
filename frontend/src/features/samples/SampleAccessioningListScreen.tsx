@@ -413,6 +413,7 @@ export function SampleAccessioningListScreen({
         onSelectTab={(tabId) => {
           setActiveTab(tabId);
           setSelectedIds(new Set());
+          setErrorMessage(null);
         }}
       />
 

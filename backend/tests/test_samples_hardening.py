@@ -731,3 +731,21 @@ class TestTransfersDiscoveryD12:
         assert resp.status_code == 200
         results = resp.json().get("results", resp.json())
         assert any(t["id"] == str(transfer.id) for t in results)
+
+    def test_invoice_reference_resolves_patient_mrn(self, tenant_a: Tenant) -> None:
+        """Resolve invoice reference by patient MRN as well as INV-XXXXXXXX number."""
+        from apps.billing.views import _resolve_invoice_reference
+
+        with tenant_context(tenant_a):
+            b1 = BranchFactory(name="Branch 1")
+            owner = _staff_user(role=Role.OWNER, branch=b1)
+            sample: Any = SampleFactory(branch=b1, accession_id="MRN-TEST-1")
+            invoice: Any = sample.invoice
+            assert invoice.patient is not None
+            mrn = invoice.patient.mrn
+            resolved_by_mrn = _resolve_invoice_reference(owner, mrn)
+            assert resolved_by_mrn == invoice.id
+
+            # Non-existent MRN returns None
+            resolved_missing = _resolve_invoice_reference(owner, "MRN-NON-EXISTENT")
+            assert resolved_missing is None

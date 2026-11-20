@@ -376,12 +376,12 @@ def _invoice_number(invoice_id: uuid.UUID) -> str:
 
 
 def _resolve_invoice_reference(user: StaffUser, value: Any) -> uuid.UUID | None:
-    """Resolve a UUID or an ``INV-XXXXXXXX`` number to the invoice UUID.
+    """Resolve a UUID, an ``INV-XXXXXXXX`` number, or patient MRN to the invoice UUID.
 
     The invoice model has no separate number column; the UI's number is the
-    first eight characters of the UUID prefixed with ``INV-``. Numbers are
-    resolved through the caller's branch scope, so out-of-scope invoices stay
-    indistinguishable from missing ones.
+    first eight characters of the UUID prefixed with ``INV-``. Numbers and MRNs
+    are resolved through the caller's branch scope, so out-of-scope invoices
+    stay indistinguishable from missing ones.
     """
     direct = _parse_path_uuid(value)
     if direct is not None:
@@ -389,6 +389,15 @@ def _resolve_invoice_reference(user: StaffUser, value: Any) -> uuid.UUID | None:
     raw = str(value or "").strip()
     if not raw:
         return None
+    if raw.upper().startswith("MRN-"):
+        match = (
+            Invoice.objects.scoped_to(user)
+            .filter(patient__mrn__iexact=raw)
+            .order_by("-created_at")
+            .first()
+        )
+        if match is not None:
+            return match.id
     prefix = raw[4:] if raw.upper().startswith("INV-") else raw
     prefix = prefix.strip().lower()
     if len(prefix) < 8 or any(ch not in "0123456789abcdef" for ch in prefix):

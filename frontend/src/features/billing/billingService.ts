@@ -79,9 +79,14 @@ export const billingService = {
       };
     } catch (err) {
       if (err instanceof ApiError) {
-        throw new Error(
+        const error = new Error(
           err.message || `Failed to fetch invoices (${err.status})`,
         );
+        (error as Error & { code?: string; status?: number }).code =
+          err.code ?? undefined;
+        (error as Error & { code?: string; status?: number }).status =
+          err.status;
+        throw error;
       }
       throw err;
     }
@@ -96,9 +101,14 @@ export const billingService = {
       return await apiRequest<InvoiceDetail>(`/invoices/${id}${qs}`);
     } catch (err) {
       if (err instanceof ApiError) {
-        throw new Error(
+        const error = new Error(
           err.message || `Failed to fetch invoice ${id} (${err.status})`,
         );
+        (error as Error & { code?: string; status?: number }).code =
+          err.code ?? undefined;
+        (error as Error & { code?: string; status?: number }).status =
+          err.status;
+        throw error;
       }
       throw err;
     }

@@ -56,7 +56,14 @@ export function CollectSampleStep1Screen({
       } catch (err) {
         setInvoice(null);
         setSelectedItemIds(new Set());
-        setErrorMessage(messageForError(err, t));
+        const candidate = err as { status?: number; code?: string };
+        if (candidate?.status === 404 || candidate?.code === "not_found") {
+          setErrorMessage(
+            `No customer invoice found matching "${q}". Invoices use the format INV-XXXXXXXX (or full invoice UUID), or enter a valid patient MRN.`,
+          );
+        } else {
+          setErrorMessage(messageForError(err, t));
+        }
       } finally {
         setIsLoading(false);
       }
@@ -161,7 +168,7 @@ export function CollectSampleStep1Screen({
             <input
               id={searchInputId}
               type="text"
-              placeholder="Enter Invoice Number or ID (e.g. INV-2026-0001)..."
+              placeholder="Enter Invoice Number (e.g. INV-9BDECE9F) or Patient MRN..."
               value={invoiceQuery}
               onChange={(e) => setInvoiceQuery(e.target.value)}
               className={styles.searchInput}

@@ -22,6 +22,14 @@
     "open_now": "Open now →"
   },
   "errors": {
+    "generic": "Something went wrong. Please try again.",
+    "network": "Could not reach the server. Check your connection and try again.",
+    "unauthorized": "Your session has expired. Please sign in again.",
+    "forbidden": "You do not have permission to do this.",
+    "not_found": "The requested record was not found.",
+    "validation": "Please check the form and try again.",
+    "conflict": "This record changed since you opened it. Reload and try again.",
+    "server": "The server could not complete the request. Please try again.",
     "select_invoice": "Please select a valid invoice first.",
     "select_item": "Please select at least one test item to collect."
   },

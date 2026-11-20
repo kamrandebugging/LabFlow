@@ -53,5 +53,26 @@ export function messageForError(error: unknown, t: ErrorTranslator): string {
           ? errorKeyForStatus(candidate.status)
           : "errors.generic"
       : "errors.generic";
-  return t(key);
+
+  const direct = t(key);
+  if (direct && direct !== key && !direct.startsWith("errors.")) {
+    return direct;
+  }
+
+  // If the caller's default namespace lacks this error key, fallback to common:
+  const common = t(`common:${key}`);
+  if (common && common !== `common:${key}` && !common.startsWith("errors.")) {
+    return common;
+  }
+
+  const generic = t("common:errors.generic");
+  if (
+    generic &&
+    generic !== "common:errors.generic" &&
+    !generic.startsWith("errors.")
+  ) {
+    return generic;
+  }
+
+  return "Something went wrong. Please try again.";
 }

@@ -20,6 +20,17 @@ import type {
   TransferExceptionsResponse,
 } from "./types";
 
+function toServiceError(err: unknown, defaultMessage: string): Error {
+  if (err instanceof ApiError) {
+    const error = new Error(err.message || defaultMessage);
+    (error as Error & { code?: string; status?: number }).code =
+      err.code ?? undefined;
+    (error as Error & { code?: string; status?: number }).status = err.status;
+    return error;
+  }
+  return err instanceof Error ? err : new Error(defaultMessage);
+}
+
 export const sampleService = {
   /**
    * List accessions with status, search and branch filters
@@ -60,12 +71,7 @@ export const sampleService = {
       }
       return { results: [], total: 0 };
     } catch (err) {
-      if (err instanceof ApiError) {
-        throw new Error(
-          err.message || `Failed to fetch samples (${err.status})`,
-        );
-      }
-      throw err;
+      throw toServiceError(err, "Failed to fetch samples");
     }
   },
 
@@ -75,10 +81,14 @@ export const sampleService = {
   async listAwaitingCollection(
     signal?: AbortSignal,
   ): Promise<AwaitingCollectionResponse> {
-    return apiRequest<AwaitingCollectionResponse>("/samples", {
-      query: { status: "awaiting_collection" },
-      signal,
-    });
+    try {
+      return await apiRequest<AwaitingCollectionResponse>("/samples", {
+        query: { status: "awaiting_collection" },
+        signal,
+      });
+    } catch (err) {
+      throw toServiceError(err, "Failed to fetch awaiting collection");
+    }
   },
 
   /**
@@ -88,10 +98,7 @@ export const sampleService = {
     try {
       return await apiRequest<SampleDetail>(`/samples/${sampleId}`);
     } catch (err) {
-      if (err instanceof ApiError) {
-        throw new Error(err.message || `Sample not found (${err.status})`);
-      }
-      throw err;
+      throw toServiceError(err, "Sample not found");
     }
   },
 
@@ -116,10 +123,7 @@ export const sampleService = {
         body,
       });
     } catch (err) {
-      if (err instanceof ApiError) {
-        throw new Error(err.message || `Collection failed (${err.status})`);
-      }
-      throw err;
+      throw toServiceError(err, "Collection failed");
     }
   },
 
@@ -135,12 +139,7 @@ export const sampleService = {
         },
       );
     } catch (err) {
-      if (err instanceof ApiError) {
-        throw new Error(
-          err.message || `Failed to print sample label (${err.status})`,
-        );
-      }
-      throw err;
+      throw toServiceError(err, "Failed to print sample label");
     }
   },
 
@@ -151,12 +150,7 @@ export const sampleService = {
     try {
       return await apiRequest<SampleLabelData>(`/samples/${sampleId}/label`);
     } catch (err) {
-      if (err instanceof ApiError) {
-        throw new Error(
-          err.message || `Failed to fetch sample label (${err.status})`,
-        );
-      }
-      throw err;
+      throw toServiceError(err, "Failed to fetch sample label");
     }
   },
 
@@ -172,12 +166,7 @@ export const sampleService = {
         },
       );
     } catch (err) {
-      if (err instanceof ApiError) {
-        throw new Error(
-          err.message || `Failed to receive sample (${err.status})`,
-        );
-      }
-      throw err;
+      throw toServiceError(err, "Failed to receive sample");
     }
   },
 
@@ -197,12 +186,7 @@ export const sampleService = {
         },
       );
     } catch (err) {
-      if (err instanceof ApiError) {
-        throw new Error(
-          err.message || `Failed to reject sample (${err.status})`,
-        );
-      }
-      throw err;
+      throw toServiceError(err, "Failed to reject sample");
     }
   },
 
@@ -218,12 +202,7 @@ export const sampleService = {
         },
       );
     } catch (err) {
-      if (err instanceof ApiError) {
-        throw new Error(
-          err.message || `Failed to trigger recollection (${err.status})`,
-        );
-      }
-      throw err;
+      throw toServiceError(err, "Failed to trigger recollection");
     }
   },
 
@@ -243,12 +222,7 @@ export const sampleService = {
         },
       );
     } catch (err) {
-      if (err instanceof ApiError) {
-        throw new Error(
-          err.message || `Failed to cancel sample (${err.status})`,
-        );
-      }
-      throw err;
+      throw toServiceError(err, "Failed to cancel sample");
     }
   },
 
@@ -268,12 +242,7 @@ export const sampleService = {
         },
       );
     } catch (err) {
-      if (err instanceof ApiError) {
-        throw new Error(
-          err.message || `Failed to transfer sample (${err.status})`,
-        );
-      }
-      throw err;
+      throw toServiceError(err, "Failed to transfer sample");
     }
   },
 
@@ -287,12 +256,7 @@ export const sampleService = {
       >(`/samples/${sampleId}/events`);
       return Array.isArray(data) ? data : data.results || [];
     } catch (err) {
-      if (err instanceof ApiError) {
-        throw new Error(
-          err.message || `Failed to fetch events (${err.status})`,
-        );
-      }
-      throw err;
+      throw toServiceError(err, "Failed to fetch events");
     }
   },
 
@@ -317,12 +281,7 @@ export const sampleService = {
         { query, signal },
       );
     } catch (err) {
-      if (err instanceof ApiError) {
-        throw new Error(
-          err.message || `Failed to fetch transfers (${err.status})`,
-        );
-      }
-      throw err;
+      throw toServiceError(err, "Failed to fetch transfers");
     }
   },
 
@@ -338,12 +297,7 @@ export const sampleService = {
         },
       );
     } catch (err) {
-      if (err instanceof ApiError) {
-        throw new Error(
-          err.message || `Failed to receive transfer (${err.status})`,
-        );
-      }
-      throw err;
+      throw toServiceError(err, "Failed to receive transfer");
     }
   },
 
@@ -359,12 +313,7 @@ export const sampleService = {
         },
       );
     } catch (err) {
-      if (err instanceof ApiError) {
-        throw new Error(
-          err.message || `Failed to cancel transfer (${err.status})`,
-        );
-      }
-      throw err;
+      throw toServiceError(err, "Failed to cancel transfer");
     }
   },
 
@@ -384,12 +333,7 @@ export const sampleService = {
         },
       );
     } catch (err) {
-      if (err instanceof ApiError) {
-        throw new Error(
-          err.message || `Failed to mark transfer lost (${err.status})`,
-        );
-      }
-      throw err;
+      throw toServiceError(err, "Failed to mark transfer lost");
     }
   },
 
@@ -418,12 +362,7 @@ export const sampleService = {
         { query, signal },
       );
     } catch (err) {
-      if (err instanceof ApiError) {
-        throw new Error(
-          err.message || `Failed to fetch transfer exceptions (${err.status})`,
-        );
-      }
-      throw err;
+      throw toServiceError(err, "Failed to fetch transfer exceptions");
     }
   },
 };
