@@ -209,5 +209,26 @@
     "rejected_desc": "Accession {{accession}} کو مسترد قرار دیا گیا۔ دوبارہ نمونہ لینے کی نشان دہی ہو گئی۔",
     "transfer_title": "منتقلی شروع ہو گئی",
     "transfer_desc": "{{accession}} کے لیے نمونہ ٹرانزٹ ریکارڈ بن گیا۔"
+  },
+  "success_modal": {
+    "title": "نمونہ کامیابی سے وصول کر لیا گیا",
+    "subtitle": "نمونہ تحویل میں accession کر لیا گیا ہے اور تشخیصی کارروائی کے لیے تیار ہے۔",
+    "accession_barcode": "Accession بار کوڈ",
+    "copy": "کاپی",
+    "copied": "کاپی ہو گیا!",
+    "patient": "مریض",
+    "collected_by": "وصول کنندہ",
+    "collection_time": "وصول کا وقت",
+    "pkt": "PKT (UTC+5)",
+    "invoice": "انوائس",
+    "status": "حیثیت",
+    "tests_assigned": "مقرر کردہ ٹیسٹ ({{count}})",
+    "tubes_collected": "وصول شدہ ٹیوبز ({{count}})",
+    "notes": "نوٹس",
+    "print_barcode_label": "بار کوڈ لیبل پرنٹ کریں",
+    "collect_another_sample": "ایک اور نمونہ وصول کریں",
+    "view_sample_details": "نمونے کی تفصیلات دیکھیں",
+    "back_to_samples_list": "نمونوں کی فہرست پر واپس جائیں",
+    "close_dialog": "ڈائیلاگ بند کریں"
   }
 }

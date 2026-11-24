@@ -380,7 +380,7 @@ export function SampleAccessioningListScreen({
               className={styles.primaryBlackPill}
             >
               <Plus className="w-4 h-4" />
-              <span>+ Collect sample</span>
+              <span>Collect sample</span>
             </button>
           )}
         </div>

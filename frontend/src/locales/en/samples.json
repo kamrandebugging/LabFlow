@@ -209,5 +209,26 @@
     "rejected_desc": "Accession {{accession}} marked as rejected. Recollection flagged.",
     "transfer_title": "Transfer initiated",
     "transfer_desc": "Specimen transit record created for {{accession}}."
+  },
+  "success_modal": {
+    "title": "Sample Collected Successfully",
+    "subtitle": "Specimen has been accessioned into custody and logged for diagnostic processing.",
+    "accession_barcode": "Accession Barcode",
+    "copy": "Copy",
+    "copied": "Copied!",
+    "patient": "Patient",
+    "collected_by": "Collected By",
+    "collection_time": "Collection Time",
+    "pkt": "PKT (UTC+5)",
+    "invoice": "Invoice",
+    "status": "Status",
+    "tests_assigned": "Tests Assigned ({{count}})",
+    "tubes_collected": "Tubes Collected ({{count}})",
+    "notes": "Notes",
+    "print_barcode_label": "Print Barcode Label",
+    "collect_another_sample": "Collect Another Sample",
+    "view_sample_details": "View Sample Details",
+    "back_to_samples_list": "Back to Samples List",
+    "close_dialog": "Close dialog"
   }
 }

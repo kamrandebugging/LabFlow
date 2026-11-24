@@ -166,7 +166,7 @@ describe("Screen 16: SampleAccessioningListScreen", () => {
     ).toBeInTheDocument();
   });
 
-  it("calls onCollectNew when + Collect sample button is clicked", async () => {
+  it("calls onCollectNew when Collect sample button is clicked", async () => {
     const mockCollect = vi.fn();
     const mockService = {
       listSamples: vi.fn().mockResolvedValue({
@@ -194,7 +194,7 @@ describe("Screen 16: SampleAccessioningListScreen", () => {
     });
 
     const collectBtn = screen.getByRole("button", {
-      name: /\+ Collect sample/i,
+      name: /Collect sample/i,
     });
     fireEvent.click(collectBtn);
     expect(mockCollect).toHaveBeenCalledTimes(1);
@@ -305,13 +305,27 @@ describe("Screen 18: CollectSampleStep2Screen", () => {
     ).toBeInTheDocument();
 
     const confirmBtn = screen.getByRole("button", {
-      name: /✓ Collect sample/i,
+      name: /^Collect sample$/i,
     });
     fireEvent.click(confirmBtn);
 
     await waitFor(() => {
       expect(mockCollect).toHaveBeenCalledTimes(1);
       expect(mockConfirmed).toHaveBeenCalledWith(mockCreatedResponse);
+      expect(
+        screen.getByRole("heading", {
+          name: /Sample Collected Successfully/i,
+        }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText(mockCreatedResponse.accession_id),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: /Print Barcode Label/i }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: /Collect Another Sample/i }),
+      ).toBeInTheDocument();
     });
   });
 });

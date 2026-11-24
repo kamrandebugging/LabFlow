@@ -6,3 +6,4 @@ export * from "./SampleBulkBar";
 export * from "./SampleTimeline";
 export * from "./CollectWizardStepper";
 export * from "./LabelPrintSheet";
+export * from "./SampleCollectionSuccessModal";

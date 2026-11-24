@@ -121,7 +121,8 @@
   font-variant-numeric: tabular-nums;
 }
 
-[data-theme="dark"] {
+[data-theme="dark"],
+.dark {
   color-scheme: dark;
 
   /* Surfaces */

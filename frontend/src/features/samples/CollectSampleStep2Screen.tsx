@@ -2,15 +2,20 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ArrowLeft, Check, AlertCircle, X, Clock } from "lucide-react";
 import { messageForError } from "../../lib/errors";
+import { useAuthStore } from "../auth/authStore";
 import { sampleService } from "./sampleService";
 import type { SampleCollectionDraft, SampleCreatedResponse } from "./types";
-import { CollectWizardStepper } from "./components";
+import { CollectWizardStepper, SampleCollectionSuccessModal } from "./components";
 import styles from "./CollectSampleStep2Screen.module.css";
 
 export interface CollectSampleStep2ScreenProps {
   draft: SampleCollectionDraft;
   onBack?: () => void;
   onConfirmed?: (sample: SampleCreatedResponse) => void;
+  onPrintLabel?: (sampleId: string) => void;
+  onViewDetails?: (sampleId: string) => void;
+  onCollectAnother?: () => void;
+  onClose?: () => void;
   service?: typeof sampleService;
 }
 
@@ -18,12 +23,19 @@ export function CollectSampleStep2Screen({
   draft,
   onBack,
   onConfirmed,
+  onPrintLabel,
+  onViewDetails,
+  onCollectAnother,
+  onClose,
   service = sampleService,
 }: CollectSampleStep2ScreenProps): JSX.Element {
   const { t } = useTranslation(["samples", "common"]);
+  const user = useAuthStore((s) => s.user);
   const [notes, setNotes] = useState<string>(draft.notes || "");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [collectedSample, setCollectedSample] =
+    useState<SampleCreatedResponse | null>(null);
 
   const handleCommitCollection = async () => {
     if (isSubmitting) return;
@@ -39,6 +51,8 @@ export function CollectSampleStep2Screen({
         notes: trimmedNotes.length > 0 ? trimmedNotes : undefined,
       });
 
+      setCollectedSample(res);
+      setIsSubmitting(false);
       onConfirmed?.(res);
     } catch (err) {
       setErrorMessage(messageForError(err, t));
@@ -192,10 +206,34 @@ export function CollectSampleStep2Screen({
         >
           <Check className="w-4 h-4 stroke-[2.5]" />
           <span>
-            {isSubmitting ? "Collecting specimen..." : "✓ Collect sample"}
+            {isSubmitting ? "Collecting specimen..." : "Collect sample"}
           </span>
         </button>
       </footer>
+
+      {/* Veyla Success Modal */}
+      {collectedSample && (
+        <SampleCollectionSuccessModal
+          isOpen={Boolean(collectedSample)}
+          sample={collectedSample}
+          draft={draft}
+          collectorName={user?.name || user?.email}
+          onPrintLabel={(sampleId) => {
+            if (onPrintLabel) onPrintLabel(sampleId);
+          }}
+          onViewDetails={(sampleId) => {
+            if (onViewDetails) onViewDetails(sampleId);
+          }}
+          onCollectAnother={() => {
+            if (onCollectAnother) onCollectAnother();
+            else setCollectedSample(null);
+          }}
+          onClose={() => {
+            if (onClose) onClose();
+            else setCollectedSample(null);
+          }}
+        />
+      )}
     </div>
   );
 }

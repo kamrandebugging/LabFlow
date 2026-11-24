@@ -422,11 +422,10 @@ function CollectSampleStep2Wrapper(): JSX.Element {
         onBack={() =>
           navigate("/samples/collect/step1", { state: { draft: stateDraft } })
         }
-        onConfirmed={(res) => {
-          navigate(`/samples/${res.id}`, {
-            state: { toast: `✓ ${res.accession_id} collected` },
-          });
-        }}
+        onPrintLabel={(sampleId) => navigate(`/samples/${sampleId}/label`)}
+        onViewDetails={(sampleId) => navigate(`/samples/${sampleId}`)}
+        onCollectAnother={() => navigate("/samples/collect/step1")}
+        onClose={() => navigate("/samples")}
       />
     </main>
   );
