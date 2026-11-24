@@ -17,8 +17,7 @@ import { useNavigate } from "react-router-dom";
 import { formatMoney, statusLabel } from "../../lib/format";
 import { messageForError } from "../../lib/errors";
 import type { InvoiceStatus, InvoiceSummary } from "./types";
-import styles from "../patients/PatientListScreen.module.css";
-import billingStyles from "./InvoicesListScreen.module.css";
+import styles from "./InvoicesListScreen.module.css";
 
 interface InvoicesListScreenProps {
   onNewInvoice?: () => void;
@@ -101,8 +100,8 @@ export function InvoicesListScreen({
 
   const statusPill = (status: InvoiceStatus) => (
     <span
-      className={`${billingStyles.statusBadge} ${
-        billingStyles[STATUS_CLASS[status]] ?? billingStyles.statusUnknown
+      className={`${styles.statusBadge} ${
+        styles[STATUS_CLASS[status]] ?? styles.statusUnknown
       }`}
     >
       {statusLabel("invoice", status, (key) => t(`common:${key}`))}
@@ -167,8 +166,7 @@ export function InvoicesListScreen({
             aria-label={t("billing:list.status_filter_aria")}
             value={selectedStatus}
             onChange={(e) => setSelectedStatus(e.target.value)}
-            className={styles.searchInput}
-            style={{ maxWidth: 180 }}
+            className={styles.statusSelect}
           >
             <option value="all">{t("billing:list.all_statuses")}</option>
             {(
