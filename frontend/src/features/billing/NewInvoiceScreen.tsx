@@ -781,7 +781,7 @@ export function NewInvoiceScreen({
             if (onRecordPayment) {
               onRecordPayment(id);
             } else if (typeof window !== "undefined") {
-              window.location.assign(`/invoices/${id}`);
+              window.location.assign(`/invoices/${id}?tab=settle`);
             }
           }}
           onCollectSpecimen={(id) => {

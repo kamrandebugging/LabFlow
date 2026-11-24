@@ -67,6 +67,18 @@
   gap: 1.5rem;
 }
 
+.lineageAlert {
+  padding: 0.75rem;
+  border-radius: var(--radius-panel);
+  background-color: var(--color-warning-tint);
+  border: 1px solid var(--color-warning-border);
+  color: var(--color-text);
+  font-size: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
 @media (min-width: 1024px) {
   .contentGrid {
     grid-template-columns: 2fr 1fr;

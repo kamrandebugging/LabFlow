@@ -63,15 +63,19 @@ export function SampleAccessioningListScreen({
 
   // Data States
   const [samples, setSamples] = useState<SampleSummary[]>([]);
+  const [summarySamples, setSummarySamples] = useState<SampleSummary[]>([]);
+  const [summaryTotal, setSummaryTotal] = useState(0);
   const [awaitingItems, setAwaitingItems] = useState<AwaitingCollectionItem[]>(
     [],
   );
+  const [awaitingTotalCount, setAwaitingTotalCount] = useState(0);
   const [transfers, setTransfers] = useState<SampleTransfer[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
 
   // Selection & UI States
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
+  const [summaryLoading, setSummaryLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Filters
@@ -121,7 +125,51 @@ export function SampleAccessioningListScreen({
     };
   }, []);
 
-  // Fetch samples for the standard queue
+  /**
+   * Live aggregate bootstrap.
+   *
+   * The old screen fetched only the active tab, so "All samples" and three
+   * KPI cards stayed at zero until the operator clicked the tab. Every queue
+   * and every counter is now resolved from the live API on mount, before any
+   * tab interaction, and refreshed together after custody actions.
+   */
+  const loadSummary = useCallback(async () => {
+    setSummaryLoading(true);
+    try {
+      const [samplesResult, awaitingResult, transfersResult] =
+        await Promise.allSettled([
+          service.listSamples({ limit: 200, order: sortOrder }),
+          service.listAwaitingCollection(),
+          service.listTransfers({ status: "open", direction: "all" }),
+        ]);
+
+      if (samplesResult.status === "fulfilled") {
+        setSummarySamples(samplesResult.value.results || []);
+        setSummaryTotal(samplesResult.value.total ?? 0);
+      } else {
+        setErrorMessage(messageForError(samplesResult.reason, t));
+      }
+
+      if (awaitingResult.status === "fulfilled") {
+        setAwaitingItems(awaitingResult.value.results || []);
+        setAwaitingTotalCount(
+          awaitingResult.value.total ?? awaitingResult.value.results.length,
+        );
+      } else {
+        setErrorMessage(messageForError(awaitingResult.reason, t));
+      }
+
+      if (transfersResult.status === "fulfilled") {
+        setTransfers(transfersResult.value.results || []);
+      } else {
+        setErrorMessage(messageForError(transfersResult.reason, t));
+      }
+    } finally {
+      setSummaryLoading(false);
+    }
+  }, [service, sortOrder, t]);
+
+  // Fetch filtered samples for the standard queue
   const loadSamples = useCallback(async () => {
     try {
       setIsLoading(true);
@@ -140,21 +188,7 @@ export function SampleAccessioningListScreen({
     }
   }, [searchQuery, selectedStatus, selectedBranch, sortOrder, service, t]);
 
-  // Fetch awaiting collection items
-  const loadAwaiting = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      setErrorMessage(null);
-      const res = await service.listAwaitingCollection();
-      setAwaitingItems(res.results || []);
-    } catch (err) {
-      setErrorMessage(messageForError(err, t));
-    } finally {
-      setIsLoading(false);
-    }
-  }, [service, t]);
-
-  // Fetch transfers
+  // Fetch transfers for the transfers queue
   const loadTransfers = useCallback(async () => {
     try {
       setIsLoading(true);
@@ -178,28 +212,27 @@ export function SampleAccessioningListScreen({
       const data = await service.getTransferExceptions();
       setExceptionsData(data);
     } catch {
-      // Ignored
+      // Ignored: the oversight panel is optional.
     }
   }, [service, isManagerOrOwner]);
 
-  // Main reload effect per tab
+  // Bootstrap all live queues and KPI aggregates on first paint.
   useEffect(() => {
-    if (activeTab === "awaiting_collection") {
-      loadAwaiting();
-    } else if (activeTab === "transfers") {
-      loadTransfers();
-      if (showExceptions) loadExceptions();
-    } else {
-      loadSamples();
+    void loadSummary();
+  }, [loadSummary]);
+
+  // Filtered sample list refreshes whenever the operator changes a filter.
+  useEffect(() => {
+    void loadSamples();
+  }, [loadSamples]);
+
+  // Transfer direction is server-side; reload only when that queue is used.
+  useEffect(() => {
+    if (activeTab === "transfers") {
+      void loadTransfers();
+      if (showExceptions) void loadExceptions();
     }
-  }, [
-    activeTab,
-    loadAwaiting,
-    loadTransfers,
-    loadSamples,
-    showExceptions,
-    loadExceptions,
-  ]);
+  }, [activeTab, loadTransfers, showExceptions, loadExceptions]);
 
   // Checkbox Selection
   const toggleSelectAll = () => {
@@ -230,6 +263,10 @@ export function SampleAccessioningListScreen({
     }
   };
 
+  const refreshAll = useCallback(async () => {
+    await Promise.allSettled([loadSummary(), loadSamples()]);
+  }, [loadSummary, loadSamples]);
+
   // Transfer action handlers
   const handleReceiveTransfer = async (
     transferId: string,
@@ -239,7 +276,7 @@ export function SampleAccessioningListScreen({
     try {
       setTransferActionLoading(true);
       await service.receiveTransfer(transferId);
-      await loadTransfers();
+      await refreshAll();
     } catch (err) {
       setErrorMessage(messageForError(err, t));
     } finally {
@@ -252,17 +289,13 @@ export function SampleAccessioningListScreen({
     e: React.MouseEvent,
   ) => {
     e.stopPropagation();
-    if (
-      !window.confirm(
-        "Are you sure you want to cancel this transfer? The sample will remain at the sending branch.",
-      )
-    ) {
+    if (!window.confirm(t("samples:list_page.cancel_transfer_confirm"))) {
       return;
     }
     try {
       setTransferActionLoading(true);
       await service.cancelTransfer(transferId);
-      await loadTransfers();
+      await refreshAll();
     } catch (err) {
       setErrorMessage(messageForError(err, t));
     } finally {
@@ -277,7 +310,7 @@ export function SampleAccessioningListScreen({
       await service.markLostTransfer(markLostId, markLostNote.trim());
       setMarkLostId(null);
       setMarkLostNote("");
-      await loadTransfers();
+      await refreshAll();
     } catch (err) {
       setErrorMessage(messageForError(err, t));
     } finally {
@@ -285,38 +318,41 @@ export function SampleAccessioningListScreen({
     }
   };
 
-  // KPIs derived strictly from real API responses
-  const awaitingTotal = awaitingItems.length;
-  const collectedCount = samples.filter((s) => s.status === "collected").length;
-  const inProcessCount = samples.filter(
+  // KPIs are computed from the unfiltered live aggregate, so they never
+  // collapse to zero while a different queue is active.
+  const awaitingTotal = awaitingTotalCount;
+  const collectedCount = summarySamples.filter(
+    (s) => s.status === "collected",
+  ).length;
+  const inProcessCount = summarySamples.filter(
     (s) => s.status === "in_process",
   ).length;
-  const readyCount = samples.filter((s) => s.status === "ready").length;
+  const readyCount = summarySamples.filter((s) => s.status === "ready").length;
 
   const kpiItems = [
     {
       id: "awaiting",
-      label: "Awaiting collection",
+      label: t("samples:kpi.awaiting_collection"),
       value: awaitingTotal,
-      subtitle: "Pending draw",
+      subtitle: t("samples:kpi.awaiting_sub"),
     },
     {
       id: "collected",
-      label: "Collected today",
+      label: t("samples:kpi.collected_today"),
       value: collectedCount,
-      subtitle: "Drawn / In lab",
+      subtitle: t("samples:kpi.collected_sub"),
     },
     {
       id: "in_process",
-      label: "In process",
+      label: t("samples:kpi.in_process"),
       value: inProcessCount,
-      subtitle: "Bench testing",
+      subtitle: t("samples:kpi.in_process_sub"),
     },
     {
       id: "ready",
-      label: "Ready / Reported",
+      label: t("samples:kpi.ready_reported"),
       value: readyCount,
-      subtitle: "Results approved",
+      subtitle: t("samples:kpi.ready_sub"),
     },
   ];
 
@@ -324,17 +360,17 @@ export function SampleAccessioningListScreen({
   const tabs = [
     {
       id: "awaiting_collection",
-      label: "Awaiting collection",
+      label: t("samples:tabs.awaiting_collection"),
       count: awaitingTotal,
     },
     {
       id: "all",
-      label: "All samples",
-      count: samples.length,
+      label: t("samples:tabs.all_samples"),
+      count: summaryTotal,
     },
     {
       id: "transfers",
-      label: "Transfers",
+      label: t("samples:tabs.transfers"),
       count: transfers.length,
     },
   ];
@@ -358,9 +394,11 @@ export function SampleAccessioningListScreen({
       {/* 1. Header Area */}
       <header className={styles.headerRow}>
         <div className={styles.titleArea}>
-          <h1 className={styles.pageTitle}>Samples</h1>
+          <h1 className={styles.pageTitle}>
+            {t("samples:page.samples_title")}
+          </h1>
           <p className={styles.pageSubtitle}>
-            Central specimen accessioning and chain of custody tracking
+            {t("samples:page.samples_subtitle")}
           </p>
         </div>
         <div className={styles.headerActions}>
@@ -371,7 +409,9 @@ export function SampleAccessioningListScreen({
             className={styles.outlinePill}
           >
             <Printer className="w-4 h-4" />
-            <span>Print labels ({selectedIds.size})</span>
+            <span>
+              {t("samples:page.print_labels", { n: selectedIds.size })}
+            </span>
           </button>
           {onCollectNew && canCollect && (
             <button
@@ -380,7 +420,7 @@ export function SampleAccessioningListScreen({
               className={styles.primaryBlackPill}
             >
               <Plus className="w-4 h-4" />
-              <span>Collect sample</span>
+              <span>{t("samples:page.collect_sample")}</span>
             </button>
           )}
         </div>
@@ -399,6 +439,7 @@ export function SampleAccessioningListScreen({
           <button
             type="button"
             onClick={() => setErrorMessage(null)}
+            aria-label={t("samples:page.dismiss")}
             className="text-red-500 hover:text-red-700"
           >
             <X className="w-4 h-4" />
@@ -428,8 +469,8 @@ export function SampleAccessioningListScreen({
               type="text"
               placeholder={
                 activeTab === "awaiting_collection"
-                  ? "Search patient, MRN, or test..."
-                  : "Search by Accession ID (e.g. CDL2026...)"
+                  ? t("samples:list_page.search_awaiting")
+                  : t("samples:list_page.search_all")
               }
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -447,13 +488,25 @@ export function SampleAccessioningListScreen({
               onChange={(e) => setSelectedStatus(e.target.value)}
               className={styles.selectDropdown}
             >
-              <option value="all">All statuses</option>
-              <option value="collected">Collected</option>
-              <option value="received">Received</option>
-              <option value="in_process">In process</option>
-              <option value="ready">Ready / Reported</option>
-              <option value="rejected">Rejected</option>
-              <option value="cancelled">Cancelled</option>
+              <option value="all">{t("samples:list_page.all_statuses")}</option>
+              <option value="collected">
+                {t("common:status.sample.collected")}
+              </option>
+              <option value="received">
+                {t("common:status.sample.received")}
+              </option>
+              <option value="in_process">
+                {t("common:status.sample.in_process")}
+              </option>
+              <option value="ready">
+                {t("samples:status.ready_reported")}
+              </option>
+              <option value="rejected">
+                {t("common:status.sample.rejected")}
+              </option>
+              <option value="cancelled">
+                {t("common:status.sample.cancelled")}
+              </option>
             </select>
           )}
 
@@ -465,9 +518,15 @@ export function SampleAccessioningListScreen({
               }
               className={styles.selectDropdown}
             >
-              <option value="all">All directions</option>
-              <option value="incoming">Incoming to branch</option>
-              <option value="outgoing">Outgoing from branch</option>
+              <option value="all">
+                {t("samples:list_page.all_directions")}
+              </option>
+              <option value="incoming">
+                {t("samples:list_page.incoming")}
+              </option>
+              <option value="outgoing">
+                {t("samples:list_page.outgoing")}
+              </option>
             </select>
           )}
 
@@ -477,7 +536,7 @@ export function SampleAccessioningListScreen({
             onChange={(e) => setSelectedBranch(e.target.value)}
             className={styles.selectDropdown}
           >
-            <option value="all">All branches</option>
+            <option value="all">{t("samples:list_page.all_branches")}</option>
             {branches.map((b) => (
               <option key={b.id} value={b.id}>
                 {b.name}
@@ -492,22 +551,24 @@ export function SampleAccessioningListScreen({
             }
             className={styles.selectDropdown}
           >
-            <option value="oldest">Oldest first</option>
-            <option value="newest">Newest first</option>
+            <option value="oldest">
+              {t("samples:list_page.oldest_first")}
+            </option>
+            <option value="newest">
+              {t("samples:list_page.newest_first")}
+            </option>
           </select>
 
           <button
             type="button"
-            onClick={() => {
-              if (activeTab === "awaiting_collection") loadAwaiting();
-              else if (activeTab === "transfers") loadTransfers();
-              else loadSamples();
-            }}
-            aria-label="Refresh"
+            onClick={() => void refreshAll()}
+            aria-label={t("samples:page.refresh")}
             className={styles.outlinePill}
           >
             <RefreshCw
-              className={`w-3.5 h-3.5 ${isLoading ? "animate-spin" : ""}`}
+              className={`w-3.5 h-3.5 ${
+                isLoading || summaryLoading ? "animate-spin" : ""
+              }`}
             />
           </button>
         </div>
@@ -517,13 +578,15 @@ export function SampleAccessioningListScreen({
             type="button"
             onClick={() => {
               setShowExceptions(!showExceptions);
-              if (!showExceptions) loadExceptions();
+              if (!showExceptions) void loadExceptions();
             }}
             className={styles.outlinePill}
           >
             <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
             <span>
-              {showExceptions ? "Hide exceptions" : "Transfer exceptions"}
+              {showExceptions
+                ? t("samples:list_page.hide_exceptions")
+                : t("samples:list_page.transfer_exceptions")}
             </span>
           </button>
         )}
@@ -531,33 +594,33 @@ export function SampleAccessioningListScreen({
 
       {/* Transfer Exceptions Oversight View (Phase 2.8) */}
       {activeTab === "transfers" && showExceptions && exceptionsData && (
-        <div className="bg-amber-50/50 border border-amber-200 rounded-2xl p-5 space-y-4">
-          <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+        <div className={styles.exceptionPanel}>
+          <h2 className={styles.exceptionTitle}>
             <AlertTriangle className="w-4 h-4 text-amber-600" />
-            <span>Transfer Exceptions Oversight</span>
+            <span>{t("samples:list_page.exceptions_title")}</span>
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
-            <div className="bg-white p-3.5 rounded-xl border border-amber-200">
-              <span className="font-semibold text-slate-700 block mb-1">
-                Late Transfers (&gt;24h)
+            <div className={styles.exceptionCard}>
+              <span className={styles.exceptionLabel}>
+                {t("samples:list_page.late_transfers")}
               </span>
-              <span className="text-2xl font-bold text-slate-900">
+              <span className={styles.exceptionValue}>
                 {exceptionsData.late?.total || 0}
               </span>
             </div>
-            <div className="bg-white p-3.5 rounded-xl border border-amber-200">
-              <span className="font-semibold text-slate-700 block mb-1">
-                Lost Specimen Reports
+            <div className={styles.exceptionCard}>
+              <span className={styles.exceptionLabel}>
+                {t("samples:list_page.lost_reports")}
               </span>
-              <span className="text-2xl font-bold text-slate-900">
+              <span className={styles.exceptionValue}>
                 {exceptionsData.lost?.total || 0}
               </span>
             </div>
-            <div className="bg-white p-3.5 rounded-xl border border-amber-200">
-              <span className="font-semibold text-slate-700 block mb-1">
-                Active Transfer Routes
+            <div className={styles.exceptionCard}>
+              <span className={styles.exceptionLabel}>
+                {t("samples:list_page.active_routes")}
               </span>
-              <span className="text-2xl font-bold text-slate-900">
+              <span className={styles.exceptionValue}>
                 {exceptionsData.route_health?.routes?.length || 0}
               </span>
             </div>
@@ -573,11 +636,21 @@ export function SampleAccessioningListScreen({
             <table className={styles.table}>
               <thead className={styles.tableHead}>
                 <tr>
-                  <th className={styles.th}>Patient</th>
-                  <th className={styles.th}>Ordered Tests / Panels</th>
-                  <th className={styles.th}>Branch</th>
-                  <th className={styles.th}>Ordered At</th>
-                  <th className={styles.thRight}>Action</th>
+                  <th className={styles.th}>
+                    {t("samples:list_page.col_patient")}
+                  </th>
+                  <th className={styles.th}>
+                    {t("samples:list_page.col_ordered_tests")}
+                  </th>
+                  <th className={styles.th}>
+                    {t("samples:list_page.col_branch")}
+                  </th>
+                  <th className={styles.th}>
+                    {t("samples:list_page.col_ordered_at")}
+                  </th>
+                  <th className={styles.thRight}>
+                    {t("samples:list_page.col_action")}
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -597,11 +670,10 @@ export function SampleAccessioningListScreen({
                           <FlaskConical className="w-6 h-6" />
                         </div>
                         <h2 className={styles.emptyTitle}>
-                          No tests awaiting collection
+                          {t("samples:list_page.no_awaiting_title")}
                         </h2>
                         <p className={styles.emptySubtitle}>
-                          Specimens will appear here automatically when orders
-                          are created at the front desk.
+                          {t("samples:list_page.no_awaiting_body")}
                         </p>
                       </div>
                     </td>
@@ -622,24 +694,26 @@ export function SampleAccessioningListScreen({
                           {item.patient_name}
                         </div>
                         <div className={styles.patientMrn}>
-                          {item.patient_mrn}
+                          <bdi dir="ltr">{item.patient_mrn}</bdi>
                         </div>
                       </td>
                       <td className={styles.td}>
                         <span className={styles.testChip}>
                           {item.description ||
                             item.test_name ||
-                            "Diagnostic Test"}
+                            t("samples:list_page.diagnostic_test")}
                         </span>
                       </td>
                       <td className={styles.td}>{item.branch_name}</td>
                       <td className={styles.td}>
                         <span className="font-mono text-xs">
-                          {new Date(item.ordered_at).toLocaleTimeString([], {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                            hour12: false,
-                          })}
+                          <bdi dir="ltr">
+                            {new Date(item.ordered_at).toLocaleTimeString([], {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                              hour12: false,
+                            })}
+                          </bdi>
                         </span>
                       </td>
                       <td className={styles.tdRight}>
@@ -652,7 +726,7 @@ export function SampleAccessioningListScreen({
                             }}
                             className={styles.primaryBlackPill}
                           >
-                            <span>Collect →</span>
+                            <span>{t("samples:page.collect_cta")}</span>
                           </button>
                         ) : (
                           <span className="text-slate-400 text-xs">—</span>
@@ -672,12 +746,24 @@ export function SampleAccessioningListScreen({
             <table className={styles.table}>
               <thead className={styles.tableHead}>
                 <tr>
-                  <th className={styles.th}>Accession ID</th>
-                  <th className={styles.th}>Patient</th>
-                  <th className={styles.th}>Route (From → To)</th>
-                  <th className={styles.th}>Dispatched At</th>
-                  <th className={styles.th}>Status</th>
-                  <th className={styles.thRight}>Actions</th>
+                  <th className={styles.th}>
+                    {t("samples:list_page.col_accession")}
+                  </th>
+                  <th className={styles.th}>
+                    {t("samples:list_page.col_patient")}
+                  </th>
+                  <th className={styles.th}>
+                    {t("samples:list_page.col_route")}
+                  </th>
+                  <th className={styles.th}>
+                    {t("samples:list_page.col_dispatched")}
+                  </th>
+                  <th className={styles.th}>
+                    {t("samples:list_page.col_status")}
+                  </th>
+                  <th className={styles.thRight}>
+                    {t("samples:list_page.col_actions")}
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -697,11 +783,10 @@ export function SampleAccessioningListScreen({
                           <Truck className="w-6 h-6" />
                         </div>
                         <h2 className={styles.emptyTitle}>
-                          No active transfers
+                          {t("samples:list_page.no_transfers_title")}
                         </h2>
                         <p className={styles.emptySubtitle}>
-                          Specimens in transit between laboratory branches will
-                          be tracked here.
+                          {t("samples:list_page.no_transfers_body")}
                         </p>
                       </div>
                     </td>
@@ -723,7 +808,7 @@ export function SampleAccessioningListScreen({
                             }}
                             className={styles.accessionLink}
                           >
-                            {tItem.accession_id}
+                            <bdi dir="ltr">{tItem.accession_id}</bdi>
                           </button>
                         </td>
                         <td className={styles.td}>
@@ -731,7 +816,7 @@ export function SampleAccessioningListScreen({
                             {tItem.patient_name || "—"}
                           </div>
                           <div className={styles.patientMrn}>
-                            {tItem.mrn || "—"}
+                            <bdi dir="ltr">{tItem.mrn || "—"}</bdi>
                           </div>
                         </td>
                         <td className={styles.td}>
@@ -745,14 +830,16 @@ export function SampleAccessioningListScreen({
                         </td>
                         <td className={styles.td}>
                           <span className="font-mono text-xs">
-                            {tItem.dispatched_at
-                              ? new Date(
-                                  tItem.dispatched_at,
-                                ).toLocaleTimeString([], {
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                })
-                              : "—"}
+                            <bdi dir="ltr">
+                              {tItem.dispatched_at
+                                ? new Date(
+                                    tItem.dispatched_at,
+                                  ).toLocaleTimeString([], {
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                  })
+                                : "—"}
+                            </bdi>
                           </span>
                         </td>
                         <td className={styles.td}>
@@ -775,7 +862,7 @@ export function SampleAccessioningListScreen({
                                 }
                                 className={styles.primaryBlackPill}
                               >
-                                Receive
+                                {t("samples:list_page.receive")}
                               </button>
                             )}
                             {/* Sender Cancel & Mark Lost Actions */}
@@ -789,7 +876,7 @@ export function SampleAccessioningListScreen({
                                   }
                                   className={styles.outlinePill}
                                 >
-                                  Cancel
+                                  {t("samples:list_page.cancel")}
                                 </button>
                                 <button
                                   type="button"
@@ -800,7 +887,7 @@ export function SampleAccessioningListScreen({
                                   }}
                                   className={styles.outlinePill}
                                 >
-                                  Mark lost
+                                  {t("samples:list_page.mark_lost")}
                                 </button>
                               </>
                             )}
@@ -824,7 +911,7 @@ export function SampleAccessioningListScreen({
                   <th className={styles.thCenter}>
                     <input
                       type="checkbox"
-                      aria-label="Select all visible samples"
+                      aria-label={t("samples:list.select_all_aria")}
                       checked={
                         samples.length > 0 &&
                         selectedIds.size === samples.length
@@ -833,13 +920,27 @@ export function SampleAccessioningListScreen({
                       className="w-4 h-4 rounded border-slate-300 text-teal-600 cursor-pointer"
                     />
                   </th>
-                  <th className={styles.th}>Accession ID</th>
-                  <th className={styles.th}>Patient</th>
-                  <th className={styles.th}>Tests</th>
-                  <th className={styles.th}>Status</th>
-                  <th className={styles.th}>Branch</th>
-                  <th className={styles.th}>Age</th>
-                  <th className={styles.thRight}>Actions</th>
+                  <th className={styles.th}>
+                    {t("samples:list_page.col_accession")}
+                  </th>
+                  <th className={styles.th}>
+                    {t("samples:list_page.col_patient")}
+                  </th>
+                  <th className={styles.th}>
+                    {t("samples:list_page.col_tests")}
+                  </th>
+                  <th className={styles.th}>
+                    {t("samples:list_page.col_status")}
+                  </th>
+                  <th className={styles.th}>
+                    {t("samples:list_page.col_branch")}
+                  </th>
+                  <th className={styles.th}>
+                    {t("samples:list_page.col_age")}
+                  </th>
+                  <th className={styles.thRight}>
+                    {t("samples:list_page.col_actions")}
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -860,13 +961,15 @@ export function SampleAccessioningListScreen({
                         </div>
                         <h2 className={styles.emptyTitle}>
                           {searchQuery
-                            ? `No samples found for '${searchQuery}'`
-                            : "No accessions recorded"}
+                            ? t("samples:list_page.no_search_results", {
+                                query: searchQuery,
+                              })
+                            : t("samples:list_page.no_accessions")}
                         </h2>
                         <p className={styles.emptySubtitle}>
                           {searchQuery
-                            ? "Try adjusting your search query or clear the filter."
-                            : "Collect your first sample to initiate chain of custody tracking."}
+                            ? t("samples:list_page.no_search_body")
+                            : t("samples:list_page.no_accessions_body")}
                         </p>
                         {onCollectNew && canCollect && (
                           <button
@@ -875,7 +978,7 @@ export function SampleAccessioningListScreen({
                             className={styles.primaryBlackPill}
                           >
                             <Plus className="w-4 h-4" />
-                            <span>Collect first sample</span>
+                            <span>{t("samples:list_page.collect_first")}</span>
                           </button>
                         )}
                       </div>
@@ -890,7 +993,7 @@ export function SampleAccessioningListScreen({
                         onClick={() => onSelectSample?.(sample.id)}
                         className={[
                           styles.tableRow,
-                          isChecked ? "bg-teal-50/20" : "",
+                          isChecked ? styles.rowSelected : "",
                         ].join(" ")}
                       >
                         <td
@@ -899,7 +1002,9 @@ export function SampleAccessioningListScreen({
                         >
                           <input
                             type="checkbox"
-                            aria-label={`Select ${sample.accession_id}`}
+                            aria-label={t("samples:list.select_one_aria", {
+                              accession: sample.accession_id,
+                            })}
                             checked={isChecked}
                             onChange={(e) =>
                               toggleSelectOne(
@@ -919,7 +1024,7 @@ export function SampleAccessioningListScreen({
                             }}
                             className={styles.accessionLink}
                           >
-                            {sample.accession_id}
+                            <bdi dir="ltr">{sample.accession_id}</bdi>
                           </button>
                         </td>
                         <td className={styles.td}>
@@ -927,16 +1032,18 @@ export function SampleAccessioningListScreen({
                             {sample.patient_name}
                           </div>
                           <div className={styles.patientMrn}>
-                            {sample.patient_mrn}
+                            <bdi dir="ltr">{sample.patient_mrn}</bdi>
                           </div>
                         </td>
                         <td className={styles.td}>
                           <div className="flex items-center gap-1 flex-wrap">
-                            {(sample.tests || []).slice(0, 2).map((t, idx) => (
-                              <span key={idx} className={styles.testChip}>
-                                {t}
-                              </span>
-                            ))}
+                            {(sample.tests || [])
+                              .slice(0, 2)
+                              .map((test, idx) => (
+                                <span key={idx} className={styles.testChip}>
+                                  {test}
+                                </span>
+                              ))}
                             {(sample.tests || []).length > 2 && (
                               <span className={styles.testChip}>
                                 +{(sample.tests || []).length - 2}
@@ -949,7 +1056,7 @@ export function SampleAccessioningListScreen({
                         </td>
                         <td className={styles.td}>{sample.branch_name}</td>
                         <td className={styles.td}>
-                          {sample.age_display || "Recent"}
+                          {sample.age_display || t("samples:list.recent")}
                         </td>
                         <td className={styles.tdRight}>
                           <button
@@ -960,7 +1067,7 @@ export function SampleAccessioningListScreen({
                             }}
                             className={styles.outlinePill}
                           >
-                            <span>View ›</span>
+                            <span>{t("samples:page.view")}</span>
                           </button>
                         </td>
                       </tr>
@@ -975,15 +1082,18 @@ export function SampleAccessioningListScreen({
         {/* Footer info */}
         <footer className={styles.tableFooter}>
           <span>
-            Showing{" "}
-            {activeTab === "awaiting_collection"
-              ? filteredAwaiting.length
-              : activeTab === "transfers"
-                ? transfers.length
-                : samples.length}{" "}
-            records
+            {t("samples:page.showing_records", {
+              n:
+                activeTab === "awaiting_collection"
+                  ? filteredAwaiting.length
+                  : activeTab === "transfers"
+                    ? transfers.length
+                    : samples.length,
+            })}
           </span>
-          <span className="font-mono text-xs">ISO 15189 Compliant</span>
+          <span className="font-mono text-xs">
+            {t("samples:page.iso_compliant")}
+          </span>
         </footer>
       </div>
 
@@ -1007,17 +1117,16 @@ export function SampleAccessioningListScreen({
               id="mark-lost-title"
               className="text-base font-bold text-slate-900"
             >
-              Mark Transfer as Lost
+              {t("samples:list_page.mark_lost_title")}
             </h2>
             <p className="text-xs text-slate-500">
-              A clinical non-conformance event will be logged in the audit
-              trail. Please provide a required reason note:
+              {t("samples:list_page.mark_lost_desc")}
             </p>
             <textarea
               rows={3}
               value={markLostNote}
               onChange={(e) => setMarkLostNote(e.target.value)}
-              placeholder="e.g. Courier vehicle accident / package unreceived at destination"
+              placeholder={t("samples:list_page.mark_lost_placeholder")}
               className="w-full p-2.5 text-xs border border-slate-200 rounded-xl outline-none focus:border-teal-600 focus:ring-1 focus:ring-teal-600"
             />
             <div className="flex items-center justify-end gap-2 pt-2">
@@ -1029,7 +1138,7 @@ export function SampleAccessioningListScreen({
                 }}
                 className={styles.outlinePill}
               >
-                Cancel
+                {t("samples:list_page.cancel")}
               </button>
               <button
                 type="button"
@@ -1037,7 +1146,7 @@ export function SampleAccessioningListScreen({
                 onClick={handleMarkLostSubmit}
                 className={styles.primaryBlackPill}
               >
-                Confirm Lost
+                {t("samples:list_page.confirm_lost")}
               </button>
             </div>
           </div>

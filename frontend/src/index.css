@@ -112,6 +112,28 @@
   -webkit-font-smoothing: antialiased;
 }
 
+/* ============================================================
+   Global 80% compact density base scale.
+
+   LabFlow's reference workstation density is the 80% browser-zoom
+   look: compact headers, tight rows and 8+ accession lines on a
+   1080p screen. Build that in as the default rem baseline instead
+   of asking staff to zoom out. Because the scale is expressed in
+   percent, Ctrl +/- and browser accessibility zoom still stack on
+   top of it normally.
+   ============================================================ */
+html {
+  font-size: 80%;
+}
+
+/* Thermal labels are physical millimetre layouts: they must never
+   inherit the compact screen scale inside the print preview. */
+@media print {
+  html {
+    font-size: 100%;
+  }
+}
+
 /* Per-locale line-height token (Doc 07 §9.2): Urdu is looser than English.
    Set once here, never per screen. */
 html {
@@ -427,6 +449,95 @@ html[lang="ur"] .text-slate-400 {
 .lf-page-layer h1:focus,
 .lf-page-layer h1[tabindex="-1"]:focus {
   outline: none;
+}
+
+/* ============================================================
+   Obsidian dark mode — utility safety net.
+
+   A few legacy screens still use Tailwind's light-only utilities
+   (bg-white, bg-slate-50, text-slate-900). In the Obsidian theme
+   those render as white slabs inside the dark shell. Map them to
+   the semantic Veyla tokens so every surface, border and text tone
+   flips with the theme; light mode is untouched.
+   ============================================================ */
+[data-theme="dark"] .bg-white {
+  background-color: var(--color-surface) !important;
+}
+
+[data-theme="dark"] .bg-slate-50,
+[data-theme="dark"] .bg-slate-100 {
+  background-color: var(--color-well) !important;
+}
+
+[data-theme="dark"] .text-slate-900,
+[data-theme="dark"] .text-slate-800 {
+  color: var(--color-text) !important;
+}
+
+[data-theme="dark"] .text-slate-700,
+[data-theme="dark"] .text-slate-600 {
+  color: var(--color-body) !important;
+}
+
+[data-theme="dark"] .text-slate-500 {
+  color: var(--color-text-muted) !important;
+}
+
+[data-theme="dark"] .text-slate-400 {
+  color: var(--color-text-subtle) !important;
+}
+
+[data-theme="dark"] .border-slate-200,
+[data-theme="dark"] .border-slate-300 {
+  border-color: var(--color-border) !important;
+}
+
+[data-theme="dark"] .bg-red-50,
+[data-theme="dark"] .bg-red-100 {
+  background-color: var(--color-error-tint) !important;
+}
+
+[data-theme="dark"] .border-red-200,
+[data-theme="dark"] .border-red-300 {
+  border-color: var(--color-error-border) !important;
+}
+
+[data-theme="dark"] .text-red-600,
+[data-theme="dark"] .text-red-700 {
+  color: var(--color-error) !important;
+}
+
+/* ============================================================
+   Print isolation — an explicit, audited thermal sticker print.
+
+   The application shell (sidebar, top bar, mobile scrim) is marked
+   with data-print-hide and is always removed from the print flow.
+   The label sheet itself supplies the millimetre page geometry and
+   the sticker-only content, so no web chrome can ever spill onto a
+   second page.
+   ============================================================ */
+@media print {
+  [data-print-hide] {
+    display: none !important;
+  }
+
+  [data-app-shell] {
+    display: block !important;
+    min-height: 0 !important;
+    background: #ffffff !important;
+  }
+
+  [data-app-main] {
+    display: block !important;
+    width: auto !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  body {
+    background: #ffffff !important;
+  }
 }
 
 /* ============================================================

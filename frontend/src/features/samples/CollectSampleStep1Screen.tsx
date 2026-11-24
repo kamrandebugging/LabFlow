@@ -59,7 +59,7 @@ export function CollectSampleStep1Screen({
         const candidate = err as { status?: number; code?: string };
         if (candidate?.status === 404 || candidate?.code === "not_found") {
           setErrorMessage(
-            `No customer invoice found matching "${q}". Invoices use the format INV-XXXXXXXX (or full invoice UUID), or enter a valid patient MRN.`,
+            t("samples:collect_page.invoice_not_found", { query: q }),
           );
         } else {
           setErrorMessage(messageForError(err, t));
@@ -90,9 +90,9 @@ export function CollectSampleStep1Screen({
 
   let validationReason = "";
   if (!invoice) {
-    validationReason = "Search and select an invoice to continue";
+    validationReason = t("samples:collect_page.validation_select_invoice");
   } else if (selectedItemIds.size === 0) {
-    validationReason = "Select at least one test item to continue";
+    validationReason = t("samples:collect_page.validation_select_item");
   }
 
   const handleContinue = () => {
@@ -114,7 +114,8 @@ export function CollectSampleStep1Screen({
       branch_name: invoice.branch_name || "",
       selected_item_ids: Array.from(selectedItemIds),
       test_labels: selectedItems.map(
-        (i) => i.name || i.description || "Diagnostic Test",
+        (i) =>
+          i.name || i.description || t("samples:collect_page.diagnostic_test"),
       ),
       tubes_required: initialDraft?.tubes_required || [],
       collected_at: initialDraft?.collected_at || "",
@@ -129,10 +130,8 @@ export function CollectSampleStep1Screen({
     <div className={styles.pageContainer}>
       {/* 1. Page Header */}
       <header className={styles.headerArea}>
-        <h1 className={styles.title}>Collect sample</h1>
-        <p className={styles.subtitle}>
-          Accession a new specimen — patient and invoice first, then tests.
-        </p>
+        <h1 className={styles.title}>{t("samples:collect_page.title")}</h1>
+        <p className={styles.subtitle}>{t("samples:collect_page.subtitle")}</p>
       </header>
 
       {/* 2. Stepper */}
@@ -162,13 +161,15 @@ export function CollectSampleStep1Screen({
       <div className={styles.mainCard}>
         {/* Invoice Search Input */}
         <div>
-          <h2 className={styles.sectionTitle}>1. Locate Customer Invoice</h2>
+          <h2 className={styles.sectionTitle}>
+            {t("samples:collect_page.locate_invoice")}
+          </h2>
           <div className={styles.searchBox}>
             <Search className={styles.searchIcon} />
             <input
               id={searchInputId}
               type="text"
-              placeholder="Enter Invoice Number (e.g. INV-9BDECE9F) or Patient MRN..."
+              placeholder={t("samples:collect_page.invoice_placeholder")}
               value={invoiceQuery}
               onChange={(e) => setInvoiceQuery(e.target.value)}
               className={styles.searchInput}
@@ -180,40 +181,56 @@ export function CollectSampleStep1Screen({
         {invoice && (
           <div className={styles.livePreviewCard}>
             <div className={styles.previewMetaItem}>
-              <span className={styles.previewMetaLabel}>Patient</span>
+              <span className={styles.previewMetaLabel}>
+                {t("samples:collect_page.patient")}
+              </span>
               <span className={styles.previewMetaValue}>
                 {invoice.patient_name || "—"}
               </span>
             </div>
             <div className={styles.previewMetaItem}>
-              <span className={styles.previewMetaLabel}>MRN</span>
+              <span className={styles.previewMetaLabel}>
+                {t("samples:collect_page.mrn")}
+              </span>
               <span className={styles.previewMetaValue}>
-                {invoice.patient_mrn || "—"}
+                <bdi dir="ltr">{invoice.patient_mrn || "—"}</bdi>
               </span>
             </div>
             <div className={styles.previewMetaItem}>
-              <span className={styles.previewMetaLabel}>Age / Sex</span>
+              <span className={styles.previewMetaLabel}>
+                {t("samples:collect_page.age_sex")}
+              </span>
               <span className={styles.previewMetaValue}>
-                {invoice.patient_age ? `${invoice.patient_age}y` : "—"}{" "}
+                {invoice.patient_age
+                  ? t("samples:collect_page.age_years", {
+                      n: invoice.patient_age,
+                    })
+                  : "—"}{" "}
                 {invoice.patient_sex ? `· ${invoice.patient_sex}` : ""}
               </span>
             </div>
             <div className={styles.previewMetaItem}>
-              <span className={styles.previewMetaLabel}>Invoice #</span>
+              <span className={styles.previewMetaLabel}>
+                {t("samples:collect_page.invoice_number")}
+              </span>
               <span className={styles.previewMetaValue}>
-                {invoice.invoice_number}
+                <bdi dir="ltr">{invoice.invoice_number}</bdi>
               </span>
             </div>
             <div className={styles.previewMetaItem}>
-              <span className={styles.previewMetaLabel}>Branch</span>
+              <span className={styles.previewMetaLabel}>
+                {t("samples:collect_page.branch")}
+              </span>
               <span className={styles.previewMetaValue}>
-                {invoice.branch_name || "Central Lab"}
+                {invoice.branch_name || t("samples:collect_page.central_lab")}
               </span>
             </div>
             <div className={styles.previewMetaItem}>
-              <span className={styles.previewMetaLabel}>Accession ID</span>
+              <span className={styles.previewMetaLabel}>
+                {t("samples:collect_page.accession_id")}
+              </span>
               <span className="text-xs text-slate-500 italic">
-                Assigned after collect
+                {t("samples:collect_page.assigned_after_collect")}
               </span>
             </div>
           </div>
@@ -223,7 +240,7 @@ export function CollectSampleStep1Screen({
         {invoice && (
           <div>
             <h2 className={styles.sectionTitle}>
-              2. Select Tests Awaiting Collection
+              {t("samples:collect_page.select_tests")}
             </h2>
             <div className={styles.itemsList}>
               {invoice.items.map((item) => {
@@ -238,7 +255,9 @@ export function CollectSampleStep1Screen({
                     />
                     <div className={styles.itemInfo}>
                       <span className={styles.itemName}>
-                        {item.name || item.description || "Diagnostic Test"}
+                        {item.name ||
+                          item.description ||
+                          t("samples:collect_page.diagnostic_test")}
                       </span>
                     </div>
                   </label>
@@ -258,7 +277,7 @@ export function CollectSampleStep1Screen({
             className={styles.outlinePill}
           >
             <ArrowLeft className="w-4 h-4 rtl:rotate-180" />
-            <span>Cancel</span>
+            <span>{t("samples:collect_page.cancel")}</span>
           </button>
           {!canContinue && (
             <span className={styles.validationHint}>{validationReason}</span>
@@ -271,7 +290,7 @@ export function CollectSampleStep1Screen({
             onClick={handleContinue}
             className={styles.primaryBlackPill}
           >
-            <span>Continue to Step 2</span>
+            <span>{t("samples:collect_page.continue")}</span>
             <ArrowRight className="w-4 h-4 rtl:rotate-180" />
           </button>
         </div>

@@ -22,10 +22,14 @@ export function InvoiceDrawerProvider({
   const location = useLocation();
   const [invoiceId, setInvoiceId] = useState<string | null>(null);
   const [isNewOpen, setIsNewOpen] = useState(false);
+  const [newInvoicePatientId, setNewInvoicePatientId] = useState<
+    string | undefined
+  >(undefined);
   const [listRevision, setListRevision] = useState(0);
 
   const openInvoice = useCallback((id: string) => {
     setIsNewOpen(false);
+    setNewInvoicePatientId(undefined);
     setInvoiceId(id);
     if (window.location.pathname !== `/invoices/${id}`) {
       window.history.replaceState(window.history.state, "", `/invoices/${id}`);
@@ -39,18 +43,23 @@ export function InvoiceDrawerProvider({
     }
   }, []);
 
-  const openNew = useCallback(() => {
+  const openNew = useCallback((patientId?: string) => {
     setInvoiceId(null);
+    setNewInvoicePatientId(patientId);
     setIsNewOpen(true);
   }, []);
 
-  const closeNew = useCallback(() => setIsNewOpen(false), []);
+  const closeNew = useCallback(() => {
+    setIsNewOpen(false);
+    setNewInvoicePatientId(undefined);
+  }, []);
 
   // Leaving the section must not leave a drawer over another screen.
   useEffect(() => {
     if (!location.pathname.startsWith("/invoices")) {
       setInvoiceId(null);
       setIsNewOpen(false);
+      setNewInvoicePatientId(undefined);
     }
   }, [location.pathname]);
 
@@ -88,6 +97,7 @@ export function InvoiceDrawerProvider({
       ) : null}
       {isNewOpen ? (
         <NewInvoiceDrawer
+          initialPatientId={newInvoicePatientId}
           onClose={closeNew}
           onCreated={() => {
             setListRevision((n) => n + 1);
@@ -99,9 +109,11 @@ export function InvoiceDrawerProvider({
 }
 
 function NewInvoiceDrawer({
+  initialPatientId,
   onClose,
   onCreated,
 }: {
+  initialPatientId?: string;
   onClose: () => void;
   onCreated: (id: string) => void;
 }): JSX.Element {
@@ -110,15 +122,18 @@ function NewInvoiceDrawer({
     <div className="fixed inset-0 z-[60] flex justify-end bg-black/40">
       <div className="h-full w-full max-w-[760px] overflow-y-auto bg-[var(--color-surface)] shadow-[var(--shadow-veyla-dropdown)]">
         <NewInvoiceScreen
+          initialPatientId={initialPatientId}
           onCancel={onClose}
           onSuccess={(invoice) => onCreated(invoice.id)}
           onRecordPayment={(id) => {
             onClose();
-            navigate(`/invoices/${id}`);
+            navigate(`/invoices/${id}?tab=settle`);
           }}
-          onCollectSpecimen={() => {
+          onCollectSpecimen={(id) => {
             onClose();
-            navigate(`/samples/collect/step1`);
+            navigate(
+              `/samples/collect/step1?invoice=${encodeURIComponent(id)}`,
+            );
           }}
           onViewDetails={(id) => {
             onClose();

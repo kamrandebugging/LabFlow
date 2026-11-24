@@ -21,7 +21,7 @@ describe("Samples Veyla Components", () => {
       expect(screen.getByText("Ready / Reported")).toBeInTheDocument();
 
       rerender(<SampleStatusPill status="in_process" />);
-      expect(screen.getByText("In Process")).toBeInTheDocument();
+      expect(screen.getByText("In process")).toBeInTheDocument();
 
       rerender(<SampleStatusPill status="received" />);
       expect(screen.getByText("Received")).toBeInTheDocument();
@@ -166,16 +166,16 @@ describe("Samples Veyla Components", () => {
 
       render(<SampleTimeline events={events} />);
 
-      expect(screen.getByText("COLLECTED")).toBeInTheDocument();
+      expect(screen.getByText("Collected")).toBeInTheDocument();
       expect(screen.getByText(/by Receptionist Maryam/i)).toBeInTheDocument();
       expect(screen.getByText(/First morning draw/i)).toBeInTheDocument();
 
-      expect(screen.getByText("TRANSFERRED_OUT")).toBeInTheDocument();
+      expect(screen.getByText("Transferred out")).toBeInTheDocument();
       expect(
         screen.getByText(/Gulberg Branch → DHA Central/i),
       ).toBeInTheDocument();
 
-      expect(screen.getByText("REJECTED")).toBeInTheDocument();
+      expect(screen.getByText("Rejected")).toBeInTheDocument();
       expect(screen.getByText(/hemolyzed/i)).toBeInTheDocument();
     });
   });

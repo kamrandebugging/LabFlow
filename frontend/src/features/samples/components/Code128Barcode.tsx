@@ -141,6 +141,7 @@ interface Code128BarcodeProps {
   barWidth?: number;
   showText?: boolean;
   className?: string;
+  ariaLabel?: string;
 }
 
 export function Code128Barcode({
@@ -149,6 +150,7 @@ export function Code128Barcode({
   barWidth = 2,
   showText = false,
   className = "",
+  ariaLabel,
 }: Code128BarcodeProps): JSX.Element {
   const patterns = encodeCode128B(value);
 
@@ -181,7 +183,7 @@ export function Code128Barcode({
         className="shape-crispEdges"
         style={{ shapeRendering: "crispEdges" }}
         role="img"
-        aria-label={`Barcode for ${value}`}
+        aria-label={ariaLabel ?? `Barcode for ${value}`}
       >
         <rect width={totalWidth} height={height} fill="#ffffff" />
         {rects.map((r, idx) => (

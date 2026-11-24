@@ -1278,6 +1278,11 @@ export function InvoiceDetailScreen({
                 }
           }
           onClose={() => setLastPayment(null)}
+          onViewInvoice={() => {
+            if (typeof window !== "undefined") {
+              window.location.assign(`/invoices/${invoice.id}`);
+            }
+          }}
         />
       )}
     </div>

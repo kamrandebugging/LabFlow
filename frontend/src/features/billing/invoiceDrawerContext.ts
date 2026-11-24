@@ -6,7 +6,8 @@ export interface InvoiceDrawerContextValue {
   openInvoice: (id: string) => void;
   closeInvoice: () => void;
   isNewOpen: boolean;
-  openNew: () => void;
+  /** Opens New Invoice; an optional patient is pre-selected. */
+  openNew: (patientId?: string) => void;
   closeNew: () => void;
   /** Bumps after a successful create so the list can refresh. */
   listRevision: number;

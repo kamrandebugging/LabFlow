@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import type { SampleStatus } from "../types";
 import styles from "./SampleStatusPill.module.css";
 
@@ -12,51 +13,51 @@ export function SampleStatusPill({
   label,
   className,
 }: SampleStatusPillProps): JSX.Element {
+  const { t } = useTranslation(["samples", "common"]);
   const normalized = status.toLowerCase();
 
   let styleKey = styles.collected;
-  let defaultLabel = "Collected";
 
   switch (normalized) {
     case "ready":
       styleKey = styles.ready;
-      defaultLabel = "Ready / Reported";
       break;
     case "in_process":
       styleKey = styles.in_process;
-      defaultLabel = "In Process";
       break;
     case "received":
       styleKey = styles.received;
-      defaultLabel = "Received";
       break;
     case "collected":
       styleKey = styles.collected;
-      defaultLabel = "Collected";
       break;
     case "rejected":
       styleKey = styles.rejected;
-      defaultLabel = "Rejected";
       break;
     case "cancelled":
       styleKey = styles.cancelled;
-      defaultLabel = "Cancelled";
       break;
     case "awaiting_collection":
       styleKey = styles.awaiting_collection;
-      defaultLabel = "Awaiting Collection";
       break;
     case "worst":
       styleKey = styles.worst;
-      defaultLabel = "Immediate";
       break;
     default:
       styleKey = styles.collected;
-      defaultLabel = status;
       break;
   }
 
-  const displayText = label || defaultLabel;
+  const translatedLabel =
+    normalized === "ready"
+      ? t("samples:status.ready_reported")
+      : normalized === "awaiting_collection"
+        ? t("samples:status.awaiting_collection")
+        : t(`common:status.sample.${normalized}`, {
+            defaultValue: status,
+          });
+
+  const displayText = label || translatedLabel;
 
   return (
     <span

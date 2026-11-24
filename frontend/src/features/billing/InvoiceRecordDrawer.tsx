@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useLocation, useNavigate } from "react-router-dom";
 import { AlertCircle, Printer } from "lucide-react";
 
 import { billingService } from "./billingService";
@@ -42,12 +43,25 @@ export function InvoiceRecordDrawer({
   service = billingService,
 }: InvoiceRecordDrawerProps): JSX.Element {
   const { t } = useTranslation(["billing", "common"]);
+  const location = useLocation();
+  const navigate = useNavigate();
   const [invoice, setInvoice] = useState<InvoiceDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const initialTab = useMemo(() => {
+    const requested = new URLSearchParams(location.search).get("tab");
+    return requested === "settle" ||
+      requested === "refund" ||
+      requested === "payments" ||
+      requested === "history" ||
+      requested === "credit"
+      ? requested
+      : "overview";
+  }, [location.search]);
   const [tab, setTab] = useState<
     "overview" | "settle" | "refund" | "payments" | "history" | "credit"
-  >("overview");
+  >(initialTab);
+  const amountInputRef = useRef<HTMLInputElement>(null);
   const [history, setHistory] = useState<InvoiceHistoryEvent[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState<string | null>(null);
@@ -205,6 +219,21 @@ export function InvoiceRecordDrawer({
       setBusy(false);
     }
   };
+
+  useEffect(() => {
+    setTab(initialTab);
+  }, [initialTab]);
+
+  // Deep link /invoices/:id?tab=settle puts the cashier straight into the
+  // payment amount field. The query is one-shot; normal tab switches win.
+  useEffect(() => {
+    if (tab !== "settle" || !invoice) return;
+    const timer = window.setTimeout(() => {
+      amountInputRef.current?.focus();
+      amountInputRef.current?.select();
+    }, 50);
+    return () => window.clearTimeout(timer);
+  }, [tab, invoice]);
 
   useEffect(() => {
     let active = true;
@@ -891,6 +920,7 @@ export function InvoiceRecordDrawer({
                       {t("common:labels.amount")}
                     </span>
                     <input
+                      ref={amountInputRef}
                       type="number"
                       min="0"
                       step="0.01"
@@ -990,6 +1020,7 @@ export function InvoiceRecordDrawer({
             }
           }}
           onClose={() => setLastPayment(null)}
+          onViewInvoice={() => navigate(`/invoices/${invoice.id}`)}
         />
       )}
     </>

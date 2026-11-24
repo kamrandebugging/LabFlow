@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import styles from "./SampleQueueTabs.module.css";
 
 export interface QueueTabItem {
@@ -19,10 +20,11 @@ export function SampleQueueTabs({
   onSelectTab,
   className,
 }: SampleQueueTabsProps): JSX.Element {
+  const { t } = useTranslation("samples");
   return (
     <nav
       role="tablist"
-      aria-label="Sample Queues"
+      aria-label={t("samples:tabs_aria")}
       className={[styles.tabsContainer, className].filter(Boolean).join(" ")}
     >
       {tabs.map((tab) => {

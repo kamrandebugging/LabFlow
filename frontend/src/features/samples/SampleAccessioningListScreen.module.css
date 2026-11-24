@@ -255,6 +255,58 @@
   background-color: var(--color-well);
 }
 
+.rowSelected {
+  background-color: var(--color-accent);
+}
+
+.rowSelected:hover {
+  background-color: var(--color-accent);
+}
+
+/* Transfer exceptions oversight — warning tint, never a white panel. */
+.exceptionPanel {
+  background-color: var(--color-warning-tint);
+  border: 1px solid var(--color-warning-border);
+  border-radius: var(--radius-card);
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.exceptionTitle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--color-text);
+  margin: 0;
+}
+
+.exceptionCard {
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-warning-border);
+  border-radius: var(--radius-panel);
+  padding: 0.875rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.exceptionLabel {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.exceptionValue {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+}
+
 .td {
   padding: 0.875rem 1rem;
   vertical-align: middle;

@@ -77,7 +77,9 @@
       "in_process": "In process",
       "ready": "Ready",
       "rejected": "Rejected",
-      "cancelled": "Cancelled"
+      "cancelled": "Cancelled",
+      "awaiting_collection": "Awaiting Collection",
+      "worst": "Immediate"
     },
     "result": {
       "entered": "Entered",

@@ -106,6 +106,28 @@
   color: var(--color-text);
 }
 
+.readyBadge {
+  padding: 0.125rem 0.5rem;
+  border-radius: var(--radius-pill);
+  font-size: 0.75rem;
+  font-weight: 600;
+  background-color: var(--color-success-tint);
+  color: var(--color-success);
+  border: 1px solid var(--color-success-border);
+  white-space: nowrap;
+}
+
+.tubeCountBadge {
+  padding: 0.125rem 0.625rem;
+  border-radius: var(--radius-pill);
+  font-size: 0.75rem;
+  font-weight: 600;
+  background-color: var(--color-well);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  white-space: nowrap;
+}
+
 .automaticBox {
   background-color: var(--color-well);
   border: 1px solid var(--color-border);

@@ -486,9 +486,7 @@ describe("Screen 20: SampleLabelScreen", () => {
       expect(screen.getAllByText("CDL20261020000041").length).toBeGreaterThan(
         0,
       );
-      expect(
-        screen.getByText("City Diagnostic Laboratory"),
-      ).toBeInTheDocument();
+      expect(screen.getByText("LabFlow")).toBeInTheDocument();
       expect(screen.getByText("Software by LabFlow")).toBeInTheDocument();
     });
   });

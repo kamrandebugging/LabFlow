@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import type { SampleEventItem } from "../types";
 import styles from "./SampleTimeline.module.css";
 
@@ -41,10 +42,12 @@ export function SampleTimeline({
   events,
   className,
 }: SampleTimelineProps): JSX.Element {
+  const { t } = useTranslation("samples");
+
   if (!events || events.length === 0) {
     return (
       <div className={[styles.emptyState, className].filter(Boolean).join(" ")}>
-        No custody events yet
+        {t("samples:timeline.empty")}
       </div>
     );
   }
@@ -54,6 +57,9 @@ export function SampleTimeline({
       {events.map((ev, index) => {
         const dotClass = getDotClass(ev.event);
         const payload = ev.payload;
+        const eventLabel = t(`samples:timeline.events.${ev.event}`, {
+          defaultValue: ev.event,
+        });
 
         return (
           <div key={ev.id || index} className={styles.timelineItem}>
@@ -64,31 +70,39 @@ export function SampleTimeline({
             />
             <div className={styles.content}>
               <div className={styles.eventHeader}>
-                <span className={styles.eventName}>{ev.event}</span>
+                <span className={styles.eventName}>{eventLabel}</span>
                 <span className={styles.timestamp}>
-                  {formatPktTimestamp(ev.timestamp)}
+                  <bdi dir="ltr">{formatPktTimestamp(ev.timestamp)}</bdi>
                 </span>
               </div>
               <div className={styles.meta}>
-                {ev.actor && <span>by {ev.actor}</span>}
-                {ev.branch && <span>at {ev.branch.name}</span>}
+                {ev.actor && (
+                  <span>{t("samples:timeline.by", { actor: ev.actor })}</span>
+                )}
+                {ev.branch && (
+                  <span>
+                    {t("samples:timeline.at", { branch: ev.branch.name })}
+                  </span>
+                )}
               </div>
               {payload && (
                 <div className={styles.payloadBox}>
                   {payload.rejection_code && (
                     <div>
-                      <strong>Reason:</strong> {payload.rejection_code}
+                      <strong>{t("samples:timeline.reason")}</strong>{" "}
+                      {payload.rejection_code}
                     </div>
                   )}
                   {payload.from_branch && payload.to_branch && (
                     <div>
-                      <strong>Route:</strong> {payload.from_branch.name} →{" "}
-                      {payload.to_branch.name}
+                      <strong>{t("samples:timeline.route")}</strong>{" "}
+                      {payload.from_branch.name} → {payload.to_branch.name}
                     </div>
                   )}
                   {payload.note && (
                     <div>
-                      <strong>Note:</strong> {payload.note}
+                      <strong>{t("samples:timeline.note")}</strong>{" "}
+                      {payload.note}
                     </div>
                   )}
                 </div>

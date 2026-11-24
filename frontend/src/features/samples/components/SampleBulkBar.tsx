@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import styles from "./SampleBulkBar.module.css";
 
 export interface SampleBulkBarProps {
@@ -13,19 +14,23 @@ export function SampleBulkBar({
   onPrintLabels,
   className,
 }: SampleBulkBarProps): JSX.Element | null {
+  const { t } = useTranslation("samples");
+
   if (selectedCount <= 0) return null;
 
   return (
     <div
       role="region"
-      aria-label="Bulk actions"
+      aria-label={t("samples:bulk.aria")}
       className={[styles.bulkBarContainer, className].filter(Boolean).join(" ")}
     >
       <span className={styles.countText}>
-        {selectedCount} {selectedCount === 1 ? "sample" : "samples"} selected
+        {selectedCount === 1
+          ? t("samples:bulk.selected_one", { n: selectedCount })
+          : t("samples:bulk.selected_many", { n: selectedCount })}
       </span>
       <button type="button" onClick={onClear} className={styles.clearButton}>
-        Clear
+        {t("samples:bulk.clear")}
       </button>
       {onPrintLabels && (
         <button
@@ -34,7 +39,7 @@ export function SampleBulkBar({
           disabled={selectedCount === 0}
           className={styles.actionButton}
         >
-          Print labels ({selectedCount})
+          {t("samples:bulk.print", { n: selectedCount })}
         </button>
       )}
     </div>

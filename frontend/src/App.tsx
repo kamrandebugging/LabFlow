@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   BrowserRouter,
   Routes,
@@ -277,7 +277,22 @@ function TestPanelsWrapper(): JSX.Element {
 }
 
 function InvoicesListWrapper(): JSX.Element {
+  const location = useLocation();
   const { openInvoice, openNew, listRevision } = useInvoiceDrawer();
+  const handledPatientRef = useRef<string | null>(null);
+
+  // Deep link from PatientRegistrationSuccessModal ("+ Create Invoice Now"):
+  // open the New Invoice drawer with that patient already selected, then
+  // clean the one-shot query so closing the drawer does not re-open it.
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const patientId =
+      params.get("createForPatientId") || params.get("patientId");
+    if (!patientId || handledPatientRef.current === patientId) return;
+    handledPatientRef.current = patientId;
+    openNew(patientId);
+    window.history.replaceState(window.history.state, "", "/invoices");
+  }, [location.search, openNew]);
 
   // Refresh the list behind the drawer after a create.
   return (
@@ -376,7 +391,10 @@ function CollectSampleStep1Wrapper(): JSX.Element {
   )?.draft;
   const queryParams = new URLSearchParams(location.search);
   const invoiceIdParam =
-    queryParams.get("invoice_id") || stateDraft?.invoice_id || undefined;
+    queryParams.get("invoice") ||
+    queryParams.get("invoice_id") ||
+    stateDraft?.invoice_id ||
+    undefined;
 
   return (
     <main className="min-h-screen py-6">

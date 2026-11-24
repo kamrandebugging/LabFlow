@@ -119,16 +119,107 @@
   margin-top: 0.25rem;
 }
 
-/* Print Media Styles */
+/* Print Media Styles — 50mm × 30mm direct-thermal specimen sticker.
+   The on-screen preview keeps the Veyla card; print is pure black on
+   white vector output with no chrome, shadows or rounded corners. */
 @media print {
   .sheetContainer {
-    padding: 0;
+    display: block;
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 50mm;
+    height: 30mm;
+    overflow: hidden !important;
   }
+
   .labelCard {
-    box-shadow: none;
-    border: none;
-    max-width: 100%;
-    padding: 0.5rem;
-    page-break-inside: avoid;
+    display: flex !important;
+    box-shadow: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    width: 50mm !important;
+    max-width: 50mm !important;
+    min-height: 30mm !important;
+    height: auto !important;
+    padding: 1.2mm 1.5mm !important;
+    gap: 0.6mm !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    overflow: hidden !important;
+  }
+
+  .tenantHeader {
+    padding-bottom: 0.6mm !important;
+    border-bottom: 0.2mm solid #000000 !important;
+  }
+
+  .tenantName {
+    font-size: 7.5pt !important;
+    line-height: 1.1 !important;
+    color: #000000 !important;
+  }
+
+  .tenantBranch {
+    font-size: 5.5pt !important;
+    line-height: 1.1 !important;
+    color: #000000 !important;
+  }
+
+  .patientSection {
+    gap: 0.2mm !important;
+  }
+
+  .patientName {
+    font-size: 7.5pt !important;
+    line-height: 1.15 !important;
+    color: #000000 !important;
+  }
+
+  .patientMeta {
+    font-size: 5.5pt !important;
+    line-height: 1.1 !important;
+    gap: 1mm !important;
+    color: #000000 !important;
+  }
+
+  .mrnBadge {
+    background: transparent !important;
+    padding: 0 !important;
+    border-radius: 0 !important;
+    color: #000000 !important;
+  }
+
+  .barcodeSection {
+    padding: 0.4mm 0 !important;
+  }
+
+  .barcodeSection svg {
+    width: 100% !important;
+    max-width: 47mm !important;
+    height: 9mm !important;
+  }
+
+  .accessionNumber {
+    font-size: 7pt !important;
+    line-height: 1.05 !important;
+    margin-top: 0.2mm !important;
+    color: #000000 !important;
+  }
+
+  /* 30mm roll height: tests and the software credit are omitted so the
+     barcode, patient identity and collection stamp never spill a page. */
+  .testsSection,
+  .footerCredit {
+    display: none !important;
+  }
+
+  .collectionMeta {
+    padding-top: 0.4mm !important;
+    border-top: 0.2mm dashed #000000 !important;
+    font-size: 5pt !important;
+    line-height: 1.1 !important;
+    color: #000000 !important;
   }
 }

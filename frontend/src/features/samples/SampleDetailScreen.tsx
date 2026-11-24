@@ -31,18 +31,30 @@ export interface SampleDetailScreenProps {
   service?: typeof sampleService;
 }
 
-const REJECTION_REASONS: Array<{ code: RejectionReasonCode; label: string }> = [
-  { code: "unlabelled", label: "Unlabelled" },
-  { code: "mislabelled", label: "Mislabelled" },
-  { code: "hemolyzed", label: "Hemolyzed" },
-  { code: "insufficient_volume", label: "Insufficient Volume" },
-  { code: "wrong_tube", label: "Wrong Tube Type" },
-  { code: "clotted", label: "Clotted" },
-  { code: "lipemic", label: "Lipemic" },
-  { code: "damaged_transport", label: "Damaged in Transport" },
-  { code: "barcode_issue", label: "Barcode Unreadable" },
-  { code: "other", label: "Other (Clinical Justification Required)" },
+const REJECTION_REASON_CODES: RejectionReasonCode[] = [
+  "unlabelled",
+  "mislabelled",
+  "hemolyzed",
+  "insufficient_volume",
+  "wrong_tube",
+  "clotted",
+  "lipemic",
+  "damaged_transport",
+  "barcode_issue",
+  "other",
 ];
+
+function formatPkt(dateStr?: string | null): string {
+  if (!dateStr) return "—";
+  return new Date(dateStr).toLocaleString("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "Asia/Karachi",
+  });
+}
 
 export function SampleDetailScreen({
   sampleId,
@@ -157,7 +169,9 @@ export function SampleDetailScreen({
     return (
       <main className="w-full min-h-[60vh] flex flex-col items-center justify-center p-8 text-slate-600">
         <RotateCw className="w-8 h-8 animate-spin text-teal-600 mb-3" />
-        <p className="text-sm font-medium">Loading sample details...</p>
+        <p className="text-sm font-medium">
+          {t("samples:detail_page.loading")}
+        </p>
       </main>
     );
   }
@@ -173,7 +187,7 @@ export function SampleDetailScreen({
             className={styles.primaryBlackPill}
           >
             <ArrowLeft className="w-4 h-4 rtl:rotate-180" />
-            <span>Back to Samples</span>
+            <span>{t("samples:detail_page.back")}</span>
           </button>
         </div>
       </main>
@@ -221,7 +235,7 @@ export function SampleDetailScreen({
     try {
       setActionLoading(true);
       await service.receiveSample(sample.id);
-      setToastMessage("✓ Sample received into accessioning");
+      setToastMessage(t("samples:detail_page.toast_received"));
       await loadDetail();
     } catch (err) {
       setErrorMessage(messageForError(err, t));
@@ -233,7 +247,7 @@ export function SampleDetailScreen({
   const handleRejectSubmit = async () => {
     if (!rejectionCode) return;
     if (rejectionCode === "other" && !rejectionNote.trim()) {
-      setErrorMessage("Note is mandatory when rejection reason is 'Other'.");
+      setErrorMessage(t("samples:detail_page.note_required_other_error"));
       return;
     }
     try {
@@ -243,7 +257,7 @@ export function SampleDetailScreen({
         note: rejectionNote.trim() || undefined,
       });
       setRejectModalOpen(false);
-      setToastMessage("✓ Specimen rejected for non-conformance");
+      setToastMessage(t("samples:detail_page.toast_rejected"));
       await loadDetail();
     } catch (err) {
       setErrorMessage(messageForError(err, t));
@@ -259,7 +273,9 @@ export function SampleDetailScreen({
       setRecollectModalOpen(false);
       navigate(`/samples/${res.id}`, {
         state: {
-          toast: `✓ Recollection accession ${res.accession_id} created`,
+          toast: t("samples:detail_page.toast_recollected", {
+            accession: res.accession_id,
+          }),
         },
       });
     } catch (err) {
@@ -275,7 +291,7 @@ export function SampleDetailScreen({
       setActionLoading(true);
       await service.cancelSample(sample.id, { reason: cancelReason.trim() });
       setCancelModalOpen(false);
-      setToastMessage("✓ Sample accession cancelled");
+      setToastMessage(t("samples:detail_page.toast_cancelled"));
       await loadDetail();
     } catch (err) {
       setErrorMessage(messageForError(err, t));
@@ -293,7 +309,7 @@ export function SampleDetailScreen({
         notes: transferNotes.trim() || undefined,
       });
       setTransferModalOpen(false);
-      setToastMessage("✓ Inter-branch transfer dispatched");
+      setToastMessage(t("samples:detail_page.toast_transfer_dispatched"));
       await loadDetail();
     } catch (err) {
       setErrorMessage(messageForError(err, t));
@@ -308,7 +324,7 @@ export function SampleDetailScreen({
     try {
       setActionLoading(true);
       await service.receiveTransfer(sample.open_transfer.id);
-      setToastMessage("✓ Transferred specimen received at destination");
+      setToastMessage(t("samples:detail_page.toast_transfer_received"));
       await loadDetail();
     } catch (err) {
       setErrorMessage(messageForError(err, t));
@@ -319,17 +335,13 @@ export function SampleDetailScreen({
 
   const handleCancelTransferAction = async () => {
     if (!sample.open_transfer) return;
-    if (
-      !window.confirm(
-        "Are you sure you want to cancel this transfer? Specimen remains at sending branch.",
-      )
-    ) {
+    if (!window.confirm(t("samples:detail_page.cancel_transfer_confirm"))) {
       return;
     }
     try {
       setActionLoading(true);
       await service.cancelTransfer(sample.open_transfer.id);
-      setToastMessage("✓ Inter-branch transfer cancelled");
+      setToastMessage(t("samples:detail_page.toast_transfer_cancelled"));
       await loadDetail();
     } catch (err) {
       setErrorMessage(messageForError(err, t));
@@ -348,7 +360,7 @@ export function SampleDetailScreen({
       );
       setMarkLostModalOpen(false);
       setMarkLostNote("");
-      setToastMessage("✓ Specimen marked lost in transit");
+      setToastMessage(t("samples:detail_page.toast_lost"));
       await loadDetail();
     } catch (err) {
       setErrorMessage(messageForError(err, t));
@@ -369,22 +381,30 @@ export function SampleDetailScreen({
               className="text-xs text-slate-500 hover:text-slate-800 flex items-center gap-1 transition-colors"
             >
               <ArrowLeft className="w-3.5 h-3.5 rtl:rotate-180" />
-              <span>Back to Samples</span>
+              <span>{t("samples:detail_page.back")}</span>
             </button>
           </div>
-          <h1 className={styles.accessionTitle}>{sample.accession_id}</h1>
+          <h1 className={styles.accessionTitle}>
+            <bdi dir="ltr">{sample.accession_id}</bdi>
+          </h1>
           <div className={styles.subtitle}>
             <span className="font-semibold text-slate-900">
               {sample.patient_name}
             </span>
             <span>·</span>
-            <span className="font-mono">{sample.patient_mrn}</span>
+            <span className="font-mono">
+              <bdi dir="ltr">{sample.patient_mrn}</bdi>
+            </span>
             <span>·</span>
             <span>{sample.branch_name}</span>
             {sample.collected_at && (
               <>
                 <span>·</span>
-                <span>Collected {sample.age_display || "recently"}</span>
+                <span>
+                  {t("samples:detail_page.collected_ago", {
+                    age: sample.age_display || t("samples:list.recent"),
+                  })}
+                </span>
               </>
             )}
           </div>
@@ -401,7 +421,7 @@ export function SampleDetailScreen({
               className={styles.outlinePill}
             >
               <Printer className="w-4 h-4" />
-              <span>Print label</span>
+              <span>{t("samples:detail_page.print_label")}</span>
             </button>
           )}
         </div>
@@ -434,31 +454,24 @@ export function SampleDetailScreen({
           {/* Status & Custody Card */}
           <section className={styles.card}>
             <div className={styles.cardHeader}>
-              <h2 className={styles.cardTitle}>Specimen Status & Custody</h2>
+              <h2 className={styles.cardTitle}>
+                {t("samples:detail_page.status_custody")}
+              </h2>
               <SampleStatusPill status={sample.status} />
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-xs">
               <div>
                 <span className="text-slate-400 block font-medium">
-                  Collected At
+                  {t("samples:detail_page.collected_at")}
                 </span>
                 <span className="font-mono text-slate-800 font-semibold mt-0.5 block">
-                  {sample.collected_at
-                    ? new Date(sample.collected_at).toLocaleString("en-GB", {
-                        day: "2-digit",
-                        month: "short",
-                        year: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                        timeZone: "Asia/Karachi",
-                      })
-                    : "—"}
+                  <bdi dir="ltr">{formatPkt(sample.collected_at)}</bdi>
                 </span>
               </div>
               {sample.collected_by && (
                 <div>
                   <span className="text-slate-400 block font-medium">
-                    Collected By
+                    {t("samples:detail_page.collected_by")}
                   </span>
                   <span className="text-slate-800 font-semibold mt-0.5 block">
                     {sample.collected_by}
@@ -468,7 +481,7 @@ export function SampleDetailScreen({
               {sample.custody_location && (
                 <div>
                   <span className="text-slate-400 block font-medium">
-                    Custody Location
+                    {t("samples:detail_page.custody_location")}
                   </span>
                   <span className="text-slate-800 font-semibold mt-0.5 block">
                     {sample.custody_location}
@@ -478,10 +491,10 @@ export function SampleDetailScreen({
               {sample.bench_code && (
                 <div>
                   <span className="text-slate-400 block font-medium">
-                    Bench Code
+                    {t("samples:detail_page.bench_code")}
                   </span>
                   <span className="font-mono text-slate-800 font-semibold mt-0.5 block">
-                    {sample.bench_code}
+                    <bdi dir="ltr">{sample.bench_code}</bdi>
                   </span>
                 </div>
               )}
@@ -489,7 +502,7 @@ export function SampleDetailScreen({
             {sample.collection_notes && (
               <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700">
                 <span className="font-bold text-slate-900 block mb-0.5">
-                  Collection Notes:
+                  {t("samples:detail_page.collection_notes")}
                 </span>
                 <span>{sample.collection_notes}</span>
               </div>
@@ -499,14 +512,16 @@ export function SampleDetailScreen({
           {/* Patient Demographics Card */}
           <section className={styles.card}>
             <div className={styles.cardHeader}>
-              <h2 className={styles.cardTitle}>Patient Identity</h2>
+              <h2 className={styles.cardTitle}>
+                {t("samples:detail_page.patient_identity")}
+              </h2>
               {onViewPatient && (
                 <button
                   type="button"
                   onClick={() => onViewPatient(sample.patient_id)}
                   className="text-xs font-semibold text-teal-700 hover:text-teal-900 flex items-center gap-1"
                 >
-                  <span>View record</span>
+                  <span>{t("samples:detail_page.view_record")}</span>
                   <ExternalLink className="w-3.5 h-3.5" />
                 </button>
               )}
@@ -514,35 +529,39 @@ export function SampleDetailScreen({
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
               <div>
                 <span className="text-slate-400 block font-medium">
-                  Full Name
+                  {t("samples:detail_page.full_name")}
                 </span>
                 <span className="font-semibold text-slate-900 mt-0.5 block">
                   {sample.patient_name}
                 </span>
               </div>
               <div>
-                <span className="text-slate-400 block font-medium">MRN</span>
+                <span className="text-slate-400 block font-medium">
+                  {t("samples:detail_page.mrn")}
+                </span>
                 <span className="font-mono font-semibold text-slate-900 mt-0.5 block">
-                  {sample.patient_mrn}
+                  <bdi dir="ltr">{sample.patient_mrn}</bdi>
                 </span>
               </div>
               <div>
                 <span className="text-slate-400 block font-medium">
-                  Age / Gender
+                  {t("samples:detail_page.age_gender")}
                 </span>
                 <span className="text-slate-800 font-medium mt-0.5 block">
                   {sample.patient_age_years
-                    ? `${sample.patient_age_years}y`
+                    ? t("samples:detail_page.age_years", {
+                        n: sample.patient_age_years,
+                      })
                     : "—"}{" "}
                   {sample.patient_sex ? `· ${sample.patient_sex}` : ""}
                 </span>
               </div>
               <div>
                 <span className="text-slate-400 block font-medium">
-                  Linked Invoice
+                  {t("samples:detail_page.linked_invoice")}
                 </span>
                 <span className="font-mono text-slate-800 font-medium mt-0.5 block">
-                  {sample.invoice_id}
+                  <bdi dir="ltr">{sample.invoice_id}</bdi>
                 </span>
               </div>
             </div>
@@ -551,9 +570,13 @@ export function SampleDetailScreen({
           {/* Test Parameters Card */}
           <section className={styles.card}>
             <div className={styles.cardHeader}>
-              <h2 className={styles.cardTitle}>Diagnostic Tests & Panels</h2>
+              <h2 className={styles.cardTitle}>
+                {t("samples:detail_page.tests_panels")}
+              </h2>
               <span className="text-xs text-slate-500">
-                {(sample.sample_tests || []).length} assigned
+                {t("samples:detail_page.assigned_count", {
+                  n: (sample.sample_tests || []).length,
+                })}
               </span>
             </div>
             <div className="space-y-3">
@@ -566,31 +589,47 @@ export function SampleDetailScreen({
                     <div className="font-bold text-slate-900 text-sm">
                       {tItem.test_name}{" "}
                       <span className="text-slate-400 font-mono text-xs font-normal">
-                        ({tItem.test_code})
+                        (<bdi dir="ltr">{tItem.test_code}</bdi>)
                       </span>
                     </div>
                     <div className="text-slate-500 mt-0.5 flex items-center gap-2">
                       {tItem.category && (
-                        <span>Category: {tItem.category}</span>
+                        <span>
+                          {t("samples:detail_page.category", {
+                            value: tItem.category,
+                          })}
+                        </span>
                       )}
                       {tItem.tube_type && (
-                        <span>· Tube: {tItem.tube_type}</span>
+                        <span>
+                          ·{" "}
+                          {t("samples:detail_page.tube", {
+                            value: tItem.tube_type,
+                          })}
+                        </span>
                       )}
                       {tItem.required_volume_ml && (
-                        <span>· Vol: {tItem.required_volume_ml} mL</span>
+                        <span>
+                          ·{" "}
+                          {t("samples:detail_page.volume", {
+                            value: tItem.required_volume_ml,
+                          })}
+                        </span>
                       )}
                     </div>
                   </div>
                   <div className="text-slate-600 font-mono">
                     {tItem.reference_range ? (
                       <span>
-                        Ref: {tItem.reference_range.low ?? "—"} –{" "}
-                        {tItem.reference_range.high ?? "—"}{" "}
-                        {tItem.reference_range.unit || ""}
+                        {t("samples:detail_page.reference", {
+                          value: `${tItem.reference_range.low ?? "—"} – ${
+                            tItem.reference_range.high ?? "—"
+                          } ${tItem.reference_range.unit || ""}`,
+                        })}
                       </span>
                     ) : (
                       <span className="text-slate-400 italic">
-                        Not configured
+                        {t("samples:detail_page.not_configured")}
                       </span>
                     )}
                   </div>
@@ -602,9 +641,11 @@ export function SampleDetailScreen({
           {/* Chain of Custody Audit Timeline (Phase 2.7) */}
           <section className={styles.card}>
             <div className={styles.cardHeader}>
-              <h2 className={styles.cardTitle}>Chain of Custody Timeline</h2>
+              <h2 className={styles.cardTitle}>
+                {t("samples:detail_page.timeline_title")}
+              </h2>
               <span className="text-xs text-slate-400">
-                ISO 15189 Immutable Log
+                {t("samples:detail_page.timeline_log")}
               </span>
             </div>
             <SampleTimeline events={sample.events} />
@@ -619,7 +660,7 @@ export function SampleDetailScreen({
               <div className={styles.transferBannerHeader}>
                 <span className="text-xs font-bold text-teal-800 uppercase tracking-wider flex items-center gap-1.5">
                   <Truck className="w-4 h-4 text-teal-600" />
-                  <span>Transfer in transit</span>
+                  <span>{t("samples:detail_page.transfer_in_transit")}</span>
                 </span>
                 <SampleStatusPill status={sample.open_transfer.status} />
               </div>
@@ -628,11 +669,16 @@ export function SampleDetailScreen({
                 {sample.open_transfer.to_branch.name}
               </div>
               <div className={styles.transferMetaText}>
-                Dispatched:{" "}
-                {new Date(sample.open_transfer.dispatched_at).toLocaleString(
-                  "en-GB",
-                  { hour: "2-digit", minute: "2-digit" },
-                )}
+                {t("samples:detail_page.dispatched")}{" "}
+                <bdi dir="ltr">
+                  {new Date(sample.open_transfer.dispatched_at).toLocaleString(
+                    "en-GB",
+                    {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    },
+                  )}
+                </bdi>
               </div>
               <div className="pt-2 flex flex-col gap-2">
                 {/* Destination Branch Receive */}
@@ -643,7 +689,7 @@ export function SampleDetailScreen({
                     onClick={handleReceiveTransferAction}
                     className={styles.primaryBlackPill}
                   >
-                    Receive at Destination
+                    {t("samples:detail_page.receive_at_destination")}
                   </button>
                 )}
                 {/* Sender Branch Actions */}
@@ -655,7 +701,7 @@ export function SampleDetailScreen({
                       onClick={handleCancelTransferAction}
                       className={styles.outlinePill}
                     >
-                      Cancel Transfer
+                      {t("samples:detail_page.cancel_transfer")}
                     </button>
                     <button
                       type="button"
@@ -663,7 +709,7 @@ export function SampleDetailScreen({
                       onClick={() => setMarkLostModalOpen(true)}
                       className={styles.outlinePill}
                     >
-                      Mark Lost
+                      {t("samples:detail_page.mark_lost")}
                     </button>
                   </div>
                 )}
@@ -674,29 +720,17 @@ export function SampleDetailScreen({
           {/* Recollection Lineage Card */}
           {sample.recollected_from_accession && (
             <div className={styles.card}>
-              <h2 className={styles.cardTitle}>Specimen Lineage</h2>
-              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 space-y-1">
+              <h2 className={styles.cardTitle}>
+                {t("samples:detail_page.lineage")}
+              </h2>
+              <div className={styles.lineageAlert}>
                 <span className="font-semibold block">
-                  Recollected Replacement:
+                  {t("samples:detail_page.recollected_replacement")}
                 </span>
                 <p>
-                  This sample was recollected from previous accession{" "}
-                  {sample.recollected_from_id ? (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        navigate(`/samples/${sample.recollected_from_id}`)
-                      }
-                      className="font-mono font-bold underline"
-                    >
-                      {sample.recollected_from_accession}
-                    </button>
-                  ) : (
-                    <span className="font-mono font-bold">
-                      {sample.recollected_from_accession}
-                    </span>
-                  )}
-                  .
+                  {t("samples:detail_page.recollected_from", {
+                    accession: sample.recollected_from_accession,
+                  })}
                 </p>
               </div>
             </div>
@@ -705,7 +739,9 @@ export function SampleDetailScreen({
           {/* Quick Actions Card */}
           <div className={styles.card}>
             <div className={styles.cardHeader}>
-              <h2 className={styles.cardTitle}>Sample Actions</h2>
+              <h2 className={styles.cardTitle}>
+                {t("samples:detail_page.sample_actions")}
+              </h2>
             </div>
             <div className={styles.actionButtonGroup}>
               {canReceive && (
@@ -715,7 +751,7 @@ export function SampleDetailScreen({
                   onClick={handleReceiveSample}
                   className={styles.primaryBlackPill}
                 >
-                  Receive Sample
+                  {t("samples:detail_page.receive_sample")}
                 </button>
               )}
 
@@ -726,7 +762,7 @@ export function SampleDetailScreen({
                   onClick={() => setRecollectModalOpen(true)}
                   className={styles.primaryBlackPill}
                 >
-                  Recollect Specimen
+                  {t("samples:detail_page.recollect_specimen")}
                 </button>
               )}
 
@@ -738,7 +774,7 @@ export function SampleDetailScreen({
                   className={styles.outlinePill}
                 >
                   <ArrowRightLeft className="w-4 h-4" />
-                  <span>Transfer to Branch</span>
+                  <span>{t("samples:detail_page.transfer_to_branch")}</span>
                 </button>
               )}
 
@@ -750,7 +786,7 @@ export function SampleDetailScreen({
                   className={styles.dangerOutlinePill}
                 >
                   <Ban className="w-4 h-4" />
-                  <span>Reject Sample</span>
+                  <span>{t("samples:detail_page.reject_sample")}</span>
                 </button>
               )}
 
@@ -761,7 +797,7 @@ export function SampleDetailScreen({
                   onClick={() => setCancelModalOpen(true)}
                   className={styles.dangerOutlinePill}
                 >
-                  <span>Cancel Accession</span>
+                  <span>{t("samples:detail_page.cancel_accession")}</span>
                 </button>
               )}
             </div>
@@ -799,11 +835,10 @@ export function SampleDetailScreen({
             className={styles.modalPanel}
           >
             <h2 id="reject-modal-title" className={styles.modalTitle}>
-              Reject Specimen
+              {t("samples:detail.reject_title")}
             </h2>
             <p className={styles.modalBody}>
-              Document quality non-conformance. This action is irreversible and
-              audited.
+              {t("samples:detail_page.reject_desc")}
             </p>
 
             <div>
@@ -811,7 +846,7 @@ export function SampleDetailScreen({
                 htmlFor="reject-reason-code"
                 className="block text-xs font-bold text-slate-700 mb-1"
               >
-                Rejection Reason Code
+                {t("samples:detail_page.reason_code")}
               </label>
               <select
                 id="reject-reason-code"
@@ -821,10 +856,12 @@ export function SampleDetailScreen({
                 }
                 className={styles.modalInput}
               >
-                <option value="">Select non-conformance reason...</option>
-                {REJECTION_REASONS.map((r) => (
-                  <option key={r.code} value={r.code}>
-                    {r.label}
+                <option value="">
+                  {t("samples:detail_page.select_reason")}
+                </option>
+                {REJECTION_REASON_CODES.map((code) => (
+                  <option key={code} value={code}>
+                    {t(`samples:reject_reason_labels.${code}`)}
                   </option>
                 ))}
               </select>
@@ -835,7 +872,7 @@ export function SampleDetailScreen({
                 htmlFor="reject-note"
                 className="block text-xs font-bold text-slate-700 mb-1"
               >
-                Clinical Justification{" "}
+                {t("samples:detail_page.clinical_justification")}{" "}
                 {rejectionCode === "other" && (
                   <span className="text-red-600">*</span>
                 )}
@@ -847,8 +884,8 @@ export function SampleDetailScreen({
                 onChange={(e) => setRejectionNote(e.target.value)}
                 placeholder={
                   rejectionCode === "other"
-                    ? "Mandatory note for 'Other'..."
-                    : "Optional explanatory notes..."
+                    ? t("samples:detail_page.note_required_other")
+                    : t("samples:detail_page.note_optional")
                 }
                 className={styles.modalInput}
               />
@@ -860,7 +897,7 @@ export function SampleDetailScreen({
                 onClick={() => setRejectModalOpen(false)}
                 className={styles.outlinePill}
               >
-                Cancel
+                {t("samples:detail_page.cancel")}
               </button>
               <button
                 type="button"
@@ -872,7 +909,7 @@ export function SampleDetailScreen({
                 onClick={handleRejectSubmit}
                 className={styles.primaryBlackPill}
               >
-                Confirm Rejection
+                {t("samples:detail_page.confirm_rejection")}
               </button>
             </div>
           </div>
@@ -890,10 +927,10 @@ export function SampleDetailScreen({
             className={styles.modalPanel}
           >
             <h2 id="transfer-modal-title" className={styles.modalTitle}>
-              Transfer Specimen to Branch
+              {t("samples:detail_page.transfer_title")}
             </h2>
             <p className={styles.modalBody}>
-              Dispatch this specimen to another branch facility.
+              {t("samples:detail_page.transfer_desc")}
             </p>
 
             <div>
@@ -901,7 +938,7 @@ export function SampleDetailScreen({
                 htmlFor="transfer-to-branch"
                 className="block text-xs font-bold text-slate-700 mb-1"
               >
-                Destination Branch
+                {t("samples:detail_page.destination_branch")}
               </label>
               <select
                 id="transfer-to-branch"
@@ -909,7 +946,9 @@ export function SampleDetailScreen({
                 onChange={(e) => setTransferBranchId(e.target.value)}
                 className={styles.modalInput}
               >
-                <option value="">Select destination branch...</option>
+                <option value="">
+                  {t("samples:detail_page.select_destination")}
+                </option>
                 {branches
                   .filter((b) => b.id !== sample.branch_id)
                   .map((b) => (
@@ -925,14 +964,14 @@ export function SampleDetailScreen({
                 htmlFor="transfer-note"
                 className="block text-xs font-bold text-slate-700 mb-1"
               >
-                Courier / Transport Notes (Optional)
+                {t("samples:detail_page.courier_notes")}
               </label>
               <textarea
                 id="transfer-note"
                 rows={2}
                 value={transferNotes}
                 onChange={(e) => setTransferNotes(e.target.value)}
-                placeholder="e.g. Courier rider Tariq, ice pack included"
+                placeholder={t("samples:detail_page.courier_placeholder")}
                 className={styles.modalInput}
               />
             </div>
@@ -943,7 +982,7 @@ export function SampleDetailScreen({
                 onClick={() => setTransferModalOpen(false)}
                 className={styles.outlinePill}
               >
-                Cancel
+                {t("samples:detail_page.cancel")}
               </button>
               <button
                 type="button"
@@ -951,7 +990,7 @@ export function SampleDetailScreen({
                 onClick={handleTransferSubmit}
                 className={styles.primaryBlackPill}
               >
-                Confirm Transfer
+                {t("samples:detail_page.confirm_transfer")}
               </button>
             </div>
           </div>
@@ -969,11 +1008,11 @@ export function SampleDetailScreen({
             className={styles.modalPanel}
           >
             <h2 id="cancel-modal-title" className={styles.modalTitle}>
-              Cancel Sample Accession
+              {t("samples:detail_page.cancel_title")}
             </h2>
             <p className="text-xs text-red-700 bg-red-50 p-2.5 rounded-xl border border-red-200">
-              <strong>Warning:</strong> This cannot be undone. This accession
-              will be permanently marked as cancelled.
+              <strong>{t("samples:detail_page.warning")}</strong>{" "}
+              {t("samples:detail_page.cancel_warning")}
             </p>
 
             <div>
@@ -981,14 +1020,15 @@ export function SampleDetailScreen({
                 htmlFor="cancel-reason"
                 className="block text-xs font-bold text-slate-700 mb-1"
               >
-                Cancellation Reason <span className="text-red-600">*</span>
+                {t("samples:detail_page.cancellation_reason")}{" "}
+                <span className="text-red-600">*</span>
               </label>
               <textarea
                 id="cancel-reason"
                 rows={3}
                 value={cancelReason}
                 onChange={(e) => setCancelReason(e.target.value)}
-                placeholder="Mandatory cancellation reason..."
+                placeholder={t("samples:detail_page.cancellation_placeholder")}
                 className={styles.modalInput}
               />
             </div>
@@ -999,7 +1039,7 @@ export function SampleDetailScreen({
                 onClick={() => setCancelModalOpen(false)}
                 className={styles.outlinePill}
               >
-                Keep Sample
+                {t("samples:detail_page.keep_sample")}
               </button>
               <button
                 type="button"
@@ -1007,7 +1047,7 @@ export function SampleDetailScreen({
                 onClick={handleCancelSampleSubmit}
                 className={styles.primaryBlackPill}
               >
-                Confirm Cancel
+                {t("samples:detail_page.confirm_cancel")}
               </button>
             </div>
           </div>
@@ -1025,11 +1065,10 @@ export function SampleDetailScreen({
             className={styles.modalPanel}
           >
             <h2 id="recollect-dialog-title" className={styles.modalTitle}>
-              Recollect Sample Specimen
+              {t("samples:detail_page.recollect_title")}
             </h2>
             <p className={styles.modalBody}>
-              Creates a new accession for remaining untested items on this
-              invoice without re-billing.
+              {t("samples:detail_page.recollect_desc")}
             </p>
             <div className={styles.modalActions}>
               <button
@@ -1037,7 +1076,7 @@ export function SampleDetailScreen({
                 onClick={() => setRecollectModalOpen(false)}
                 className={styles.outlinePill}
               >
-                Cancel
+                {t("samples:detail_page.cancel")}
               </button>
               <button
                 type="button"
@@ -1045,7 +1084,7 @@ export function SampleDetailScreen({
                 onClick={handleRecollectConfirm}
                 className={styles.primaryBlackPill}
               >
-                Confirm Recollection
+                {t("samples:detail_page.confirm_recollection")}
               </button>
             </div>
           </div>
@@ -1063,11 +1102,10 @@ export function SampleDetailScreen({
             className={styles.modalPanel}
           >
             <h2 id="marklost-modal-title" className={styles.modalTitle}>
-              Mark Transferred Specimen as Lost
+              {t("samples:detail_page.lost_title")}
             </h2>
             <p className={styles.modalBody}>
-              Document loss in transit. A clinical non-conformance incident will
-              be registered.
+              {t("samples:detail_page.lost_desc")}
             </p>
 
             <div>
@@ -1075,14 +1113,15 @@ export function SampleDetailScreen({
                 htmlFor="lost-note"
                 className="block text-xs font-bold text-slate-700 mb-1"
               >
-                Mandatory Incident Note <span className="text-red-600">*</span>
+                {t("samples:detail_page.incident_note")}{" "}
+                <span className="text-red-600">*</span>
               </label>
               <textarea
                 id="lost-note"
                 rows={3}
                 value={markLostNote}
                 onChange={(e) => setMarkLostNote(e.target.value)}
-                placeholder="Explain the circumstance of loss..."
+                placeholder={t("samples:detail_page.lost_placeholder")}
                 className={styles.modalInput}
               />
             </div>
@@ -1093,7 +1132,7 @@ export function SampleDetailScreen({
                 onClick={() => setMarkLostModalOpen(false)}
                 className={styles.outlinePill}
               >
-                Cancel
+                {t("samples:detail_page.cancel")}
               </button>
               <button
                 type="button"
@@ -1101,7 +1140,7 @@ export function SampleDetailScreen({
                 onClick={handleMarkLostAction}
                 className={styles.primaryBlackPill}
               >
-                Confirm Lost
+                {t("samples:detail_page.confirm_lost")}
               </button>
             </div>
           </div>

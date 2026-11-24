@@ -21,6 +21,8 @@ export interface PaymentSuccessModalProps {
   invoice: InvoiceDetail;
   onPrintReceipt?: () => void;
   onProceedToSamples?: () => void;
+  /** Direct deep link to the invoice record after settlement. */
+  onViewInvoice?: () => void;
   onClose: () => void;
 }
 
@@ -32,6 +34,7 @@ export function PaymentSuccessModal({
   invoice,
   onPrintReceipt,
   onProceedToSamples,
+  onViewInvoice,
   onClose,
 }: PaymentSuccessModalProps): JSX.Element | null {
   const { t, i18n } = useTranslation(["billing", "common"]);
@@ -238,7 +241,10 @@ export function PaymentSuccessModal({
             <button
               type="button"
               data-testid="view-invoice-btn"
-              onClick={onClose}
+              onClick={() => {
+                onClose();
+                onViewInvoice?.();
+              }}
               className={styles.ghostAction}
             >
               <ExternalLink className="w-3.5 h-3.5" />

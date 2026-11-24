@@ -67,9 +67,9 @@ export function CollectSampleStep2Screen({
     <div className={styles.pageContainer}>
       {/* 1. Header */}
       <header className={styles.headerArea}>
-        <h1 className={styles.title}>Collect sample</h1>
+        <h1 className={styles.title}>{t("samples:collect_page.title")}</h1>
         <p className={styles.subtitle}>
-          Verify tests and confirm specimen collection.
+          {t("samples:collect_page.verify_subtitle")}
         </p>
       </header>
 
@@ -104,8 +104,12 @@ export function CollectSampleStep2Screen({
             <span className="font-semibold text-slate-900">
               {draft.patient_name}
             </span>
-            <span className={styles.mrnTag}>{draft.patient_mrn}</span>
-            <span>· Invoice #{draft.invoice_number || draft.invoice_id}</span>
+            <span className={styles.mrnTag}>
+              <bdi dir="ltr">{draft.patient_mrn}</bdi>
+            </span>
+            <span>
+              · <bdi dir="ltr">{draft.invoice_number || draft.invoice_id}</bdi>
+            </span>
             {draft.branch_name && <span>· {draft.branch_name}</span>}
           </div>
         </div>
@@ -113,14 +117,16 @@ export function CollectSampleStep2Screen({
         {/* Selected Tests to Collect */}
         <div>
           <h2 className={styles.sectionTitle}>
-            Selected Tests ({draft.selected_item_ids.length})
+            {t("samples:collect_page.selected_tests", {
+              n: draft.selected_item_ids.length,
+            })}
           </h2>
           <div className="space-y-2">
             {(draft.test_labels || []).map((label, idx) => (
               <div key={idx} className={styles.testItemCard}>
                 <span className={styles.testItemName}>{label}</span>
-                <span className="text-xs px-2 py-0.5 rounded-full bg-teal-50 text-teal-800 font-semibold border border-teal-200">
-                  Ready to collect
+                <span className={styles.readyBadge}>
+                  {t("samples:collect_page.ready_to_collect")}
                 </span>
               </div>
             ))}
@@ -131,9 +137,12 @@ export function CollectSampleStep2Screen({
         {draft.tubes_required && draft.tubes_required.length > 0 && (
           <div>
             <h2 className={styles.sectionTitle}>
-              Tubes Required (
-              {draft.tubes_required.reduce((acc, t) => acc + (t.count || 1), 0)}
-              )
+              {t("samples:collect_page.tubes_required", {
+                n: draft.tubes_required.reduce(
+                  (acc, tube) => acc + (tube.count || 1),
+                  0,
+                ),
+              })}
             </h2>
             <div className="space-y-2">
               {draft.tubes_required.map((tube, idx) => (
@@ -148,8 +157,12 @@ export function CollectSampleStep2Screen({
                       ({tube.specimen})
                     </span>
                   </div>
-                  <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-800">
-                    {tube.count} {tube.count === 1 ? "tube" : "tubes"}
+                  <span className={styles.tubeCountBadge}>
+                    {tube.count === 1
+                      ? t("samples:collect_page.tube_one", { n: tube.count })
+                      : t("samples:collect_page.tube_many", {
+                          n: tube.count,
+                        })}
                   </span>
                 </div>
               ))}
@@ -159,19 +172,19 @@ export function CollectSampleStep2Screen({
 
         {/* Read-Only Automatic Inputs (D6) */}
         <div className={styles.automaticBox}>
-          <div className={styles.automaticLabel}>Specimen Custody Details</div>
+          <div className={styles.automaticLabel}>
+            {t("samples:collect_page.custody_details")}
+          </div>
           <div className="flex items-center gap-1.5 mt-0.5">
             <Clock className="w-3.5 h-3.5 text-slate-500" />
-            <span>
-              Recorded automatically: server time on confirm / logged-in user
-            </span>
+            <span>{t("samples:collect_page.custody_auto")}</span>
           </div>
         </div>
 
         {/* Collection Notes (Optional, max 500) */}
         <div>
           <label htmlFor="collection-notes" className={styles.sectionTitle}>
-            Collection Notes (Optional)
+            {t("samples:collect_page.notes_label")}
           </label>
           <textarea
             id="collection-notes"
@@ -180,11 +193,13 @@ export function CollectSampleStep2Screen({
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             disabled={isSubmitting}
-            placeholder="Add relevant specimen notes (e.g. left arm draw, fasting confirmed)..."
+            placeholder={t("samples:collect_page.notes_placeholder")}
             className={styles.notesTextarea}
           />
           <div className={styles.charCount}>
-            <span>{notes.length} / 500 characters</span>
+            <span>
+              {t("samples:collect_page.char_count", { count: notes.length })}
+            </span>
           </div>
         </div>
       </div>
@@ -198,7 +213,7 @@ export function CollectSampleStep2Screen({
           className={styles.outlinePill}
         >
           <ArrowLeft className="w-4 h-4 rtl:rotate-180" />
-          <span>Back to Step 1</span>
+          <span>{t("samples:collect_page.back_to_step1")}</span>
         </button>
 
         <button
@@ -209,7 +224,9 @@ export function CollectSampleStep2Screen({
         >
           <Check className="w-4 h-4 stroke-[2.5]" />
           <span>
-            {isSubmitting ? "Collecting specimen..." : "Collect sample"}
+            {isSubmitting
+              ? t("samples:collect_page.collecting")
+              : t("samples:collect_page.collect")}
           </span>
         </button>
       </footer>

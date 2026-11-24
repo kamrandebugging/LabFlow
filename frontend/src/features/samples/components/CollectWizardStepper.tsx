@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Check } from "lucide-react";
 import styles from "./CollectWizardStepper.module.css";
 
@@ -12,23 +13,24 @@ export interface CollectWizardStepperProps {
   className?: string;
 }
 
-const DEFAULT_STEPS: WizardStep[] = [
-  { number: 1, title: "Patient & invoice" },
-  { number: 2, title: "Tests & collection" },
-];
-
 export function CollectWizardStepper({
   currentStep,
-  steps = DEFAULT_STEPS,
+  steps,
   className,
 }: CollectWizardStepperProps): JSX.Element {
+  const { t } = useTranslation("samples");
+  const resolvedSteps: WizardStep[] = steps ?? [
+    { number: 1, title: t("samples:stepper.patient_invoice") },
+    { number: 2, title: t("samples:stepper.tests_collection") },
+  ];
+
   return (
     <nav
-      aria-label="Collection Progress"
+      aria-label={t("samples:stepper.aria")}
       className={[styles.stepperNav, className].filter(Boolean).join(" ")}
     >
       <ol className={styles.stepList}>
-        {steps.map((step, idx) => {
+        {resolvedSteps.map((step, idx) => {
           const isCompleted = step.number < currentStep;
           const isCurrent = step.number === currentStep;
 
@@ -55,7 +57,9 @@ export function CollectWizardStepper({
                 )}
               </div>
               <div className={styles.stepText}>
-                <span className={styles.stepNumber}>Step {step.number}</span>
+                <span className={styles.stepNumber}>
+                  {t("samples:stepper.step", { n: step.number })}
+                </span>
                 <span className={styles.stepTitle}>{step.title}</span>
               </div>
             </li>

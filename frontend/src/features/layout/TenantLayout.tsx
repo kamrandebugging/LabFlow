@@ -336,11 +336,15 @@ export function TenantLayout(): ReactElement {
   };
 
   return (
-    <div className="min-h-screen bg-[var(--veyla-page)] text-[var(--color-body)] flex font-sans">
+    <div
+      data-app-shell
+      className="min-h-screen bg-[var(--veyla-page)] text-[var(--color-body)] flex font-sans"
+    >
       {/* Sidebar Overlay on Mobile */}
       {isMobileMenuOpen ? (
         <div
           aria-hidden="true"
+          data-print-hide
           className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm lg:hidden"
           onClick={() => setIsMobileMenuOpen(false)}
         />
@@ -348,6 +352,7 @@ export function TenantLayout(): ReactElement {
 
       {/* Veyla Left Sidebar */}
       <aside
+        data-print-hide
         className={`fixed lg:sticky top-0 z-50 h-screen bg-[var(--veyla-card)] border-e border-[var(--color-border)] shadow-[var(--shadow-veyla-card)] flex flex-col justify-between transition-all duration-300 ease-in-out ${
           isSidebarCollapsed ? "w-20" : "w-64"
         } ${
@@ -490,7 +495,10 @@ export function TenantLayout(): ReactElement {
       {/* Main Workspace Area */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Veyla Top Bar */}
-        <header className="sticky top-0 z-30 h-16 bg-[var(--veyla-card)]/90 backdrop-blur-md border-b border-[var(--color-border)] px-4 sm:px-6 flex items-center justify-between gap-3 shadow-sm">
+        <header
+          data-print-hide
+          className="sticky top-0 z-30 h-16 bg-[var(--veyla-card)]/90 backdrop-blur-md border-b border-[var(--color-border)] px-4 sm:px-6 flex items-center justify-between gap-3 shadow-sm"
+        >
           {/* Left: Mobile Toggle + Breadcrumb */}
           <div className="flex items-center gap-3 min-w-0">
             <button
@@ -602,7 +610,10 @@ export function TenantLayout(): ReactElement {
         </header>
 
         {/* Content Outlet — only the content area animates on navigation. */}
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto">
+        <main
+          data-app-main
+          className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto"
+        >
           <PatientsDrawerProvider>
             <InvoiceDrawerProvider>
               <PageTransition />

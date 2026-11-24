@@ -77,7 +77,9 @@
       "in_process": "زیر عمل",
       "ready": "تیار",
       "rejected": "مسترد",
-      "cancelled": "منسوخ"
+      "cancelled": "منسوخ",
+      "awaiting_collection": "نمونے کے منتظر",
+      "worst": "فوری"
     },
     "result": {
       "entered": "درج",
