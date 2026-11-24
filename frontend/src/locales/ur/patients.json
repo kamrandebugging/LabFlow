@@ -129,5 +129,24 @@
     "errors": {
       "load": "ہسٹری لوڈ نہیں ہو سکی"
     }
+  },
+  "success_modal": {
+    "title": "مریض کامیابی سے رجسٹر ہو گیا",
+    "subtitle": "مریض کی معلومات اور MRN ریکارڈ بن گیا ہے۔",
+    "mrn_label": "میڈیکل ریکارڈ نمبر (MRN)",
+    "copy": "کاپی",
+    "copied": "کاپی ہو گیا!",
+    "patient_name": "مریض کا نام",
+    "age_sex": "عمر / جنس",
+    "primary_phone": "بنیادی فون",
+    "branch": "برانچ",
+    "registered_at": "اندراج کا وقت",
+    "referral_partner": "ریفرل پارٹنر",
+    "pkt": "PKT (UTC+5)",
+    "create_invoice": "انوائس بنائیں",
+    "register_another": "ایک اور مریض رجسٹر کریں",
+    "view_profile": "مریض کا پروفائل دیکھیں",
+    "back_to_list": "مریضوں کی فہرست پر واپس جائیں",
+    "close_dialog": "ڈائیلاگ بند کریں"
   }
 }

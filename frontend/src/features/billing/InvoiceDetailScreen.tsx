@@ -16,6 +16,7 @@ import { messageForError } from "../../lib/errors";
 import { useDialogFocus } from "../../lib/dialogFocus";
 import styles from "./InvoiceDetailScreen.module.css";
 import type { InvoiceDetail, InvoiceStatus, PaymentMethod } from "./types";
+import { PaymentSuccessModal } from "./components";
 
 export interface InvoiceDetailScreenProps {
   invoiceId: string;
@@ -125,6 +126,11 @@ export function InvoiceDetailScreen({
   const [payMethod, setPayMethod] = useState<PaymentMethod>("cash");
   const [payReference, setPayReference] = useState<string>("");
   const [submittingPayment, setSubmittingPayment] = useState(false);
+  const [lastPayment, setLastPayment] = useState<{
+    amount: string;
+    method: string;
+    reference?: string | null;
+  } | null>(null);
 
   // Refund Form State
   const [refundAmount, setRefundAmount] = useState<string>("");
@@ -202,11 +208,19 @@ export function InvoiceDetailScreen({
 
     try {
       setSubmittingPayment(true);
+      const paidAmt = amt.toFixed(2);
+      const paidRef = payReference.trim() || undefined;
+      const paidMeth = payMethod;
       await billingService.recordPayment(invoice.id, {
         kind: "payment",
-        method: payMethod,
-        amount: amt.toFixed(2),
-        reference: payReference.trim() || undefined,
+        method: paidMeth,
+        amount: paidAmt,
+        reference: paidRef,
+      });
+      setLastPayment({
+        amount: paidAmt,
+        method: paidMeth,
+        reference: paidRef,
       });
       showToast(
         t("billing:detail.toast_payment", {
@@ -1236,6 +1250,35 @@ export function InvoiceDetailScreen({
             </div>
           </div>
         </div>
+      )}
+
+      {lastPayment && invoice && (
+        <PaymentSuccessModal
+          isOpen={Boolean(lastPayment)}
+          amount={lastPayment.amount}
+          method={lastPayment.method}
+          reference={lastPayment.reference}
+          invoice={invoice}
+          onPrintReceipt={() => {
+            window.open(`/invoices/${invoice.id}/print`, "_blank");
+          }}
+          onProceedToSamples={
+            onProceedToSamples
+              ? () => {
+                  setLastPayment(null);
+                  onProceedToSamples(invoice);
+                }
+              : () => {
+                  setLastPayment(null);
+                  if (typeof window !== "undefined") {
+                    window.location.assign(
+                      `/samples/collect/step1?invoice=${invoice.invoice_number || invoice.id}`,
+                    );
+                  }
+                }
+          }
+          onClose={() => setLastPayment(null)}
+        />
       )}
     </div>
   );

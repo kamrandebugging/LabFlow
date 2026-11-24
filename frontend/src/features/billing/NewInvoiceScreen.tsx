@@ -21,12 +21,17 @@ import { formatMoney } from "../../lib/format";
 import { messageForError } from "../../lib/errors";
 import styles from "./NewInvoiceScreen.module.css";
 import type { InvoiceDetail, InvoiceItemInput } from "./types";
+import { InvoiceCreationSuccessModal } from "./components";
 
 export interface NewInvoiceScreenProps {
   initialPatientId?: string;
   onSuccess?: (invoice: InvoiceDetail) => void;
   onCancel?: () => void;
   onRegisterPatient?: () => void;
+  onRecordPayment?: (invoiceId: string) => void;
+  onCollectSpecimen?: (invoiceId: string) => void;
+  onViewDetails?: (invoiceId: string) => void;
+  onPrint?: (invoiceId: string) => void;
 }
 
 interface SelectedLineItem {
@@ -44,6 +49,10 @@ export function NewInvoiceScreen({
   onSuccess,
   onCancel,
   onRegisterPatient,
+  onRecordPayment,
+  onCollectSpecimen,
+  onViewDetails,
+  onPrint,
 }: NewInvoiceScreenProps): JSX.Element {
   const { t, i18n } = useTranslation(["billing", "common"]);
   const lang: "en" | "ur" = i18n.resolvedLanguage === "ur" ? "ur" : "en";
@@ -87,6 +96,9 @@ export function NewInvoiceScreen({
   // Submission & Feedback
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [createdInvoice, setCreatedInvoice] = useState<InvoiceDetail | null>(
+    null,
+  );
 
   // Load initial catalog
   useEffect(() => {
@@ -297,6 +309,7 @@ export function NewInvoiceScreen({
         discount_reason: discountVal > 0 ? discountReason.trim() : null,
       });
 
+      setCreatedInvoice(created);
       if (onSuccess) {
         onSuccess(created);
       }
@@ -759,6 +772,55 @@ export function NewInvoiceScreen({
           </form>
         </div>
       </div>
+
+      {createdInvoice && (
+        <InvoiceCreationSuccessModal
+          isOpen={Boolean(createdInvoice)}
+          invoice={createdInvoice}
+          onRecordPayment={(id) => {
+            if (onRecordPayment) {
+              onRecordPayment(id);
+            } else if (typeof window !== "undefined") {
+              window.location.assign(`/invoices/${id}`);
+            }
+          }}
+          onCollectSpecimen={(id) => {
+            if (onCollectSpecimen) {
+              onCollectSpecimen(id);
+            } else if (typeof window !== "undefined") {
+              window.location.assign(
+                `/samples/collect/step1?invoice=${createdInvoice.invoice_number || id}`,
+              );
+            }
+          }}
+          onPrint={(id) => {
+            if (onPrint) {
+              onPrint(id);
+            } else if (typeof window !== "undefined") {
+              window.open(`/invoices/${id}/print`, "_blank");
+            }
+          }}
+          onViewDetails={(id) => {
+            if (onViewDetails) {
+              onViewDetails(id);
+            } else if (typeof window !== "undefined") {
+              window.location.assign(`/invoices/${id}`);
+            }
+          }}
+          onCreateAnother={() => {
+            setCreatedInvoice(null);
+            setItems([]);
+            setSelectedPatient(null);
+            setPatientQuery("");
+            setDiscountAmount("0");
+            setDiscountReason("");
+          }}
+          onClose={() => {
+            setCreatedInvoice(null);
+            onCancel?.();
+          }}
+        />
+      )}
     </div>
   );
 }

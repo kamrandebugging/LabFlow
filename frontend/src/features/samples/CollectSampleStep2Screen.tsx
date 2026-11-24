@@ -5,7 +5,10 @@ import { messageForError } from "../../lib/errors";
 import { useAuthStore } from "../auth/authStore";
 import { sampleService } from "./sampleService";
 import type { SampleCollectionDraft, SampleCreatedResponse } from "./types";
-import { CollectWizardStepper, SampleCollectionSuccessModal } from "./components";
+import {
+  CollectWizardStepper,
+  SampleCollectionSuccessModal,
+} from "./components";
 import styles from "./CollectSampleStep2Screen.module.css";
 
 export interface CollectSampleStep2ScreenProps {

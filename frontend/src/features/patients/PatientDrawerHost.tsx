@@ -212,6 +212,18 @@ export function RegisterDrawerHost({
         branchId={branchId}
         service={patientService}
         onSuccess={onRegistered}
+        onCreateInvoice={(patId) => {
+          onClose();
+          if (typeof window !== "undefined") {
+            window.location.assign(`/invoices?createForPatientId=${patId}`);
+          }
+        }}
+        onViewProfile={(patId) => {
+          onClose();
+          if (typeof window !== "undefined") {
+            window.location.assign(`/patients/${patId}`);
+          }
+        }}
         onCancel={onClose}
       />
     );

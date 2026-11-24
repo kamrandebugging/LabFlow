@@ -19,7 +19,6 @@ export function InvoiceDrawerProvider({
 }: {
   children: ReactNode;
 }): JSX.Element {
-  const navigate = useNavigate();
   const location = useLocation();
   const [invoiceId, setInvoiceId] = useState<string | null>(null);
   const [isNewOpen, setIsNewOpen] = useState(false);
@@ -90,10 +89,8 @@ export function InvoiceDrawerProvider({
       {isNewOpen ? (
         <NewInvoiceDrawer
           onClose={closeNew}
-          onCreated={(id) => {
-            setIsNewOpen(false);
+          onCreated={() => {
             setListRevision((n) => n + 1);
-            navigate(`/invoices/${id}`);
           }}
         />
       ) : null}
@@ -108,12 +105,28 @@ function NewInvoiceDrawer({
   onClose: () => void;
   onCreated: (id: string) => void;
 }): JSX.Element {
+  const navigate = useNavigate();
   return (
     <div className="fixed inset-0 z-[60] flex justify-end bg-black/40">
       <div className="h-full w-full max-w-[760px] overflow-y-auto bg-[var(--color-surface)] shadow-[var(--shadow-veyla-dropdown)]">
         <NewInvoiceScreen
           onCancel={onClose}
           onSuccess={(invoice) => onCreated(invoice.id)}
+          onRecordPayment={(id) => {
+            onClose();
+            navigate(`/invoices/${id}`);
+          }}
+          onCollectSpecimen={() => {
+            onClose();
+            navigate(`/samples/collect/step1`);
+          }}
+          onViewDetails={(id) => {
+            onClose();
+            navigate(`/invoices/${id}`);
+          }}
+          onPrint={(id) => {
+            window.open(`/invoices/${id}/print`, "_blank");
+          }}
         />
       </div>
     </div>

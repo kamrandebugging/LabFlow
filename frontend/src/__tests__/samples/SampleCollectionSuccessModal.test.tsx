@@ -29,7 +29,12 @@ describe("SampleCollectionSuccessModal", () => {
     selected_item_ids: ["item-1", "item-2"],
     test_labels: ["Complete Blood Count (CBC)", "Serum Ferritin"],
     tubes_required: [
-      { type: "Lavender (EDTA)", specimen: "Whole Blood", color: "#8b5cf6", count: 1 },
+      {
+        type: "Lavender (EDTA)",
+        specimen: "Whole Blood",
+        color: "#8b5cf6",
+        count: 1,
+      },
       { type: "Gold / SST", specimen: "Serum", color: "#eab308", count: 1 },
     ],
     collected_at: "2026-11-24T06:45:00Z",

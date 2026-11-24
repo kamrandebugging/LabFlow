@@ -20,6 +20,7 @@ import { partnersService } from "../partners/partnersService";
 import type { ReferralPartner } from "../partners/types";
 import { VeylaDrawer as PatientRegisterDrawer } from "./VeylaDrawer";
 import { calculatePatientAge } from "./patientAge";
+import { PatientRegistrationSuccessModal } from "./components/PatientRegistrationSuccessModal";
 import type {
   PatientCandidate,
   PatientCreateInput,
@@ -30,6 +31,8 @@ interface RegisterPatientScreenProps {
   branchId?: string;
   onSuccess?: (patient: PatientSummary) => void;
   onCancel?: () => void;
+  onCreateInvoice?: (patientId: string) => void;
+  onViewProfile?: (patientId: string) => void;
   service?: typeof patientService;
   /**
    * "page" renders the standalone registration route. "drawer" renders the
@@ -61,6 +64,8 @@ export const RegisterPatientScreen: React.FC<RegisterPatientScreenProps> = ({
   branchId = "00000000-0000-0000-0000-000000000001",
   onSuccess,
   onCancel,
+  onCreateInvoice,
+  onViewProfile,
   service = patientService,
   variant = "page",
 }) => {
@@ -225,9 +230,7 @@ export const RegisterPatientScreen: React.FC<RegisterPatientScreenProps> = ({
 
       const result = await service.createPatient(payload);
       setDuplicateCandidates(null);
-      if (variant === "drawer") {
-        setSavedPatient(result);
-      }
+      setSavedPatient(result);
       onSuccess?.(result);
     } catch (err: unknown) {
       if (err instanceof DuplicatePatientError) {
@@ -769,6 +772,37 @@ export const RegisterPatientScreen: React.FC<RegisterPatientScreenProps> = ({
         </PatientRegisterDrawer>
 
         {duplicateDialog}
+
+        {savedPatient && (
+          <PatientRegistrationSuccessModal
+            isOpen={Boolean(savedPatient)}
+            patient={savedPatient}
+            onCreateInvoice={(patientId) => {
+              if (onCreateInvoice) {
+                onCreateInvoice(patientId);
+              } else if (typeof window !== "undefined") {
+                window.location.assign(
+                  `/invoices?createForPatientId=${patientId}`,
+                );
+              }
+            }}
+            onViewProfile={(patientId) => {
+              if (onViewProfile) {
+                onViewProfile(patientId);
+              } else if (typeof window !== "undefined") {
+                window.location.assign(`/patients/${patientId}`);
+              }
+            }}
+            onRegisterAnother={() => {
+              resetForm();
+              setSavedPatient(null);
+            }}
+            onClose={() => {
+              setSavedPatient(null);
+              onCancel?.();
+            }}
+          />
+        )}
       </>
     );
   }
@@ -839,6 +873,37 @@ export const RegisterPatientScreen: React.FC<RegisterPatientScreenProps> = ({
       </div>
 
       {duplicateDialog}
+
+      {savedPatient && (
+        <PatientRegistrationSuccessModal
+          isOpen={Boolean(savedPatient)}
+          patient={savedPatient}
+          onCreateInvoice={(patientId) => {
+            if (onCreateInvoice) {
+              onCreateInvoice(patientId);
+            } else if (typeof window !== "undefined") {
+              window.location.assign(
+                `/invoices?createForPatientId=${patientId}`,
+              );
+            }
+          }}
+          onViewProfile={(patientId) => {
+            if (onViewProfile) {
+              onViewProfile(patientId);
+            } else if (typeof window !== "undefined") {
+              window.location.assign(`/patients/${patientId}`);
+            }
+          }}
+          onRegisterAnother={() => {
+            resetForm();
+            setSavedPatient(null);
+          }}
+          onClose={() => {
+            setSavedPatient(null);
+            onCancel?.();
+          }}
+        />
+      )}
     </div>
   );
 };

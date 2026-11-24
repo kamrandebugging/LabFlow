@@ -129,5 +129,24 @@
     "errors": {
       "load": "Failed to load history"
     }
+  },
+  "success_modal": {
+    "title": "Patient Registered Successfully",
+    "subtitle": "Patient demographics and MRN record created.",
+    "mrn_label": "Medical Record Number (MRN)",
+    "copy": "Copy",
+    "copied": "Copied!",
+    "patient_name": "Patient Name",
+    "age_sex": "Age / Sex",
+    "primary_phone": "Primary Phone",
+    "branch": "Branch",
+    "registered_at": "Registration Time",
+    "referral_partner": "Referral Partner",
+    "pkt": "PKT (UTC+5)",
+    "create_invoice": "Create Invoice",
+    "register_another": "Register Another Patient",
+    "view_profile": "View Patient Profile",
+    "back_to_list": "Back to Patients List",
+    "close_dialog": "Close dialog"
   }
 }
