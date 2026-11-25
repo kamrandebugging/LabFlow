@@ -199,6 +199,43 @@ describe("Screen 16: SampleAccessioningListScreen", () => {
     fireEvent.click(collectBtn);
     expect(mockCollect).toHaveBeenCalledTimes(1);
   });
+
+  it("does not poison the main page when the optional transfers queue returns 404", async () => {
+    const notFound = Object.assign(new Error("not found"), {
+      status: 404,
+      code: "not_found",
+    });
+    const mockService = {
+      listSamples: vi.fn().mockResolvedValue({
+        results: [mockSampleSummary],
+        total: 1,
+      }),
+      listAwaitingCollection: vi
+        .fn()
+        .mockResolvedValue({ results: [], total: 0 }),
+      listTransfers: vi.fn().mockRejectedValue(notFound),
+    };
+
+    render(
+      <MemoryRouter>
+        <SampleAccessioningListScreen
+          // @ts-expect-error partial mock
+          service={mockService}
+        />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("tab", { name: /All samples 1/i }),
+      ).toBeInTheDocument();
+    });
+
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(
+      screen.queryByText("The requested record was not found."),
+    ).toBeNull();
+  });
 });
 
 describe("Screen 17: CollectSampleStep1Screen", () => {

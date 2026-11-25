@@ -37,6 +37,12 @@ export interface SampleAccessioningListScreenProps {
   service?: typeof sampleService;
 }
 
+/** A list endpoint answering 404 means "no records in scope", not a page error. */
+function isNotFoundError(err: unknown): boolean {
+  const candidate = err as { status?: number; code?: string } | null;
+  return candidate?.status === 404 || candidate?.code === "not_found";
+}
+
 export function SampleAccessioningListScreen({
   onSelectSample,
   onCollectNew,
@@ -138,7 +144,7 @@ export function SampleAccessioningListScreen({
     try {
       const [samplesResult, awaitingResult, transfersResult] =
         await Promise.allSettled([
-          service.listSamples({ limit: 200, order: sortOrder }),
+          service.listSamples({ order: sortOrder }),
           service.listAwaitingCollection(),
           service.listTransfers({ status: "open", direction: "all" }),
         ]);
@@ -147,7 +153,12 @@ export function SampleAccessioningListScreen({
         setSummarySamples(samplesResult.value.results || []);
         setSummaryTotal(samplesResult.value.total ?? 0);
       } else {
-        setErrorMessage(messageForError(samplesResult.reason, t));
+        setSummarySamples([]);
+        setSummaryTotal(0);
+        // A list 404 is an empty scope, not a blocking error banner.
+        if (!isNotFoundError(samplesResult.reason)) {
+          setErrorMessage(messageForError(samplesResult.reason, t));
+        }
       }
 
       if (awaitingResult.status === "fulfilled") {
@@ -156,13 +167,19 @@ export function SampleAccessioningListScreen({
           awaitingResult.value.total ?? awaitingResult.value.results.length,
         );
       } else {
-        setErrorMessage(messageForError(awaitingResult.reason, t));
+        setAwaitingItems([]);
+        setAwaitingTotalCount(0);
+        if (!isNotFoundError(awaitingResult.reason)) {
+          setErrorMessage(messageForError(awaitingResult.reason, t));
+        }
       }
 
       if (transfersResult.status === "fulfilled") {
         setTransfers(transfersResult.value.results || []);
       } else {
-        setErrorMessage(messageForError(transfersResult.reason, t));
+        // Transfers are an optional queue. Never poison the main samples page
+        // with their error; the Transfers tab reports it when opened.
+        setTransfers([]);
       }
     } finally {
       setSummaryLoading(false);
@@ -182,7 +199,11 @@ export function SampleAccessioningListScreen({
       });
       setSamples(res.results || []);
     } catch (err) {
-      setErrorMessage(messageForError(err, t));
+      if (isNotFoundError(err)) {
+        setSamples([]);
+      } else {
+        setErrorMessage(messageForError(err, t));
+      }
     } finally {
       setIsLoading(false);
     }
@@ -199,7 +220,11 @@ export function SampleAccessioningListScreen({
       });
       setTransfers(res.results || []);
     } catch (err) {
-      setErrorMessage(messageForError(err, t));
+      if (isNotFoundError(err)) {
+        setTransfers([]);
+      } else {
+        setErrorMessage(messageForError(err, t));
+      }
     } finally {
       setIsLoading(false);
     }
