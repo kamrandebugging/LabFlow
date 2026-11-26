@@ -18,6 +18,7 @@ Covers:
 
 import uuid
 from datetime import date, timedelta
+from decimal import Decimal
 from typing import Any
 
 import pytest
@@ -912,3 +913,100 @@ class TestPatientSoftDeletePT5:
             assert del_res.json()["error"]["code"] == "samples_in_flight"
             p.refresh_from_db()
             assert p.deleted_at is None
+
+
+@pytest.mark.django_db
+class TestPatientRealHistoryInvoicesLastVisitAndVersion:
+    """Phase 5: real history visits, real detail invoices, last_visit, and version."""
+
+    def test_history_detail_invoices_last_visit_and_if_match_version(
+        self,
+        client: Client,
+        tenant_a: Any,
+        branch_setup: dict[str, Any],
+        auth_headers: Any,
+    ) -> None:
+        with tenant_context(tenant_a):
+            branch = branch_setup["branch_isb"]
+            rec = branch_setup["receptionist_isb"]
+            headers = auth_headers(rec, tenant_id=tenant_a.schema_name)
+
+            p_no_visit = Patient.objects.create(
+                name="No Visit Patient",
+                phone="03001118801",
+                sex="F",
+                branch=branch,
+                mrn="MRN-ISB-001201",
+            )
+            p = Patient.objects.create(
+                name="Visited Patient",
+                phone="03001118802",
+                sex="M",
+                branch=branch,
+                mrn="MRN-ISB-001202",
+            )
+            invoice = Invoice.objects.create(
+                patient=p,
+                branch=branch,
+                status="paid",
+                subtotal=Decimal("1500.00"),
+                total=Decimal("1500.00"),
+            )
+            sample = Sample.objects.create(
+                invoice=invoice,
+                branch=branch,
+                accession_id="ISB20261125000001",
+                status="ready",
+                collected_at=timezone.now(),
+            )
+            Report.objects.create(
+                sample=sample,
+                status="final",
+                current_version=2,
+            )
+
+            # 1. List exposes version and real last_visit (None when no visit)
+            list_res = client.get("/api/v1/patients", **headers)
+            assert list_res.status_code == 200
+            rows = {r["id"]: r for r in list_res.json()}
+            assert rows[str(p_no_visit.id)]["last_visit"] is None
+            assert rows[str(p.id)]["last_visit"] == invoice.created_at.isoformat()
+            assert rows[str(p.id)]["version"] == p.updated_at.isoformat()
+
+            # 2. Detail returns real invoices + version + last_visit
+            detail_res = client.get(f"/api/v1/patients/{p.id}", **headers)
+            assert detail_res.status_code == 200
+            detail = detail_res.json()
+            assert detail["version"] == p.updated_at.isoformat()
+            assert detail["last_visit"] == invoice.created_at.isoformat()
+            assert len(detail["invoices"]) == 1
+            assert detail["invoices"][0]["id"] == str(invoice.id)
+            assert detail["invoices"][0]["total"] == "1500.00"
+
+            # 3. History returns chronological visits with invoice, sample, report
+            hist_res = client.get(f"/api/v1/patients/{p.id}/history", **headers)
+            assert hist_res.status_code == 200
+            visits = hist_res.json()["visits"]
+            assert len(visits) == 1
+            assert visits[0]["invoice_id"] == str(invoice.id)
+            assert visits[0]["samples"][0]["accession_id"] == "ISB20261125000001"
+            assert visits[0]["reports"][0]["status"] == "final"
+            assert visits[0]["reports"][0]["current_version"] == 2
+
+            # 4. If-Match using returned version succeeds, then stale version -> 409
+            headers_with_match = {**headers, "HTTP_IF_MATCH": f'"{detail["version"]}"'}
+            ok_patch = client.patch(
+                f"/api/v1/patients/{p.id}",
+                data={"phone": "03009991122"},
+                content_type="application/json",
+                **headers_with_match,
+            )
+            assert ok_patch.status_code == 200
+            stale_patch = client.patch(
+                f"/api/v1/patients/{p.id}",
+                data={"phone": "03009991133"},
+                content_type="application/json",
+                **headers_with_match,
+            )
+            assert stale_patch.status_code == 409
+            assert stale_patch.json()["error"]["code"] == "version_conflict"

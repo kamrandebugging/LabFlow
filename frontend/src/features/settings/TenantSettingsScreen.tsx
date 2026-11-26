@@ -19,6 +19,7 @@ export const TenantSettingsScreen: React.FC = () => {
   // Form states for the EXACT 6 keys from settings_registry.py
   const [brandDisplayName, setBrandDisplayName] = useState<string>("");
   const [brandAccentColour, setBrandAccentColour] = useState<string>("#005C55");
+  const [brandLogoUrl, setBrandLogoUrl] = useState<string>("");
   const [billingHoldEnabled, setBillingHoldEnabled] = useState<boolean>(false);
   const [reportDefaultLanguage, setReportDefaultLanguage] = useState<
     "en" | "ur"
@@ -41,6 +42,9 @@ export const TenantSettingsScreen: React.FC = () => {
         setBrandAccentColour(
           String(data.brand_accent_colour.value ?? "#005C55"),
         );
+      }
+      if (data.brand_logo_url) {
+        setBrandLogoUrl(String(data.brand_logo_url.value ?? ""));
       }
       if (data.billing_hold_enabled) {
         setBillingHoldEnabled(Boolean(data.billing_hold_enabled.value));
@@ -108,6 +112,7 @@ export const TenantSettingsScreen: React.FC = () => {
     const updates: Record<string, string> = {
       brand_display_name: brandDisplayName.trim(),
       brand_accent_colour: brandAccentColour.trim(),
+      brand_logo_url: brandLogoUrl.trim(),
       billing_hold_enabled: billingHoldEnabled ? "true" : "false",
       report_default_language: reportDefaultLanguage,
       report_link_validity_days: String(reportLinkValidityDays),
@@ -337,6 +342,40 @@ export const TenantSettingsScreen: React.FC = () => {
                     className="w-6 h-6 rounded-full border border-slate-300 shadow-inner"
                     style={{ backgroundColor: brandAccentColour }}
                   ></span>
+                </div>
+              </div>
+
+              {/* 3. brand_logo_url */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-start pt-4 border-t border-slate-100">
+                <div>
+                  <label
+                    htmlFor="brand_logo_url"
+                    className="block font-semibold text-slate-900"
+                  >
+                    {t("settings:tenant.logo_url_label")}
+                  </label>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    {t("settings:tenant.logo_url_help")}
+                  </p>
+                </div>
+                <div className="md:col-span-2 space-y-2">
+                  <input
+                    id="brand_logo_url"
+                    type="text"
+                    maxLength={2048}
+                    disabled={!canEdit}
+                    value={brandLogoUrl}
+                    onChange={(e) => setBrandLogoUrl(e.target.value)}
+                    placeholder="https://example.com/lab-logo.png"
+                    className="w-full rounded-lg border border-slate-300 text-slate-900 text-sm px-3.5 py-2 focus:ring-2 focus:ring-teal-600 focus:outline-none disabled:bg-slate-50"
+                  />
+                  {brandLogoUrl.trim() ? (
+                    <img
+                      src={brandLogoUrl.trim()}
+                      alt={brandDisplayName || "Lab logo"}
+                      className="h-12 w-auto object-contain rounded border border-slate-200 bg-white p-1"
+                    />
+                  ) : null}
                 </div>
               </div>
             </div>

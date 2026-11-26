@@ -195,6 +195,7 @@ def build_statement_context(
             "share_ledger_entry__payment",
             "share_ledger_entry__credit_note",
             "share_ledger_entry__void_event__credit_note",
+            "share_ledger_entry__invoice_void__invoice",
         )
         .order_by("share_ledger_entry__created_at", "id")
     )
@@ -242,6 +243,14 @@ def build_statement_context(
                 date_val = entry.void_event.voided_at.date().isoformat()
             else:
                 date_val = ""
+        elif entry.invoice_void:
+            invoice_ref = str(entry.invoice_void.invoice_id)
+            if entry.invoice_void.void_business_date:
+                date_val = entry.invoice_void.void_business_date.isoformat()
+            elif getattr(entry.invoice_void, "voided_at", None):
+                date_val = entry.invoice_void.voided_at.date().isoformat()
+            else:
+                date_val = ""
         else:
             invoice_ref = ""
             date_val = ""
@@ -251,6 +260,8 @@ def build_statement_context(
             label = "Credit note reversal"
         elif entry.void_event:
             label = "Credit note void restoration"
+        elif entry.invoice_void:
+            label = "Invoice void reversal"
         elif is_reversal:
             label = "Refund reversal"
         else:

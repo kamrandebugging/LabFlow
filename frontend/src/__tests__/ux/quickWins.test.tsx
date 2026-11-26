@@ -41,6 +41,7 @@ vi.mock("@/features/patients/patientService", () => ({
   patientService: {
     listPatients: vi.fn(),
     getPatient: vi.fn(),
+    getPatientHistory: vi.fn(),
     createPatient: vi.fn(),
     updatePatient: vi.fn(),
     deletePatient: vi.fn(),
@@ -155,6 +156,11 @@ beforeEach(() => {
   vi.mocked(catalogService.listPanels).mockResolvedValue([]);
   vi.mocked(patientService.listPatients).mockResolvedValue([]);
   vi.mocked(patientService.getPatient).mockResolvedValue(patientRecord);
+  vi.mocked(patientService.getPatientHistory).mockResolvedValue({
+    patient_id: patientRecord.id,
+    mrn: patientRecord.mrn,
+    visits: [],
+  });
   vi.mocked(billingService.getInvoice).mockResolvedValue(partialInvoice);
 });
 

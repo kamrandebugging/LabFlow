@@ -7,6 +7,7 @@ import {
   useNavigate,
   useLocation,
   useParams,
+  useSearchParams,
 } from "react-router-dom";
 import { useAuthStore } from "./features/auth/authStore";
 import { refreshSession } from "./lib/apiClient";
@@ -364,7 +365,13 @@ function SamplesListWrapper(): JSX.Element {
           canCollect ? () => navigate("/samples/collect/step1") : undefined
         }
         onPrintLabels={(ids) => {
-          if (ids[0]) navigate(`/samples/${ids[0]}/label`);
+          if (ids.length === 1 && ids[0]) {
+            navigate(`/samples/${ids[0]}/label`);
+          } else if (ids.length > 1) {
+            navigate(
+              `/samples/labels?ids=${encodeURIComponent(ids.join(","))}`,
+            );
+          }
         }}
       />
     </main>
@@ -474,6 +481,25 @@ function SampleLabelWrapper(): JSX.Element {
       <SampleLabelScreen
         sampleId={id || ""}
         onBack={() => navigate(`/samples/${id}`)}
+      />
+    </main>
+  );
+}
+
+function SampleLabelsBulkWrapper(): JSX.Element {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const rawIds = searchParams.get("ids") || "";
+  const sampleIds = rawIds
+    .split(",")
+    .map((v) => v.trim())
+    .filter(Boolean);
+
+  return (
+    <main className="min-h-screen py-6">
+      <SampleLabelScreen
+        sampleIds={sampleIds}
+        onBack={() => navigate("/samples")}
       />
     </main>
   );
@@ -794,6 +820,7 @@ function App(): JSX.Element {
             path="/samples/new"
             element={<Navigate to="/samples/collect/step1" replace />}
           />
+          <Route path="/samples/labels" element={<SampleLabelsBulkWrapper />} />
           <Route path="/samples/:id" element={<SampleDetailWrapper />} />
           <Route path="/samples/:id/label" element={<SampleLabelWrapper />} />
 

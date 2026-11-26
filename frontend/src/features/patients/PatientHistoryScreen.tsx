@@ -2,17 +2,16 @@ import React, { useEffect, useState } from "react";
 import { Trans, useTranslation } from "react-i18next";
 import {
   ArrowLeft,
-  CheckCircle2,
   AlertCircle,
   RefreshCw,
   Activity,
   ShieldCheck,
 } from "lucide-react";
 import { messageForError } from "../../lib/errors";
-import { formatDate } from "../../lib/format";
+import { formatDate, formatMoney, statusLabel } from "../../lib/format";
 import styles from "./PatientRecord.module.css";
 import { patientService } from "./patientService";
-import type { PatientDetail } from "./types";
+import type { PatientDetail, PatientVisit } from "./types";
 
 interface PatientHistoryScreenProps {
   patientId: string;
@@ -31,8 +30,10 @@ export const PatientHistoryScreen: React.FC<PatientHistoryScreenProps> = ({
   service = patientService,
   variant = "page",
 }) => {
-  const { t } = useTranslation(["patients", "common"]);
+  const { t, i18n } = useTranslation(["patients", "common"]);
+  const lang = i18n.language === "ur" ? "ur" : "en";
   const [patient, setPatient] = useState<PatientDetail | null>(null);
+  const [visits, setVisits] = useState<PatientVisit[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -41,10 +42,14 @@ export const PatientHistoryScreen: React.FC<PatientHistoryScreenProps> = ({
     setIsLoading(true);
     setError(null);
 
-    service
-      .getPatient(patientId)
-      .then((data) => {
-        if (isMounted) setPatient(data);
+    Promise.all([
+      service.getPatient(patientId),
+      service.getPatientHistory(patientId),
+    ])
+      .then(([patientData, historyData]) => {
+        if (!isMounted) return;
+        setPatient(patientData);
+        setVisits(historyData?.visits ?? []);
       })
       .catch((err) => {
         if (isMounted)
@@ -142,38 +147,80 @@ export const PatientHistoryScreen: React.FC<PatientHistoryScreenProps> = ({
               {patient.branch_name || t("patients:main_branch")}
             </span>
           </div>
-          <div className={styles.field}>
-            <span className={styles.eventLabel}>
-              {t("patients:history.iso_status")}
-            </span>
-            <span className={styles.verified}>
-              <CheckCircle2 className={styles.statusIcon} aria-hidden="true" />
-              {t("patients:history.verified_active")}
-            </span>
-          </div>
         </div>
       </div>
 
-      {/* Subsequent visit summary card */}
-      <div className={styles.event}>
-        <div className={styles.eventHead}>
-          <div className={styles.eventTitleRow}>
-            <span className={styles.dotMuted} aria-hidden="true" />
-            <span className={styles.eventTitle}>
-              {t("patients:history.event_visit")}
-            </span>
-          </div>
-          <span className={styles.eventDate}>
-            {patient.last_visit ? (
-              <bdi dir="ltr">{patient.last_visit}</bdi>
-            ) : (
-              t("patients:history.recent_visit")
-            )}
-          </span>
+      {/* Chronological visit episodes (invoices, samples, reports) */}
+      {visits.length === 0 ? (
+        <div className={styles.event}>
+          <div className={styles.note}>{t("patients:history.no_visits")}</div>
         </div>
+      ) : (
+        visits.map((visit) => (
+          <div key={visit.invoice_id} className={styles.event}>
+            <div className={styles.eventHead}>
+              <div className={styles.eventTitleRow}>
+                <span className={styles.dot} aria-hidden="true" />
+                <span className={styles.eventTitle}>
+                  {t("patients:history.invoice_label")}{" "}
+                  <bdi dir="ltr" className={styles.inlineMono}>
+                    {visit.invoice_number}
+                  </bdi>{" "}
+                  ·{" "}
+                  {statusLabel("invoice", visit.status, (key) =>
+                    t(`common:${key}`),
+                  )}
+                  {visit.total !== null
+                    ? ` · ${formatMoney(visit.total, lang)}`
+                    : ""}
+                </span>
+              </div>
+              <span className={styles.eventDate}>
+                <bdi dir="ltr">{formatDate(visit.created_at)}</bdi>
+              </span>
+            </div>
 
-        <div className={styles.note}>{t("patients:history.visit_note")}</div>
-      </div>
+            <div className={styles.eventGrid}>
+              <div className={styles.field}>
+                <span className={styles.eventLabel}>
+                  {t("patients:history.home_branch")}
+                </span>
+                <span className={styles.eventValue}>{visit.branch_name}</span>
+              </div>
+              <div className={styles.field}>
+                <span className={styles.eventLabel}>
+                  {t("patients:history.samples_label")}
+                </span>
+                <span className={styles.eventValue}>
+                  {visit.samples.length === 0
+                    ? "—"
+                    : visit.samples
+                        .map(
+                          (s) =>
+                            `${s.accession_id} (${statusLabel("sample", s.status, (key) => t(`common:${key}`))})`,
+                        )
+                        .join(", ")}
+                </span>
+              </div>
+              <div className={styles.field}>
+                <span className={styles.eventLabel}>
+                  {t("patients:history.reports_label")}
+                </span>
+                <span className={styles.eventValue}>
+                  {visit.reports.length === 0
+                    ? "—"
+                    : visit.reports
+                        .map(
+                          (r) =>
+                            `${statusLabel("report", r.status, (key) => t(`common:${key}`))} v${r.current_version}`,
+                        )
+                        .join(", ")}
+                </span>
+              </div>
+            </div>
+          </div>
+        ))
+      )}
     </div>
   );
 

@@ -3,7 +3,7 @@
 import threading
 from datetime import timedelta
 from decimal import Decimal
-from typing import Any
+from typing import Any, cast
 
 import pytest
 from django.db import IntegrityError, connection, transaction
@@ -568,6 +568,7 @@ def test_post_close_payment_rolls_to_next_business_day(
 ) -> None:
     """Close day D at 21:00; payment at 21:05 -> business_date D+1, 200."""
     from datetime import timedelta
+    from unittest.mock import patch
 
     from apps.billing.services import DayCloseService, get_active_business_date
 
@@ -583,14 +584,18 @@ def test_post_close_payment_rolls_to_next_business_day(
         )
         invoice_d_id = invoice_d.id
 
-        # Close day D
-        DayCloseService.close(
-            actor=mi_setup["owner"],
-            branch_id=mi_setup["branch"].id,
-            day=today,
-            counted_cash=Decimal("0.00"),
-            difference_note=None,
-        )
+        # Close day D after day end
+        with patch(
+            "django.utils.timezone.localdate",
+            return_value=today + timedelta(days=1),
+        ):
+            DayCloseService.close(
+                actor=mi_setup["owner"],
+                branch_id=mi_setup["branch"].id,
+                day=today,
+                counted_cash=Decimal("0.00"),
+                difference_note=None,
+            )
 
         # Verify active business date rolled forward to D+1
         assert get_active_business_date(mi_setup["branch"].id) == (
@@ -635,6 +640,8 @@ def test_inflight_payment_cannot_land_in_closing_day(
     tenant_a: Any, mi_setup: dict[str, Any]
 ) -> None:
     """Payment and Day Close race: lands or fails 409, never joins closed day."""
+    from unittest.mock import patch
+
     from apps.billing.services import DayCloseService, PaymentService
 
     tenant = mi_setup["tenant"]
@@ -643,6 +650,13 @@ def test_inflight_payment_cannot_land_in_closing_day(
     today = timezone.localdate()
 
     with tenant_context(tenant):
+        approver = StaffUserFactory(
+            role=Role.OWNER,
+            branch=None,
+            email="mi_race_approver@t.com",
+            password="RaceApproverPass2026!",
+        )
+        approver_email = approver.email
         invoice = InvoiceFactory(
             patient=mi_setup["patient"],
             branch=mi_setup["branch"],
@@ -652,10 +666,20 @@ def test_inflight_payment_cannot_land_in_closing_day(
         )
         invoice_id = invoice.id
 
+    tls = threading.local()
+    orig_localdate = timezone.localdate
+
+    def thread_localdate(value: Any = None, tz: Any = None) -> Any:
+        override = getattr(tls, "override_date", None)
+        if override is not None and value is None:
+            return override
+        return orig_localdate(value, tz)
+
     payment_outcome: dict[str, Any] = {}
     close_outcome: dict[str, Any] = {}
 
     def run_payment() -> None:
+        tls.override_date = today
         try:
             with tenant_context(tenant):
                 from apps.accounts.models import StaffUser
@@ -679,6 +703,7 @@ def test_inflight_payment_cannot_land_in_closing_day(
             connection.close()
 
     def run_close() -> None:
+        tls.override_date = today + timedelta(days=1)
         try:
             with tenant_context(tenant):
                 from apps.accounts.models import StaffUser
@@ -690,6 +715,8 @@ def test_inflight_payment_cannot_land_in_closing_day(
                     day=today,
                     counted_cash=Decimal("0.00"),
                     difference_note="race test",
+                    approver_email=str(approver_email),
+                    approver_password="RaceApproverPass2026!",
                 )
                 close_outcome["status"] = "success"
         except BillingError as exc:
@@ -699,12 +726,13 @@ def test_inflight_payment_cannot_land_in_closing_day(
         finally:
             connection.close()
 
-    t1 = threading.Thread(target=run_payment)
-    t2 = threading.Thread(target=run_close)
-    t1.start()
-    t2.start()
-    t1.join()
-    t2.join()
+    with patch("django.utils.timezone.localdate", side_effect=thread_localdate):
+        t1 = threading.Thread(target=run_payment)
+        t2 = threading.Thread(target=run_close)
+        t1.start()
+        t2.start()
+        t1.join()
+        t2.join()
 
     assert payment_outcome.get("status") in {"success", "day_closed"}
     assert close_outcome.get("status") in {"success", "already_closed"}
@@ -730,8 +758,8 @@ def test_void_after_day_close_adjusts_open_day_not_closed_day(
 
     from apps.billing.services import DayCloseService, get_active_business_date
 
-    day1 = timezone.localdate()
-    day2 = day1 + timedelta(days=1)
+    day2 = timezone.localdate()
+    day1 = day2 - timedelta(days=1)
 
     with tenant_context(tenant_a):
         invoice = InvoiceFactory(
@@ -740,6 +768,7 @@ def test_void_after_day_close_adjusts_open_day_not_closed_day(
             status=Invoice.Status.PAID,
             subtotal=Decimal("2400.00"),
             total=Decimal("2400.00"),
+            business_date=day1,
         )
         invoice_id = invoice.id
         PaymentFactory(
@@ -760,17 +789,20 @@ def test_void_after_day_close_adjusts_open_day_not_closed_day(
         )
 
     # Issue CN 2,400 on Day 1
-    cn_resp = Client().post(
-        f"{INVOICES_URL}/{invoice_id}/credit-notes",
-        data={
-            "amount": "2400.00",
-            "reason": "Void test Day 1",
-            "method": "cash",
-        },
-        content_type="application/json",
-        HTTP_IDEMPOTENCY_KEY="mi-void-dc-cn-1",
-        headers=auth_headers(mi_setup["owner"]),
-    )
+    from unittest.mock import patch
+
+    with patch("django.utils.timezone.localdate", return_value=day1):
+        cn_resp = Client().post(
+            f"{INVOICES_URL}/{invoice_id}/credit-notes",
+            data={
+                "amount": "2400.00",
+                "reason": "Void test Day 1",
+                "method": "cash",
+            },
+            content_type="application/json",
+            HTTP_IDEMPOTENCY_KEY="mi-void-dc-cn-1",
+            headers=auth_headers(mi_setup["owner"]),
+        )
     assert cn_resp.status_code == 201
     note_id = cn_resp.json()["id"]
 
@@ -781,6 +813,7 @@ def test_void_after_day_close_adjusts_open_day_not_closed_day(
             branch_id=mi_setup["branch"].id,
             day=day1,
             counted_cash=Decimal("0.00"),
+            counted_methods={"cash": Decimal("0.00"), "card": Decimal("0.00")},
             difference_note=None,
         )
         totals_day1_pre = DayCloseService.collect_totals(
@@ -2118,17 +2151,27 @@ def test_pickup_code_hashed_in_db_and_verifiable(
     assert len(code) == 6
     assert code.isdigit()
 
-    # 2. Check DB storage: stored hashed!
+    # 2. Check DB storage: stored as salted slow Argon2 hash with expiry!
     with tenant_context(tenant_a):
         inv = Invoice.objects.get(pk=invoice_id)
         assert inv.pickup_code_hash is not None
-        # Hash is NOT plaintext code
+        assert inv.pickup_code_hash.startswith("$argon2")
         assert inv.pickup_code_hash != code
-        # Service verification passes
+        assert inv.pickup_code_expires_at is not None
         assert BillingService.verify_pickup_code(inv, code) is True
         assert BillingService.verify_pickup_code(inv, "999999") is False
 
-    # 3. GET /invoices/{id} normal detail screen does NOT return plaintext pickup_code
+    # 3. Verify creation code over API BEFORE print rotation
+    v_initial = Client().post(
+        f"{INVOICES_URL}/{invoice_id}/verify-pickup-code",
+        data={"code": code},
+        content_type="application/json",
+        headers=auth_headers(mi_setup["receptionist"]),
+    )
+    assert v_initial.status_code == 200
+    assert v_initial.json()["valid"] is True
+
+    # 4. GET /invoices/{id} normal detail screen does NOT return plaintext pickup_code
     detail_resp = Client().get(
         f"{INVOICES_URL}/{invoice_id}",
         headers=auth_headers(mi_setup["receptionist"]),
@@ -2136,18 +2179,31 @@ def test_pickup_code_hashed_in_db_and_verifiable(
     assert detail_resp.status_code == 200
     assert detail_resp.json().get("pickup_code") is None
 
-    # 4. GET /invoices/{id}?for_print=true returns pickup_code for printing
+    # 5. GET /invoices/{id}?for_print=true rotates pickup_code for printing
     print_resp = Client().get(
         f"{INVOICES_URL}/{invoice_id}?for_print=true",
         headers=auth_headers(mi_setup["receptionist"]),
     )
     assert print_resp.status_code == 200
-    assert print_resp.json().get("pickup_code") == code
+    rotated_code = print_resp.json().get("pickup_code")
+    assert rotated_code is not None
+    assert len(rotated_code) == 6
+    assert rotated_code.isdigit()
 
-    # 5. POST /invoices/{id}/verify-pickup-code verifies correctly
+    # 6. POST /invoices/{id}/pickup-code/reissue rotates again and invalidates old
+    reissue_resp = Client().post(
+        f"{INVOICES_URL}/{invoice_id}/pickup-code/reissue",
+        headers=auth_headers(mi_setup["receptionist"]),
+    )
+    assert reissue_resp.status_code == 200
+    reissued_code = reissue_resp.json()["pickup_code"]
+    assert len(reissued_code) == 6
+    assert reissued_code.isdigit()
+
+    # 7. POST /invoices/{id}/verify-pickup-code verifies reissued code & rate-limits
     v_good = Client().post(
         f"{INVOICES_URL}/{invoice_id}/verify-pickup-code",
-        data={"code": code},
+        data={"code": reissued_code},
         content_type="application/json",
         headers=auth_headers(mi_setup["receptionist"]),
     )
@@ -2162,6 +2218,83 @@ def test_pickup_code_hashed_in_db_and_verifiable(
     )
     assert v_bad.status_code == 200
     assert v_bad.json()["valid"] is False
+
+    # 8. Expired pickup code is rejected
+    with tenant_context(tenant_a):
+        Invoice.objects.filter(pk=invoice_id).update(
+            pickup_code_expires_at=timezone.now() - timedelta(minutes=1)
+        )
+        inv_exp = Invoice.objects.get(pk=invoice_id)
+        assert BillingService.verify_pickup_code(inv_exp, reissued_code) is False
+
+
+@pytest.mark.django_db
+def test_pickup_code_verify_rate_limited(
+    tenant_a: Any, mi_setup: dict[str, Any], auth_headers: Any
+) -> None:
+    """POST /invoices/{id}/verify-pickup-code returns 429 after 5 attempts/min."""
+    from apps.billing.services import BillingService
+
+    with tenant_context(tenant_a):
+        inv = cast(
+            Invoice,
+            InvoiceFactory(patient=mi_setup["patient"], branch=mi_setup["branch"]),
+        )
+        BillingService.issue_pickup_code(inv)
+        inv_id = str(inv.id)
+
+    client = Client()
+    headers = auth_headers(mi_setup["receptionist"])
+    for _ in range(5):
+        resp = client.post(
+            f"{INVOICES_URL}/{inv_id}/verify-pickup-code",
+            data={"code": "123456"},
+            content_type="application/json",
+            headers=headers,
+        )
+        assert resp.status_code == 200
+
+    throttled = client.post(
+        f"{INVOICES_URL}/{inv_id}/verify-pickup-code",
+        data={"code": "123456"},
+        content_type="application/json",
+        headers=headers,
+    )
+    assert throttled.status_code == 429
+    assert throttled.json()["error"]["code"] == "rate_limited"
+
+
+@pytest.mark.django_db
+def test_invoice_list_search_by_inv_number_branch_and_cursor_pagination(
+    tenant_a: Any, mi_setup: dict[str, Any], auth_headers: Any
+) -> None:
+    """GET /api/v1/invoices supports q=INV-XXXXXXXX, branch_id, and cursor."""
+    with tenant_context(tenant_a):
+        branch2 = BranchFactory(code="BR2", name="North Branch")
+        inv1 = InvoiceFactory(patient=mi_setup["patient"], branch=mi_setup["branch"])
+        inv2 = InvoiceFactory(patient=mi_setup["patient"], branch=branch2)
+        inv1_num = f"INV-{str(inv1.id)[:8].upper()}"
+
+    client = Client()
+    headers = auth_headers(mi_setup["owner"])
+
+    search_resp = client.get(f"{INVOICES_URL}?q={inv1_num}", headers=headers)
+    assert search_resp.status_code == 200
+    assert [row["id"] for row in search_resp.json()["results"]] == [str(inv1.id)]
+
+    branch_resp = client.get(f"{INVOICES_URL}?branch_id={branch2.id}", headers=headers)
+    assert branch_resp.status_code == 200
+    assert [row["id"] for row in branch_resp.json()["results"]] == [str(inv2.id)]
+
+    page1 = client.get(f"{INVOICES_URL}?limit=1", headers=headers)
+    assert page1.status_code == 200
+    assert len(page1.json()["results"]) == 1
+    next_cursor = page1.json().get("next_cursor")
+    assert next_cursor
+    page2 = client.get(f"{INVOICES_URL}?limit=1&cursor={next_cursor}", headers=headers)
+    assert page2.status_code == 200
+    assert len(page2.json()["results"]) == 1
+    assert page2.json()["results"][0]["id"] != page1.json()["results"][0]["id"]
 
 
 @pytest.mark.django_db

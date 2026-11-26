@@ -4,6 +4,7 @@ from decimal import Decimal
 from django.db import models
 from django.db.models import Q
 from django.db.models.functions import Now
+from django.utils import timezone
 
 from apps.branches.scoping import BranchScopedManager
 
@@ -23,6 +24,7 @@ class Invoice(models.Model):
         PAID = "paid", "Paid"
         REFUNDED = "refunded", "Refunded"
         CANCELLED = "cancelled", "Cancelled"
+        VOIDED = "voided", "Voided"
 
     id = models.UUIDField(
         primary_key=True,
@@ -80,6 +82,8 @@ class Invoice(models.Model):
     idempotency_key = models.TextField(null=True, blank=True)  # noqa: DJ001
     payload_sha256 = models.TextField(null=True, blank=True)  # noqa: DJ001
     pickup_code_hash = models.TextField(null=True, blank=True)  # noqa: DJ001
+    pickup_code_expires_at = models.DateTimeField(null=True, blank=True)
+    business_date = models.DateField(default=timezone.localdate)
     created_at = models.DateTimeField(
         auto_now_add=True,
         db_default=Now(),
@@ -104,6 +108,7 @@ class Invoice(models.Model):
                         "paid",
                         "refunded",
                         "cancelled",
+                        "voided",
                     ]
                 ),
                 name="chk_invoice_status",
@@ -306,7 +311,7 @@ class Payment(models.Model):
     refund_reason = models.TextField(null=True, blank=True)  # noqa: DJ001
     idempotency_key = models.TextField(null=True, blank=True)  # noqa: DJ001
     payload_sha256 = models.TextField(null=True, blank=True)  # noqa: DJ001
-    business_date = models.DateField(null=True, blank=True)
+    business_date = models.DateField(default=timezone.localdate)
     created_at = models.DateTimeField(
         auto_now_add=True,
         db_default=Now(),
@@ -415,7 +420,7 @@ class CreditNote(models.Model):
         db_index=False,
     )
     issued_at = models.DateTimeField(auto_now_add=True)
-    business_date = models.DateField(null=True, blank=True)
+    business_date = models.DateField(default=timezone.localdate)
     idempotency_key = models.TextField(null=True, blank=True)  # noqa: DJ001
     payload_sha256 = models.TextField(null=True, blank=True)  # noqa: DJ001
     # Void is an append-only correction: the row and its CN number stay, the
@@ -491,6 +496,8 @@ class DayClose(models.Model):
     )
     business_date = models.DateField()
     method_totals = models.JSONField()
+    counted_methods = models.JSONField(default=dict)
+    method_differences = models.JSONField(default=dict)
     total_invoices = models.PositiveIntegerField(default=0)
     total_discount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     total_credit_notes = models.DecimalField(max_digits=12, decimal_places=2, default=0)
@@ -505,18 +512,29 @@ class DayClose(models.Model):
         db_column="closed_by",
         db_index=False,
     )
+    approved_by = models.ForeignKey(
+        "accounts.StaffUser",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="approved_day_closes",
+        db_column="approved_by",
+        db_index=False,
+    )
     closed_at = models.DateTimeField(auto_now_add=True, db_default=Now())
+    superseded_at = models.DateTimeField(null=True, blank=True)
 
     branch_scope_field = "branch_id"
     objects = BranchScopedManager()
 
     class Meta:
         db_table = "billing_day_close"
-        ordering = ["-business_date"]
+        ordering = ["-business_date", "-closed_at"]
         constraints = [
             models.UniqueConstraint(
                 fields=["branch", "business_date"],
-                name="uq_day_close_branch_date",
+                condition=Q(superseded_at__isnull=True),
+                name="uq_day_close_active_branch_date",
             ),
         ]
         indexes = [
@@ -525,6 +543,54 @@ class DayClose(models.Model):
 
     def __str__(self) -> str:
         return f"DayClose({self.branch_id} {self.business_date})"
+
+
+class DayCloseReopen(models.Model):
+    """Append-only reopen/correction event for a closed branch-day."""
+
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        db_default=models.Func(function="gen_random_uuid"),
+        editable=False,
+    )
+    day_close = models.OneToOneField(
+        "billing.DayClose",
+        on_delete=models.PROTECT,
+        related_name="reopen_event",
+        db_column="day_close_id",
+        db_index=False,
+    )
+    branch = models.ForeignKey(
+        "branches.Branch",
+        on_delete=models.PROTECT,
+        related_name="day_close_reopens",
+        db_column="branch_id",
+        db_index=False,
+    )
+    business_date = models.DateField()
+    reopened_by = models.ForeignKey(
+        "accounts.StaffUser",
+        on_delete=models.PROTECT,
+        related_name="day_close_reopens",
+        db_column="reopened_by",
+        db_index=False,
+    )
+    reopened_at = models.DateTimeField(auto_now_add=True)
+    reason = models.TextField()
+
+    class Meta:
+        db_table = "billing_day_close_reopen"
+        ordering = ["-reopened_at"]
+        indexes = [
+            models.Index(
+                fields=["branch", "business_date"],
+                name="idx_day_close_reopen_br_date",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"DayCloseReopen({self.branch_id} {self.business_date})"
 
 
 class BranchDay(models.Model):
@@ -641,3 +707,38 @@ class InvoiceLineCancelled(models.Model):
 
     def __str__(self) -> str:
         return f"InvoiceLineCancelled({self.item_id} PKR {self.amount_removed})"
+
+
+class InvoiceVoid(models.Model):
+    """Append-only void record for a corrupted PAID invoice."""
+
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        db_default=models.Func(function="gen_random_uuid"),
+        editable=False,
+    )
+    invoice = models.OneToOneField(
+        "billing.Invoice",
+        on_delete=models.PROTECT,
+        related_name="void_event",
+        db_column="invoice_id",
+        db_index=False,
+    )
+    voided_by = models.ForeignKey(
+        "accounts.StaffUser",
+        on_delete=models.PROTECT,
+        related_name="invoice_voids",
+        db_column="voided_by_id",
+        db_index=False,
+    )
+    voided_at = models.DateTimeField(auto_now_add=True)
+    reason = models.TextField()
+    void_business_date = models.DateField()
+    reversed_methods = models.JSONField(default=dict)
+
+    class Meta:
+        db_table = "billing_invoice_void"
+
+    def __str__(self) -> str:
+        return f"InvoiceVoid({self.invoice_id} on {self.void_business_date})"

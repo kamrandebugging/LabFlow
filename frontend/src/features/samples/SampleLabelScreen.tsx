@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import {
@@ -18,38 +18,63 @@ import { LabelPrintSheet } from "./components";
 import styles from "./SampleLabelScreen.module.css";
 
 export interface SampleLabelScreenProps {
-  sampleId: string;
+  sampleId?: string;
+  sampleIds?: string[];
   onBack?: () => void;
   service?: typeof sampleService;
 }
 
 export function SampleLabelScreen({
   sampleId,
+  sampleIds,
   onBack,
   service = sampleService,
 }: SampleLabelScreenProps): JSX.Element {
   const { t } = useTranslation(["samples", "common"]);
   const navigate = useNavigate();
 
-  const [labelData, setLabelData] = useState<SampleLabelData | null>(null);
+  const targetIds = useMemo(() => {
+    const raw =
+      sampleIds && sampleIds.length > 0
+        ? sampleIds
+        : sampleId
+          ? [sampleId]
+          : [];
+    return Array.from(new Set(raw.map((id) => id.trim()).filter(Boolean)));
+  }, [sampleId, sampleIds]);
+  const isBulk = targetIds.length > 1;
+  const fallbackBackPath =
+    !isBulk && targetIds[0] ? `/samples/${targetIds[0]}` : "/samples";
+
+  const [labels, setLabels] = useState<SampleLabelData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isPrinting, setIsPrinting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [labName, setLabName] = useState<string>("LabFlow");
 
   const loadLabel = useCallback(async () => {
+    if (targetIds.length === 0) {
+      setLabels([]);
+      setIsLoading(false);
+      return;
+    }
     try {
       setIsLoading(true);
       setErrorMessage(null);
       // GET preview: does NOT write an audit row (D8)
-      const data = await service.getLabel(sampleId);
-      setLabelData(data);
+      if (targetIds.length === 1 && targetIds[0]) {
+        const data = await service.getLabel(targetIds[0]);
+        setLabels([data]);
+      } else {
+        const data = await service.getLabelsBulk(targetIds);
+        setLabels(data);
+      }
     } catch (err: unknown) {
       setErrorMessage(messageForError(err, t));
     } finally {
       setIsLoading(false);
     }
-  }, [sampleId, service, t]);
+  }, [targetIds, service, t]);
 
   useEffect(() => {
     loadLabel();
@@ -98,10 +123,15 @@ export function SampleLabelScreen({
   }, []);
 
   const handlePrint = async () => {
+    if (targetIds.length === 0) return;
     try {
       setIsPrinting(true);
       // POST label/print: explicit audited print action (D8)
-      await service.printLabel(sampleId);
+      if (targetIds.length === 1 && targetIds[0]) {
+        await service.printLabel(targetIds[0]);
+      } else {
+        await service.printLabelsBulk(targetIds);
+      }
       window.print();
     } catch (err) {
       setErrorMessage(messageForError(err, t));
@@ -110,7 +140,7 @@ export function SampleLabelScreen({
     }
   };
 
-  if (isLoading && !labelData) {
+  if (isLoading && labels.length === 0) {
     return (
       <main className="w-full min-h-[60vh] flex flex-col items-center justify-center p-8 text-slate-600">
         <RotateCw className="w-8 h-8 animate-spin text-teal-600 mb-3" />
@@ -121,14 +151,14 @@ export function SampleLabelScreen({
     );
   }
 
-  if (errorMessage && !labelData) {
+  if (errorMessage && labels.length === 0) {
     return (
       <main className="w-full min-h-[60vh] flex flex-col items-center justify-center p-8">
         <div className="bg-white border border-red-200 rounded-2xl p-6 max-w-md w-full shadow-sm text-center">
           <p className="text-sm text-red-600 mb-4">{errorMessage}</p>
           <button
             type="button"
-            onClick={onBack || (() => navigate(`/samples/${sampleId}`))}
+            onClick={onBack || (() => navigate(fallbackBackPath))}
             className={styles.primaryBlackPill}
           >
             <ArrowLeft className="w-4 h-4 rtl:rotate-180" />
@@ -139,7 +169,9 @@ export function SampleLabelScreen({
     );
   }
 
-  if (!labelData) return <div />;
+  if (labels.length === 0) return <div />;
+
+  const primaryLabel = labels[0]!;
 
   return (
     <div className={styles.pageContainer}>
@@ -149,7 +181,7 @@ export function SampleLabelScreen({
           <div className="flex items-center gap-2 mb-1">
             <button
               type="button"
-              onClick={onBack || (() => navigate(`/samples/${sampleId}`))}
+              onClick={onBack || (() => navigate(fallbackBackPath))}
               className="text-xs text-slate-500 hover:text-slate-800 flex items-center gap-1 transition-colors"
             >
               <ArrowLeft className="w-3.5 h-3.5 rtl:rotate-180" />
@@ -158,15 +190,23 @@ export function SampleLabelScreen({
           </div>
           <h1 className={styles.pageTitle}>{t("samples:label_page.title")}</h1>
           <p className={styles.pageSubtitle}>
-            <bdi dir="ltr">{labelData.accession_id}</bdi> ·{" "}
-            {labelData.patient_name}
+            {isBulk ? (
+              <bdi dir="ltr">
+                {labels.map((item) => item.accession_id).join(", ")}
+              </bdi>
+            ) : (
+              <>
+                <bdi dir="ltr">{primaryLabel.accession_id}</bdi> ·{" "}
+                {primaryLabel.patient_name}
+              </>
+            )}
           </p>
         </div>
 
         <div className={styles.headerActions}>
           <button
             type="button"
-            onClick={onBack || (() => navigate(`/samples/${sampleId}`))}
+            onClick={onBack || (() => navigate(fallbackBackPath))}
             className={styles.outlinePill}
           >
             <span>{t("samples:label_page.close")}</span>
@@ -215,7 +255,13 @@ export function SampleLabelScreen({
       </div>
 
       {/* 2. Printed Sheet Preview */}
-      <LabelPrintSheet labelData={labelData} tenantName={labName} />
+      {labels.map((item) => (
+        <LabelPrintSheet
+          key={item.accession_id}
+          labelData={item}
+          tenantName={labName}
+        />
+      ))}
     </div>
   );
 }

@@ -3,7 +3,7 @@
  */
 
 export type InvoiceStatus =
-  "draft" | "unpaid" | "partial" | "paid" | "refunded" | "cancelled";
+  "draft" | "unpaid" | "partial" | "paid" | "refunded" | "cancelled" | "voided";
 
 export type PaymentMethod =
   "cash" | "card" | "bank_transfer" | "easypaisa" | "jazzcash" | "other";
@@ -173,6 +173,8 @@ export interface DayCloseRecord {
   branch_id: string;
   business_date: string;
   method_totals: Record<string, DayCloseMethodTotal>;
+  counted_methods?: Record<string, string>;
+  method_differences?: Record<string, string>;
   total_invoices: number;
   total_discount: string;
   total_credit_notes: string;
@@ -182,7 +184,25 @@ export interface DayCloseRecord {
   difference_note?: string | null;
   closed_by?: string | null;
   closed_by_name?: string | null;
+  approved_by?: string | null;
+  approved_by_name?: string | null;
   closed_at: string;
+}
+
+export interface DayCloseReopenRecord {
+  id: string;
+  day_close_id: string;
+  branch_id: string;
+  business_date: string;
+  reason: string;
+  reopened_by?: string | null;
+  reopened_by_name?: string | null;
+  reopened_at: string;
+  prior_expected_cash: string;
+  prior_counted_cash: string;
+  prior_difference: string;
+  prior_closed_at: string;
+  prior_closed_by_name?: string | null;
 }
 
 export interface DayCloseResponse {
@@ -190,13 +210,26 @@ export interface DayCloseResponse {
   date: string;
   active_business_date?: string;
   closed: boolean;
+  is_corrected?: boolean;
   totals?: DayCloseTotals;
   close?: DayCloseRecord | null;
+  reopens?: DayCloseReopenRecord[];
 }
 
 export interface DayCloseInput {
   branch_id: string;
   date?: string;
-  counted_cash: string;
+  counted_cash?: string;
+  counted_methods?: Record<string, string>;
   difference_note?: string;
+  approver_email?: string;
+  approver_password?: string;
+  approver_totp?: string;
+  approval_token?: string;
+}
+
+export interface DayCloseReopenInput {
+  branch_id: string;
+  date: string;
+  reason: string;
 }

@@ -14,6 +14,8 @@ The six keys from Doc 04 §10.2 / seeds P-7:
 - brand_accent_colour: hex colour — brand accent on reports
 """
 
+import base64
+import binascii
 import logging
 import re
 from collections.abc import Callable
@@ -81,6 +83,41 @@ def _validate_accent_colour(value: str) -> str:
     return stripped.lower()
 
 
+def _validate_logo_url(value: str) -> str:
+    """Validate tenant logo URL or image data URI (empty disables logo)."""
+    stripped = value.strip()
+    if not stripped:
+        return ""
+    if len(stripped) > 2048:
+        raise ValueError("Logo URL must not exceed 2048 characters")
+    if any(ch.isspace() or ord(ch) < 32 for ch in stripped):
+        raise ValueError("Logo URL must not contain whitespace or control characters.")
+    lower = stripped.lower()
+    if stripped.startswith("/") and not stripped.startswith(("//", "/\\")):
+        return stripped
+    if lower.startswith("https://"):
+        return stripped
+    data_prefixes = (
+        "data:image/png;base64,",
+        "data:image/jpeg;base64,",
+        "data:image/jpg;base64,",
+        "data:image/webp;base64,",
+    )
+    for prefix in data_prefixes:
+        if lower.startswith(prefix):
+            payload = stripped[len(prefix) :]
+            if not payload:
+                break
+            try:
+                base64.b64decode(payload, validate=True)
+            except (binascii.Error, ValueError) as exc:
+                raise ValueError("Invalid base64 image data URI.") from exc
+            return stripped
+    raise ValueError(
+        "Logo URL must be an https:// URL, local / path, or base64 PNG/JPEG/WebP image."
+    )
+
+
 @dataclass(frozen=True)
 class SettingSpec:
     """Specification for a single tenant setting key."""
@@ -136,6 +173,13 @@ SETTING_REGISTRY: dict[str, SettingSpec] = {
         default="#0d9488",
         validator=_validate_accent_colour,
         description="Brand accent colour as #rrggbb hex.",
+    ),
+    "brand_logo_url": SettingSpec(
+        key="brand_logo_url",
+        type_name="string",
+        default="",
+        validator=_validate_logo_url,
+        description="Optional lab logo URL or image data URI for printed receipts.",
     ),
     "hide_prices_for_technicians": SettingSpec(
         key="hide_prices_for_technicians",

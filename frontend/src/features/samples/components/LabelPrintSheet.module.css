@@ -130,6 +130,13 @@
     width: 50mm;
     height: 30mm;
     overflow: hidden !important;
+    page-break-after: always !important;
+    break-after: page !important;
+  }
+
+  .sheetContainer:last-of-type {
+    page-break-after: auto !important;
+    break-after: auto !important;
   }
 
   .labelCard {

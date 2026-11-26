@@ -12,6 +12,8 @@ import {
   Search,
 } from "lucide-react";
 import { billingService } from "./billingService";
+import { settingsService } from "../settings/settingsService";
+import type { Branch } from "../settings/types";
 import { useAuthStore } from "../auth/authStore";
 import { useNavigate } from "react-router-dom";
 import { formatMoney, statusLabel } from "../../lib/format";
@@ -33,6 +35,7 @@ const STATUS_CLASS: Record<InvoiceStatus, string> = {
   paid: "statusPaid",
   refunded: "statusRefunded",
   cancelled: "statusCancelled",
+  voided: "statusCancelled",
 };
 
 export function InvoicesListScreen({
@@ -47,12 +50,40 @@ export function InvoicesListScreen({
   const canCloseDay = role === "owner" || role === "manager";
   const [invoices, setInvoices] = useState<InvoiceSummary[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
+  const [selectedBranch, setSelectedBranch] = useState<string>("all");
+  const [branches, setBranches] = useState<Branch[]>([]);
+  const [cursor, setCursor] = useState<string | undefined>(undefined);
+  const [cursorStack, setCursorStack] = useState<string[]>([]);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [dailyTotal, setDailyTotal] = useState<string | null>(null);
   const [animateRows, setAnimateRows] = useState(false);
   const entrancePlayed = useRef(false);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedQuery(searchQuery.trim());
+    }, 250);
+    return () => window.clearTimeout(timer);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    let active = true;
+    void settingsService
+      .getBranches()
+      .then((rows) => {
+        if (active && Array.isArray(rows)) setBranches(rows);
+      })
+      .catch(() => {
+        // Branch filter degrades cleanly when directory is unavailable.
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const fetchInvoices = useCallback(async () => {
     setIsLoading(true);
@@ -60,18 +91,23 @@ export function InvoicesListScreen({
     try {
       const data = await service.listInvoices({
         status: selectedStatus === "all" ? undefined : selectedStatus,
+        branchId: selectedBranch === "all" ? undefined : selectedBranch,
+        q: debouncedQuery || undefined,
+        cursor,
       });
       setInvoices(data.results);
+      setNextCursor(data.next_cursor ?? null);
       setDailyTotal(data.daily_total ?? null);
     } catch (err: unknown) {
       // A failed filter must not leave the previous page's rows on screen.
       setInvoices([]);
+      setNextCursor(null);
       setDailyTotal(null);
       setError(messageForError(err, t));
     } finally {
       setIsLoading(false);
     }
-  }, [selectedStatus, service, t]);
+  }, [cursor, debouncedQuery, selectedBranch, selectedStatus, service, t]);
 
   useEffect(() => {
     void fetchInvoices();
@@ -85,18 +121,39 @@ export function InvoicesListScreen({
     return () => window.clearTimeout(timer);
   }, [isLoading]);
 
-  const filteredInvoices = useMemo(() => {
-    const q = searchQuery.toLowerCase().trim();
-    const rows = invoices;
-    if (!q) return rows;
-    return rows.filter(
-      (inv) =>
-        inv.id.toLowerCase().includes(q) ||
-        (inv.patient_name && inv.patient_name.toLowerCase().includes(q)) ||
-        (inv.patient_mrn && inv.patient_mrn.toLowerCase().includes(q)) ||
-        (inv.items_summary && inv.items_summary.toLowerCase().includes(q)),
-    );
-  }, [invoices, searchQuery]);
+  const filteredInvoices = useMemo(() => invoices, [invoices]);
+
+  const handleStatusChange = (value: string) => {
+    setSelectedStatus(value);
+    setCursor(undefined);
+    setCursorStack([]);
+  };
+
+  const handleBranchChange = (value: string) => {
+    setSelectedBranch(value);
+    setCursor(undefined);
+    setCursorStack([]);
+  };
+
+  const handleSearchChange = (value: string) => {
+    setSearchQuery(value);
+    setCursor(undefined);
+    setCursorStack([]);
+  };
+
+  const handleNextPage = () => {
+    if (!nextCursor) return;
+    setCursorStack((prev) => [...prev, cursor ?? ""]);
+    setCursor(nextCursor);
+  };
+
+  const handlePrevPage = () => {
+    if (cursorStack.length === 0) return;
+    const prevStack = cursorStack.slice(0, -1);
+    const prevCursor = cursorStack[cursorStack.length - 1] || undefined;
+    setCursorStack(prevStack);
+    setCursor(prevCursor);
+  };
 
   const statusPill = (status: InvoiceStatus) => (
     <span
@@ -155,7 +212,7 @@ export function InvoicesListScreen({
               id="invoice-search-input"
               type="search"
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => handleSearchChange(e.target.value)}
               placeholder={t("billing:list.search_placeholder")}
               aria-label={t("billing:list.search_placeholder")}
               className={styles.searchInput}
@@ -163,9 +220,22 @@ export function InvoicesListScreen({
             />
           </div>
           <select
+            aria-label={t("billing:list.branch_filter_aria")}
+            value={selectedBranch}
+            onChange={(e) => handleBranchChange(e.target.value)}
+            className={styles.statusSelect}
+          >
+            <option value="all">{t("billing:list.all_branches")}</option>
+            {branches.map((br) => (
+              <option key={br.id} value={br.id}>
+                {br.name}
+              </option>
+            ))}
+          </select>
+          <select
             aria-label={t("billing:list.status_filter_aria")}
             value={selectedStatus}
-            onChange={(e) => setSelectedStatus(e.target.value)}
+            onChange={(e) => handleStatusChange(e.target.value)}
             className={styles.statusSelect}
           >
             <option value="all">{t("billing:list.all_statuses")}</option>
@@ -371,10 +441,9 @@ export function InvoicesListScreen({
                             dir="ltr"
                             style={{ whiteSpace: "nowrap" }}
                           >
-                            {formatMoney(
-                              Number(inv.total || 0).toFixed(2),
-                              "en",
-                            )}
+                            {inv.total === null || inv.total === undefined
+                              ? "—"
+                              : formatMoney(Number(inv.total).toFixed(2), "en")}
                           </span>
                           {balance !== null && balance > 0 ? (
                             <span className={styles.patientMeta}>
@@ -423,8 +492,9 @@ export function InvoicesListScreen({
               <button
                 type="button"
                 aria-label={t("common:actions.previous")}
-                disabled
-                aria-disabled="true"
+                onClick={handlePrevPage}
+                disabled={cursorStack.length === 0}
+                aria-disabled={cursorStack.length === 0}
                 className={styles.iconButton}
               >
                 ‹
@@ -432,8 +502,9 @@ export function InvoicesListScreen({
               <button
                 type="button"
                 aria-label={t("common:actions.next")}
-                disabled
-                aria-disabled="true"
+                onClick={handleNextPage}
+                disabled={!nextCursor}
+                aria-disabled={!nextCursor}
                 className={styles.iconButton}
               >
                 ›

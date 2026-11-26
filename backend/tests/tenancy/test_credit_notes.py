@@ -507,3 +507,118 @@ def test_void_restores_revenue_without_deleting_rows(
 
     with tenant_context(tenant_a):
         assert CreditNote.objects.filter(invoice_id=invoice_id).count() == 1
+
+
+@pytest.mark.django_db
+def test_credit_note_rejected_after_partial_or_full_refund(
+    tenant_a: Any, cn_setup: dict[str, Any], auth_headers: Any
+) -> None:
+    """Either/or state rule: any credit note after any refund on an invoice -> 422."""
+    client = Client()
+    headers = auth_headers(cn_setup["owner"])
+
+    with tenant_context(tenant_a):
+        inv_partial = _paid_invoice(cn_setup, "1500.00")
+        inv_full = _paid_invoice(cn_setup, "1500.00")
+        inv_partial_id = inv_partial.id
+        inv_full_id = inv_full.id
+
+    # Partial refund of 500 -> remaining net_paid is 1000
+    ref_partial = client.post(
+        f"{INVOICES_URL}/{inv_partial_id}/payments",
+        data={
+            "kind": "refund",
+            "method": "cash",
+            "amount": "500.00",
+            "refund_reason": "Partial cash refund",
+        },
+        content_type="application/json",
+        HTTP_IDEMPOTENCY_KEY=_next_key(),
+        headers=headers,
+    )
+    assert ref_partial.status_code == 201, ref_partial.content
+
+    # Credit note for remaining net_paid (1000.00) must be rejected with 422
+    cn_after_partial = client.post(
+        f"{INVOICES_URL}/{inv_partial_id}/credit-notes",
+        data={"amount": "1000.00", "reason": "Remainder credit note"},
+        content_type="application/json",
+        HTTP_IDEMPOTENCY_KEY=_next_key(),
+        headers=headers,
+    )
+    assert cn_after_partial.status_code == 422, cn_after_partial.content
+    assert cn_after_partial.json()["error"]["code"] == "credit_note_after_refund"
+
+    # Full refund of 1500 -> credit note must also be rejected with 422
+    ref_full = client.post(
+        f"{INVOICES_URL}/{inv_full_id}/payments",
+        data={
+            "kind": "refund",
+            "method": "cash",
+            "amount": "1500.00",
+            "refund_reason": "Full cash refund",
+        },
+        content_type="application/json",
+        HTTP_IDEMPOTENCY_KEY=_next_key(),
+        headers=headers,
+    )
+    assert ref_full.status_code == 201, ref_full.content
+
+    cn_after_full = client.post(
+        f"{INVOICES_URL}/{inv_full_id}/credit-notes",
+        data={"amount": "1500.00", "reason": "After full refund"},
+        content_type="application/json",
+        HTTP_IDEMPOTENCY_KEY=_next_key(),
+        headers=headers,
+    )
+    assert cn_after_full.status_code == 422, cn_after_full.content
+    assert cn_after_full.json()["error"]["code"] == "credit_note_after_refund"
+
+    with tenant_context(tenant_a):
+        assert CreditNote.objects.filter(invoice_id=inv_partial_id).count() == 0
+        assert CreditNote.objects.filter(invoice_id=inv_full_id).count() == 0
+
+
+@pytest.mark.django_db
+def test_refund_rejected_after_active_credit_note_and_clean_cn_still_allowed(
+    tenant_a: Any, cn_setup: dict[str, Any], auth_headers: Any
+) -> None:
+    """Either/or state rule: refund after credit note -> 422; clean CN -> 201."""
+    client = Client()
+    headers = auth_headers(cn_setup["owner"])
+
+    with tenant_context(tenant_a):
+        invoice = _paid_invoice(cn_setup, "1200.00")
+        invoice_id = invoice.id
+
+    cn_resp = client.post(
+        f"{INVOICES_URL}/{invoice_id}/credit-notes",
+        data={"amount": "1200.00", "reason": "Never refunded invoice"},
+        content_type="application/json",
+        HTTP_IDEMPOTENCY_KEY=_next_key(),
+        headers=headers,
+    )
+    assert cn_resp.status_code == 201, cn_resp.content
+
+    ref_resp = client.post(
+        f"{INVOICES_URL}/{invoice_id}/payments",
+        data={
+            "kind": "refund",
+            "method": "cash",
+            "amount": "200.00",
+            "refund_reason": "Attempt refund after CN",
+        },
+        content_type="application/json",
+        HTTP_IDEMPOTENCY_KEY=_next_key(),
+        headers=headers,
+    )
+    assert ref_resp.status_code == 422, ref_resp.content
+    assert ref_resp.json()["error"]["code"] == "refund_after_credit_note"
+
+    with tenant_context(tenant_a):
+        assert (
+            Payment.objects.filter(
+                invoice_id=invoice_id, kind=Payment.Kind.REFUND
+            ).count()
+            == 0
+        )

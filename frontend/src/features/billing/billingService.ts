@@ -7,6 +7,7 @@ import { useAuthStore } from "../auth/authStore";
 import type {
   CreditNote,
   DayCloseInput,
+  DayCloseReopenInput,
   DayCloseResponse,
   InvoiceCreateInput,
   InvoiceDetail,
@@ -30,6 +31,8 @@ export const billingService = {
     params: {
       status?: string;
       patientId?: string;
+      branchId?: string;
+      q?: string;
       cursor?: string;
       limit?: number;
       signal?: AbortSignal;
@@ -42,6 +45,12 @@ export const billingService = {
     }
     if (params.patientId) {
       query.patient_id = params.patientId;
+    }
+    if (params.branchId && params.branchId !== "all") {
+      query.branch_id = params.branchId;
+    }
+    if (params.q && params.q.trim()) {
+      query.q = params.q.trim();
     }
     if (params.cursor) {
       query.cursor = params.cursor;
@@ -334,6 +343,25 @@ export const billingService = {
       if (err instanceof ApiError) {
         const error = new Error(
           err.message || `Failed to close the day (${err.status})`,
+        );
+        (error as Error & { code?: string }).code = err.code ?? undefined;
+        throw error;
+      }
+      throw err;
+    }
+  },
+
+  /** POST /day-close/reopen — Owner-only reopen for correction. */
+  async reopenDay(input: DayCloseReopenInput): Promise<DayCloseResponse> {
+    try {
+      return await apiRequest<DayCloseResponse>("/day-close/reopen", {
+        method: "POST",
+        body: input,
+      });
+    } catch (err) {
+      if (err instanceof ApiError) {
+        const error = new Error(
+          err.message || `Failed to reopen the day (${err.status})`,
         );
         (error as Error & { code?: string }).code = err.code ?? undefined;
         throw error;

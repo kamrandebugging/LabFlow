@@ -18,7 +18,7 @@ describe("Screen 11: Patient Edit (11-patient-edit.html & Doc 03 §6.2)", () => 
     created_at: "2026-02-01T10:00:00Z",
     updated_at: "2026-10-20T10:00:00Z",
     is_cross_branch: false,
-    version: 3,
+    version: "2026-10-20T10:00:00Z",
     contacts: [],
     consents: [],
   };
@@ -83,7 +83,7 @@ describe("Screen 11: Patient Edit (11-patient-edit.html & Doc 03 §6.2)", () => 
           phone: "03001122334",
           sex: "F",
         }),
-        3,
+        "2026-10-20T10:00:00Z",
       );
       expect(mockOnSuccess).toHaveBeenCalledTimes(1);
     });

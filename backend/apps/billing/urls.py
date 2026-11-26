@@ -6,13 +6,17 @@ from django.urls import path
 from apps.billing.views import (
     CreditNoteCreateView,
     CreditNoteVoidView,
+    DayCloseApproveView,
+    DayCloseReopenView,
     DayCloseView,
     InvoiceCancelView,
     InvoiceCollectionView,
     InvoiceDetailView,
     InvoiceHistoryView,
     InvoiceLineCancelView,
+    InvoiceReissuePickupCodeView,
     InvoiceVerifyPickupCodeView,
+    InvoiceVoidView,
     PaymentCreateView,
 )
 
@@ -32,6 +36,16 @@ urlpatterns = [
         "invoices/<str:invoice_id>/cancel/",
         InvoiceCancelView.as_view(),
         name="invoice-cancel-slash",
+    ),
+    path(
+        "invoices/<str:invoice_id>/void",
+        InvoiceVoidView.as_view(),
+        name="invoice-void",
+    ),
+    path(
+        "invoices/<str:invoice_id>/void/",
+        InvoiceVoidView.as_view(),
+        name="invoice-void-slash",
     ),
     path(
         "invoices/<str:invoice_id>/lines/<str:line_id>/cancel",
@@ -103,6 +117,28 @@ urlpatterns = [
         InvoiceVerifyPickupCodeView.as_view(),
         name="invoice-verify-pickup-code-slash",
     ),
+    path(
+        "invoices/<str:invoice_id>/pickup-code/reissue",
+        InvoiceReissuePickupCodeView.as_view(),
+        name="invoice-reissue-pickup-code",
+    ),
+    path(
+        "invoices/<str:invoice_id>/pickup-code/reissue/",
+        InvoiceReissuePickupCodeView.as_view(),
+        name="invoice-reissue-pickup-code-slash",
+    ),
     path("day-close", DayCloseView.as_view(), name="day-close"),
     path("day-close/", DayCloseView.as_view(), name="day-close-slash"),
+    path("day-close/reopen", DayCloseReopenView.as_view(), name="day-close-reopen"),
+    path(
+        "day-close/reopen/",
+        DayCloseReopenView.as_view(),
+        name="day-close-reopen-slash",
+    ),
+    path("day-close/approve", DayCloseApproveView.as_view(), name="day-close-approve"),
+    path(
+        "day-close/approve/",
+        DayCloseApproveView.as_view(),
+        name="day-close-approve-slash",
+    ),
 ]

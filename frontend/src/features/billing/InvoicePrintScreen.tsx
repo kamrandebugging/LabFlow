@@ -5,6 +5,7 @@ import { Printer, X } from "lucide-react";
 
 import { billingService } from "./billingService";
 import { settingsService } from "../settings/settingsService";
+import { fetchTenantContext } from "../auth/tenantContext";
 import type { InvoiceDetail } from "./types";
 import { formatDateTime, formatMoney, statusLabel } from "../../lib/format";
 import { messageForError } from "../../lib/errors";
@@ -46,6 +47,7 @@ export function InvoicePrintScreen({
   const [error, setError] = useState<string | null>(null);
   const [branding, setBranding] = useState<{
     labName?: string;
+    logoUrl?: string | null;
     address?: string | null;
     phone?: string | null;
   }>({});
@@ -80,14 +82,29 @@ export function InvoicePrintScreen({
     let active = true;
     const loadBranding = async () => {
       let labName: string | undefined;
+      let logoUrl: string | null = null;
       let address: string | null = null;
       let phone: string | null = null;
       try {
         const settings = await settingsService.getSettings();
-        const raw = settings.brand_display_name?.value;
-        if (typeof raw === "string" && raw.trim()) labName = raw.trim();
+        const rawName = settings.brand_display_name?.value;
+        if (typeof rawName === "string" && rawName.trim()) {
+          labName = rawName.trim();
+        }
+        const rawLogo = settings.brand_logo_url?.value;
+        if (typeof rawLogo === "string" && rawLogo.trim()) {
+          logoUrl = rawLogo.trim();
+        }
       } catch {
-        // Settings unavailable → the branch name fallback below applies.
+        // Settings unavailable → tenant context / branch name fallback below applies.
+      }
+      if (!labName) {
+        try {
+          const tenantInfo = await fetchTenantContext();
+          if (tenantInfo?.name?.trim()) labName = tenantInfo.name.trim();
+        } catch {
+          // Tenant context unavailable → branch name fallback below applies.
+        }
       }
       try {
         const branches = await settingsService.getBranches();
@@ -99,7 +116,7 @@ export function InvoicePrintScreen({
       } catch {
         // Branch directory unavailable → contact lines are simply omitted.
       }
-      if (active) setBranding({ labName, address, phone });
+      if (active) setBranding({ labName, logoUrl, address, phone });
     };
     void loadBranding();
     return () => {
@@ -174,7 +191,7 @@ export function InvoicePrintScreen({
 
   const pageRule =
     format === "a5"
-      ? "@page { size: A5 portrait; margin: 10mm 10mm 12mm 10mm; }"
+      ? "@page { size: A5 portrait; margin: 0; }"
       : thermalHeightMm !== null
         ? `@page { size: 72mm ${thermalHeightMm}mm; margin: 0; }`
         : "";
@@ -293,6 +310,13 @@ export function InvoicePrintScreen({
         <div ref={sheetRef} className={sheetClass}>
           <div className={styles.receipt}>
             <header className={styles.header}>
+              {branding.logoUrl ? (
+                <img
+                  src={branding.logoUrl}
+                  alt={labName || invoice.branch_name || ""}
+                  className={styles.logo}
+                />
+              ) : null}
               {labName ? <p className={styles.labName}>{labName}</p> : null}
               {invoice.branch_name ? (
                 <p className={styles.branch}>{invoice.branch_name}</p>
@@ -446,9 +470,6 @@ export function InvoicePrintScreen({
             </div>
 
             <p className={styles.credit}>Software by LabFlow</p>
-            <p className={styles.contact} dir="ltr">
-              Contact: 0320-6744652
-            </p>
           </div>
         </div>
       </>

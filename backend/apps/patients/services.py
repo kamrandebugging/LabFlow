@@ -16,6 +16,7 @@ from typing import Any
 
 from django.contrib.postgres.search import TrigramSimilarity
 from django.db import connection, transaction
+from django.db.models import OuterRef, Subquery
 from django.utils import timezone
 
 from apps.accounts.models import AuditLog, Role, StaffBranch, StaffUser
@@ -260,6 +261,17 @@ class PatientService:
         if branch_id is not None:
             filters["branch_id"] = branch_id
 
+        from apps.billing.models import Invoice
+
+        last_visit_qs = Invoice.objects.filter(patient=OuterRef("pk")).exclude(
+            status__in=[Invoice.Status.CANCELLED, Invoice.Status.VOIDED]
+        )
+        if not is_tenant_wide:
+            last_visit_qs = last_visit_qs.filter(branch_id__in=assigned_branches)
+        last_visit_subquery = last_visit_qs.order_by("-created_at").values(
+            "created_at"
+        )[:1]
+
         # Case 1: Search query provided (BS-4 applies — the one method
         # allowed to cross branch scope; deliberately NOT routed through
         # scoped_to).
@@ -268,7 +280,10 @@ class PatientService:
             annotated_qs = (
                 Patient.objects.filter(**filters)
                 .select_related("branch")
-                .annotate(similarity=TrigramSimilarity("name", clean_q))
+                .annotate(
+                    similarity=TrigramSimilarity("name", clean_q),
+                    last_visit_at=Subquery(last_visit_subquery),
+                )
                 .filter(models_q_filter(clean_q))
                 .order_by("-similarity", "-created_at")
             )
@@ -301,7 +316,12 @@ class PatientService:
         # scope: the manager-level scoped_to() keeps the BranchScopedQuerySet
         # type through chaining (django-stubs resolves chained .filter() to
         # the plain QuerySet).
-        qs = Patient.objects.scoped_to(actor).select_related("branch").filter(**filters)
+        qs = (
+            Patient.objects.scoped_to(actor)
+            .select_related("branch")
+            .annotate(last_visit_at=Subquery(last_visit_subquery))
+            .filter(**filters)
+        )
 
         listed_patients: list[Patient] = [p for p in qs.order_by("-created_at")[:100]]
         for p in listed_patients:
@@ -480,6 +500,103 @@ class PatientService:
                 ip=ip or "",
                 user_agent=user_agent or "",
             )
+
+    @classmethod
+    def get_patient_history(
+        cls,
+        *,
+        actor: StaffUser,
+        patient_id: uuid.UUID,
+        ip: str | None = None,
+        user_agent: str | None = None,
+    ) -> dict[str, Any]:
+        """Return bounded chronological patient visits with invoices, samples, reports."""
+        patient = cls.get_patient_detail(
+            actor=actor,
+            patient_id=patient_id,
+            ip=ip,
+            user_agent=user_agent,
+        )
+        from apps.billing.models import Invoice
+
+        is_tenant_wide, assigned_branches = cls.get_caller_branch_scope(actor)
+        if not is_tenant_wide and not assigned_branches:
+            return {
+                "patient_id": str(patient.id),
+                "mrn": patient.mrn,
+                "visits": [],
+            }
+        invoice_qs = (
+            Invoice.objects.filter(patient=patient)
+            .select_related("branch")
+            .prefetch_related("samples__reports")
+            .order_by("-created_at")
+        )
+        if not is_tenant_wide:
+            invoice_qs = invoice_qs.filter(branch_id__in=assigned_branches)
+
+        hide_prices = False
+        if actor.role == Role.TECHNICIAN:
+            from apps.platform.settings_accessor import get_setting
+
+            hide_prices = bool(get_setting("hide_prices_for_technicians"))
+
+        visits: list[dict[str, Any]] = []
+        for inv in invoice_qs[:50]:
+            samples_list = sorted(
+                inv.samples.all(),
+                key=lambda s: s.created_at,
+                reverse=True,
+            )
+            reports_list: list[dict[str, Any]] = []
+            samples_payload: list[dict[str, Any]] = []
+            for s in samples_list:
+                samples_payload.append(
+                    {
+                        "id": str(s.id),
+                        "accession_id": s.accession_id,
+                        "status": s.status,
+                        "collected_at": (
+                            s.collected_at.isoformat() if s.collected_at else None
+                        ),
+                        "created_at": s.created_at.isoformat(),
+                    }
+                )
+                for r in sorted(
+                    s.reports.all(), key=lambda r_item: r_item.created_at, reverse=True
+                ):
+                    reports_list.append(
+                        {
+                            "id": str(r.id),
+                            "sample_id": str(s.id),
+                            "accession_id": s.accession_id,
+                            "status": r.status,
+                            "current_version": r.current_version,
+                            "finalised_at": (
+                                r.finalised_at.isoformat() if r.finalised_at else None
+                            ),
+                        }
+                    )
+
+            visits.append(
+                {
+                    "invoice_id": str(inv.id),
+                    "invoice_number": f"INV-{str(inv.id)[:8].upper()}",
+                    "branch_id": str(inv.branch_id),
+                    "branch_name": inv.branch.name,
+                    "status": inv.status,
+                    "total": None if hide_prices else f"{inv.total:.2f}",
+                    "created_at": inv.created_at.isoformat(),
+                    "samples": samples_payload,
+                    "reports": reports_list,
+                }
+            )
+
+        return {
+            "patient_id": str(patient.id),
+            "mrn": patient.mrn,
+            "visits": visits,
+        }
 
 
 def models_q_filter(query: str) -> Any:

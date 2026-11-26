@@ -1048,6 +1048,99 @@ def record_void_compensation(void_event: Any) -> ShareLedgerEntry | None:
         raise
 
 
+def record_invoice_void_reversal(invoice_void: Any) -> ShareLedgerEntry | None:
+    """Record a compensating ledger reversal when a paid invoice is voided.
+
+    Called inside InvoiceQueryService.void_invoice in the same transaction.
+    Reverses any net positive partner share previously accrued on the invoice.
+    """
+    invoice = invoice_void.invoice
+    if invoice.referral_partner_id is None:
+        return None
+
+    existing = ShareLedgerEntry.objects.filter(invoice_void=invoice_void).first()
+    if existing is not None:
+        return existing
+
+    from apps.billing.models import Payment
+
+    entries = list(
+        ShareLedgerEntry.objects.filter(
+            Q(payment__invoice=invoice)
+            | Q(credit_note__invoice=invoice)
+            | Q(void_event__credit_note__invoice=invoice)
+        )
+        .select_related("referral_partner", "rule", "payment")
+        .order_by("created_at")
+    )
+    if not entries:
+        return None
+
+    original = next(
+        (
+            e
+            for e in entries
+            if e.payment is not None
+            and e.payment.kind == Payment.Kind.PAYMENT
+            and e.amount > Decimal("0.00")
+        ),
+        None,
+    )
+    if original is None:
+        return None
+
+    net_ledger_amount = sum((e.amount for e in entries), Decimal("0.00"))
+    if net_ledger_amount <= Decimal("0.00"):
+        return None
+
+    amount = _quantize(-net_ledger_amount)
+    if amount == Decimal("0.00"):
+        return None
+
+    basis_amount = sum(
+        (
+            Decimal(str(v))
+            for v in (getattr(invoice_void, "reversed_methods", None) or {}).values()
+        ),
+        Decimal("0.00"),
+    )
+    biz_date = getattr(invoice_void, "void_business_date", None)
+    if biz_date is None and getattr(invoice_void, "voided_at", None):
+        biz_date = invoice_void.voided_at.astimezone(KARACHI_TZ).date()
+
+    period = _route_reversal_period(
+        original_entry=original,
+        reversal_date=biz_date,
+    )
+
+    try:
+        with transaction.atomic():
+            entry = ShareLedgerEntry.objects.create(
+                invoice_void=invoice_void,
+                referral_partner=original.referral_partner,
+                rule=original.rule,
+                amount=amount,
+                percent_applied=original.percent_applied,
+                basis_amount=basis_amount,
+                period=period,
+                business_date=biz_date,
+            )
+            logger.info(
+                "Share ledger: created invoice void reversal %s for void %s "
+                "(amount=%s, period=%s)",
+                entry.id,
+                invoice_void.id,
+                amount,
+                period,
+            )
+            return entry
+    except IntegrityError:
+        existing = ShareLedgerEntry.objects.filter(invoice_void=invoice_void).first()
+        if existing is not None:
+            return existing
+        raise
+
+
 def reconcile_missing_ledger_entries() -> dict[str, int]:
     """Hourly Beat sweep: replay record_share_entry for missing rows (SL-6, SL-7).
 

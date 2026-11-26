@@ -520,6 +520,16 @@ class ReportAccessService:
             # RP-8: patient links always resolve to the CURRENT version —
             # after an amendment the old link serves the corrected PDF.
             report = ReportService._get_report(row.report_id)
+            if report.status == Report.Status.VOID:
+                raise AccessTokenRevokedError(
+                    "This report link has been revoked.",
+                    details={"phone": phone},
+                )
+            if report.status not in (Report.Status.FINAL, Report.Status.AMENDED):
+                raise ReportNotFinalError(
+                    "Report is temporarily unavailable while an amendment is pending.",
+                    details={"phone": phone},
+                )
             version = ReportVersion.objects.filter(
                 report=report, version=report.current_version
             ).first()

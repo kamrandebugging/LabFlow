@@ -39,6 +39,7 @@ def test_registry_contains_doc10_keys_plus_tech_price_visibility() -> None:
         "transfer_late_after_hours",
         "brand_display_name",
         "brand_accent_colour",
+        "brand_logo_url",
         # Phase 9 Rule 3: default OFF, registry-only addition.
         "hide_prices_for_technicians",
     }
@@ -70,6 +71,12 @@ def test_registry_new_key_needs_no_migration() -> None:
         ("transfer_late_after_hours", "24", 24),
         ("brand_display_name", " City Lab ", "City Lab"),
         ("brand_accent_colour", "#0D9488", "#0d9488"),
+        (
+            "brand_logo_url",
+            "https://cdn.example.com/logo.png",
+            "https://cdn.example.com/logo.png",
+        ),
+        ("brand_logo_url", "", ""),
     ],
 )
 def test_validate_setting_happy_paths(key: str, raw: str, expected: Any) -> None:
@@ -92,6 +99,8 @@ def test_validate_setting_happy_paths(key: str, raw: str, expected: Any) -> None
         ("brand_accent_colour", "red"),
         ("brand_accent_colour", "#12345"),
         ("brand_accent_colour", "#gggggg"),
+        ("brand_logo_url", "javascript:alert(1)"),
+        ("brand_logo_url", "//evil.example.com/logo.png"),
     ],
 )
 def test_validate_setting_rejects_invalid(key: str, raw: str) -> None:

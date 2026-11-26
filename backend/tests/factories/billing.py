@@ -2,6 +2,7 @@ from datetime import date
 from decimal import Decimal
 
 import factory
+from django.utils import timezone
 
 from apps.billing.models import (
     BranchDay,
@@ -9,9 +10,11 @@ from apps.billing.models import (
     CreditNoteSequence,
     CreditNoteVoid,
     DayClose,
+    DayCloseReopen,
     Invoice,
     InvoiceItem,
     InvoiceLineCancelled,
+    InvoiceVoid,
     Payment,
 )
 from tests.factories.accounts import StaffUserFactory
@@ -34,6 +37,7 @@ class InvoiceFactory(TenantModelFactory):
     discount_reason = None
     total = Decimal("1500.00")
     idempotency_key = factory.Sequence(lambda n: f"inv-idem-key-{n + 1:06d}")
+    business_date = factory.LazyFunction(timezone.localdate)
 
 
 class InvoiceItemFactory(TenantModelFactory):
@@ -62,6 +66,7 @@ class PaymentFactory(TenantModelFactory):
     received_by = factory.SubFactory(StaffUserFactory)
     reference = None
     idempotency_key = factory.Sequence(lambda n: f"pay-idem-key-{n + 1:06d}")
+    business_date = factory.LazyFunction(timezone.localdate)
 
 
 class CreditNoteSequenceFactory(TenantModelFactory):
@@ -83,6 +88,7 @@ class CreditNoteFactory(TenantModelFactory):
     method = Payment.Method.CASH
     reversed_methods = factory.LazyAttribute(lambda o: {"cash": "1500.00"})
     issued_by = factory.SubFactory(StaffUserFactory)
+    business_date = factory.LazyFunction(timezone.localdate)
 
 
 class DayCloseFactory(TenantModelFactory):
@@ -134,3 +140,25 @@ class InvoiceLineCancelledFactory(TenantModelFactory):
     cancelled_by = factory.SubFactory(StaffUserFactory)
     reason = "Test line cancellation"
     amount_removed = Decimal("500.00")
+
+
+class InvoiceVoidFactory(TenantModelFactory):
+    class Meta:
+        model = InvoiceVoid
+
+    invoice = factory.SubFactory(InvoiceFactory)
+    voided_by = factory.SubFactory(StaffUserFactory)
+    reason = "Test invoice void"
+    void_business_date = factory.Sequence(lambda n: date(2026, 1, (n % 28) + 1))
+    reversed_methods = factory.LazyAttribute(lambda o: {"cash": "1500.00"})
+
+
+class DayCloseReopenFactory(TenantModelFactory):
+    class Meta:
+        model = DayCloseReopen
+
+    day_close = factory.SubFactory(DayCloseFactory)
+    branch = factory.SelfAttribute("day_close.branch")
+    business_date = factory.SelfAttribute("day_close.business_date")
+    reopened_by = factory.SubFactory(StaffUserFactory)
+    reason = "Test day close reopen"

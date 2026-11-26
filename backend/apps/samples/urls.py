@@ -10,6 +10,8 @@ from apps.samples.views import (
     SampleDetailView,
     SampleEventsView,
     SampleLabelPrintView,
+    SampleLabelsBulkPrintView,
+    SampleLabelsBulkView,
     SampleLabelView,
     SampleReceiveView,
     SampleRecollectView,
@@ -47,6 +49,26 @@ urlpatterns = [
         "samples/daily/",
         SampleDailyStatsView.as_view(),
         name="sample-daily-stats-slash",
+    ),
+    path(
+        "samples/labels",
+        SampleLabelsBulkView.as_view(),
+        name="sample-labels-bulk",
+    ),
+    path(
+        "samples/labels/",
+        SampleLabelsBulkView.as_view(),
+        name="sample-labels-bulk-slash",
+    ),
+    path(
+        "samples/labels/print",
+        SampleLabelsBulkPrintView.as_view(),
+        name="sample-labels-bulk-print",
+    ),
+    path(
+        "samples/labels/print/",
+        SampleLabelsBulkPrintView.as_view(),
+        name="sample-labels-bulk-print-slash",
     ),
     path("samples", SampleCollectionView.as_view(), name="sample-collection"),
     path(

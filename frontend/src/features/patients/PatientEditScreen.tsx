@@ -1,6 +1,12 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft, Check, Loader2, AlertCircle } from "lucide-react";
+import {
+  ArrowLeft,
+  Check,
+  Loader2,
+  AlertCircle,
+  RefreshCw,
+} from "lucide-react";
 import { messageForError } from "../../lib/errors";
 import styles from "./PatientForm.module.css";
 import { patientService } from "./patientService";
@@ -39,44 +45,38 @@ export const PatientEditScreen: React.FC<PatientEditScreenProps> = ({
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isVersionConflict, setIsVersionConflict] = useState(false);
 
-  useEffect(() => {
-    let isMounted = true;
+  const loadPatient = useCallback(async () => {
     setIsLoading(true);
     setError(null);
-
-    service
-      .getPatient(patientId)
-      .then((data) => {
-        if (!isMounted) return;
-        setPatient(data);
-        setName(data.name || "");
-        setPhone(data.phone || "");
-        setSex(data.sex === "F" ? "F" : "M");
-        setDateOfBirth(
-          data.date_of_birth ? data.date_of_birth.slice(0, 10) : "",
-        );
-      })
-      .catch((err) => {
-        if (isMounted)
-          setError(
-            err && typeof err === "object" && ("code" in err || "status" in err)
-              ? messageForError(err, t)
-              : t("patients:edit.errors.load"),
-          );
-      })
-      .finally(() => {
-        if (isMounted) setIsLoading(false);
-      });
-
-    return () => {
-      isMounted = false;
-    };
+    setIsVersionConflict(false);
+    try {
+      const data = await service.getPatient(patientId);
+      setPatient(data);
+      setName(data.name || "");
+      setPhone(data.phone || "");
+      setSex(data.sex === "F" ? "F" : "M");
+      setDateOfBirth(data.date_of_birth ? data.date_of_birth.slice(0, 10) : "");
+    } catch (err) {
+      setError(
+        err && typeof err === "object" && ("code" in err || "status" in err)
+          ? messageForError(err, t)
+          : t("patients:edit.errors.load"),
+      );
+    } finally {
+      setIsLoading(false);
+    }
   }, [patientId, service, t]);
+
+  useEffect(() => {
+    void loadPatient();
+  }, [loadPatient]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setIsVersionConflict(false);
     setIsSaving(true);
     const payload: PatientUpdateInput = {
       name,
@@ -85,14 +85,31 @@ export const PatientEditScreen: React.FC<PatientEditScreenProps> = ({
       date_of_birth: dateOfBirth || null,
     };
     try {
-      await service.updatePatient(patientId, payload, patient?.version);
+      await service.updatePatient(
+        patientId,
+        payload,
+        patient?.version ?? patient?.updated_at,
+      );
       onSuccess?.();
     } catch (err: unknown) {
-      setError(
-        err && typeof err === "object" && ("code" in err || "status" in err)
-          ? messageForError(err, t)
-          : t("patients:edit.errors.save"),
-      );
+      const code =
+        err && typeof err === "object" && "code" in err
+          ? (err as { code?: string }).code
+          : undefined;
+      const statusCode =
+        err && typeof err === "object" && "status" in err
+          ? (err as { status?: number }).status
+          : undefined;
+      if (code === "version_conflict" || statusCode === 409) {
+        setIsVersionConflict(true);
+        setError(t("patients:edit.errors.version_conflict"));
+      } else {
+        setError(
+          err && typeof err === "object" && ("code" in err || "status" in err)
+            ? messageForError(err, t)
+            : t("patients:edit.errors.save"),
+        );
+      }
     } finally {
       setIsSaving(false);
     }
@@ -116,6 +133,16 @@ export const PatientEditScreen: React.FC<PatientEditScreenProps> = ({
         </span>
         <span className={styles.alertDetail}>{error}</span>
       </span>
+      {isVersionConflict ? (
+        <button
+          type="button"
+          onClick={() => void loadPatient()}
+          className={styles.secondaryButton}
+        >
+          <RefreshCw className={styles.buttonIcon} aria-hidden="true" />
+          <span>{t("patients:edit.reload")}</span>
+        </button>
+      ) : null}
     </div>
   ) : null;
 

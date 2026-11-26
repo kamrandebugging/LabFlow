@@ -7,6 +7,7 @@ import type {
   DuplicateWarningError,
   PatientCreateInput,
   PatientDetail,
+  PatientHistoryResponse,
   PatientSummary,
   PatientUpdateInput,
 } from "./types";
@@ -49,6 +50,10 @@ export const patientService = {
       }
       throw err;
     }
+  },
+
+  async getPatientHistory(id: string): Promise<PatientHistoryResponse> {
+    return apiRequest<PatientHistoryResponse>(`/patients/${id}/history`);
   },
 
   async createPatient(input: PatientCreateInput): Promise<PatientSummary> {
@@ -104,10 +109,10 @@ export const patientService = {
   async updatePatient(
     id: string,
     input: PatientUpdateInput,
-    version?: number,
+    version?: string,
   ): Promise<PatientDetail> {
     const headers: Record<string, string> = {};
-    if (version !== undefined) {
+    if (version !== undefined && version !== "") {
       headers["If-Match"] = `"${version}"`;
     }
 
@@ -119,7 +124,12 @@ export const patientService = {
       });
     } catch (err) {
       if (err instanceof ApiError) {
-        throw new Error(err.message || `Update failed (${err.status})`);
+        const error = new Error(err.message || `Update failed (${err.status})`);
+        (error as Error & { code?: string; status?: number }).code =
+          err.code ?? undefined;
+        (error as Error & { code?: string; status?: number }).status =
+          err.status;
+        throw error;
       }
       throw err;
     }

@@ -21,6 +21,8 @@
     "brand_name_help": "Printed at the top of patient reports, receipts, and portal banners. (1–120 chars)",
     "accent_label": "Brand Accent Colour",
     "accent_help": "Primary hex accent colour (#RRGGBB) used on PDF headers, table borders, and online results.",
+    "logo_url_label": "Lab Logo URL",
+    "logo_url_help": "Optional logo image URL (https:// or PNG/JPEG data URI) printed at the top of invoices.",
     "ops_title": "Clinical Operations & Traceability",
     "ops_desc": "Thresholds and policies governing specimen transit and billing holds.",
     "billing_hold_label": "Tenant Billing Hold",

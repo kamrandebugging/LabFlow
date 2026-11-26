@@ -72,7 +72,10 @@
     "id": "ID",
     "audit_history": "Audit history",
     "tab_overview": "Overview",
+    "tab_invoices": "Invoices",
     "tab_history": "History",
+    "invoices_title": "Recent Invoices",
+    "invoices_empty": "No invoices recorded for this patient yet.",
     "new_accession": "+ New accession",
     "delete_patient_aria": "Delete patient",
     "confirm_delete": "Are you sure you want to soft-delete this patient record?",
@@ -106,8 +109,10 @@
     },
     "errors": {
       "load": "Failed to load patient",
-      "save": "Failed to update patient record."
-    }
+      "save": "Failed to update patient record.",
+      "version_conflict": "Someone else changed this patient — reload to see the latest record before saving."
+    },
+    "reload": "Reload patient"
   },
   "history": {
     "breadcrumb": "Clinical History",
@@ -124,6 +129,10 @@
     "event_visit": "Diagnostic Visit Episode",
     "recent_visit": "Recent Visit",
     "visit_note": "Samples and reports accessioned during this visit episode are recorded under the clinical worklist ledger.",
+    "no_visits": "No diagnostic visits recorded yet.",
+    "invoice_label": "Invoice",
+    "samples_label": "Samples",
+    "reports_label": "Reports",
     "loading": "Loading longitudinal clinical history...",
     "unavailable_title": "Unable to load history",
     "errors": {

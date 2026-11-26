@@ -897,9 +897,23 @@ class ResultService:
                 # the reports module (later LAB) must cut a new version.
                 # Cross-module trigger pattern (no event bus yet): flag on
                 # the audit row, like sample.ready / sample.collected.
-                report_version_requested = Report.objects.filter(
-                    sample_id=result.sample_id, status=Report.Status.FINAL
-                ).exists()
+                report_for_sample = (
+                    Report.objects.filter(sample_id=result.sample_id)
+                    .exclude(status=Report.Status.VOID)
+                    .first()
+                )
+                report_version_requested = False
+                if report_for_sample is not None:
+                    report_version_requested = (
+                        report_for_sample.status
+                        in (Report.Status.FINAL, Report.Status.AMENDED)
+                        or report_for_sample.current_version >= 1
+                        or report_for_sample.finalised_at is not None
+                        or AuditLog.objects.filter(
+                            entity_id=report_for_sample.id,
+                            action="report.superseded",
+                        ).exists()
+                    )
                 # result.amended fires at the amendment's approval.
                 after["event"] = "result.amended"
                 after["amendment_of"] = amended_result_id
@@ -920,11 +934,22 @@ class ResultService:
             # RS-8: completing the last pending test moves the sample to
             # ready (SM-5: READY event in the same transaction). Partial
             # approval is a normal stable state — the sample waits.
+            # Also handles rejecting an amendment when all SampleTests still
+            # retain APPROVED results: restores READY and supersedes reversal.
             sample_ready = False
+            restored_report = False
             if new_status == Result.Status.APPROVED:
                 sample_ready = _maybe_complete_sample(
                     sample_id=result.sample_id,
                     actor=actor,
+                    ip=ip,
+                    user_agent=user_agent,
+                )
+            elif supersedes_id is not None:
+                sample_ready, restored_report = _maybe_restore_sample_after_amendment_abort(
+                    sample_id=result.sample_id,
+                    actor=actor,
+                    trigger_action="result.amendment_rejected",
                     ip=ip,
                     user_agent=user_agent,
                 )
@@ -933,7 +958,9 @@ class ResultService:
             # after commit. Sample just became ready -> ensure the draft
             # report row and generate version 1. Amendment approved on a
             # final report -> generate the next (amended) version.
-            if sample_ready or report_version_requested:
+            if (
+                sample_ready and not restored_report
+            ) or report_version_requested:
                 _enqueue_report_generation_after_commit(
                     sample_id=result.sample_id,
                     actor=actor,
@@ -983,6 +1010,7 @@ class ResultService:
                     "Only an entered result with no approval decision can be withdrawn."
                 )
 
+            is_amendment = result.supersedes_id is not None
             result.status = Result.Status.WITHDRAWN
             result.save(update_fields=["status", "updated_at"])
             AuditLog.objects.create(
@@ -999,6 +1027,29 @@ class ResultService:
                 ip=ip,
                 user_agent=user_agent,
             )
+            if is_amendment:
+                restored_ready, restored_rep = (
+                    _maybe_restore_sample_after_amendment_abort(
+                        sample_id=result.sample_id,
+                        actor=actor,
+                        trigger_action="result.withdrawn",
+                        ip=ip,
+                        user_agent=user_agent,
+                    )
+                )
+                if restored_ready and not restored_rep:
+                    _enqueue_report_generation_after_commit(
+                        sample_id=result.sample_id,
+                        actor=actor,
+                    )
+            else:
+                _demote_ready_sample_and_withdraw_pending_report(
+                    sample_id=result.sample_id,
+                    actor=actor,
+                    trigger_action="result.withdrawn",
+                    ip=ip,
+                    user_agent=user_agent,
+                )
 
         return {"id": str(result.id), "status": result.status}
 
@@ -1118,6 +1169,14 @@ class ResultService:
                     "entered_by": str(actor.id),
                     "event": "result.entered",
                 },
+                ip=ip,
+                user_agent=user_agent,
+            )
+            _demote_ready_sample_and_withdraw_pending_report(
+                sample_id=old.sample_id,
+                actor=actor,
+                trigger_action="result.amendment_created",
+                note=clean_reason,
                 ip=ip,
                 user_agent=user_agent,
             )
@@ -1270,6 +1329,8 @@ def _maybe_complete_sample(
     )
     if not test_ids <= approved_ids:
         return False
+    if Result.objects.filter(sample_id=sample_id, status=Result.Status.ENTERED).exists():
+        return False
 
     sample = Sample.objects.select_for_update().get(pk=sample_id)
     if sample.status in (
@@ -1302,6 +1363,156 @@ def _maybe_complete_sample(
         user_agent=user_agent,
     )
     return True
+
+
+def _demote_ready_sample_and_withdraw_pending_report(
+    *,
+    sample_id: uuid.UUID,
+    actor: StaffUser,
+    trigger_action: str,
+    note: str | None = None,
+    ip: str | None = None,
+    user_agent: str | None = None,
+) -> bool:
+    """Flip a READY sample back to IN_PROCESS and withdraw/supersede active report.
+
+    Called inside an open transaction when a result is amended or withdrawn so a
+    sample never stays READY (and no stale FINAL/AMENDED PDF is delivered or
+    finalized) while an unapproved result change is pending.
+    """
+    sample = Sample.objects.select_for_update().get(pk=sample_id)
+    demoted = False
+    if sample.status == Sample.Status.READY:
+        sample.status = Sample.Status.IN_PROCESS
+        sample.save(update_fields=["status", "updated_at"])
+        SampleEvent.objects.create(
+            sample=sample,
+            event=SampleEvent.EventType.IN_PROCESS,
+            actor=actor,
+            branch=sample.branch,
+            note=note,
+        )
+        AuditLog.objects.create(
+            actor_id=actor.id,
+            action="sample.in_process",
+            entity_type="sample",
+            entity_id=sample.id,
+            before_jsonb={"status": Sample.Status.READY},
+            after_jsonb={
+                "accession_id": sample.accession_id,
+                "from_status": Sample.Status.READY,
+                "to_status": Sample.Status.IN_PROCESS,
+                "trigger": trigger_action,
+                "event": "sample.in_process",
+            },
+            ip=ip,
+            user_agent=user_agent,
+        )
+        demoted = True
+
+    report = Report.objects.select_for_update().filter(sample_id=sample_id).first()
+    if report is not None and report.status != Report.Status.VOID:
+        changed: list[str] = []
+        was_running = report.generation_status == Report.GenerationStatus.RUNNING
+        if was_running:
+            report.generation_status = Report.GenerationStatus.IDLE
+            report.generation_error = None
+            changed.extend(["generation_status", "generation_error"])
+
+        if report.status in (Report.Status.FINAL, Report.Status.AMENDED):
+            old_status = report.status
+            report.status = Report.Status.DRAFT
+            changed.append("status")
+            AuditLog.objects.create(
+                actor_id=actor.id,
+                action="report.superseded",
+                entity_type="report",
+                entity_id=report.id,
+                before_jsonb={
+                    "status": old_status,
+                    "current_version": report.current_version,
+                },
+                after_jsonb={
+                    "status": Report.Status.DRAFT,
+                    "trigger": trigger_action,
+                    "sample_id": str(sample_id),
+                },
+                ip=ip,
+                user_agent=user_agent,
+            )
+        elif was_running:
+            AuditLog.objects.create(
+                actor_id=actor.id,
+                action="report.generation_withdrawn",
+                entity_type="report",
+                entity_id=report.id,
+                before_jsonb={
+                    "status": report.status,
+                    "generation_status": Report.GenerationStatus.RUNNING,
+                },
+                after_jsonb={
+                    "status": report.status,
+                    "generation_status": Report.GenerationStatus.IDLE,
+                    "trigger": trigger_action,
+                    "sample_id": str(sample_id),
+                },
+                ip=ip,
+                user_agent=user_agent,
+            )
+
+        if changed:
+            report.save(update_fields=[*changed, "updated_at"])
+
+    return demoted
+
+
+def _maybe_restore_sample_after_amendment_abort(
+    *,
+    sample_id: uuid.UUID,
+    actor: StaffUser,
+    trigger_action: str,
+    ip: str | None = None,
+    user_agent: str | None = None,
+) -> tuple[bool, bool]:
+    """Restore READY + finalised report when a pending amendment is rejected or withdrawn
+    and all ordered tests still retain APPROVED results."""
+    completed = _maybe_complete_sample(
+        sample_id=sample_id,
+        actor=actor,
+        ip=ip,
+        user_agent=user_agent,
+    )
+    if not completed:
+        return False, False
+    report = Report.objects.select_for_update().filter(sample_id=sample_id).first()
+    if (
+        report is not None
+        and report.status == Report.Status.DRAFT
+        and (report.current_version >= 1 or report.finalised_at is not None)
+    ):
+        restored_status = (
+            Report.Status.FINAL
+            if report.current_version <= 1
+            else Report.Status.AMENDED
+        )
+        report.status = restored_status
+        report.save(update_fields=["status", "updated_at"])
+        AuditLog.objects.create(
+            actor_id=actor.id,
+            action="report.restored",
+            entity_type="report",
+            entity_id=report.id,
+            before_jsonb={"status": Report.Status.DRAFT},
+            after_jsonb={
+                "status": restored_status,
+                "trigger": trigger_action,
+                "sample_id": str(sample_id),
+            },
+            ip=ip,
+            user_agent=user_agent,
+        )
+        return True, True
+    return True, False
 
 
 def _enqueue_report_generation_after_commit(

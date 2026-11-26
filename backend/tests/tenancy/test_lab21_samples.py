@@ -39,6 +39,7 @@ from tests.factories.catalog import (
     TestPriceFactory,
 )
 from tests.factories.patients import PatientFactory
+from tests.factories.samples import SampleFactory
 from tests.factories.staff_user import StaffUserFactory
 
 SAMPLES_URL = "/api/v1/samples"
@@ -430,3 +431,82 @@ class TestSampleLabel:
         # 404 for nonexistent sample
         resp_404 = Client().get(f"{SAMPLES_URL}/{uuid.uuid4()}", headers=headers)
         assert resp_404.status_code == 404
+
+    def test_bulk_label_preview_and_print_three_samples(
+        self, tenant_a: Any, lab21_setup: dict[str, Any], auth_headers: Any
+    ) -> None:
+        """Bulk label print returns 1 payload per sample and audits 1 event each."""
+        headers = auth_headers(lab21_setup["receptionist"])
+        with tenant_context(tenant_a):
+            samples = [SampleFactory(branch=lab21_setup["branch"]) for _ in range(3)]
+            ids = [str(s.id) for s in samples]
+            uuids = [s.id for s in samples]
+            accessions = [s.accession_id for s in samples]
+
+        client = Client()
+        # GET /samples/labels?ids=... previews all 3 without writing audit rows.
+        preview = client.get(
+            f"{SAMPLES_URL}/labels?ids={','.join(ids)}",
+            headers=headers,
+        )
+        assert preview.status_code == 200, preview.content[:300]
+        assert [row["accession_id"] for row in preview.json()["labels"]] == accessions
+        with tenant_context(tenant_a):
+            assert (
+                AuditLog.objects.filter(
+                    action="sample.label_printed", entity_id__in=uuids
+                ).count()
+                == 0
+            )
+
+        # POST /samples/labels/print prints all 3 and writes 1 audit per sample.
+        printed = client.post(
+            f"{SAMPLES_URL}/labels/print",
+            data={"sample_ids": ids},
+            content_type="application/json",
+            headers=headers,
+        )
+        assert printed.status_code == 200, printed.content[:300]
+        assert [row["accession_id"] for row in printed.json()["labels"]] == accessions
+        with tenant_context(tenant_a):
+            for sid in uuids:
+                assert (
+                    AuditLog.objects.filter(
+                        action="sample.label_printed", entity_id=sid
+                    ).count()
+                    == 1
+                )
+
+        # Single sample bulk print writes 1 more audit event for that sample.
+        single = client.post(
+            f"{SAMPLES_URL}/labels/print",
+            data={"sample_ids": [ids[0]]},
+            content_type="application/json",
+            headers=headers,
+        )
+        assert single.status_code == 200
+        assert len(single.json()["labels"]) == 1
+        with tenant_context(tenant_a):
+            assert (
+                AuditLog.objects.filter(
+                    action="sample.label_printed", entity_id=uuids[0]
+                ).count()
+                == 2
+            )
+
+        # Non-existent sample in batch -> 404 without partial audits.
+        missing_id = str(uuid.uuid4())
+        bad = client.post(
+            f"{SAMPLES_URL}/labels/print",
+            data={"sample_ids": [ids[1], missing_id]},
+            content_type="application/json",
+            headers=headers,
+        )
+        assert bad.status_code == 404
+        with tenant_context(tenant_a):
+            assert (
+                AuditLog.objects.filter(
+                    action="sample.label_printed", entity_id=uuids[1]
+                ).count()
+                == 1
+            )

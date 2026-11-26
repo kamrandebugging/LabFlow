@@ -7,7 +7,7 @@ from apps.core.management.commands.seed_demo_tenant import Command
 OPERATOR = {
     "email": "admin@example.test",
     "password": "SuperSecretDemoPass!",
-    "totp_secret": "JBSWY3DPEHPK3PXP",
+    "totp_secret": "MFRGGZDFMZTWQ2LKNNWG23TPOBYXE43U",
 }
 TENANTS = [
     {

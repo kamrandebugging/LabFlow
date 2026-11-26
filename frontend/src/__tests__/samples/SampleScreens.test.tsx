@@ -556,4 +556,63 @@ describe("Screen 20: SampleLabelScreen", () => {
       expect(window.print).toHaveBeenCalledTimes(1);
     });
   });
+
+  it("loads and prints all selected labels in bulk mode", async () => {
+    const bulkLabels: SampleLabelData[] = [
+      { ...mockLabelData, accession_id: "CDL20261020000041" },
+      {
+        ...mockLabelData,
+        accession_id: "CDL20261020000042",
+        patient_name: "Fatima Noor",
+        barcode: { symbology: "code128", payload: "CDL20261020000042" },
+      },
+      {
+        ...mockLabelData,
+        accession_id: "CDL20261020000043",
+        patient_name: "Bilal Ahmed",
+        barcode: { symbology: "code128", payload: "CDL20261020000043" },
+      },
+    ];
+    const mockService = {
+      getLabelsBulk: vi.fn().mockResolvedValue(bulkLabels),
+      printLabelsBulk: vi.fn().mockResolvedValue(bulkLabels),
+    };
+
+    render(
+      <MemoryRouter>
+        <SampleLabelScreen
+          sampleIds={["s-1", "s-2", "s-3"]}
+          // @ts-expect-error partial mock
+          service={mockService}
+        />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(mockService.getLabelsBulk).toHaveBeenCalledWith([
+        "s-1",
+        "s-2",
+        "s-3",
+      ]);
+      expect(screen.getAllByText("CDL20261020000041").length).toBeGreaterThan(
+        0,
+      );
+      expect(screen.getAllByText("CDL20261020000042").length).toBeGreaterThan(
+        0,
+      );
+      expect(screen.getAllByText("CDL20261020000043").length).toBeGreaterThan(
+        0,
+      );
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /^print$/i }));
+    await waitFor(() => {
+      expect(mockService.printLabelsBulk).toHaveBeenCalledWith([
+        "s-1",
+        "s-2",
+        "s-3",
+      ]);
+      expect(window.print).toHaveBeenCalledTimes(1);
+    });
+  });
 });

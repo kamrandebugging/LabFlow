@@ -258,6 +258,19 @@ class SampleLabelSerializer(serializers.Serializer):
     barcode = serializers.DictField()
 
 
+class SampleBulkLabelPrintSerializer(serializers.Serializer):
+    """POST /api/v1/samples/labels/print — bulk label print request."""
+
+    sample_ids = serializers.ListField(
+        child=serializers.UUIDField(),
+        allow_empty=False,
+        max_length=100,
+    )
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        return _reject_unknown_fields(self, attrs)
+
+
 class SampleRejectSerializer(serializers.Serializer):
     """POST /api/v1/samples/{id}/reject — SM-8 reason code + note (KAN-138).
 

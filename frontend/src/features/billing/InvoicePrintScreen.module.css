@@ -150,16 +150,32 @@
   text-align: center;
 }
 
+.logo {
+  display: block;
+  margin: 0 auto 2mm;
+  max-height: 18mm;
+  max-width: 56mm;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+}
+
+.sheetThermal .logo {
+  max-height: 12mm;
+  max-width: 44mm;
+  margin-bottom: 1.5mm;
+}
+
 .labName {
   margin: 0;
-  font-size: 15pt;
+  font-size: 16pt;
   font-weight: 800;
   line-height: 1.15;
   overflow-wrap: anywhere;
 }
 
 .sheetThermal .labName {
-  font-size: 11.5pt;
+  font-size: 12pt;
 }
 
 .branch {
@@ -464,10 +480,12 @@
     margin: 0 !important;
   }
 
-  /* A5: @page margins supply the 10/10/12/10mm frame, so the sheet
-     must not add its own on paper — content width stays 128mm. */
+  /* A5: @page uses margin: 0 to suppress Chrome's browser header/footer;
+     .sheetA5 supplies the 10/10/12/10mm printable margin on paper so content
+     width stays 128mm inside 148mm. */
   .sheetA5 {
-    width: auto !important;
-    padding: 0 !important;
+    width: 148mm !important;
+    padding: 10mm 10mm 12mm !important;
+    box-sizing: border-box !important;
   }
 }

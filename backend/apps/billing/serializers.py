@@ -226,7 +226,18 @@ class CreditNoteCreateSerializer(serializers.Serializer):
     method = serializers.ChoiceField(
         choices=Payment.Method.choices, required=False, default=Payment.Method.CASH
     )
-    reversed_methods = serializers.DictField(required=False, default=dict)
+    reversed_methods = serializers.DictField(
+        child=PositiveMoneyField(), required=False, default=dict
+    )
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        return _reject_unknown_fields(self, attrs)
+
+
+class PickupCodeVerifySerializer(serializers.Serializer):
+    """Body for POST /invoices/{id}/verify-pickup-code."""
+
+    code = serializers.CharField(max_length=16)
 
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
         return _reject_unknown_fields(self, attrs)
@@ -273,19 +284,33 @@ class CreditNoteSerializer(serializers.Serializer):
 
 
 class DayCloseCreateSerializer(serializers.Serializer):
-    """Body for POST /day-close — close one branch-day.
-
-    ``counted_cash`` is the money physically counted in the drawer; the server
-    compares it with the expected cash it derives from Payment rows.
-    """
+    """Body for POST /day-close — close one completed branch-day."""
 
     branch_id = serializers.UUIDField()
     date = serializers.DateField(required=False)
-    counted_cash = MoneyField()
+    counted_cash = MoneyField(required=False)
+    counted_methods = serializers.DictField(
+        child=MoneyField(), required=False, default=None
+    )
     difference_note = serializers.CharField(required=False, allow_blank=True)
+    approver_email = serializers.EmailField(required=False, allow_blank=True)
+    approver_password = serializers.CharField(
+        required=False, allow_blank=True, write_only=True
+    )
+    approver_totp = serializers.CharField(
+        required=False, allow_blank=True, write_only=True
+    )
+    approval_token = serializers.CharField(
+        required=False, allow_blank=True, write_only=True
+    )
 
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
-        return _reject_unknown_fields(self, attrs)
+        attrs = _reject_unknown_fields(self, attrs)
+        if attrs.get("counted_cash") is None and attrs.get("counted_methods") is None:
+            raise serializers.ValidationError(
+                {"counted_cash": "counted_cash or counted_methods is required."}
+            )
+        return attrs
 
 
 class DayCloseSummarySerializer(serializers.Serializer):
@@ -295,6 +320,8 @@ class DayCloseSummarySerializer(serializers.Serializer):
     branch_id = serializers.UUIDField()
     business_date = serializers.DateField()
     method_totals = serializers.DictField()
+    counted_methods = serializers.DictField(required=False)
+    method_differences = serializers.DictField(required=False)
     total_invoices = serializers.IntegerField()
     total_discount = MoneyField()
     total_credit_notes = MoneyField()
@@ -304,6 +331,8 @@ class DayCloseSummarySerializer(serializers.Serializer):
     difference_note = serializers.CharField(allow_null=True)
     closed_by = serializers.UUIDField(allow_null=True)
     closed_by_name = serializers.SerializerMethodField()
+    approved_by = serializers.UUIDField(allow_null=True, required=False)
+    approved_by_name = serializers.SerializerMethodField()
     closed_at = serializers.DateTimeField()
 
     def get_closed_by_name(self, obj: Any) -> str | None:
@@ -311,6 +340,66 @@ class DayCloseSummarySerializer(serializers.Serializer):
         if staff is None:
             return None
         return getattr(staff, "name", None) or getattr(staff, "email", None)
+
+    def get_approved_by_name(self, obj: Any) -> str | None:
+        staff = getattr(obj, "approved_by", None)
+        if staff is None:
+            return None
+        return getattr(staff, "name", None) or getattr(staff, "email", None)
+
+
+class DayCloseReopenCreateSerializer(serializers.Serializer):
+    """Body for POST /day-close/reopen — Owner-only, reason required."""
+
+    branch_id = serializers.UUIDField()
+    date = serializers.DateField()
+    reason = serializers.CharField(
+        required=True, allow_blank=False, trim_whitespace=True
+    )
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        return _reject_unknown_fields(self, attrs)
+
+
+class DayCloseReopenSerializer(serializers.Serializer):
+    """Append-only reopen audit record visible in Day Close view."""
+
+    id = serializers.UUIDField()
+    day_close_id = serializers.UUIDField()
+    branch_id = serializers.UUIDField()
+    business_date = serializers.DateField()
+    reason = serializers.CharField()
+    reopened_by = serializers.UUIDField(allow_null=True)
+    reopened_by_name = serializers.SerializerMethodField()
+    reopened_at = serializers.DateTimeField()
+    prior_expected_cash = MoneyField(source="day_close.expected_cash")
+    prior_counted_cash = MoneyField(source="day_close.counted_cash")
+    prior_difference = MoneyField(source="day_close.difference")
+    prior_closed_at = serializers.DateTimeField(source="day_close.closed_at")
+    prior_closed_by_name = serializers.SerializerMethodField()
+
+    def get_reopened_by_name(self, obj: Any) -> str | None:
+        staff = getattr(obj, "reopened_by", None)
+        if staff is None:
+            return None
+        return getattr(staff, "name", None) or getattr(staff, "email", None)
+
+    def get_prior_closed_by_name(self, obj: Any) -> str | None:
+        close = getattr(obj, "day_close", None)
+        staff = getattr(close, "closed_by", None) if close else None
+        if staff is None:
+            return None
+        return getattr(staff, "name", None) or getattr(staff, "email", None)
+
+
+class DayCloseApproveSerializer(serializers.Serializer):
+    """Body for POST /day-close/approve — issue second-approver token."""
+
+    branch_id = serializers.UUIDField()
+    date = serializers.DateField()
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        return _reject_unknown_fields(self, attrs)
 
 
 class DayCloseReadSerializer(serializers.Serializer):
@@ -325,6 +414,17 @@ class DayCloseReadSerializer(serializers.Serializer):
 
 class InvoiceCancelSerializer(serializers.Serializer):
     """Body for POST /invoices/{id}/cancel — reason required (BL-8)."""
+
+    reason = serializers.CharField(
+        required=True, allow_blank=False, trim_whitespace=True
+    )
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        return _reject_unknown_fields(self, attrs)
+
+
+class InvoiceVoidSerializer(serializers.Serializer):
+    """Body for POST /invoices/{id}/void — Owner-only, reason required."""
 
     reason = serializers.CharField(
         required=True, allow_blank=False, trim_whitespace=True
@@ -429,18 +529,18 @@ class InvoiceDetailSerializer(serializers.Serializer):
     net_paid = MoneyField()
     net_revenue = MoneyField(required=False)
     balance = MoneyField(required=False)
+    voided_at = serializers.DateTimeField(required=False, allow_null=True)
+    void_reason = serializers.CharField(required=False, allow_null=True)
+    voided_by_name = serializers.CharField(required=False, allow_null=True)
     pickup_code = serializers.SerializerMethodField()
+    pickup_code_expires_at = serializers.DateTimeField(required=False, allow_null=True)
     created_at = serializers.DateTimeField()
 
     def get_pickup_code(self, obj: Any) -> str | None:
         if self.context.get("for_print"):
-            from apps.billing.services import BillingService
-
-            inv_id = (
-                obj.get("id") if isinstance(obj, dict) else getattr(obj, "id", None)
-            )
-            if inv_id:
-                return BillingService.generate_pickup_code(inv_id)
+            if isinstance(obj, dict):
+                return obj.get("pickup_code")
+            return getattr(obj, "pickup_access_code", None)
         return None
 
     def get_referral_partner_name(self, obj: Any) -> str | None:

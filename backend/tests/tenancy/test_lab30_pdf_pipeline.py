@@ -483,3 +483,37 @@ def test_version_generated_event_flag(
         assert rows[0].after_jsonb is not None
         assert rows[0].after_jsonb.get("event") == "report.version_generated"
         assert rows[0].after_jsonb.get("version") == 1
+
+
+def test_pending_pdf_render_skips_when_sample_amended_to_in_process(
+    tenant_a: Any, lab30_setup: dict[str, Any], auth_headers: Any
+) -> None:
+    """If an amendment moves a READY sample back to in_process before
+    generate_pdf_task runs, the task must skip instead of publishing a stale
+    FINAL PDF."""
+    from apps.reports.services import ReportService
+    from apps.reports.tasks import generate_pdf_task
+
+    s = lab30_setup
+    assert _approve(auth_headers, s["pathologist"], s["result_a"].id).status_code == 200
+    assert (
+        _approve(auth_headers, s["pathologist2"], s["result_b"].id).status_code == 200
+    )
+    with tenant_context(tenant_a):
+        report = ReportService.ensure_report_for_sample(sample_id=s["sample"].id)
+
+    amend_resp = Client().post(
+        f"/api/v1/results/{s['result_a'].id}/amend",
+        data=json.dumps({"value": "5.9", "reason": "pending recalibration"}),
+        content_type="application/json",
+        headers=auth_headers(s["technician"]),
+    )
+    assert amend_resp.status_code == 201
+
+    res = generate_pdf_task(_schema(tenant_a), str(report.id), str(s["manager"].id), 1)
+    assert res["status"] == "skipped"
+    assert res["reason"] == "sample_not_ready"
+    with tenant_context(tenant_a):
+        report.refresh_from_db()
+        assert report.status == Report.Status.DRAFT
+        assert ReportVersion.objects.filter(report=report).count() == 0

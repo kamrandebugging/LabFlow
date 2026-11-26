@@ -31,10 +31,44 @@ describe("Screen 12: Patient History (12-patient-history.html & Doc 03 §5.1)", 
     mockService = {
       ...patientService,
       getPatient: vi.fn().mockResolvedValue(mockPatient),
+      getPatientHistory: vi.fn().mockResolvedValue({
+        patient_id: "p-300",
+        mrn: "MRN-2026-00417",
+        visits: [
+          {
+            invoice_id: "inv-1",
+            invoice_number: "INV-12345678",
+            branch_id: "br-01",
+            branch_name: "Gulberg Main Branch",
+            status: "paid",
+            total: "1500.00",
+            created_at: "2026-10-20T10:00:00Z",
+            samples: [
+              {
+                id: "sam-1",
+                accession_id: "SAM20261020000001",
+                status: "ready",
+                collected_at: "2026-10-20T10:15:00Z",
+                created_at: "2026-10-20T10:15:00Z",
+              },
+            ],
+            reports: [
+              {
+                id: "rep-1",
+                sample_id: "sam-1",
+                accession_id: "SAM20261020000001",
+                status: "final",
+                current_version: 1,
+                finalised_at: "2026-10-20T12:00:00Z",
+              },
+            ],
+          },
+        ],
+      }),
     };
   });
 
-  it("renders patient history header, MRN, and ledger notices", async () => {
+  it("renders patient history header, MRN, and real visit timeline", async () => {
     render(
       <PatientHistoryScreen
         patientId="p-300"
@@ -56,6 +90,9 @@ describe("Screen 12: Patient History (12-patient-history.html & Doc 03 §5.1)", 
       expect(
         screen.getByText(/patient registration & demographic enrolment/i),
       ).toBeInTheDocument();
+      expect(screen.getByText("INV-12345678")).toBeInTheDocument();
+      expect(screen.getByText(/SAM20261020000001/)).toBeInTheDocument();
+      expect(screen.queryByText(/verified active/i)).not.toBeInTheDocument();
     });
   });
 

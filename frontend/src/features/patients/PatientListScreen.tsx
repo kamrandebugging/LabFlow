@@ -401,10 +401,9 @@ export const PatientListScreen: React.FC<PatientListScreenProps> = ({
                         </td>
                         <td className={styles.td}>
                           <span className={styles.lastVisit}>
-                            {patient.last_visit ||
-                              (patient.created_at
-                                ? formatDate(patient.created_at)
-                                : "—")}
+                            {patient.last_visit
+                              ? formatDate(patient.last_visit)
+                              : "—"}
                           </span>
                         </td>
                         <td className={`${styles.td} ${styles.cellEnd}`}>

@@ -160,6 +160,9 @@ class ShareLedgerListView(APIView):
                     "void_event_id": str(entry.void_event_id)
                     if entry.void_event_id
                     else None,
+                    "invoice_void_id": str(entry.invoice_void_id)
+                    if entry.invoice_void_id
+                    else None,
                     "business_date": entry.business_date.isoformat()
                     if entry.business_date
                     else None,

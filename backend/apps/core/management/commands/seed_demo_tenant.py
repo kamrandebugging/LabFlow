@@ -18,6 +18,7 @@ from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from typing import Any
 
+import pyotp
 from cryptography.fernet import Fernet
 from django.conf import settings
 from django.contrib.auth.hashers import make_password
@@ -124,21 +125,10 @@ class Command(BaseCommand):
         """Seed platform Super Admin operator in public schema."""
         email = "admin@labflow.platform"
         raw_password = "PlatformAdmin2026!"
-        totp_secret = "JBSWY3DPEHPK3PXP"
+        totp_secret = pyotp.random_base32()
 
         encrypted_secret = fernet.encrypt(totp_secret.encode()).decode()
-        backup_codes = [
-            "A1B2C3D4",
-            "E5F6G7H8",
-            "J9K0L1M2",
-            "N3P4Q5R6",
-            "S7T8U9V0",
-            "W1X2Y3Z4",
-            "B5C6D7E8",
-            "F9G0H1J2",
-            "K3L4M5N6",
-            "P7Q8R9S0",
-        ]
+        backup_codes = [secrets.token_hex(4).upper() for _ in range(10)]
         hashed_backup_codes = [make_password(c) for c in backup_codes]
 
         PlatformUser.objects.update_or_create(
@@ -304,14 +294,14 @@ class Command(BaseCommand):
             created_staff_map: dict[str, StaffUser] = {}
 
             for label, role_val, s_email, s_pass, requires_totp in roles_data:
-                totp_secret = "JBSWY3DPEHPK3PXP" if requires_totp else ""
+                totp_secret = pyotp.random_base32() if requires_totp else ""
                 enc_secret = (
                     fernet.encrypt(totp_secret.encode()).decode()
                     if requires_totp
                     else None
                 )
                 b_codes = (
-                    [make_password(f"BACKUP{i}") for i in range(10)]
+                    [make_password(secrets.token_hex(4).upper()) for _ in range(10)]
                     if requires_totp
                     else None
                 )

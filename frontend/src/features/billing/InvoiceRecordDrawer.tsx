@@ -31,6 +31,7 @@ const STATUS_CLASS: Record<InvoiceStatus, string | undefined> = {
   paid: styles.statusPaid,
   refunded: styles.statusRefunded,
   cancelled: styles.statusCancelled,
+  voided: styles.statusCancelled,
 };
 
 /**

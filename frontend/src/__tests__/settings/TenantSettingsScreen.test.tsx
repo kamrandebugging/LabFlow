@@ -122,6 +122,7 @@ describe("Screen 34: TenantSettingsScreen (/settings/tenant)", () => {
       expect(settingsService.updateSettings).toHaveBeenCalledWith({
         brand_display_name: "City Reference Labs",
         brand_accent_colour: "#005C55",
+        brand_logo_url: "",
         billing_hold_enabled: "true",
         report_default_language: "ur",
         report_link_validity_days: "14",

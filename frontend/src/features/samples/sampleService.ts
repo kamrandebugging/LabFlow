@@ -155,6 +155,39 @@ export const sampleService = {
   },
 
   /**
+   * Fetch stored barcode label payloads for multiple samples without auditing
+   */
+  async getLabelsBulk(sampleIds: string[]): Promise<SampleLabelData[]> {
+    try {
+      const qs = encodeURIComponent(sampleIds.join(","));
+      const data = await apiRequest<{ labels: SampleLabelData[] }>(
+        `/samples/labels?ids=${qs}`,
+      );
+      return data.labels;
+    } catch (err) {
+      throw toServiceError(err, "Failed to fetch sample labels");
+    }
+  },
+
+  /**
+   * Explicit bulk print creating 1 sample.label_printed audit row per sample
+   */
+  async printLabelsBulk(sampleIds: string[]): Promise<SampleLabelData[]> {
+    try {
+      const data = await apiRequest<{ labels: SampleLabelData[] }>(
+        "/samples/labels/print",
+        {
+          method: "POST",
+          body: { sample_ids: sampleIds },
+        },
+      );
+      return data.labels;
+    } catch (err) {
+      throw toServiceError(err, "Failed to print sample labels");
+    }
+  },
+
+  /**
    * Receive specimen into laboratory (SM-7, POST /api/v1/samples/{id}/receive)
    */
   async receiveSample(sampleId: string): Promise<SampleCreatedResponse> {

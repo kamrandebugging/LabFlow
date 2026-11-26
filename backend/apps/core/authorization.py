@@ -89,9 +89,13 @@ ROLE_POLICY: Final[dict[str, dict[str, frozenset[str]]]] = {
     "invoice-credit-note": {"POST": ADMIN},
     "invoice-credit-note-void": {"POST": OWNER_ONLY},
     "invoice-cancel": {"POST": FRONT_DESK},
+    "invoice-void": {"POST": OWNER_ONLY},
     "invoice-verify-pickup-code": {"POST": ALL_STAFF},
+    "invoice-reissue-pickup-code": {"POST": FRONT_DESK},
     "payment-create": {"POST": FRONT_DESK},
     "day-close": {"GET": FRONT_DESK, "POST": ADMIN},
+    "day-close-reopen": {"POST": OWNER_ONLY},
+    "day-close-approve": {"POST": ADMIN},
     # --- Samples -------------------------------------------------------------
     "sample-collection": {
         "GET": ALL_STAFF,
@@ -102,6 +106,12 @@ ROLE_POLICY: Final[dict[str, dict[str, frozenset[str]]]] = {
         "GET": frozenset({ROLE_OWNER, ROLE_MANAGER, ROLE_RECEPTION, ROLE_TECHNICIAN})
     },
     "sample-label-print": {
+        "POST": frozenset({ROLE_OWNER, ROLE_MANAGER, ROLE_RECEPTION, ROLE_TECHNICIAN})
+    },
+    "sample-labels-bulk": {
+        "GET": frozenset({ROLE_OWNER, ROLE_MANAGER, ROLE_RECEPTION, ROLE_TECHNICIAN})
+    },
+    "sample-labels-bulk-print": {
         "POST": frozenset({ROLE_OWNER, ROLE_MANAGER, ROLE_RECEPTION, ROLE_TECHNICIAN})
     },
     "sample-receive": {"POST": frozenset({ROLE_OWNER, ROLE_MANAGER, ROLE_TECHNICIAN})},

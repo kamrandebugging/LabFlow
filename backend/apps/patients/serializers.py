@@ -142,8 +142,10 @@ class PatientSummarySerializer(serializers.Serializer):
     branch_name = serializers.SerializerMethodField()
     referral_partner_id = serializers.SerializerMethodField()
     referral_partner_name = serializers.SerializerMethodField()
+    last_visit = serializers.SerializerMethodField()
     created_at = serializers.SerializerMethodField()
     updated_at = serializers.SerializerMethodField()
+    version = serializers.SerializerMethodField()
     is_cross_branch = serializers.SerializerMethodField()
 
     def get_branch_name(self, obj: Patient) -> str | None:
@@ -186,6 +188,28 @@ class PatientSummarySerializer(serializers.Serializer):
             return None
         return obj.updated_at.isoformat() if obj.updated_at else None
 
+    def get_version(self, obj: Patient) -> str | None:
+        if getattr(obj, "_is_cross_branch", False):
+            return None
+        return obj.updated_at.isoformat() if obj.updated_at else None
+
+    def get_last_visit(self, obj: Patient) -> str | None:
+        if getattr(obj, "_is_cross_branch", False):
+            return None
+        if hasattr(obj, "last_visit_at"):
+            val = getattr(obj, "last_visit_at", None)
+            return val.isoformat() if val is not None else None
+        from apps.billing.models import Invoice
+
+        latest = (
+            Invoice.objects.filter(patient=obj)
+            .exclude(status__in=[Invoice.Status.CANCELLED, Invoice.Status.VOIDED])
+            .order_by("-created_at")
+            .values_list("created_at", flat=True)
+            .first()
+        )
+        return latest.isoformat() if latest is not None else None
+
     def to_representation(self, instance: Patient) -> dict[str, Any]:
         data = super().to_representation(instance)
         request = self.context.get("request")
@@ -211,6 +235,8 @@ class PatientDetailSerializer(serializers.ModelSerializer[Patient]):
     consents = PatientConsentSerializer(many=True, read_only=True)
     referral_partner_id = serializers.SerializerMethodField()
     referral_partner_name = serializers.SerializerMethodField()
+    last_visit = serializers.SerializerMethodField()
+    version = serializers.SerializerMethodField()
     invoices = serializers.SerializerMethodField()
     samples = serializers.SerializerMethodField()
 
@@ -226,6 +252,8 @@ class PatientDetailSerializer(serializers.ModelSerializer[Patient]):
             "branch_id",
             "referral_partner_id",
             "referral_partner_name",
+            "last_visit",
+            "version",
             "created_at",
             "updated_at",
             "contacts",
@@ -233,6 +261,33 @@ class PatientDetailSerializer(serializers.ModelSerializer[Patient]):
             "invoices",
             "samples",
         ]
+
+    def _caller_branch_scope(self) -> tuple[bool, set[uuid.UUID]]:
+        from apps.accounts.models import StaffUser
+        from apps.patients.services import PatientService
+
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        if not isinstance(user, StaffUser):
+            return False, set()
+        return PatientService.get_caller_branch_scope(user)
+
+    def get_version(self, instance: Patient) -> str | None:
+        return instance.updated_at.isoformat() if instance.updated_at else None
+
+    def get_last_visit(self, instance: Patient) -> str | None:
+        from apps.billing.models import Invoice
+
+        is_tenant_wide, assigned_branches = self._caller_branch_scope()
+        qs = Invoice.objects.filter(patient=instance).exclude(
+            status__in=[Invoice.Status.CANCELLED, Invoice.Status.VOIDED]
+        )
+        if not is_tenant_wide:
+            if not assigned_branches:
+                return None
+            qs = qs.filter(branch_id__in=assigned_branches)
+        latest = qs.order_by("-created_at").values_list("created_at", flat=True).first()
+        return latest.isoformat() if latest is not None else None
 
     def get_referral_partner_id(self, instance: Patient) -> str | None:
         return (
@@ -255,13 +310,50 @@ class PatientDetailSerializer(serializers.ModelSerializer[Patient]):
         return data
 
     def get_invoices(self, obj: Patient) -> list[dict[str, Any]]:
-        return []
+        from apps.accounts.models import Role
+        from apps.billing.models import Invoice
+
+        is_tenant_wide, assigned_branches = self._caller_branch_scope()
+        if not is_tenant_wide and not assigned_branches:
+            return []
+        qs = (
+            Invoice.objects.filter(patient=obj)
+            .select_related("branch")
+            .order_by("-created_at")
+        )
+        if not is_tenant_wide:
+            qs = qs.filter(branch_id__in=assigned_branches)
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        hide_prices = False
+        if getattr(user, "role", None) == Role.TECHNICIAN:
+            from apps.platform.settings_accessor import get_setting
+
+            hide_prices = bool(get_setting("hide_prices_for_technicians"))
+        return [
+            {
+                "id": str(inv.id),
+                "invoice_number": f"INV-{str(inv.id)[:8].upper()}",
+                "status": inv.status,
+                "total": None if hide_prices else f"{inv.total:.2f}",
+                "branch_id": str(inv.branch_id),
+                "branch_name": inv.branch.name,
+                "created_at": inv.created_at.isoformat(),
+            }
+            for inv in qs[:25]
+        ]
 
     def get_samples(self, obj: Patient) -> list[dict[str, Any]]:
         from apps.samples.models import Sample
 
+        is_tenant_wide, assigned_branches = self._caller_branch_scope()
+        if not is_tenant_wide and not assigned_branches:
+            return []
+        qs = Sample.objects.filter(invoice__patient=obj).order_by("-created_at")
+        if not is_tenant_wide:
+            qs = qs.filter(branch_id__in=assigned_branches)
         # Summary of recent samples via invoice relationship (Doc 02 §5.5)
-        samples = Sample.objects.filter(invoice__patient=obj)[:10]
+        samples = qs[:10]
         return [
             {
                 "id": str(s.id),

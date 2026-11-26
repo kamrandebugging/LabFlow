@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { AlertCircle, Lock } from "lucide-react";
+import { AlertCircle, Lock, RotateCcw } from "lucide-react";
 import { billingService } from "./billingService";
+import { useAuthStore } from "../auth/authStore";
 import { settingsService } from "../settings/settingsService";
 import type { Branch } from "../settings/types";
 import { formatMoney } from "../../lib/format";
@@ -26,12 +27,21 @@ function todayIso(): string {
 
 export function DayCloseScreen(): JSX.Element {
   const { t } = useTranslation();
+  const role = useAuthStore((state) => state.user?.role);
+  const isOwner = role === "owner";
+
   const [branches, setBranches] = useState<Branch[]>([]);
   const [branchId, setBranchId] = useState("");
   const [date, setDate] = useState(todayIso());
   const [data, setData] = useState<DayCloseResponse | null>(null);
-  const [countedCash, setCountedCash] = useState("");
+  const [countedByMethod, setCountedByMethod] = useState<
+    Record<string, string>
+  >({});
   const [note, setNote] = useState("");
+  const [approverEmail, setApproverEmail] = useState("");
+  const [approverPassword, setApproverPassword] = useState("");
+  const [approverTotp, setApproverTotp] = useState("");
+  const [reopenReason, setReopenReason] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -87,29 +97,93 @@ export function DayCloseScreen(): JSX.Element {
   const expectedCash = Number(
     data?.close?.expected_cash ?? totals?.expected_cash ?? 0,
   );
-  const counted = countedCash.trim() === "" ? null : Number(countedCash);
+  const countedCashRaw = countedByMethod.cash ?? "";
+  const counted = countedCashRaw.trim() === "" ? null : Number(countedCashRaw);
   const difference = counted === null ? null : counted - expectedCash;
   const closed = Boolean(data?.closed);
-  const noteRequired = difference !== null && Math.abs(difference) >= 0.005;
+  const isTodayOrFuture = date >= todayIso();
 
   const methodRows = METHOD_ORDER.filter((method) =>
     Boolean(methodTotals[method]),
   );
 
+  const activeMethods = methodRows.filter((method) => {
+    if (method === "cash") return true;
+    const bucket = methodTotals[method];
+    return (
+      Number(bucket?.in ?? 0) !== 0 ||
+      Number(bucket?.out ?? 0) !== 0 ||
+      Number(bucket?.net ?? 0) !== 0
+    );
+  });
+
+  const allActiveEntered = activeMethods.every((m) => {
+    const raw = (countedByMethod[m] ?? "").trim();
+    return raw !== "" && Number.isFinite(Number(raw)) && Number(raw) >= 0;
+  });
+
+  const hasAnyDiscrepancy = activeMethods.some((m) => {
+    const raw = (countedByMethod[m] ?? "").trim();
+    if (raw === "") return false;
+    const val = Number(raw);
+    const exp = Number(methodTotals[m]?.net ?? 0);
+    return Math.abs(val - exp) >= 0.005;
+  });
+
+  const noteRequired = hasAnyDiscrepancy;
+  const approverRequired = hasAnyDiscrepancy;
+  const reopens = data?.reopens ?? [];
+
   const closeDay = async () => {
-    if (!data || counted === null) return;
+    if (!data || !allActiveEntered || isTodayOrFuture) return;
     setBusy(true);
     setError(null);
     try {
+      const countedMethodsPayload: Record<string, string> = {};
+      for (const m of activeMethods) {
+        countedMethodsPayload[m] = (countedByMethod[m] ?? "0").trim();
+      }
       const response = await billingService.closeDay({
         branch_id: branchId,
         date,
-        counted_cash: countedCash.trim(),
+        counted_cash: countedMethodsPayload.cash,
+        counted_methods: countedMethodsPayload,
         difference_note: note.trim() || undefined,
+        approver_email: approverRequired
+          ? approverEmail.trim() || undefined
+          : undefined,
+        approver_password: approverRequired
+          ? approverPassword || undefined
+          : undefined,
+        approver_totp: approverRequired
+          ? approverTotp.trim() || undefined
+          : undefined,
       });
       setData(response);
-      setCountedCash("");
+      setCountedByMethod({});
       setNote("");
+      setApproverEmail("");
+      setApproverPassword("");
+      setApproverTotp("");
+    } catch (err: unknown) {
+      setError(messageForError(err, t));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleReopen = async () => {
+    if (!data || !reopenReason.trim()) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const response = await billingService.reopenDay({
+        branch_id: branchId,
+        date,
+        reason: reopenReason.trim(),
+      });
+      setData(response);
+      setReopenReason("");
     } catch (err: unknown) {
       setError(messageForError(err, t));
     } finally {
@@ -159,6 +233,12 @@ export function DayCloseScreen(): JSX.Element {
           <span className={styles.lockedBadge}>
             <Lock size={14} aria-hidden="true" />
             {t("billing:day_close.closed_badge")}
+          </span>
+        ) : null}
+        {data?.is_corrected ? (
+          <span className={styles.lockedBadge}>
+            <RotateCcw size={14} aria-hidden="true" />
+            {t("billing:day_close.corrected_badge")}
           </span>
         ) : null}
       </div>
@@ -303,6 +383,13 @@ export function DayCloseScreen(): JSX.Element {
                   {t("billing:day_close.note")}: {data.close.difference_note}
                 </p>
               ) : null}
+              {data.close.approved_by_name ? (
+                <p className={styles.muted}>
+                  {t("billing:day_close.approved_by", {
+                    name: data.close.approved_by_name,
+                  })}
+                </p>
+              ) : null}
               <p className={styles.muted}>
                 {t("billing:day_close.closed_by", {
                   name:
@@ -311,6 +398,40 @@ export function DayCloseScreen(): JSX.Element {
                   time: new Date(data.close.closed_at).toLocaleString(),
                 })}
               </p>
+
+              {isOwner ? (
+                <div style={{ marginTop: 16 }}>
+                  <h3 className={styles.cardTitle}>
+                    {t("billing:day_close.reopen_title")}
+                  </h3>
+                  <div className={styles.controls} style={{ marginTop: 8 }}>
+                    <label className={styles.field}>
+                      <span className={styles.label}>
+                        {t("billing:day_close.reopen_reason")}
+                      </span>
+                      <input
+                        type="text"
+                        className={styles.input}
+                        value={reopenReason}
+                        onChange={(event) =>
+                          setReopenReason(event.target.value)
+                        }
+                        placeholder={t("billing:day_close.reopen_reason_hint")}
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      className={styles.primaryButton}
+                      disabled={busy || !reopenReason.trim()}
+                      onClick={() => void handleReopen()}
+                    >
+                      {busy
+                        ? t("billing:day_close.reopening")
+                        : t("billing:day_close.reopen_button")}
+                    </button>
+                  </div>
+                </div>
+              ) : null}
             </section>
           ) : (
             <section className={styles.card}>
@@ -319,22 +440,45 @@ export function DayCloseScreen(): JSX.Element {
                   {t("billing:day_close.reconcile_title")}
                 </h2>
               </div>
+              {isTodayOrFuture ? (
+                <p className={styles.muted}>
+                  {t("billing:day_close.today_blocked_hint")}
+                </p>
+              ) : null}
               <div className={styles.controls}>
-                <label className={styles.field}>
-                  <span className={styles.label}>
-                    {t("billing:day_close.counted_cash")}
-                  </span>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    inputMode="decimal"
-                    className={styles.input}
-                    value={countedCash}
-                    onChange={(event) => setCountedCash(event.target.value)}
-                    placeholder={t("billing:day_close.counted_placeholder")}
-                  />
-                </label>
+                {activeMethods.map((method) => (
+                  <label key={method} className={styles.field}>
+                    <span className={styles.label}>
+                      {method === "cash"
+                        ? t("billing:day_close.counted_cash")
+                        : t("billing:day_close.counted_for_method", {
+                            method: t(`billing:detail.method.${method}`),
+                          })}
+                    </span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      inputMode="decimal"
+                      className={styles.input}
+                      value={countedByMethod[method] ?? ""}
+                      onChange={(event) =>
+                        setCountedByMethod((prev) => ({
+                          ...prev,
+                          [method]: event.target.value,
+                        }))
+                      }
+                      placeholder={
+                        method === "cash"
+                          ? t("billing:day_close.counted_placeholder")
+                          : formatMoney(
+                              methodTotals[method]?.net ?? "0.00",
+                              "en",
+                            )
+                      }
+                    />
+                  </label>
+                ))}
                 <div className={styles.summaryItem}>
                   <span className={styles.summaryLabel}>
                     {t("billing:day_close.expected_cash")}
@@ -372,15 +516,66 @@ export function DayCloseScreen(): JSX.Element {
                 />
               </label>
 
+              {approverRequired ? (
+                <div style={{ marginTop: 12 }}>
+                  <p className={styles.muted}>
+                    {t("billing:day_close.approver_hint")}
+                  </p>
+                  <div className={styles.controls} style={{ marginTop: 8 }}>
+                    <label className={styles.field}>
+                      <span className={styles.label}>
+                        {t("billing:day_close.approver_email")} *
+                      </span>
+                      <input
+                        type="email"
+                        className={styles.input}
+                        value={approverEmail}
+                        onChange={(event) =>
+                          setApproverEmail(event.target.value)
+                        }
+                      />
+                    </label>
+                    <label className={styles.field}>
+                      <span className={styles.label}>
+                        {t("billing:day_close.approver_password")} *
+                      </span>
+                      <input
+                        type="password"
+                        className={styles.input}
+                        value={approverPassword}
+                        onChange={(event) =>
+                          setApproverPassword(event.target.value)
+                        }
+                      />
+                    </label>
+                    <label className={styles.field}>
+                      <span className={styles.label}>
+                        {t("billing:day_close.approver_totp")}
+                      </span>
+                      <input
+                        type="text"
+                        className={styles.input}
+                        value={approverTotp}
+                        onChange={(event) =>
+                          setApproverTotp(event.target.value)
+                        }
+                      />
+                    </label>
+                  </div>
+                </div>
+              ) : null}
+
               <div className={styles.actions}>
                 <button
                   type="button"
                   className={styles.primaryButton}
                   disabled={
                     busy ||
-                    counted === null ||
-                    !Number.isFinite(counted) ||
-                    (noteRequired && !note.trim())
+                    isTodayOrFuture ||
+                    !allActiveEntered ||
+                    (noteRequired && !note.trim()) ||
+                    (approverRequired &&
+                      (!approverEmail.trim() || !approverPassword))
                   }
                   onClick={() => void closeDay()}
                 >
@@ -394,6 +589,27 @@ export function DayCloseScreen(): JSX.Element {
               </div>
             </section>
           )}
+
+          {reopens.length > 0 ? (
+            <section className={styles.card}>
+              <div className={styles.cardHead}>
+                <h2 className={styles.cardTitle}>
+                  {t("billing:day_close.reopens_title")}
+                </h2>
+              </div>
+              {reopens.map((entry) => (
+                <p key={entry.id} className={styles.muted}>
+                  {t("billing:day_close.reopened_by", {
+                    name:
+                      entry.reopened_by_name ||
+                      t("billing:day_close.unknown_user"),
+                    time: new Date(entry.reopened_at).toLocaleString(),
+                  })}{" "}
+                  — {entry.reason}
+                </p>
+              ))}
+            </section>
+          ) : null}
         </>
       ) : null}
     </main>

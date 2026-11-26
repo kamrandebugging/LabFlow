@@ -45,12 +45,58 @@ export interface PatientSummary {
   created_at: string;
   updated_at: string;
   is_cross_branch: boolean;
-  version?: number;
+  version?: string;
+}
+
+export interface PatientInvoiceSummary {
+  id: string;
+  invoice_number: string;
+  status: string;
+  total: string | null;
+  branch_id: string;
+  branch_name?: string;
+  created_at: string;
 }
 
 export interface PatientDetail extends PatientSummary {
   contacts: PatientContact[];
   consents: PatientConsent[];
+  invoices?: PatientInvoiceSummary[];
+}
+
+export interface PatientVisitSample {
+  id: string;
+  accession_id: string;
+  status: string;
+  collected_at: string | null;
+  created_at: string;
+}
+
+export interface PatientVisitReport {
+  id: string;
+  sample_id: string;
+  accession_id: string;
+  status: string;
+  current_version: number;
+  finalised_at: string | null;
+}
+
+export interface PatientVisit {
+  invoice_id: string;
+  invoice_number: string;
+  branch_id: string;
+  branch_name: string;
+  status: string;
+  total: string | null;
+  created_at: string;
+  samples: PatientVisitSample[];
+  reports: PatientVisitReport[];
+}
+
+export interface PatientHistoryResponse {
+  patient_id: string;
+  mrn: string;
+  visits: PatientVisit[];
 }
 
 export interface PatientCreateInput {

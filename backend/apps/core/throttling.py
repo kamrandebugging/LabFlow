@@ -12,6 +12,7 @@ project exception handler renders with a ``Retry-After`` header and the stable
 from __future__ import annotations
 
 import time
+import uuid
 from typing import Any
 
 from django.conf import settings
@@ -199,3 +200,21 @@ class ExportDownloadThrottle(FixedWindowThrottle):
 
     def get_ident(self, request: Any) -> str:
         return f"ip:{_client_ip(request)}"
+
+
+class PickupCodeVerifyThrottle(FixedWindowThrottle):
+    """5 pickup-code verification attempts/min per (invoice, caller/IP)."""
+
+    scope = "pickup_code_verify"
+    rate_setting = "THROTTLE_PICKUP_CODE_VERIFY_PER_MINUTE"
+    window_seconds = 60
+
+    def get_ident(self, request: Any) -> str:
+        resolver_match = getattr(request, "resolver_match", None)
+        kwargs = getattr(resolver_match, "kwargs", {}) or {}
+        raw_id = str(kwargs.get("invoice_id") or "").strip()
+        try:
+            inv_id = str(uuid.UUID(raw_id))
+        except ValueError:
+            inv_id = raw_id.lower()
+        return f"inv:{inv_id}:{super().get_ident(request)}"

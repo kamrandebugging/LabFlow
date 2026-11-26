@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import {
@@ -6,6 +6,7 @@ import {
   Edit,
   History,
   Phone,
+  Receipt,
   ShieldCheck,
   ShieldX,
   User,
@@ -14,7 +15,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { messageForError } from "../../lib/errors";
-import { formatDate } from "../../lib/format";
+import { formatDate, formatMoney, statusLabel } from "../../lib/format";
 import { useDialogFocus } from "../../lib/dialogFocus";
 import styles from "./PatientRecord.module.css";
 import formStyles from "./PatientForm.module.css";
@@ -37,8 +38,8 @@ interface PatientDetailsScreenProps {
   /** Element focus returns to when the drawer closes (drawer variant). */
   triggerRef?: React.RefObject<HTMLElement>;
   /** Which drawer tab is showing. Drawer variant only. */
-  tab?: "overview" | "history";
-  onTabChange?: (tab: "overview" | "history") => void;
+  tab?: "overview" | "invoices" | "history";
+  onTabChange?: (tab: "overview" | "invoices" | "history") => void;
   /**
    * "page" is the standalone record route. "drawer" renders the same record
    * inside the shared Veyla side drawer over the patient list.
@@ -60,7 +61,8 @@ export const PatientDetailsScreen: React.FC<PatientDetailsScreenProps> = ({
   tab = "overview",
   onTabChange,
 }) => {
-  const { t } = useTranslation(["patients", "common"]);
+  const { t, i18n } = useTranslation(["patients", "common"]);
+  const lang = i18n.language === "ur" ? "ur" : "en";
   const [patient, setPatient] = useState<PatientDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -73,6 +75,7 @@ export const PatientDetailsScreen: React.FC<PatientDetailsScreenProps> = ({
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [isVersionConflict, setIsVersionConflict] = useState(false);
   const [editName, setEditName] = useState("");
   const [editPhone, setEditPhone] = useState("");
   const [editSex, setEditSex] = useState<"M" | "F">("M");
@@ -84,32 +87,32 @@ export const PatientDetailsScreen: React.FC<PatientDetailsScreenProps> = ({
     deleteTriggerRef,
   );
 
-  useEffect(() => {
-    let isMounted = true;
+  const loadPatient = useCallback(async () => {
     setIsLoading(true);
     setError(null);
-
-    service
-      .getPatient(patientId)
-      .then((data) => {
-        if (isMounted) setPatient(data);
-      })
-      .catch((err) => {
-        if (isMounted)
-          setError(
-            err && typeof err === "object" && ("code" in err || "status" in err)
-              ? messageForError(err, t)
-              : t("patients:details.errors.load"),
-          );
-      })
-      .finally(() => {
-        if (isMounted) setIsLoading(false);
-      });
-
-    return () => {
-      isMounted = false;
-    };
+    setSaveError(null);
+    setIsVersionConflict(false);
+    try {
+      const data = await service.getPatient(patientId);
+      setPatient(data);
+      setEditName(data.name || "");
+      setEditPhone(data.phone || "");
+      setEditSex(data.sex === "F" ? "F" : "M");
+      setEditDob(data.date_of_birth ? data.date_of_birth.slice(0, 10) : "");
+    } catch (err) {
+      setError(
+        err && typeof err === "object" && ("code" in err || "status" in err)
+          ? messageForError(err, t)
+          : t("patients:details.errors.load"),
+      );
+    } finally {
+      setIsLoading(false);
+    }
   }, [patientId, service, t]);
+
+  useEffect(() => {
+    void loadPatient();
+  }, [loadPatient]);
 
   const handleConfirmDelete = async () => {
     setIsDeleting(true);
@@ -149,6 +152,7 @@ export const PatientDetailsScreen: React.FC<PatientDetailsScreenProps> = ({
     if (!patient) return;
     setIsSaving(true);
     setSaveError(null);
+    setIsVersionConflict(false);
     try {
       const updated = await service.updatePatient(
         patientId,
@@ -158,16 +162,29 @@ export const PatientDetailsScreen: React.FC<PatientDetailsScreenProps> = ({
           sex: editSex,
           date_of_birth: editDob || null,
         },
-        patient.version,
+        patient.version ?? patient.updated_at,
       );
       setPatient(updated);
       setIsEditing(false);
     } catch (err: unknown) {
-      setSaveError(
-        err && typeof err === "object" && ("code" in err || "status" in err)
-          ? messageForError(err, t)
-          : t("patients:edit.errors.save"),
-      );
+      const code =
+        err && typeof err === "object" && "code" in err
+          ? (err as { code?: string }).code
+          : undefined;
+      const statusCode =
+        err && typeof err === "object" && "status" in err
+          ? (err as { status?: number }).status
+          : undefined;
+      if (code === "version_conflict" || statusCode === 409) {
+        setIsVersionConflict(true);
+        setSaveError(t("patients:edit.errors.version_conflict"));
+      } else {
+        setSaveError(
+          err && typeof err === "object" && ("code" in err || "status" in err)
+            ? messageForError(err, t)
+            : t("patients:edit.errors.save"),
+        );
+      }
     } finally {
       setIsSaving(false);
     }
@@ -449,6 +466,40 @@ export const PatientDetailsScreen: React.FC<PatientDetailsScreenProps> = ({
     </div>
   ) : null;
 
+  const invoicesCard = patient ? (
+    <div className={styles.card}>
+      <div className={styles.cardHead}>
+        <h2 className={styles.cardTitle}>
+          <Receipt className={styles.cardIcon} aria-hidden="true" />
+          <span>{t("patients:details.invoices_title")}</span>
+        </h2>
+      </div>
+      {!patient.invoices || patient.invoices.length === 0 ? (
+        <p className={styles.fieldValue}>
+          {t("patients:details.invoices_empty")}
+        </p>
+      ) : (
+        <div className={styles.fieldGrid}>
+          {patient.invoices.map((inv) => (
+            <div key={inv.id} className={styles.field}>
+              <span className={styles.monoValue}>
+                <bdi dir="ltr">{inv.invoice_number}</bdi>
+              </span>
+              <span className={styles.fieldValue}>
+                {statusLabel("invoice", inv.status, (key) =>
+                  t(`common:${key}`),
+                )}
+                {inv.total !== null ? ` · ${formatMoney(inv.total, lang)}` : ""}
+                {" · "}
+                <bdi dir="ltr">{formatDate(inv.created_at)}</bdi>
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  ) : null;
+
   /* Delete confirmation modal — same markup in both variants. */
   const deleteModal =
     showDeleteModal && patient
@@ -578,6 +629,17 @@ export const PatientDetailsScreen: React.FC<PatientDetailsScreenProps> = ({
                   <button
                     type="button"
                     role="tab"
+                    aria-selected={tab === "invoices"}
+                    onClick={() => onTabChange?.("invoices")}
+                    className={`${styles.drawerTab} ${
+                      tab === "invoices" ? styles.drawerTabActive : ""
+                    }`}
+                  >
+                    {t("patients:details.tab_invoices")}
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
                     aria-selected={tab === "history"}
                     onClick={() => onTabChange?.("history")}
                     className={`${styles.drawerTab} ${
@@ -594,6 +656,8 @@ export const PatientDetailsScreen: React.FC<PatientDetailsScreenProps> = ({
                     patientId={patientId}
                     service={service}
                   />
+                ) : tab === "invoices" ? (
+                  invoicesCard
                 ) : (
                   cards
                 )}
@@ -603,6 +667,19 @@ export const PatientDetailsScreen: React.FC<PatientDetailsScreenProps> = ({
               <div role="alert" className={styles.alert}>
                 <AlertCircle className={styles.statusIcon} aria-hidden="true" />
                 <span>{saveError}</span>
+                {isVersionConflict ? (
+                  <button
+                    type="button"
+                    onClick={() => void loadPatient()}
+                    className={styles.secondaryButton}
+                  >
+                    <RefreshCw
+                      className={styles.buttonIcon}
+                      aria-hidden="true"
+                    />
+                    <span>{t("patients:edit.reload")}</span>
+                  </button>
+                ) : null}
               </div>
             )}
             {deleteError && (
@@ -661,6 +738,7 @@ export const PatientDetailsScreen: React.FC<PatientDetailsScreenProps> = ({
 
         {/* 2. Demographics & Record Grid */}
         {cards}
+        {invoicesCard}
 
         {/* Delete failure (replaces the old blocking alert) */}
         {deleteError && (

@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { billingService } from "../../features/billing/billingService";
+import { settingsService } from "../../features/settings/settingsService";
 import { InvoicesListScreen } from "../../features/billing/InvoicesListScreen";
 import type { InvoiceSummary } from "../../features/billing/types";
 import i18n from "../../i18n";
@@ -13,6 +14,33 @@ vi.mock("../../features/billing/billingService", () => ({
     createInvoice: vi.fn(),
     recordPayment: vi.fn(),
     cancelInvoice: vi.fn(),
+  },
+}));
+
+vi.mock("../../features/settings/settingsService", () => ({
+  settingsService: {
+    getBranches: vi.fn().mockResolvedValue([
+      {
+        id: "br-01",
+        code: "GLB",
+        name: "Gulberg Branch",
+        address: null,
+        phone: null,
+        is_collection_centre: false,
+        result_entry_enabled: true,
+        deleted_at: null,
+      },
+      {
+        id: "br-02",
+        code: "NTH",
+        name: "North Branch",
+        address: null,
+        phone: null,
+        is_collection_centre: false,
+        result_entry_enabled: true,
+        deleted_at: null,
+      },
+    ]),
   },
 }));
 
@@ -169,5 +197,75 @@ describe("Screen 13: Invoices List (13-invoices.html & Doc 03 §5.3)", () => {
     ).toBeGreaterThan(0);
 
     await i18n.changeLanguage("en");
+  });
+
+  it("passes search query, branch filter, and cursor pagination to listInvoices", async () => {
+    vi.mocked(billingService.listInvoices)
+      .mockResolvedValueOnce({
+        results: [mockInvoices[0]!],
+        next_cursor: "cursor-page-2",
+        daily_total: "5650.00",
+      })
+      .mockResolvedValueOnce({
+        results: [mockInvoices[1]!],
+        next_cursor: null,
+        daily_total: "5650.00",
+      })
+      .mockResolvedValue({
+        results: [mockInvoices[0]!],
+        next_cursor: null,
+        daily_total: "5650.00",
+      });
+
+    expect(settingsService.getBranches).toBeDefined();
+
+    render(
+      <MemoryRouter>
+        <InvoicesListScreen />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Muhammad Imran")).toBeInTheDocument();
+    });
+
+    const nextBtn = screen.getByRole("button", { name: /next/i });
+    const prevBtn = screen.getByRole("button", { name: /previous/i });
+    expect(prevBtn).toBeDisabled();
+    expect(nextBtn).toBeEnabled();
+
+    fireEvent.click(nextBtn);
+    await waitFor(() => {
+      expect(billingService.listInvoices).toHaveBeenCalledWith(
+        expect.objectContaining({ cursor: "cursor-page-2" }),
+      );
+      expect(screen.getByText("Fatima Noor")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /previous/i }));
+    await waitFor(() => {
+      expect(screen.getByText("Muhammad Imran")).toBeInTheDocument();
+    });
+
+    const branchSelect = screen.getByLabelText(/Filter by branch/i);
+    await waitFor(() => {
+      expect(
+        screen.getByRole("option", { name: "North Branch" }),
+      ).toBeInTheDocument();
+    });
+    fireEvent.change(branchSelect, { target: { value: "br-02" } });
+    await waitFor(() => {
+      expect(billingService.listInvoices).toHaveBeenCalledWith(
+        expect.objectContaining({ branchId: "br-02" }),
+      );
+    });
+
+    const searchInput = screen.getByPlaceholderText(/Search Invoice/i);
+    fireEvent.change(searchInput, { target: { value: "INV-89521878" } });
+    await waitFor(() => {
+      expect(billingService.listInvoices).toHaveBeenCalledWith(
+        expect.objectContaining({ q: "INV-89521878" }),
+      );
+    });
   });
 });

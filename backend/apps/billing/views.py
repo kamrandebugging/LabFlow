@@ -33,7 +33,10 @@ from apps.billing.serializers import (
     CreditNoteCreateSerializer,
     CreditNoteSerializer,
     CreditNoteVoidSerializer,
+    DayCloseApproveSerializer,
     DayCloseCreateSerializer,
+    DayCloseReopenCreateSerializer,
+    DayCloseReopenSerializer,
     DayCloseSummarySerializer,
     InvoiceCancelSerializer,
     InvoiceCreateSerializer,
@@ -42,8 +45,10 @@ from apps.billing.serializers import (
     InvoiceSerializer,
     InvoiceSummarySerializer,
     InvoiceUpdateSerializer,
+    InvoiceVoidSerializer,
     PaymentCreateSerializer,
     PaymentSerializer,
+    PickupCodeVerifySerializer,
 )
 from apps.billing.services import (
     BILLING_READ_ROLES,
@@ -63,6 +68,7 @@ from apps.billing.services import (
 from apps.branches.scope_views import BranchScopedAPIView, IsInBranchScope
 from apps.catalog.services import TestNotPricedError
 from apps.core.authorization import OWNER_ONLY
+from apps.core.throttling import PickupCodeVerifyThrottle
 
 
 def _get_client_ip(request: Request) -> str:
@@ -110,34 +116,12 @@ class InvoiceCollectionView(BranchScopedAPIView):
                 _format_error(exc.error_code, str(exc) or exc.error_code),
                 status=exc.status_code,
             )
-        today = timezone.localdate()
-        today_qs = (
-            Invoice.objects.scoped_to(user)
-            .filter(created_at__date=today)
-            .exclude(status=Invoice.Status.CANCELLED)
-        )
-        billed = today_qs.aggregate(sum=Sum("total"))["sum"] or Decimal("0.00")
-        refunded = Payment.objects.filter(
-            invoice__in=today_qs, kind=Payment.Kind.REFUND
-        ).aggregate(sum=Sum("amount"))["sum"] or Decimal("0.00")
-        credited = CreditNote.objects.filter(
-            invoice__in=today_qs, voided_at__isnull=True
-        ).aggregate(sum=Sum("amount"))["sum"] or Decimal("0.00")
-        # Net revenue = billed − refunds − credit notes (never client-computed).
-        today_total = billed - refunded - credited
-        today_total_str: str | None = f"{today_total:.2f}"
-        if user.role == Role.TECHNICIAN:
-            from apps.platform.settings_accessor import get_setting
-
-            if get_setting("hide_prices_for_technicians"):
-                today_total_str = None
-
         body = {
             "results": InvoiceSummarySerializer(
                 rows, many=True, context={"request": request}
             ).data,
             "next_cursor": next_cursor,
-            "daily_total": today_total_str,
+            "daily_total": InvoiceQueryService.get_daily_total(actor=user),
         }
         return Response(body, status=status.HTTP_200_OK)
 
@@ -337,6 +321,9 @@ def _parse_list_params(params: QueryDict) -> dict[str, Any]:
     status_val = params.get("status")
     if status_val is not None:
         filters["status"] = status_val
+    raw_q = params.get("q")
+    if raw_q is not None and str(raw_q).strip():
+        filters["q"] = str(raw_q).strip()
     patient_id = _parse_uuid_param(params.get("patient_id"), "patient_id")
     if patient_id is not None:
         filters["patient_id"] = patient_id
@@ -449,6 +436,12 @@ class InvoiceDetailView(APIView):
                 - ((today.month, today.day) < (dob.month, dob.day))
             )
             age_display = f"{years}y"
+        void_ev = getattr(invoice, "void_event", None)
+        voided_by_name: str | None = None
+        if void_ev is not None and getattr(void_ev, "voided_by", None) is not None:
+            voided_by_name = getattr(void_ev.voided_by, "name", None) or getattr(
+                void_ev.voided_by, "email", None
+            )
         payload: dict[str, Any] = {
             "id": invoice.id,
             "invoice_number": _invoice_number(invoice.id),
@@ -477,12 +470,15 @@ class InvoiceDetailView(APIView):
             "net_paid": detail["net_paid"],
             "net_revenue": detail["net_revenue"],
             "balance": detail["balance"],
+            "voided_at": void_ev.voided_at if void_ev else None,
+            "void_reason": void_ev.reason if void_ev else None,
+            "voided_by_name": voided_by_name,
             "created_at": invoice.created_at,
         }
-        for_print = request.query_params.get("for_print") == "true"
+        payload["pickup_code_expires_at"] = invoice.pickup_code_expires_at
         return Response(
             InvoiceDetailSerializer(
-                payload, context={"request": request, "for_print": for_print}
+                payload, context={"request": request, "for_print": False}
             ).data,
             status=status.HTTP_200_OK,
         )
@@ -688,6 +684,17 @@ class InvoiceHistoryView(APIView):
                         "reason": after.get("reason"),
                     }
                 )
+            elif row.action == "invoice.voided":
+                after = row.after_jsonb or {}
+                events.append(
+                    {
+                        "event": "voided",
+                        "at": row.at.isoformat(),
+                        "actor": names.get(row.actor_id),
+                        "amount": None,
+                        "reason": after.get("reason"),
+                    }
+                )
 
         events.sort(key=lambda e: e["at"])
         if getattr(user, "role", None) == Role.TECHNICIAN:
@@ -755,6 +762,60 @@ class InvoiceCancelView(APIView):
                 actor=user,
                 ip=ip,
                 user_agent=user_agent,
+            )
+        except BillingError as exc:
+            return Response(
+                _format_error(exc.error_code, str(exc) or exc.error_code),
+                status=exc.status_code,
+            )
+        return Response(InvoiceSerializer(invoice).data, status=status.HTTP_200_OK)
+
+
+class InvoiceVoidView(APIView):
+    """POST /api/v1/invoices/{id}/void — Owner-only void of a PAID invoice."""
+
+    permission_classes = [permissions.IsAuthenticated, IsInBranchScope]
+    scope_branch_source = None
+
+    def post(self, request: Request, invoice_id: Any) -> Response:
+        user = cast(StaffUser, request.user)
+        if user.role not in OWNER_ONLY:
+            return Response(
+                _format_error("forbidden", "Only the Owner may void a paid invoice."),
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        from apps.accounts.step_up import enforce_step_up
+
+        enforce_step_up(user, request, action="invoice void")
+        iid = _resolve_invoice_reference(user, invoice_id)
+        if iid is None:
+            return Response(
+                _format_error("not_found", "Invoice not found."),
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        serializer = InvoiceVoidSerializer(data=request.data)
+        if not serializer.is_valid():
+            err_dict = serializer.errors
+            if "reason" in err_dict:
+                return Response(
+                    _format_error(
+                        "void_reason_required",
+                        "A reason is required to void an invoice.",
+                        err_dict,
+                    ),
+                    status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                )
+            return Response(
+                _format_error("validation_error", "Invalid payload.", err_dict),
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+        try:
+            invoice = InvoiceQueryService.void_invoice(
+                invoice_id=iid,
+                reason=serializer.validated_data["reason"],
+                actor=user,
+                ip=_get_client_ip(request),
+                user_agent=request.META.get("HTTP_USER_AGENT", ""),
             )
         except BillingError as exc:
             return Response(
@@ -848,6 +909,9 @@ class CreditNoteCreateView(APIView):
                 ),
                 status=status.HTTP_403_FORBIDDEN,
             )
+        from apps.accounts.step_up import enforce_step_up
+
+        enforce_step_up(user, request, action="credit note issuance")
         iid = _resolve_invoice_reference(user, invoice_id)
         if iid is None:
             return Response(
@@ -920,6 +984,9 @@ class CreditNoteVoidView(APIView):
                 _format_error("forbidden", "Only the Owner may void a credit note."),
                 status=status.HTTP_403_FORBIDDEN,
             )
+        from apps.accounts.step_up import enforce_step_up
+
+        enforce_step_up(user, request, action="credit note void")
         iid = _parse_path_uuid(invoice_id)
         nid = _parse_path_uuid(note_id)
         if iid is None or nid is None:
@@ -1023,6 +1090,7 @@ class DayCloseView(APIView):
                 status=exc.status_code,
             )
         close = data["close"]
+        reopens = data.get("reopens", [])
         return Response(
             {
                 "branch_id": str(branch_id),
@@ -1031,10 +1099,12 @@ class DayCloseView(APIView):
                     "active_business_date", day.isoformat()
                 ),
                 "closed": data["closed"],
+                "is_corrected": data.get("is_corrected", False),
                 "totals": self._totals_payload(data["totals"]),
                 "close": (
                     DayCloseSummarySerializer(close).data if close is not None else None
                 ),
+                "reopens": DayCloseReopenSerializer(reopens, many=True).data,
             },
             status=status.HTTP_200_OK,
         )
@@ -1049,7 +1119,8 @@ class DayCloseView(APIView):
         serializer = DayCloseCreateSerializer(data=request.data)
         if not serializer.is_valid():
             err_dict = serializer.errors
-            if "counted_cash" in err_dict:
+            cash_errs = err_dict.get("counted_cash") or []
+            if any(getattr(e, "code", "") == "required" for e in cash_errs):
                 return Response(
                     _format_error(
                         "validation_error",
@@ -1069,8 +1140,13 @@ class DayCloseView(APIView):
                 actor=user,
                 branch_id=data["branch_id"],
                 day=day,
-                counted_cash=data["counted_cash"],
+                counted_cash=data.get("counted_cash"),
+                counted_methods=data.get("counted_methods"),
                 difference_note=data.get("difference_note"),
+                approver_email=data.get("approver_email"),
+                approver_password=data.get("approver_password"),
+                approver_totp=data.get("approver_totp"),
+                approval_token=data.get("approval_token"),
                 ip=_get_client_ip(request),
                 user_agent=request.META.get("HTTP_USER_AGENT", ""),
             )
@@ -1079,24 +1155,141 @@ class DayCloseView(APIView):
                 _format_error(exc.error_code, str(exc) or exc.error_code),
                 status=exc.status_code,
             )
+        read_data = DayCloseService.read(
+            actor=user, branch_id=close.branch_id, day=close.business_date
+        )
         return Response(
             {
                 "branch_id": str(close.branch_id),
                 "date": close.business_date.isoformat(),
-                "active_business_date": DayCloseService.collect_totals(
-                    branch_id=close.branch_id, day=close.business_date
-                )["active_business_date"].isoformat(),
+                "active_business_date": read_data["active_business_date"],
                 "closed": True,
+                "is_corrected": read_data["is_corrected"],
+                "totals": self._totals_payload(read_data["totals"]),
                 "close": DayCloseSummarySerializer(close).data,
+                "reopens": DayCloseReopenSerializer(
+                    read_data["reopens"], many=True
+                ).data,
             },
             status=status.HTTP_201_CREATED,
         )
+
+
+class DayCloseReopenView(APIView):
+    """POST /api/v1/day-close/reopen — Owner-only reopen for correction."""
+
+    permission_classes = [permissions.IsAuthenticated, IsInBranchScope]
+    scope_branch_source = None
+
+    def post(self, request: Request) -> Response:
+        user = cast(StaffUser, request.user)
+        if user.role not in OWNER_ONLY:
+            return Response(
+                _format_error("forbidden", "Only the Owner may reopen a closed day."),
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        from apps.accounts.step_up import enforce_step_up
+
+        enforce_step_up(user, request, action="day close reopen")
+        serializer = DayCloseReopenCreateSerializer(data=request.data)
+        if not serializer.is_valid():
+            err_dict = serializer.errors
+            if "reason" in err_dict:
+                return Response(
+                    _format_error(
+                        "day_close_reason_required",
+                        "A reason is required to reopen a closed day.",
+                        err_dict,
+                    ),
+                    status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                )
+            return Response(
+                _format_error("validation_error", "Invalid payload.", err_dict),
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+        data = serializer.validated_data
+        try:
+            reopen = DayCloseService.reopen(
+                actor=user,
+                branch_id=data["branch_id"],
+                day=data["date"],
+                reason=data["reason"],
+                ip=_get_client_ip(request),
+                user_agent=request.META.get("HTTP_USER_AGENT", ""),
+            )
+        except BillingError as exc:
+            return Response(
+                _format_error(exc.error_code, str(exc) or exc.error_code),
+                status=exc.status_code,
+            )
+        read_data = DayCloseService.read(
+            actor=user, branch_id=reopen.branch_id, day=reopen.business_date
+        )
+        return Response(
+            {
+                "branch_id": str(reopen.branch_id),
+                "date": reopen.business_date.isoformat(),
+                "active_business_date": read_data["active_business_date"],
+                "closed": False,
+                "is_corrected": True,
+                "totals": DayCloseView._totals_payload(read_data["totals"]),
+                "close": None,
+                "reopen": DayCloseReopenSerializer(reopen).data,
+                "reopens": DayCloseReopenSerializer(
+                    read_data["reopens"], many=True
+                ).data,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class DayCloseApproveView(APIView):
+    """POST /api/v1/day-close/approve — issue second-approver token."""
+
+    permission_classes = [permissions.IsAuthenticated, IsInBranchScope]
+    scope_branch_source = None
+
+    def post(self, request: Request) -> Response:
+        user = cast(StaffUser, request.user)
+        if user.role not in DAY_CLOSE_ROLES:
+            return Response(
+                _format_error(
+                    "forbidden",
+                    "Only an Owner or Manager may approve a day close discrepancy.",
+                ),
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        from apps.accounts.step_up import enforce_step_up
+
+        enforce_step_up(user, request, action="day close discrepancy approval")
+        serializer = DayCloseApproveSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(
+                _format_error(
+                    "validation_error", "Invalid payload.", serializer.errors
+                ),
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+        data = serializer.validated_data
+        try:
+            token = DayCloseService.issue_discrepancy_approval(
+                actor=user,
+                branch_id=data["branch_id"],
+                day=data["date"],
+            )
+        except BillingError as exc:
+            return Response(
+                _format_error(exc.error_code, str(exc) or exc.error_code),
+                status=exc.status_code,
+            )
+        return Response({"approval_token": token}, status=status.HTTP_200_OK)
 
 
 class InvoiceVerifyPickupCodeView(APIView):
     """POST /api/v1/invoices/{id}/verify-pickup-code — verify pickup access code."""
 
     permission_classes = [permissions.IsAuthenticated]
+    throttle_classes = [PickupCodeVerifyThrottle]
 
     def post(self, request: Request, invoice_id: Any) -> Response:
         user = cast(StaffUser, request.user)
@@ -1108,10 +1301,15 @@ class InvoiceVerifyPickupCodeView(APIView):
                 _format_error("not_found", "Invoice not found."),
                 status=status.HTTP_404_NOT_FOUND,
             )
-        code_raw = (
-            request.data.get("code", "") if isinstance(request.data, dict) else ""
-        )
-        code = str(code_raw).strip()
+        serializer = PickupCodeVerifySerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(
+                _format_error(
+                    "validation_error", "Access code is required.", serializer.errors
+                ),
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+        code = str(serializer.validated_data["code"]).strip()
         if not code:
             return Response(
                 _format_error("validation_error", "Access code is required."),
@@ -1119,3 +1317,57 @@ class InvoiceVerifyPickupCodeView(APIView):
             )
         valid = BillingService.verify_pickup_code(invoice, code)
         return Response({"valid": valid}, status=status.HTTP_200_OK)
+
+
+class InvoiceReissuePickupCodeView(APIView):
+    """POST /api/v1/invoices/{id}/pickup-code/reissue — rotate pickup code."""
+
+    permission_classes = [permissions.IsAuthenticated, IsInBranchScope]
+    scope_branch_source = None
+
+    def post(self, request: Request, invoice_id: Any) -> Response:
+        user = cast(StaffUser, request.user)
+        if user.role not in BILLING_WRITE_ROLES:
+            return Response(
+                _format_error(
+                    "forbidden",
+                    "Only Owner, Manager or Receptionist may reissue pickup codes.",
+                ),
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        iid = _resolve_invoice_reference(user, invoice_id)
+        if iid is None:
+            return Response(
+                _format_error("not_found", "Invoice not found."),
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        try:
+            invoice = Invoice.objects.scoped_to(user).get(pk=iid)
+        except Invoice.DoesNotExist:
+            return Response(
+                _format_error("not_found", "Invoice not found."),
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        try:
+            code = BillingService.issue_pickup_code(
+                invoice,
+                actor=user,
+                ip=_get_client_ip(request),
+                user_agent=request.META.get("HTTP_USER_AGENT", ""),
+            )
+        except BillingError as exc:
+            return Response(
+                _format_error(exc.error_code, str(exc) or exc.error_code),
+                status=exc.status_code,
+            )
+        return Response(
+            {
+                "pickup_code": code,
+                "expires_at": (
+                    invoice.pickup_code_expires_at.isoformat()
+                    if invoice.pickup_code_expires_at
+                    else None
+                ),
+            },
+            status=status.HTTP_200_OK,
+        )

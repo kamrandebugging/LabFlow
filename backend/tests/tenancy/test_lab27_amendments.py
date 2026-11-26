@@ -35,7 +35,7 @@ from apps.accounts.auth_service import AuthService
 from apps.accounts.models import AuditLog, Role, StaffUser
 from apps.reports.models import Report
 from apps.results.models import Result
-from apps.samples.models import Sample
+from apps.samples.models import Sample, SampleEvent
 from tests.factories.branch import BranchFactory
 from tests.factories.catalog import TestFactory
 from tests.factories.reports import ReportFactory
@@ -533,3 +533,94 @@ def test_amendment_approval_without_final_report_no_flag(
         audit = AuditLog.objects.get(action="result.approved", entity_id=new_id)
         assert audit.after_jsonb is not None
         assert "report_version_requested" not in audit.after_jsonb
+
+
+def test_amend_ready_sample_flips_back_to_in_process_and_blocks_stale_report(
+    tenant_a: Any, lab27_setup: Any, auth_headers: Any
+) -> None:
+    """Amending an approved result on a READY sample must move the sample back
+    to in_process and block stale FINAL PDF delivery/token access until
+    re-approved."""
+    from apps.reports.services import (
+        ReportAccessService,
+        ReportNotFinalError,
+    )
+
+    setup = lab27_setup
+    old = _approved_result(tenant_a, setup, auth_headers)
+    with tenant_context(tenant_a):
+        sample = Sample.objects.get(pk=setup["sample"].id)
+        assert sample.status == Sample.Status.READY
+        report = ReportFactory(
+            sample=sample,
+            status=Report.Status.FINAL,
+            current_version=1,
+            generation_status=Report.GenerationStatus.RUNNING,
+        )
+
+    amend_resp = _amend(
+        auth_headers,
+        setup["technician"],
+        old.id,
+        {"value": "5.8", "reason": "re-run needed"},
+    )
+    assert amend_resp.status_code == 201
+    new_id = uuid.UUID(amend_resp.json()["id"])
+
+    with tenant_context(tenant_a):
+        sample.refresh_from_db()
+        report.refresh_from_db()
+        assert sample.status == Sample.Status.IN_PROCESS
+        assert SampleEvent.objects.filter(
+            sample=sample, event=SampleEvent.EventType.IN_PROCESS
+        ).exists()
+        assert report.status == Report.Status.DRAFT
+        assert report.generation_status == Report.GenerationStatus.IDLE
+        with pytest.raises(ReportNotFinalError):
+            ReportAccessService.issue_access_token(
+                report_id=report.id, actor=setup["owner"]
+            )
+
+    approve_resp = _approve_amendment(
+        auth_headers,
+        setup["pathologist"],
+        new_id,
+        {"decision": "approved", "note": "confirmed rerun"},
+    )
+    assert approve_resp.status_code == 200
+    assert approve_resp.json()["sample_ready"] is True
+    with tenant_context(tenant_a):
+        sample.refresh_from_db()
+        assert sample.status == Sample.Status.READY
+
+
+def test_withdraw_on_ready_sample_flips_back_to_in_process(
+    tenant_a: Any, lab27_setup: Any, auth_headers: Any
+) -> None:
+    """Withdrawing an entered result when a sample is marked READY flips the
+    sample back to in_process and withdraws any pending report render."""
+    setup = lab27_setup
+    with tenant_context(tenant_a):
+        sample = Sample.objects.get(pk=setup["sample"].id)
+        sample.status = Sample.Status.READY
+        sample.save(update_fields=["status", "updated_at"])
+        report = ReportFactory(
+            sample=sample,
+            status=Report.Status.DRAFT,
+            generation_status=Report.GenerationStatus.RUNNING,
+        )
+
+    resp = Client().post(
+        f"/api/v1/results/{setup['result'].id}/withdraw",
+        content_type="application/json",
+        headers=auth_headers(setup["technician"]),
+    )
+    assert resp.status_code == 200, resp.content[:300]
+    with tenant_context(tenant_a):
+        sample.refresh_from_db()
+        report.refresh_from_db()
+        assert sample.status == Sample.Status.IN_PROCESS
+        assert report.generation_status == Report.GenerationStatus.IDLE
+        assert SampleEvent.objects.filter(
+            sample=sample, event=SampleEvent.EventType.IN_PROCESS
+        ).exists()

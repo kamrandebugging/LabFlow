@@ -7,12 +7,17 @@ Expected: Demo tenants usable, all roles login, TOTP accounts per §16.3
 
 from __future__ import annotations
 
+import base64
 import io
 
+import pyotp
 import pytest
+from cryptography.fernet import Fernet
+from django.conf import settings
 from django.contrib.auth.hashers import check_password
 from django.core.management import call_command
 from django_tenants.utils import schema_context
+from rest_framework.test import APIClient
 
 from apps.accounts.models import Role, StaffUser
 from apps.branches.models import Branch
@@ -45,7 +50,7 @@ class TestDG17SeedVerification:
         assert "LABFLOW LOCAL DEMO HARNESS SEEDED SUCCESSFULLY" in out_second.getvalue()
 
     def test_platform_operator_totp_enrolled(self) -> None:
-        """Verify Super Admin operator created with TOTP enrolled."""
+        """Verify Super Admin operator has >=112-bit TOTP and passes 2FA login."""
         call_command("seed_demo_tenant")
 
         operator = PlatformUser.objects.filter(email="admin@labflow.platform").first()
@@ -56,6 +61,34 @@ class TestDG17SeedVerification:
         assert operator.totp_backup_codes_hash is not None
         assert len(operator.totp_backup_codes_hash) == 10
         assert operator.check_password("PlatformAdmin2026!") is True
+
+        fernet = Fernet(settings.LABFLOW_TOTP_ENCRYPTION_KEY.encode())
+        raw_secret = fernet.decrypt(operator.totp_secret_encrypted.encode()).decode()
+        assert len(base64.b32decode(raw_secret)) * 8 >= 112
+
+        client = APIClient()
+        login_resp = client.post(
+            "/api/v1/platform/auth/login",
+            data={"email": "admin@labflow.platform", "password": "PlatformAdmin2026!"},
+            format="json",
+            HTTP_HOST="localhost",
+        )
+        assert login_resp.status_code == 200
+        challenge_id = login_resp.json()["challenge_id"]
+        assert challenge_id
+
+        verify_resp = client.post(
+            "/api/v1/platform/auth/totp/verify",
+            data={
+                "email": "admin@labflow.platform",
+                "challenge_id": challenge_id,
+                "code": pyotp.TOTP(raw_secret).now(),
+            },
+            format="json",
+            HTTP_HOST="localhost",
+        )
+        assert verify_resp.status_code == 200
+        assert verify_resp.json()["access"]
 
     def test_demo_tenants_and_branches_isolation(self) -> None:
         """Verify 2 demo tenants exist with main branch and collection."""
@@ -131,6 +164,13 @@ class TestDG17SeedVerification:
                     assert staff.totp_secret_encrypted is not None
                     assert staff.totp_backup_codes_hash is not None
                     assert len(staff.totp_backup_codes_hash) == 10
+                    fernet = Fernet(settings.LABFLOW_TOTP_ENCRYPTION_KEY.encode())
+                    raw_secret = fernet.decrypt(
+                        staff.totp_secret_encrypted.encode()
+                    ).decode()
+                    assert len(base64.b32decode(raw_secret)) * 8 >= 112
+                    totp = pyotp.TOTP(raw_secret)
+                    assert totp.verify(totp.now(), valid_window=1) is True
 
     def test_catalogue_and_partners_seeded(self) -> None:
         """Verify diagnostic catalogue and referral partners with rules."""

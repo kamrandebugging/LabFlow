@@ -29,6 +29,7 @@ from urllib.parse import quote
 
 from celery import shared_task
 from django.db import transaction
+from django.db.models import Max
 from django.utils import timezone
 from django_tenants.utils import schema_context
 
@@ -39,6 +40,8 @@ from apps.reports.pdf.builder import build_report_context
 from apps.reports.pdf.rendering import render_report_pdf
 from apps.reports.services import _mint_access_token_core
 from apps.reports.storage import ReportStorage
+from apps.results.models import Result
+from apps.samples.models import Sample
 
 logger = logging.getLogger(__name__)
 
@@ -107,7 +110,11 @@ def generate_pdf_task(
 
         with transaction.atomic():
             try:
-                report = Report.objects.select_for_update().get(pk=report_uuid)
+                report = (
+                    Report.objects.select_for_update()
+                    .select_related("sample")
+                    .get(pk=report_uuid)
+                )
             except Report.DoesNotExist:
                 logger.warning(
                     "reports.generate_pdf: report %s not found in schema %s — skip",
@@ -118,6 +125,28 @@ def generate_pdf_task(
             if report.status == Report.Status.VOID:
                 logger.info("reports.generate_pdf: report %s is void — skip", report_id)
                 return {"status": "skipped", "reason": "report_void"}
+            if (
+                report.sample.status != Sample.Status.READY
+                or Result.objects.filter(
+                    sample_id=report.sample_id, status=Result.Status.ENTERED
+                ).exists()
+            ):
+                if report.generation_status != Report.GenerationStatus.IDLE:
+                    report.generation_status = Report.GenerationStatus.IDLE
+                    report.generation_error = None
+                    report.save(
+                        update_fields=[
+                            "generation_status",
+                            "generation_error",
+                            "updated_at",
+                        ]
+                    )
+                logger.info(
+                    "reports.generate_pdf: sample %s not ready for %s — skip",
+                    report.sample_id,
+                    report_id,
+                )
+                return {"status": "skipped", "reason": "sample_not_ready"}
 
             next_version = target_version
             pdf_key = _pdf_key(report.id, next_version)
@@ -155,6 +184,12 @@ def generate_pdf_task(
             report.save(
                 update_fields=["generation_status", "generation_error", "updated_at"]
             )
+            pre_render_result_count = Result.objects.filter(
+                sample_id=report.sample_id
+            ).count()
+            pre_render_latest_approval = Result.objects.filter(
+                sample_id=report.sample_id, status=Result.Status.APPROVED
+            ).aggregate(m=Max("updated_at"))["m"]
 
         # Render + upload OUTSIDE the row lock (WeasyPrint can take seconds;
         # the in-flight guard is generation_status=running). Any exception ->
@@ -179,20 +214,51 @@ def generate_pdf_task(
             )
             with transaction.atomic():
                 locked = Report.objects.select_for_update().get(pk=report.pk)
-                locked.generation_status = Report.GenerationStatus.FAILED
-                locked.generation_error = f"{type(exc).__name__}: {exc}"[:2000]
-                locked.save(
-                    update_fields=[
-                        "generation_status",
-                        "generation_error",
-                        "updated_at",
-                    ]
-                )
+                if locked.current_version < next_version:
+                    locked.generation_status = Report.GenerationStatus.FAILED
+                    locked.generation_error = f"{type(exc).__name__}: {exc}"[:2000]
+                    locked.save(
+                        update_fields=[
+                            "generation_status",
+                            "generation_error",
+                            "updated_at",
+                        ]
+                    )
             raise
 
         # Upload-then-insert: the version row lands only after the PDF exists.
         with transaction.atomic():
-            locked = Report.objects.select_for_update().get(pk=report.pk)
+            locked = (
+                Report.objects.select_for_update()
+                .select_related("sample")
+                .get(pk=report.pk)
+            )
+            post_render_result_count = Result.objects.filter(
+                sample_id=locked.sample_id
+            ).count()
+            post_render_latest_approval = Result.objects.filter(
+                sample_id=locked.sample_id, status=Result.Status.APPROVED
+            ).aggregate(m=Max("updated_at"))["m"]
+            if (
+                locked.status == Report.Status.VOID
+                or locked.sample.status != Sample.Status.READY
+                or Result.objects.filter(
+                    sample_id=locked.sample_id, status=Result.Status.ENTERED
+                ).exists()
+                or post_render_result_count != pre_render_result_count
+                or post_render_latest_approval != pre_render_latest_approval
+            ):
+                if locked.generation_status != Report.GenerationStatus.IDLE:
+                    locked.generation_status = Report.GenerationStatus.IDLE
+                    locked.generation_error = None
+                    locked.save(
+                        update_fields=[
+                            "generation_status",
+                            "generation_error",
+                            "updated_at",
+                        ]
+                    )
+                return {"status": "skipped", "reason": "sample_not_ready"}
             version_row, created = ReportVersion.objects.get_or_create(
                 report=locked,
                 version=next_version,
@@ -462,6 +528,11 @@ def deliver_report_task(schema_name: str, delivery_id: str) -> dict[str, Any]:
                 return {"status": "skipped", "reason": "already_sent"}
             if delivery.status == ReportDelivery.Status.BOUNCED:
                 return {"status": "skipped", "reason": "bounced"}
+            if delivery.report.status not in (
+                Report.Status.FINAL,
+                Report.Status.AMENDED,
+            ):
+                return {"status": "skipped", "reason": "report_not_final"}
             if delivery.attempts >= MAX_DELIVERY_ATTEMPTS:
                 # Parked for manual handling: make it explicit in the row
                 # (the sweep skips attempts >= MAX, so nothing else will).

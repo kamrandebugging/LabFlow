@@ -50,9 +50,9 @@ export function PatientsDrawerProvider({
   const registerTriggerRef = useRef<HTMLElement | null>(null);
 
   const [detailPatientId, setDetailPatientId] = useState<string | null>(null);
-  const [detailTab, setDetailTab] = useState<"overview" | "history">(
-    "overview",
-  );
+  const [detailTab, setDetailTab] = useState<
+    "overview" | "invoices" | "history"
+  >("overview");
   const detailTriggerRef = useRef<HTMLElement | null>(null);
 
   const openRegister = useCallback(() => setRegisterOpen(true), []);
@@ -255,8 +255,8 @@ export function RegisterDrawerHost({
 
 interface DetailDrawerHostProps {
   patientId: string | null;
-  tab: "overview" | "history";
-  onTabChange: (tab: "overview" | "history") => void;
+  tab: "overview" | "invoices" | "history";
+  onTabChange: (tab: "overview" | "invoices" | "history") => void;
   triggerRef: React.MutableRefObject<HTMLElement | null>;
   onClose: () => void;
   role?: UserRole;

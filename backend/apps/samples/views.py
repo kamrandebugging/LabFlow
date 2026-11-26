@@ -36,6 +36,7 @@ from apps.branches.scope_views import BranchScopedAPIView, IsInBranchScope
 from apps.branches.scoping import effective_branch_ids
 from apps.samples.models import Sample
 from apps.samples.serializers import (
+    SampleBulkLabelPrintSerializer,
     SampleCancelSerializer,
     SampleCreateSerializer,
     SampleDetailSerializer,
@@ -287,6 +288,103 @@ class SampleLabelPrintView(APIView):
                 status=exc.status_code,
             )
         return Response(SampleLabelSerializer(payload).data, status=status.HTTP_200_OK)
+
+
+class SampleLabelsBulkView(APIView):
+    """GET /api/v1/samples/labels?ids=uuid1,uuid2 — bulk label preview."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request: Request) -> Response:
+        user = cast(StaffUser, request.user)
+        if user.role not in SAMPLE_LABEL_ROLES:
+            return Response(
+                _format_error("forbidden", "Only staff may print sample labels."),
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        raw_ids = str(request.query_params.get("ids") or "").strip()
+        if not raw_ids:
+            return Response(
+                _format_error("validation_error", "Query parameter 'ids' is required."),
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+        tokens = [token.strip() for token in raw_ids.split(",") if token.strip()]
+        if not tokens:
+            return Response(
+                _format_error("validation_error", "Query parameter 'ids' is required."),
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+        if len(tokens) > 100:
+            return Response(
+                _format_error(
+                    "validation_error",
+                    "Cannot request more than 100 sample labels in one request.",
+                ),
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+        sample_ids: list[uuid.UUID] = []
+        for cleaned in tokens:
+            try:
+                sample_ids.append(uuid.UUID(cleaned))
+            except ValueError:
+                return Response(
+                    _format_error(
+                        "validation_error", f"Invalid sample UUID: {cleaned}"
+                    ),
+                    status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                )
+        try:
+            payloads = SampleService.get_labels_bulk(
+                sample_ids=sample_ids,
+                actor=user,
+                ip=_get_client_ip(request),
+                user_agent=request.META.get("HTTP_USER_AGENT", ""),
+            )
+        except SampleError as exc:
+            return Response(
+                _format_error(exc.error_code, str(exc) or exc.error_code),
+                status=exc.status_code,
+            )
+        return Response(
+            {"labels": SampleLabelSerializer(payloads, many=True).data},
+            status=status.HTTP_200_OK,
+        )
+
+
+class SampleLabelsBulkPrintView(APIView):
+    """POST /api/v1/samples/labels/print — audited bulk print (1 audit per sample)."""
+
+    permission_classes = [permissions.IsAuthenticated, IsInBranchScope]
+    scope_branch_source = None
+
+    def post(self, request: Request) -> Response:
+        user = cast(StaffUser, request.user)
+        if user.role not in SAMPLE_LABEL_ROLES:
+            return Response(
+                _format_error("forbidden", "Only staff may print sample labels."),
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        serializer = SampleBulkLabelPrintSerializer(data=request.data)
+        data, err = _validate(serializer)
+        if err is not None:
+            return err
+        assert data is not None
+        try:
+            payloads = SampleService.print_labels_bulk(
+                sample_ids=list(data["sample_ids"]),
+                actor=user,
+                ip=_get_client_ip(request),
+                user_agent=request.META.get("HTTP_USER_AGENT", ""),
+            )
+        except SampleError as exc:
+            return Response(
+                _format_error(exc.error_code, str(exc) or exc.error_code),
+                status=exc.status_code,
+            )
+        return Response(
+            {"labels": SampleLabelSerializer(payloads, many=True).data},
+            status=status.HTTP_200_OK,
+        )
 
 
 def _role_guard(user: StaffUser, allowed: set[Role], message: str) -> Response | None:

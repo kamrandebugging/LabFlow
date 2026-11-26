@@ -153,6 +153,15 @@ class ShareLedgerEntry(models.Model):
         null=True,
         blank=True,
     )
+    invoice_void = models.ForeignKey(
+        "billing.InvoiceVoid",
+        on_delete=models.PROTECT,
+        related_name="share_ledger_entries",
+        db_column="invoice_void_id",
+        db_index=False,
+        null=True,
+        blank=True,
+    )
     referral_partner = models.ForeignKey(
         "partners.ReferralPartner",
         on_delete=models.PROTECT,
@@ -205,6 +214,10 @@ class ShareLedgerEntry(models.Model):
                 name="idx_share_ledger_entry_void_id",
             ),
             models.Index(
+                fields=["invoice_void"],
+                name="idx_share_ledger_entry_inv_void_id",
+            ),
+            models.Index(
                 fields=["referral_partner"],
                 name="idx_share_ledger_entry_referral_partner_id",
             ),
@@ -228,6 +241,11 @@ class ShareLedgerEntry(models.Model):
                 fields=["void_event"],
                 condition=Q(void_event__isnull=False),
                 name="uq_share_ledger_entry_void_event_id",
+            ),
+            models.UniqueConstraint(
+                fields=["invoice_void"],
+                condition=Q(invoice_void__isnull=False),
+                name="uq_share_ledger_entry_invoice_void_id",
             ),
             models.CheckConstraint(
                 condition=Q(

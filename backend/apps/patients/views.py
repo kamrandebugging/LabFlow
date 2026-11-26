@@ -9,7 +9,7 @@ Implements:
 """
 
 import uuid
-from typing import cast
+from typing import Any, cast
 
 from rest_framework import permissions, status
 from rest_framework.request import Request
@@ -62,7 +62,15 @@ class PatientListCreateView(BranchScopedAPIView):
         user = cast(StaffUser, request.user)
         q = request.query_params.get("q")
         branch_id_str = request.query_params.get("branch_id")
-        branch_id = uuid.UUID(branch_id_str) if branch_id_str else None
+        branch_id: uuid.UUID | None = None
+        if branch_id_str:
+            try:
+                branch_id = uuid.UUID(branch_id_str)
+            except ValueError:
+                return Response(
+                    _format_error("validation_error", "Invalid branch_id UUID."),
+                    status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                )
 
         ip = _get_client_ip(request)
         user_agent = request.META.get("HTTP_USER_AGENT", "")
@@ -329,7 +337,7 @@ class PatientHistoryView(APIView):
         user_agent = request.META.get("HTTP_USER_AGENT", "")
 
         try:
-            patient = PatientService.get_patient_detail(
+            payload = PatientService.get_patient_history(
                 actor=user,
                 patient_id=id,
                 ip=ip,
@@ -345,28 +353,4 @@ class PatientHistoryView(APIView):
                 },
                 status=status.HTTP_404_NOT_FOUND,
             )
-
-        # Return history of chronological visits scoped per BS-3
-        from apps.samples.models import Sample
-
-        is_tenant_wide, assigned_branches = PatientService.get_caller_branch_scope(user)
-        sample_qs = Sample.objects.filter(invoice__patient=patient)
-        if not is_tenant_wide:
-            sample_qs = sample_qs.filter(branch_id__in=assigned_branches)
-
-        samples_history = [
-            {
-                "accession_id": s.accession_id,
-                "status": s.status,
-                "created_at": s.created_at.isoformat(),
-            }
-            for s in sample_qs.order_by("-created_at")
-        ]
-        return Response(
-            {
-                "patient_id": str(patient.id),
-                "mrn": patient.mrn,
-                "visits": samples_history,
-            },
-            status=status.HTTP_200_OK,
-        )
+        return Response(payload, status=status.HTTP_200_OK)

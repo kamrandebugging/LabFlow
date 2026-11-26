@@ -136,6 +136,11 @@ class SampleNotFoundError(SampleError):
     error_code = "not_found"
 
 
+class SampleInvalidInputError(SampleError):
+    status_code = 422
+    error_code = "validation_error"
+
+
 class InvoiceCancelledError(SampleError):
     status_code = 409
     error_code = "invoice_cancelled"
@@ -466,10 +471,10 @@ class SampleService:
             except Invoice.DoesNotExist:
                 raise SampleNotFoundError("Invoice not found.") from None
 
-            # BL-9: collection blocked while the invoice is cancelled.
-            if invoice.status == Invoice.Status.CANCELLED:
+            # BL-9: collection blocked while the invoice is cancelled or voided.
+            if invoice.status in (Invoice.Status.CANCELLED, Invoice.Status.VOIDED):
                 raise InvoiceCancelledError(
-                    "Cannot collect against a cancelled invoice."
+                    "Cannot collect against a cancelled or voided invoice."
                 )
 
             # S5 (BOLA): a branch-scoped caller may only collect against an
@@ -574,6 +579,56 @@ class SampleService:
             return sample
 
     @staticmethod
+    def _build_label_payload(sample: Sample) -> dict[str, Any]:
+        """Serialize stored sample fields into a Code128 label payload (SM-4)."""
+        patient = sample.invoice.patient
+        dob = patient.date_of_birth.isoformat() if patient.date_of_birth else None
+        collected_at = sample.collected_at.astimezone(KARACHI).isoformat()
+        collector = sample.collected_by.email if sample.collected_by else None
+
+        return {
+            "accession_id": sample.accession_id,
+            "patient_name": patient.name,
+            "mrn": patient.mrn,
+            "date_of_birth": dob,
+            "collected_at": collected_at,
+            "collected_by": collector,
+            "branch_name": sample.branch.name,
+            "tests": [
+                st.test.name
+                for st in sample.sample_tests.all()
+                if getattr(st, "test", None) is not None
+            ],
+            "barcode": {
+                "symbology": "code128",
+                "payload": sample.accession_id,
+            },
+        }
+
+    @staticmethod
+    def _record_label_print_audit(
+        *,
+        sample: Sample,
+        actor: StaffUser,
+        ip: str | None = None,
+        user_agent: str | None = None,
+    ) -> None:
+        """Write one ``sample.label_printed`` audit row for a printed sample."""
+        AuditLog.objects.create(
+            actor_id=actor.id,
+            action="sample.label_printed",
+            entity_type="sample",
+            entity_id=sample.id,
+            before_jsonb=None,
+            after_jsonb={
+                "accession_id": sample.accession_id,
+                "printed_by": str(actor.id),
+            },
+            ip=ip,
+            user_agent=user_agent,
+        )
+
+    @staticmethod
     def get_label(
         *,
         sample_id: uuid.UUID,
@@ -602,30 +657,52 @@ class SampleService:
         ):
             raise SampleNotFoundError("Sample not found.")
 
-        patient = sample.invoice.patient
-        dob = patient.date_of_birth.isoformat() if patient.date_of_birth else None
-        collected_at = sample.collected_at.astimezone(KARACHI).isoformat()
-        collector = sample.collected_by.email if sample.collected_by else None
+        return SampleService._build_label_payload(sample)
 
-        payload: dict[str, Any] = {
-            "accession_id": sample.accession_id,
-            "patient_name": patient.name,
-            "mrn": patient.mrn,
-            "date_of_birth": dob,
-            "collected_at": collected_at,
-            "collected_by": collector,
-            "branch_name": sample.branch.name,
-            "tests": [
-                st.test.name
-                for st in sample.sample_tests.all()
-                if getattr(st, "test", None) is not None
-            ],
-            "barcode": {
-                "symbology": "code128",
-                "payload": sample.accession_id,
-            },
-        }
-        return payload
+    @staticmethod
+    def _load_bulk_samples(
+        *,
+        sample_ids: list[uuid.UUID],
+        actor: StaffUser,
+    ) -> list[Sample]:
+        """Fetch and scope-check ordered unique samples for bulk label actions."""
+        ordered_ids = list(dict.fromkeys(sample_ids))
+        if not ordered_ids:
+            raise SampleInvalidInputError("At least one sample_id is required.")
+        if len(ordered_ids) > 100:
+            raise SampleInvalidInputError(
+                "Cannot print more than 100 labels in a single request."
+            )
+
+        rows = (
+            Sample.objects.select_related("invoice__patient", "collected_by", "branch")
+            .prefetch_related("sample_tests__test")
+            .filter(pk__in=ordered_ids)
+        )
+        by_id = {s.id: s for s in rows}
+        allowed = None if actor.is_tenant_wide else set(effective_branch_ids(actor))
+
+        samples: list[Sample] = []
+        for sid in ordered_ids:
+            sample = by_id.get(sid)
+            if sample is None or (
+                allowed is not None and sample.branch_id not in allowed
+            ):
+                raise SampleNotFoundError("Sample not found.")
+            samples.append(sample)
+        return samples
+
+    @staticmethod
+    def get_labels_bulk(
+        *,
+        sample_ids: list[uuid.UUID],
+        actor: StaffUser,
+        ip: str | None = None,
+        user_agent: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """Build ordered Code128 label payloads for preview without auditing."""
+        samples = SampleService._load_bulk_samples(sample_ids=sample_ids, actor=actor)
+        return [SampleService._build_label_payload(sample) for sample in samples]
 
     @staticmethod
     def print_label(
@@ -641,20 +718,34 @@ class SampleService:
         )
         sample = _get_sample(sample_id)
         with transaction.atomic():
-            AuditLog.objects.create(
-                actor_id=actor.id,
-                action="sample.label_printed",
-                entity_type="sample",
-                entity_id=sample.id,
-                before_jsonb=None,
-                after_jsonb={
-                    "accession_id": sample.accession_id,
-                    "printed_by": str(actor.id),
-                },
+            SampleService._record_label_print_audit(
+                sample=sample,
+                actor=actor,
                 ip=ip,
                 user_agent=user_agent,
             )
         return payload
+
+    @staticmethod
+    def print_labels_bulk(
+        *,
+        sample_ids: list[uuid.UUID],
+        actor: StaffUser,
+        ip: str | None = None,
+        user_agent: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """Explicitly print labels for multiple samples (1 audit row per sample)."""
+        samples = SampleService._load_bulk_samples(sample_ids=sample_ids, actor=actor)
+        payloads = [SampleService._build_label_payload(sample) for sample in samples]
+        with transaction.atomic():
+            for sample in samples:
+                SampleService._record_label_print_audit(
+                    sample=sample,
+                    actor=actor,
+                    ip=ip,
+                    user_agent=user_agent,
+                )
+        return payloads
 
     # ------------------------------------------------------------------
     # Lifecycle (KAN-138 / LAB-22)
