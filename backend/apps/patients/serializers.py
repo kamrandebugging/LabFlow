@@ -6,6 +6,7 @@ Validation rules:
 """
 
 import re
+import uuid
 from datetime import date
 from typing import Any
 

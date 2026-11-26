@@ -946,21 +946,21 @@ class ResultService:
                     user_agent=user_agent,
                 )
             elif supersedes_id is not None:
-                sample_ready, restored_report = _maybe_restore_sample_after_amendment_abort(
-                    sample_id=result.sample_id,
-                    actor=actor,
-                    trigger_action="result.amendment_rejected",
-                    ip=ip,
-                    user_agent=user_agent,
+                sample_ready, restored_report = (
+                    _maybe_restore_sample_after_amendment_abort(
+                        sample_id=result.sample_id,
+                        actor=actor,
+                        trigger_action="result.amendment_rejected",
+                        ip=ip,
+                        user_agent=user_agent,
+                    )
                 )
 
             # KAN-155 / LAB-30 (RP-1, RP-4): enqueue the async PDF pipeline
             # after commit. Sample just became ready -> ensure the draft
             # report row and generate version 1. Amendment approved on a
             # final report -> generate the next (amended) version.
-            if (
-                sample_ready and not restored_report
-            ) or report_version_requested:
+            if (sample_ready and not restored_report) or report_version_requested:
                 _enqueue_report_generation_after_commit(
                     sample_id=result.sample_id,
                     actor=actor,
@@ -1329,7 +1329,9 @@ def _maybe_complete_sample(
     )
     if not test_ids <= approved_ids:
         return False
-    if Result.objects.filter(sample_id=sample_id, status=Result.Status.ENTERED).exists():
+    if Result.objects.filter(
+        sample_id=sample_id, status=Result.Status.ENTERED
+    ).exists():
         return False
 
     sample = Sample.objects.select_for_update().get(pk=sample_id)
@@ -1474,8 +1476,8 @@ def _maybe_restore_sample_after_amendment_abort(
     ip: str | None = None,
     user_agent: str | None = None,
 ) -> tuple[bool, bool]:
-    """Restore READY + finalised report when a pending amendment is rejected or withdrawn
-    and all ordered tests still retain APPROVED results."""
+    """Restore READY + finalised report when a pending amendment is rejected or
+    withdrawn and all ordered tests still retain APPROVED results."""
     completed = _maybe_complete_sample(
         sample_id=sample_id,
         actor=actor,

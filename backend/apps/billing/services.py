@@ -2578,14 +2578,6 @@ class DayCloseService:
                 email__iexact=clean_email,
                 is_active=True,
             ).first()
-            if (
-                candidate is not None
-                and candidate.locked_until is not None
-                and candidate.locked_until > timezone.now()
-            ):
-                raise ApproverRateLimitedError(
-                    "Approver account is temporarily locked. Try again later."
-                )
 
             verified = candidate is not None and check_password(
                 approver_password, candidate.password_hash

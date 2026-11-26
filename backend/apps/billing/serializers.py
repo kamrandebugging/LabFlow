@@ -329,9 +329,11 @@ class DayCloseSummarySerializer(serializers.Serializer):
     counted_cash = MoneyField()
     difference = MoneyField()
     difference_note = serializers.CharField(allow_null=True)
-    closed_by = serializers.UUIDField(allow_null=True)
+    closed_by = serializers.UUIDField(source="closed_by_id", allow_null=True)
     closed_by_name = serializers.SerializerMethodField()
-    approved_by = serializers.UUIDField(allow_null=True, required=False)
+    approved_by = serializers.UUIDField(
+        source="approved_by_id", allow_null=True, required=False
+    )
     approved_by_name = serializers.SerializerMethodField()
     closed_at = serializers.DateTimeField()
 
@@ -369,7 +371,7 @@ class DayCloseReopenSerializer(serializers.Serializer):
     branch_id = serializers.UUIDField()
     business_date = serializers.DateField()
     reason = serializers.CharField()
-    reopened_by = serializers.UUIDField(allow_null=True)
+    reopened_by = serializers.UUIDField(source="reopened_by_id", allow_null=True)
     reopened_by_name = serializers.SerializerMethodField()
     reopened_at = serializers.DateTimeField()
     prior_expected_cash = MoneyField(source="day_close.expected_cash")

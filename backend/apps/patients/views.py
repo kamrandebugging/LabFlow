@@ -9,7 +9,7 @@ Implements:
 """
 
 import uuid
-from typing import Any, cast
+from typing import cast
 
 from rest_framework import permissions, status
 from rest_framework.request import Request
@@ -68,7 +68,12 @@ class PatientListCreateView(BranchScopedAPIView):
                 branch_id = uuid.UUID(branch_id_str)
             except ValueError:
                 return Response(
-                    _format_error("validation_error", "Invalid branch_id UUID."),
+                    {
+                        "error": {
+                            "code": "validation_error",
+                            "message": "Invalid branch_id UUID.",
+                        }
+                    },
                     status=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 )
 

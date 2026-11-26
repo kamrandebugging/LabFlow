@@ -510,7 +510,7 @@ class PatientService:
         ip: str | None = None,
         user_agent: str | None = None,
     ) -> dict[str, Any]:
-        """Return bounded chronological patient visits with invoices, samples, reports."""
+        """Return chronological patient visits with invoices, samples, reports."""
         patient = cls.get_patient_detail(
             actor=actor,
             patient_id=patient_id,

@@ -87,7 +87,7 @@ def backfill_business_dates(apps: Any, schema_editor: Any) -> None:
     )
     schema_editor.execute(
         """
-        UPDATE "credit_note"
+        UPDATE "billing_credit_note"
         SET "business_date" = ("issued_at" AT TIME ZONE 'Asia/Karachi')::date
         WHERE "business_date" IS NULL AND "issued_at" IS NOT NULL;
         """
@@ -165,7 +165,9 @@ class Migration(migrations.Migration):
             name="business_date",
             field=models.DateField(default=django.utils.timezone.localdate),
         ),
-        migrations.RunPython(_temporarily_allow_payment_alter, migrations.RunPython.noop),
+        migrations.RunPython(
+            _temporarily_allow_payment_alter, migrations.RunPython.noop
+        ),
         migrations.RunPython(backfill_business_dates, migrations.RunPython.noop),
         migrations.AlterField(
             model_name="creditnote",

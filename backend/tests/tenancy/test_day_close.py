@@ -422,7 +422,14 @@ def test_pkt_00_to_05_boundary_counts_toward_pkt_business_date(
 
     with tenant_context(tenant_a):
         test_obj = TestFactory(name="PKT Boundary Test", code="PKT01")
-        TestPriceFactory(test=test_obj, panel=None, price=Decimal("1000.00"))
+        TestPriceFactory(
+            test=test_obj,
+            panel=None,
+            price=Decimal("1000.00"),
+            # The test pins "now" to 2026-11-24 20:30 UTC, so the price must
+            # already be effective before that instant.
+            effective_from=datetime(2026, 1, 1, tzinfo=UTC),
+        )
 
         with (
             patch("django.utils.timezone.now", return_value=utc_late),

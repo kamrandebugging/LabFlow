@@ -18,7 +18,7 @@ from decimal import Decimal
 from typing import Any, cast
 
 from django.core.exceptions import ValidationError
-from django.db.models import Sum, TextField
+from django.db.models import TextField
 from django.db.models.functions import Cast
 from django.http import QueryDict
 from django.utils import timezone
@@ -28,7 +28,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.accounts.models import Role, StaffUser
-from apps.billing.models import CreditNote, Invoice, Payment
+from apps.billing.models import Invoice, Payment
 from apps.billing.serializers import (
     CreditNoteCreateSerializer,
     CreditNoteSerializer,
