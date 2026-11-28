@@ -137,6 +137,17 @@ def _schema(tenant_a: Any) -> str:
     return tenant_a.schema_name
 
 
+def _ready_sample_for_task(s: dict[str, Any]) -> None:
+    """Direct generate_pdf_task calls skip samples that are not READY with
+    all results APPROVED (LAB-27 stale-report guard). This readies the lab30
+    sample the same way the final pathologist approval would, without
+    going through the API (those flows have their own tests)."""
+    Sample.objects.filter(pk=s["sample"].id).update(status=Sample.Status.READY)
+    Result.objects.filter(sample_id=s["sample"].id).update(
+        status=Result.Status.APPROVED
+    )
+
+
 # ---------------------------------------------------------------------------
 # T-32: report created on ready, exactly one enqueue
 # ---------------------------------------------------------------------------
@@ -201,6 +212,7 @@ def test_task_happy_path(tenant_a: Any, lab30_setup: dict[str, Any]) -> None:
     s = lab30_setup
     with tenant_context(tenant_a):
         sample = Sample.objects.get(pk=s["sample"].id)
+        _ready_sample_for_task(s)
         report = ReportFactory(sample=sample)
         result = generate_pdf_task(_schema(tenant_a), str(report.id), None, 1)
     assert result["status"] == "ok"
@@ -225,6 +237,7 @@ def test_task_idempotent_rerun(tenant_a: Any, lab30_setup: dict[str, Any]) -> No
 
     s = lab30_setup
     with tenant_context(tenant_a):
+        _ready_sample_for_task(s)
         report = ReportFactory(sample=s["sample"])
         first = generate_pdf_task(_schema(tenant_a), str(report.id), None, 1)
         second = generate_pdf_task(_schema(tenant_a), str(report.id), None, 1)
@@ -244,6 +257,7 @@ def test_task_render_failure_leaves_no_version_row(
 
     s = lab30_setup
     with tenant_context(tenant_a):
+        _ready_sample_for_task(s)
         report = ReportFactory(sample=s["sample"])
         with (
             patch(
@@ -270,6 +284,7 @@ def test_task_upload_failure_leaves_no_version_row(
 
     s = lab30_setup
     with tenant_context(tenant_a):
+        _ready_sample_for_task(s)
         report = ReportFactory(sample=s["sample"])
         with (
             patch(
@@ -298,6 +313,7 @@ def test_regenerate_happy_path(
 
     s = lab30_setup
     with tenant_context(tenant_a):
+        _ready_sample_for_task(s)
         report = ReportFactory(sample=s["sample"])
         generate_pdf_task(_schema(tenant_a), str(report.id), None, 1)
         report.refresh_from_db()
@@ -377,6 +393,7 @@ def test_regenerate_after_failure_works(
 
     s = lab30_setup
     with tenant_context(tenant_a):
+        _ready_sample_for_task(s)
         report = ReportFactory(sample=s["sample"])
         with (
             patch(
@@ -472,6 +489,7 @@ def test_version_generated_event_flag(
 
     s = lab30_setup
     with tenant_context(tenant_a):
+        _ready_sample_for_task(s)
         report = ReportFactory(sample=s["sample"])
         generate_pdf_task(_schema(tenant_a), str(report.id), str(s["manager"].id), 1)
         rows = list(

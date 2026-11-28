@@ -237,6 +237,14 @@ RAW_CACHE_ALLOWLIST: dict[str, str] = {
         "Callback replay nonces are a hash of the HMAC signature itself "
         "(callback:nonce:<sha256>), not tenant data (LAB-49 Phase 4.2)."
     ),
+    "apps/billing/services.py": (
+        "Day Close second-approver and pickup-code keys are tenant-segmented "
+        "by construction: day_close:approver_fail:<schema>:<email>, "
+        "pickup_code_fail:<schema>:<invoice_id> and "
+        "day_close:totp_used:<staff_id>:<totp>; the single-use "
+        "day_close:approval:<random token> key is unguessable and carries no "
+        "tenant business data (LAB-49 Day Close hardening)."
+    ),
     "apps/platform/views_metrics.py": (
         "The 60s overview cache is a single apex-wide snapshot aggregated from "
         "the public schema only."

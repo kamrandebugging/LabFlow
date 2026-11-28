@@ -476,9 +476,27 @@ class InvoiceDetailView(APIView):
             "created_at": invoice.created_at,
         }
         payload["pickup_code_expires_at"] = invoice.pickup_code_expires_at
+        for_print = request.query_params.get("for_print") == "true"
+        if for_print:
+            # Phase 9 Rule 2: printing rotates the pickup code; the plaintext
+            # is returned exactly once on the print payload and only ever
+            # stored as a salted Argon2 hash with expiry.
+            try:
+                payload["pickup_code"] = BillingService.issue_pickup_code(
+                    invoice,
+                    actor=user,
+                    ip=_get_client_ip(request),
+                    user_agent=request.META.get("HTTP_USER_AGENT", ""),
+                )
+                payload["pickup_code_expires_at"] = invoice.pickup_code_expires_at
+            except BillingError as exc:
+                return Response(
+                    _format_error(exc.error_code, str(exc) or exc.error_code),
+                    status=exc.status_code,
+                )
         return Response(
             InvoiceDetailSerializer(
-                payload, context={"request": request, "for_print": False}
+                payload, context={"request": request, "for_print": for_print}
             ).data,
             status=status.HTTP_200_OK,
         )

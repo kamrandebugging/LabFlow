@@ -98,6 +98,7 @@ class TestShareLedgerEntryModel:
             "period",
             "business_date",
             "credit_note_id",
+            "invoice_void_id",
             "void_event_id",
             "created_at",
         }
